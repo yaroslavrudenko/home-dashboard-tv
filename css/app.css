@@ -1,0 +1,125 @@
+/* Home Dashboard — 1920×1080 TV layout, calm Apple-like dark style.
+ * Chromium 47: no CSS custom properties, no grid, no backdrop-filter, no font-variant-numeric — flexbox,
+ * semi-transparent fills and -webkit-font-feature-settings instead.
+ * Spacing scale: 8 · 16 · 24 · 28 (gutter) · 40 · 56/64 (page). Radius: 32 (cards), 20 (inner). */
+
+html, body {
+  margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden;
+  background: #0f1422;
+  background: linear-gradient(160deg, #1d2742 0%, #151c30 48%, #10141f 100%);
+  color: #fff;
+  font-family: -apple-system, "SF Pro Display", "Helvetica Neue", "SamsungOne", "Samsung Sans", "TizenSans", Roboto, "Segoe UI", Arial, sans-serif;
+  font-weight: 400;
+  line-height: 1.2;
+  -webkit-font-smoothing: antialiased;
+  -webkit-font-feature-settings: "tnum" 1;
+  font-feature-settings: "tnum" 1;
+  cursor: none;
+}
+* { box-sizing: border-box; }
+
+#stage {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+  padding: 48px 64px;
+  display: flex; flex-direction: column;
+  -webkit-transition: -webkit-transform 6s ease-in-out; transition: transform 6s ease-in-out;
+}
+
+/* ---- cards ------------------------------------------------------------------------------------ */
+.card {
+  position: relative;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.065);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.045) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 24px 60px rgba(4, 8, 20, 0.35);
+  overflow: hidden;
+}
+.card-title {
+  font-size: 26px; font-weight: 500; letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.55);
+  text-transform: uppercase;
+}
+.icon { display: block; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.ic-sun { stroke: #ffd58f; }
+.ic-moon { stroke: #d8dcff; }
+.ic-cloud { stroke: #e3e9f3; }
+.ic-fog { stroke: rgba(227, 233, 243, 0.7); }
+.ic-rain, .ic-drizzle { stroke: #8ec5ff; }
+.ic-snow { stroke: #eaf5ff; fill: #eaf5ff; }
+.ic-bolt { stroke: #ffe28f; }
+.ic-wind { stroke: #b9e3d6; }
+.ic-drop { stroke: #9fd0ff; }
+
+/* ---- clocks ----------------------------------------------------------------------------------- */
+/* Vertical budget (984 px inside the page padding): clocks 280 · 24 · current 416 · 24 · hourly 240. */
+.clocks { display: flex; height: 280px; flex: 0 0 280px; }
+.clock {
+  flex: 1 1 0; margin-right: 28px; padding: 26px 40px 22px;
+  display: flex; flex-direction: column;
+  -webkit-transition: background-color 2s ease; transition: background-color 2s ease;
+}
+.clock:last-child { margin-right: 0; }
+.clock.is-night { background: linear-gradient(180deg, rgba(150, 160, 255, 0.075) 0%, rgba(255, 255, 255, 0.03) 100%); }
+.clock-head { display: flex; align-items: center; justify-content: space-between; height: 40px; }
+.clock-city { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
+.clock-dn .icon { width: 40px; height: 40px; }
+.clock-time { font-size: 104px; font-weight: 200; line-height: 1; margin-top: 10px; letter-spacing: -0.01em; }
+.clock-time .approx { font-size: 56px; color: #ffd58f; margin-right: 12px; vertical-align: top; }
+.clock-date { font-size: 28px; color: rgba(255, 255, 255, 0.62); margin-top: 8px; }
+.clock-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; height: 36px; }
+.clock-diff { font-size: 26px; color: rgba(255, 255, 255, 0.45); }
+.clock-weather { display: flex; align-items: center; }
+.clock-weather .icon { width: 40px; height: 40px; margin-right: 8px; }
+.clock-temp { font-size: 30px; font-weight: 400; color: rgba(255, 255, 255, 0.85); }
+
+/* ---- main area -------------------------------------------------------------------------------- */
+.main { display: flex; flex: 1 1 auto; margin-top: 24px; min-height: 0; }
+.col-left { display: flex; flex-direction: column; flex: 1 1 auto; margin-right: 28px; min-width: 0; }
+.daily { flex: 0 0 600px; padding: 32px 40px; }
+
+/* current weather */
+.now { flex: 1 1 auto; padding: 28px 48px 26px; display: flex; flex-direction: column; }
+.now-top { display: flex; justify-content: space-between; }
+.now-place { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
+.now-temp { font-size: 136px; font-weight: 200; line-height: 1; margin-top: 4px; text-indent: -6px; }   /* optical alignment of the big digits */
+.now-cond { font-size: 36px; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
+.now-sub { font-size: 28px; color: rgba(255, 255, 255, 0.58); margin-top: 4px; }
+.now-hl { margin-left: 32px; color: rgba(255, 255, 255, 0.75); }
+.now-icon .icon { width: 210px; height: 210px; margin: 4px 8px 0 0; stroke-width: 2.2; }
+.details { display: flex; margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.detail { flex: 1 1 0; display: flex; align-items: center; }
+.detail .icon { width: 44px; height: 44px; margin-right: 14px; flex: 0 0 44px; }
+.detail-text { display: flex; flex-direction: column; }
+.detail-label { font-size: 22px; color: rgba(255, 255, 255, 0.5); }
+.detail-value { font-size: 30px; color: rgba(255, 255, 255, 0.92); margin-top: 2px; white-space: nowrap; }
+.placeholder { font-size: 34px; color: rgba(255, 255, 255, 0.5); margin-top: 40px; }
+
+/* hourly strip */
+.hourly-card { flex: 0 0 240px; margin-top: 24px; padding: 24px 40px 18px; }
+.hours { display: flex; justify-content: space-between; margin-top: 10px; }
+.hour { display: flex; flex-direction: column; align-items: center; width: 88px; }
+.hour-label { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.hour.is-now .hour-label { color: #fff; font-weight: 500; }
+.hour .icon { width: 52px; height: 52px; margin-top: 6px; }
+.hour-pop { font-size: 20px; color: #8ec5ff; height: 24px; line-height: 24px; }
+.hour-temp { font-size: 32px; color: rgba(255, 255, 255, 0.92); }
+.status { position: absolute; right: 40px; top: 28px; font-size: 22px; color: rgba(255, 255, 255, 0.42); display: flex; align-items: center; }
+.status-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 10px; background: rgba(140, 230, 180, 0.7); }
+.status.is-stale, .status.is-failed { color: rgba(255, 214, 150, 0.85); }
+.status.is-stale .status-dot, .status.is-failed .status-dot { background: #ffcf8a; }
+.status.is-loading .status-dot { background: rgba(255, 255, 255, 0.35); }
+
+/* 7-day list */
+.days { margin-top: 10px; }
+.day { display: flex; align-items: center; height: 76px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.day:first-child { border-top: 0; }
+.day-name { width: 150px; font-size: 30px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
+.day-icon { width: 76px; display: flex; flex-direction: column; align-items: center; }
+.day-icon .icon { width: 48px; height: 48px; }
+.day-pop { font-size: 18px; color: #8ec5ff; height: 20px; line-height: 20px; }
+.day-min { width: 72px; text-align: right; font-size: 30px; color: rgba(255, 255, 255, 0.5); }
+.day-max { width: 72px; text-align: right; font-size: 30px; color: rgba(255, 255, 255, 0.95); }
+.range { position: relative; flex: 1 1 auto; height: 8px; margin: 0 4px 0 20px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); }
+.range-fill { position: absolute; top: 0; height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, #8fd0ff 0%, #b9e6c9 50%, #ffcf8a 100%); }

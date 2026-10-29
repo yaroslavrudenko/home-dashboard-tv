@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://yaroslav.local/homedashboard" version="0.1.0" viewmodes="maximized">
+    <tizen:application id="HomeDash01.Dashboard" package="HomeDash01" required_version="3.0"/>
+    <name>Home Dashboard</name>
+    <icon src="img/icon.png"/>
+    <content src="index.html"/>
+    <!-- Open-Meteo today; alerts, currency, Hebcal, news and traffic later: any HTTPS origin -->
+    <access origin="*" subdomains="true"/>
+    <tizen:content-security-policy>default-src * 'unsafe-inline' data: blob:</tizen:content-security-policy>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:profile name="tv-samsung"/>
+    <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable"
+                   encryption="disable" install-location="auto" hwkey-event="enable"/>
+</widget>

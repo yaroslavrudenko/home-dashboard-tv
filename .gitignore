@@ -1,0 +1,9 @@
+.buildResult/
+*.wgt
+.sign/
+.DS_Store
+# local build settings (certificate profile, device profile path, TV address)
+build.local.env
+node_modules/
+.claude/
+.agent-workspace/
