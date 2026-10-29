@@ -137,6 +137,6 @@ puppeteer-core.
 
 ## License
 
-MIT © Yaroslav Rudenko. See [LICENSE](LICENSE).
+MIT © Yaroslav Rudenko. See [LICENSE](LICENSE). The same licence covers the sibling project [Настин кинозал](https://github.com/yaroslavrudenko/nastin-kinozal), an IPTV player for the same TVs.
 The bundled Inter font is © The Inter Project Authors, under the SIL Open Font License 1.1
 ([fonts/OFL.txt](fonts/OFL.txt)).
