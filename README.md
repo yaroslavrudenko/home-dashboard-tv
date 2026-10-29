@@ -1,7 +1,8 @@
 # Home Dashboard for Samsung TV
 
-A calm family dashboard for a Samsung Smart TV: the time in Israel, Ukraine and Sydney, and the weather
-at home, in one glance from the sofa. Switch the TV on, open the app, and leave it running.
+A calm family dashboard for a Samsung Smart TV: the time in Israel, Ukraine and Sydney, the weather at home,
+the news, the traffic, and the Israel Home Front Command alerts, in one glance from the sofa. Switch the TV on,
+open the app, and leave it running.
 
 ![Home Dashboard at 1920×1080](docs/screenshot.png)
 
@@ -14,6 +15,12 @@ app (static Light / Regular / Medium, Latin + Cyrillic, about 96 KB), so the TV 
 screenshot instead of whatever system font it has.
 
 ## What it shows
+
+Three screens, switched with the remote's ◀ ▶ and shown in turn every 45 seconds (page dots at the bottom
+mark the current one). Any key pauses the rotation for two minutes; `rotation.enabled: false` in the config
+turns it off. A screen that is not on view keeps its content and costs nothing: it is redrawn when it comes in.
+
+**1 · Home**
 
 - **World clocks**: Israel (Asia/Jerusalem), Ukraine (Europe/Kyiv) and Sydney (Australia/Sydney), in 24-hour
   time with the weekday, the date, the difference to Israel and each city's current temperature. A card is
@@ -47,10 +54,37 @@ screenshot instead of whatever system font it has.
   *Settings → General → Eco Solution → Auto Power Off*. Not yet verified on the TV for a run longer than 4 hours.
 - **Languages**: Russian (default) and English. Hebrew and Ukrainian slots are ready in `js/i18n.js`.
 
+**2 · News**: the latest story large across the top, the next headlines in two columns, from three
+Russian-language feeds: [NEWSru.co.il](https://www.newsru.co.il/info/rss) "Важные новости" (Israel),
+[Українська правда, Russian edition](https://www.pravda.com.ua/rus/rss/) and
+[BBC News Русская служба](https://feeds.bbci.co.uk/russian/rss.xml). Vesti (vesty.co.il) publishes no live
+feed: every `/Integration/StoryRss*.xml` there is weeks old, so NEWSru.co.il stands in for Israel. All three
+come in one parallel round every 10 minutes; stories are merged newest first, a story two feeds carry is
+shown once, and feed text is reduced to plain text (no feed HTML ever reaches the screen). Headlines are
+never cut: when they are long, fewer are shown. A feed that fails keeps its last stories and is named in the
+status line.
+
+**3 · Traffic**: travel time now and without traffic from Rehovot to Tel Aviv (Azrieli), Rishon LeZion and
+Jerusalem, with a soft green / amber / red delay chip and a time bar, plus a congestion line for the Ayalon
+and Routes 4, 1 and 6. It comes from the [TomTom Routing API](https://developer.tomtom.com/routing-api) in
+ONE batch request (summaries only), every 5 minutes while the screen is on view and every 15 otherwise. It
+needs a free TomTom key (see Build); without one the screen says how to connect it and sends nothing. The
+client is written against TomTom's documented answers and tested on them; it has not yet run against a live key.
+
+**Israel alerts (all screens)**: the [Home Front Command](https://www.oref.org.il/) alert feed is read every
+5 seconds (one request at a time, 4-second timeout). When an alert covers Rehovot, a deep-red full-screen
+notice appears over everything: the kind of alert, the area, the time it started and the instruction. It
+stays until the feed no longer lists the area plus one minute; the remote cannot dismiss it (Back still
+closes the app) and the rotation waits. An alert in a nearby town shows a quiet line in the bottom-right
+corner. If the feed cannot be reached three times in a row, the corner says "Тревоги: нет связи"; the app
+never claims "all clear". The feed answers only inside Israel. Areas are configured by their Hebrew names in
+`js/config.js` (`alerts.areas`, `alerts.nearby`).
+
 ## Configure
 
-Everything lives in [`js/config.js`](js/config.js): language, clocks (zones and order), weather places
-(the first is the main card), refresh intervals and burn-in timing. City names are in `js/i18n.js`.
+Everything lives in [`js/config.js`](js/config.js): language, screens and rotation, clocks (zones and order),
+weather places (the first is the main card), news feeds, traffic routes and roads, alert areas, refresh
+intervals and burn-in timing. Names on screen are in `js/i18n.js`.
 
 ## Build, sign and install on any Samsung TV
 
@@ -59,7 +93,7 @@ how to get Samsung certificates on a Mac and the `install failed[118]` trap, is 
 [docs/DEPLOY.md](docs/DEPLOY.md). Short version:
 
 ```sh
-cp build.local.env.example build.local.env   # fill in CERT_PROFILE, DEVICE_PROFILE, TV
+cp build.local.env.example build.local.env   # fill in CERT_PROFILE, DEVICE_PROFILE, TV (and TOMTOM_KEY for traffic)
 ./build.sh --package                         # build + sign only → .buildResult/HomeDashboard.wgt
 ./build.sh                                   # build + sign + install on the TV + launch
 ```
@@ -69,29 +103,34 @@ several devices answer, it stops unless `TV_DUID` in `build.local.env` names the
 only on the device that reports that DUID. `./build.sh` refuses any argument other than `--package` and
 `--help` before it builds or connects to anything.
 
+`TOMTOM_KEY` (letters and digits, from developer.tomtom.com) is put into the packaged copy of
+`js/config.js` only; the repository keeps the `__TOMTOM_KEY__` placeholder and a test pins it. The free tier
+allows 2,500 routing requests a day and each refresh counts 7 (3 routes + 4 roads): about 2,000 a day if the
+TV runs 24 hours with the traffic screen in the rotation, fewer otherwise. Remove roads from the config to
+use less.
+
 ## Develop and test
 
 Open `index.html` in desktop Chrome at 1920×1080 for development. Tests use Node 22's built-in runner and
 have no dependencies in this repo:
 
 ```sh
-tests/run.sh                         # unit tests: time zones, weather parsing, refresh/stale/back-off, i18n, packaging, build.sh / find-tv.sh
-PUPPETEER_CORE_DIR=<dir with puppeteer-core> tests/run.sh --browser   # + layout smoke in headless Chrome at 1920×1080
+tests/run.sh                         # unit tests: time zones, weather, news, traffic, alerts, screens, refresh/stale/back-off, i18n, packaging, build.sh / find-tv.sh
+PUPPETEER_CORE_DIR=<dir with puppeteer-core> tests/run.sh --browser   # + every screen and the alert in headless Chrome at 1920×1080
 ACORN=<path to acorn> tools/es5-gate.sh                               # every script must parse as ES5
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
 PUPPETEER_CORE_DIR=... node tools/make-icon.mjs                       # img/icon.svg → img/icon.png (512×423)
 ```
 
-The browser tests answer Open-Meteo from recorded responses in `tests/fixtures/` and fail (never skip)
-without puppeteer-core.
+The browser tests answer Open-Meteo, the news feeds, the alert feed and TomTom from `tests/fixtures/` (the
+recorded shape of each source; the news stories in them are invented) and fail (never skip) without
+puppeteer-core.
 
 ## Roadmap
 
-- Alerts: Pikud HaOref (Israel Home Front Command) and air-raid alerts in Ukraine
+- Air-raid alerts in Ukraine (needs a token)
 - Currency: Bank of Israel and National Bank of Ukraine rates
 - Shabbat times and holidays (Hebcal)
-- News headlines (RSS)
-- Traffic in central Israel (TomTom or HERE, needs a key)
 - Family birthdays and reminders
 - Photo frame mode
 - Night mode (dimmer, warmer, clocks only)

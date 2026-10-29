@@ -35,7 +35,24 @@ var I18n = (function () {
         'w.wind': 'Ветер', 'w.humidity': 'Влажность', 'w.rain': 'Осадки', 'w.sunrise': 'Восход', 'w.sunset': 'Закат',
         'w.kmh': 'км/ч', 'w.now': 'Сейчас', 'w.today': 'Сегодня', 'w.hourly': 'Почасовой прогноз', 'w.daily': 'Прогноз на 7 дней',
         'w.updated': 'Обновлено в {time}', 'w.stale': 'Не обновляется · данные от {time}', 'w.loading': 'Загружаем погоду…',
-        'w.failed': 'Погода временно недоступна', 'w.retry': 'Повторим в {time}', 'w.retrySoon': 'Повторим позже'
+        'w.failed': 'Погода временно недоступна', 'w.retry': 'Повторим в {time}', 'w.retrySoon': 'Повторим позже',
+        'screen.main': 'Главная', 'screen.news': 'Новости', 'screen.traffic': 'Пробки',
+        'n.src.newsru': 'NEWSru.co.il', 'n.src.pravda': 'Украинская правда', 'n.src.bbc': 'Би-би-си',
+        'n.more': 'Ещё новости', 'n.justNow': 'Только что', 'n.minAgo': '{n} мин назад', 'n.hAgo': '{n} ч назад', 'n.dAgo': '{n} дн. назад',
+        'n.loading': 'Загружаем новости…', 'n.failed': 'Новости временно недоступны',
+        'n.partial': 'Обновлено в {time} · нет связи: {sources}',
+        't.roads': 'Главные дороги', 't.from': 'Из Реховота',
+        't.route.telaviv': 'Тель-Авив, Азриэли', 't.route.rishon': 'Ришон-ле-Цион', 't.route.jerusalem': 'Иерусалим',
+        't.road.ayalon': 'Аялон', 't.road.road4': 'Шоссе 4', 't.road.road1': 'Шоссе 1', 't.road.road6': 'Шоссе 6',
+        't.min': '{n} мин', 't.hmin': '{h} ч {m} мин', 't.usual': 'Без пробок {time}', 't.delay': '+{n} мин', 't.km': '{n} км',
+        't.level.ok': 'Свободно', 't.level.slow': 'Затруднено', 't.level.jam': 'Пробка', 't.noData': 'Нет данных',
+        't.noKey': 'Подключите ключ TomTom, чтобы видеть пробки', 't.noKeySub': 'TOMTOM_KEY в build.local.env, затем пересоберите приложение',
+        't.loading': 'Загружаем пробки…', 't.failed': 'Пробки временно недоступны',
+        'a.kind.missiles': 'Ракетный обстрел', 'a.kind.aircraft': 'Вражеский беспилотник', 'a.kind.infiltration': 'Проникновение террористов',
+        'a.kind.earthquake': 'Землетрясение', 'a.kind.tsunami': 'Угроза цунами', 'a.kind.hazmat': 'Утечка опасных веществ',
+        'a.kind.radiological': 'Радиационная угроза', 'a.kind.prealert': 'Скоро возможна тревога', 'a.generic': 'Тревога',
+        'a.since': 'С {time}', 'a.shelter': 'Войдите в защищённое помещение', 'a.shelterFor': 'Войдите в защищённое помещение и оставайтесь там {n} мин',
+        'a.nearby': 'Тревога рядом: {areas}', 'a.offline': 'Тревоги: нет связи'
       }
     },
     en: {
@@ -54,7 +71,24 @@ var I18n = (function () {
         'w.wind': 'Wind', 'w.humidity': 'Humidity', 'w.rain': 'Rain', 'w.sunrise': 'Sunrise', 'w.sunset': 'Sunset',
         'w.kmh': 'km/h', 'w.now': 'Now', 'w.today': 'Today', 'w.hourly': 'Hourly forecast', 'w.daily': '7-day forecast',
         'w.updated': 'Updated at {time}', 'w.stale': 'Not updating · data from {time}', 'w.loading': 'Loading the weather…',
-        'w.failed': 'Weather is temporarily unavailable', 'w.retry': 'Retrying at {time}', 'w.retrySoon': 'Will retry soon'
+        'w.failed': 'Weather is temporarily unavailable', 'w.retry': 'Retrying at {time}', 'w.retrySoon': 'Will retry soon',
+        'screen.main': 'Home', 'screen.news': 'News', 'screen.traffic': 'Traffic',
+        'n.src.newsru': 'NEWSru.co.il', 'n.src.pravda': 'Ukrainska Pravda', 'n.src.bbc': 'BBC Russian',
+        'n.more': 'More news', 'n.justNow': 'Just now', 'n.minAgo': '{n} min ago', 'n.hAgo': '{n} h ago', 'n.dAgo': '{n} d ago',
+        'n.loading': 'Loading the news…', 'n.failed': 'News is temporarily unavailable',
+        'n.partial': 'Updated at {time} · no connection: {sources}',
+        't.roads': 'Main roads', 't.from': 'From Rehovot',
+        't.route.telaviv': 'Tel Aviv, Azrieli', 't.route.rishon': 'Rishon LeZion', 't.route.jerusalem': 'Jerusalem',
+        't.road.ayalon': 'Ayalon', 't.road.road4': 'Route 4', 't.road.road1': 'Route 1', 't.road.road6': 'Route 6',
+        't.min': '{n} min', 't.hmin': '{h} h {m} min', 't.usual': '{time} without traffic', 't.delay': '+{n} min', 't.km': '{n} km',
+        't.level.ok': 'Clear', 't.level.slow': 'Slow', 't.level.jam': 'Jammed', 't.noData': 'No data',
+        't.noKey': 'Connect a TomTom key to see the traffic', 't.noKeySub': 'TOMTOM_KEY in build.local.env, then rebuild the app',
+        't.loading': 'Loading the traffic…', 't.failed': 'Traffic is temporarily unavailable',
+        'a.kind.missiles': 'Rocket and missile fire', 'a.kind.aircraft': 'Hostile aircraft intrusion', 'a.kind.infiltration': 'Terrorist infiltration',
+        'a.kind.earthquake': 'Earthquake', 'a.kind.tsunami': 'Tsunami', 'a.kind.hazmat': 'Hazardous materials',
+        'a.kind.radiological': 'Radiological event', 'a.kind.prealert': 'Alerts expected shortly', 'a.generic': 'Alert',
+        'a.since': 'Since {time}', 'a.shelter': 'Enter the protected space', 'a.shelterFor': 'Enter the protected space and stay {n} min',
+        'a.nearby': 'Alert nearby: {areas}', 'a.offline': 'Alerts: no connection'
       }
     }
   };
@@ -78,6 +112,14 @@ var I18n = (function () {
       return fill(text, vars);
     },
     weekdayShort: function (i) { return table().weekdaysShort[i]; },
+    // How long ago, for a headline: "Только что", "12 мин назад", "3 ч назад", "2 дн. назад" (no plural forms needed).
+    ago: function (ms) {
+      var min = Math.floor(Math.max(ms, 0) / 60000);
+      if (min < 1) return this.t('n.justNow');
+      if (min < 60) return this.t('n.minAgo', { n: min });
+      if (min < 24 * 60) return this.t('n.hAgo', { n: Math.floor(min / 60) });
+      return this.t('n.dAgo', { n: Math.floor(min / 1440) });
+    },
     dateLong: function (weekdayIndex, day, monthIndex) {
       var tb = table();
       return fill(tb.dateLong, { weekday: tb.weekdays[weekdayIndex], day: day, month: tb.monthsGen[monthIndex] });

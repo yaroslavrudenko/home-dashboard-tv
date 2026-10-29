@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0" xmlns:media="http://search.yahoo.com/mrss/">
+    <channel>
+        <title><![CDATA[BBC Russian]]></title>
+        <description><![CDATA[BBC Russian - Главная - BBC News Русская служба]]></description>
+        <link>https://www.bbc.com/russian</link>
+        <item>
+            <title><![CDATA[Ракетная тревога в центре страны: перехваты над Шфелой, пострадавших нет]]></title>
+            <description><![CDATA[Дубль истории NEWSru.co.il с другим адресом: на экране она должна быть один раз.]]></description>
+            <link>https://www.bbc.com/russian/articles/c0xyz?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.com/russian/articles/c0xyz#0</guid>
+            <pubDate>Thu, 29 Oct 2026 18:22:00 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/ws/240/x.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Израиль в политическом тупике после выборов: четыре возможных сценария]]></title>
+            <description><![CDATA[Би-би-си рассматривает, какие коалиции возможны после выборов, на которых ни один блок не получил большинства в Кнессете.]]></description>
+            <link>https://www.bbc.com/russian/articles/c1xyz?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.com/russian/articles/c1xyz#0</guid>
+            <pubDate>Thu, 29 Oct 2026 18:07:00 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/ws/240/x.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Что известно о новом законе ЕС об искусственном интеллекте и кого он коснется уже в 2027 году]]></title>
+            <description><![CDATA[Брюссель утвердил правила &laquo;высокого риска&raquo; &amp; штрафы до 7% оборота. <script>alert(1)</script><img src=x onerror="alert(2)">]]></description>
+            <link>https://www.bbc.com/russian/articles/c2xyz?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.com/russian/articles/c2xyz#0</guid>
+            <pubDate>Thu, 29 Oct 2026 17:40:00 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/ws/240/x.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Почему цены на кофе бьют рекорды второй год подряд]]></title>
+            <description><![CDATA[]]></description>
+            <link>https://www.bbc.com/russian/articles/c3xyz?at_medium=RSS&amp;at_campaign=rss</link>
+            <guid isPermaLink="false">https://www.bbc.com/russian/articles/c3xyz#0</guid>
+            <pubDate>Thu, 29 Oct 2026 16:55:00 GMT</pubDate>
+            <media:thumbnail width="240" height="135" url="https://ichef.bbci.co.uk/ace/ws/240/x.jpg"/>
+        </item>
+        <item>
+            <title><![CDATA[Материал без даты публикации]]></title>
+            <link>https://www.bbc.com/russian/articles/nodate</link>
+        </item>
+    </channel>
+</rss>

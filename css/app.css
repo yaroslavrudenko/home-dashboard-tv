@@ -40,11 +40,36 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* The burn-in shift moves this layer; will-change keeps it composited, so a shift repaints nothing. */
 #stage {
   position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
-  padding: 48px 64px;
-  display: flex; flex-direction: column;
   will-change: transform;
   -webkit-transition: -webkit-transform 6s ease-in-out; transition: transform 6s ease-in-out;
 }
+
+/* ---- screens: one on view; the others keep their DOM, invisible (never painted) and at rest in place ---- */
+.screen {
+  position: absolute; left: 64px; top: 48px; right: 64px; bottom: 48px;
+  display: flex; flex-direction: column;
+  opacity: 0; visibility: hidden;
+  -webkit-transition: opacity 0.6s ease, -webkit-transform 0.6s ease, visibility 0s linear 0.6s;
+  transition: opacity 0.6s ease, transform 0.6s ease, visibility 0s linear 0.6s;
+}
+.screen.is-active {
+  opacity: 1; visibility: visible;
+  -webkit-transition: opacity 0.6s ease, -webkit-transform 0.6s ease, visibility 0s;
+  transition: opacity 0.6s ease, transform 0.6s ease, visibility 0s;
+}
+/* Page dots in the bottom margin, Apple style: the current screen bright, the others quiet. */
+.dots { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: center; justify-content: center; }
+.dot { width: 10px; height: 10px; border-radius: 5px; margin: 0 8px; background: rgba(255, 255, 255, 0.24);
+  -webkit-transition: background-color 0.6s ease; transition: background-color 0.6s ease; }
+.dot.is-on { background: rgba(255, 255, 255, 0.92); }
+/* The status corner (bottom right): a nearby alert, and the alert feed's lost connection. Never an "all clear". */
+.corner { position: absolute; right: 64px; bottom: 0; height: 48px; display: flex; align-items: center; font-size: 24px; white-space: nowrap; }
+.nearby, .alerts-offline { display: flex; align-items: center; }
+.nearby + .alerts-offline { margin-left: 32px; }
+.nearby { color: #ffc9c2; }
+.nearby-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; background: #ff8f85; }
+.alerts-offline { color: rgba(255, 255, 255, 0.62); }
+.offline-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; border: 2px solid rgba(255, 207, 138, 0.9); }
 
 /* ---- cards ------------------------------------------------------------------------------------ */
 .card {
@@ -160,3 +185,107 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
   background-image: linear-gradient(90deg, #8fd0ff 0%, #b9e6c9 50%, #ffcf8a 100%); }
 .range-dot { position: absolute; top: 0; width: 16px; height: 16px; border-radius: 8px; background: #fff; border: 3px solid #1c2440; }
 .day.is-empty .skeleton { flex: 1 1 auto; height: 24px; }
+
+/* ---- News, Traffic and the alert are mostly words: proportional figures (tabular ones space out hyphens, as in
+   "Тель-Авив"); only the figures that change in place stay tabular. */
+#screen-news, #screen-traffic, .corner, .alert { -webkit-font-feature-settings: normal; font-feature-settings: normal; }
+.screen-status, .news-time, .troute-time, .troute-usual, .chip, .troad-sub, .alert-since { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
+
+/* ---- News and Traffic share a header: the screen's name on the left, its status line on the right ------- */
+.screen-head { display: flex; align-items: center; justify-content: space-between; height: 48px; flex: 0 0 48px; padding: 0 41px; }
+.screen-title { margin: 0; font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); letter-spacing: -0.005em; }
+.status.screen-status { position: static; }
+.screen-body { display: flex; flex: 1 1 auto; min-height: 0; margin-top: 24px; }
+.ic-car, .ic-news, .ic-warning { stroke: rgba(255, 255, 255, 0.85); }
+
+/* ---- News: the lead story across the top, the next headlines in two columns ------------------------------ */
+.news-body { flex-direction: column; }
+.news-meta { display: flex; align-items: center; font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.src-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 12px; flex: 0 0 10px; }
+.src-name { color: rgba(255, 255, 255, 0.85); font-weight: 500; }
+.news-time:before { content: "·"; margin: 0 12px; }
+.src-dot.src-newsru { background: #8ec5ff; }
+.src-dot.src-pravda { background: #ffd58f; }
+.src-dot.src-bbc { background: #ffa3ab; }
+.lead { flex: 0 0 auto; padding: 40px 40px 40px; }
+/* A soft light of the source's colour in the top-right corner: the lead has a mood without needing a photo. */
+.lead-glow { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.lead.src-newsru .lead-glow { background: radial-gradient(ellipse 60% 120% at 100% 0%, rgba(142, 197, 255, 0.16) 0%, rgba(142, 197, 255, 0) 70%); }
+.lead.src-pravda .lead-glow { background: radial-gradient(ellipse 60% 120% at 100% 0%, rgba(255, 213, 143, 0.13) 0%, rgba(255, 213, 143, 0) 70%); }
+.lead.src-bbc .lead-glow { background: radial-gradient(ellipse 60% 120% at 100% 0%, rgba(255, 163, 171, 0.14) 0%, rgba(255, 163, 171, 0) 70%); }
+.lead .news-meta { position: relative; font-size: 26px; }
+.lead-title { position: relative; margin-top: 24px; max-width: 1560px; font-size: 60px; font-weight: 500; line-height: 1.15; letter-spacing: -0.01em; }
+.lead-summary { position: relative; margin-top: 16px; max-width: 1480px; font-size: 32px; line-height: 1.35; color: rgba(255, 255, 255, 0.78);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.news-list { flex: 1 1 auto; min-height: 0; margin-top: 24px; padding: 8px 40px; display: flex; }
+.news-col { flex: 1 1 0; min-width: 0; overflow: hidden; }
+.news-col + .news-col { margin-left: 40px; padding-left: 40px; border-left: 1px solid rgba(255, 255, 255, 0.07); }
+.news-item { padding: 24px 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.news-item:first-child { border-top: 0; }
+.news-title { margin-top: 8px; font-size: 30px; line-height: 1.27; color: rgba(255, 255, 255, 0.92); }
+.news-empty, .traffic-empty { flex: 1 1 auto; display: flex; }
+
+/* ---- Traffic: the routes in the two left columns, the main roads in the right one (the clocks' grid) ----- */
+.troutes { flex: 0 0 auto; width: calc((100% - 56px) / 3 * 2 + 28px); margin-right: 28px; display: flex; flex-direction: column; }
+.troute { flex: 1 1 0; padding: 32px 40px; display: flex; flex-direction: column; }
+.troute + .troute { margin-top: 24px; }
+.troute-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.troute-place { min-width: 0; }
+.troute-to { font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
+.troute-from { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-top: 8px; white-space: nowrap; }
+.troute-time { font-size: 88px; font-weight: 300; line-height: 1; white-space: nowrap; letter-spacing: -0.01em; }
+.troute.is-stale .troute-time { color: rgba(255, 255, 255, 0.62); }
+.troute-time .stale-mark { vertical-align: 0.6em; }
+.troute-sub { display: flex; align-items: center; margin-top: auto; }
+.troute-usual { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-left: 16px; white-space: nowrap; }
+.chip { display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 26px; font-weight: 500; white-space: nowrap; }
+.chip.lv-ok { color: #a3eac4; background: rgba(140, 230, 180, 0.13); }
+.chip.lv-slow { color: #ffd59a; background: rgba(255, 207, 138, 0.13); }
+.chip.lv-jam { color: #ffaaa1; background: rgba(255, 140, 128, 0.15); }
+/* the time bar: the free-flow part quiet, the delay in the level's colour */
+.tbar { position: relative; height: 10px; margin-top: 24px; border-radius: 5px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.tbar-free { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: rgba(255, 255, 255, 0.3); }
+.tbar-delay { position: absolute; top: 0; bottom: 0; border-radius: 0 5px 5px 0; }
+.tbar-delay.lv-ok { background: #8ce6b4; }
+.tbar-delay.lv-slow { background: #ffcf8a; }
+.tbar-delay.lv-jam { background: #ff8f80; }
+.troads { flex: 1 1 auto; min-width: 0; padding: 32px 40px; display: flex; flex-direction: column; }
+.troads-list { flex: 1 1 auto; display: flex; flex-direction: column; margin-top: 8px; }
+.troad { flex: 1 1 0; display: flex; flex-direction: column; justify-content: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.troad:first-child { border-top: 0; }
+.troad-top { display: flex; justify-content: space-between; align-items: baseline; }
+.troad-name { font-size: 32px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
+.troad-level { font-size: 26px; font-weight: 500; white-space: nowrap; }
+.troad-level.lv-ok { color: #a3eac4; }
+.troad-level.lv-slow { color: #ffd59a; }
+.troad-level.lv-jam { color: #ffaaa1; }
+.troad-sub { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-top: 4px; white-space: nowrap; }
+.troad .tbar { margin-top: 16px; height: 8px; }
+.troad.is-stale .troad-level { opacity: 0.62; }
+.tskel { height: 24px; margin-top: auto; }
+.troad .tskel { margin-top: 16px; }
+.tnodata { font-size: 26px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.troute .tnodata { margin-top: auto; }
+.troad .tnodata { margin-top: 4px; }
+
+/* ---- The Israel alert: over every screen, deep red and calm; a slow pulse of light (opacity only) ------- */
+.alert {
+  position: fixed; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 10; overflow: hidden;
+  background: #3d0a12 linear-gradient(180deg, #5a111b 0%, #2c070c 100%);
+  opacity: 0; visibility: hidden;
+  -webkit-transition: opacity 0.5s ease, visibility 0s linear 0.5s; transition: opacity 0.5s ease, visibility 0s linear 0.5s;
+}
+.alert.is-on { opacity: 1; visibility: visible; -webkit-transition: opacity 0.5s ease, visibility 0s; transition: opacity 0.5s ease, visibility 0s; }
+.alert-pulse { position: absolute; left: 0; top: 0; right: 0; bottom: 0; opacity: 0.35;
+  background: radial-gradient(ellipse 60% 55% at 50% 45%, rgba(255, 96, 104, 0.42) 0%, rgba(255, 96, 104, 0) 70%); }
+.alert.is-on .alert-pulse { will-change: opacity; -webkit-animation: alert-pulse 2.6s ease-in-out infinite alternate; animation: alert-pulse 2.6s ease-in-out infinite alternate; }
+@-webkit-keyframes alert-pulse { from { opacity: 0.3; } to { opacity: 1; } }
+@keyframes alert-pulse { from { opacity: 0.3; } to { opacity: 1; } }
+.alert-body { position: absolute; left: 160px; right: 160px; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.alert-body .icon { width: 128px; height: 128px; stroke-width: 2.6; }
+.alert-body .ic-warning { stroke: #ffd9d5; }
+.alert-kind { margin-top: 32px; font-size: 104px; font-weight: 500; line-height: 1.1; letter-spacing: -0.015em; color: #fff; }
+.alert-orig { margin-top: 8px; font-size: 40px; color: rgba(255, 255, 255, 0.8); }
+.alert-areas { margin-top: 32px; font-size: 64px; color: #ffe6e3; line-height: 1.2; }
+.alert-since { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.75); }
+.alert-instr { margin-top: 48px; padding: 16px 40px; border-radius: 40px; font-size: 40px; color: #fff; background: rgba(255, 255, 255, 0.1); }

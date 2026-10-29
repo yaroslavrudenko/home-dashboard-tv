@@ -5,10 +5,16 @@
     <name>Home Dashboard</name>
     <icon src="img/icon.png"/>
     <content src="index.html"/>
-    <!-- Least privilege: the app's own files plus Open-Meteo only. Widen it when a new source ships.
+    <!-- Least privilege: the app's own files plus exactly the hosts it reads: weather (Open-Meteo), the three news
+         feeds, the Israel alert feed and TomTom traffic. Widen it only when a new source ships.
          script-src file: covers $WEBAPIS/webapis/webapis.js, which the TV serves from its file system. -->
     <access origin="https://api.open-meteo.com" subdomains="false"/>
-    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src https://api.open-meteo.com</tizen:content-security-policy>
+    <access origin="https://www.newsru.co.il" subdomains="false"/>
+    <access origin="https://www.pravda.com.ua" subdomains="false"/>
+    <access origin="https://feeds.bbci.co.uk" subdomains="false"/>
+    <access origin="https://www.oref.org.il" subdomains="false"/>
+    <access origin="https://api.tomtom.com" subdomains="false"/>
+    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src https://api.open-meteo.com https://www.newsru.co.il https://www.pravda.com.ua https://feeds.bbci.co.uk https://www.oref.org.il https://api.tomtom.com</tizen:content-security-policy>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:profile name="tv-samsung"/>
     <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable"

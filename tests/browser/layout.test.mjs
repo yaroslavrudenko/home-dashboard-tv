@@ -3,25 +3,7 @@
 // times, the full forecast, one request per refresh, and a calm failure state without network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openApp } from './page.mjs';
-
-// Every visible element inside #stage: its box, and whether its text is cut (scrollWidth > clientWidth).
-function measure() {
-  const out = [];
-  for (const el of document.querySelectorAll('#stage *')) {
-    const r = el.getBoundingClientRect();
-    if (!r.width || !r.height || el.closest('svg') && el.tagName.toLowerCase() !== 'svg') continue;
-    const card = el.closest('.card');
-    const pr = el.parentElement.getBoundingClientRect();
-    const cr = card ? card.getBoundingClientRect() : null;
-    out.push({ cls: el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className, text: (el.textContent || '').trim().slice(0, 40),
-      l: r.left, t: r.top, r: r.right, b: r.bottom, cut: el.children.length === 0 && el.scrollWidth > el.clientWidth + 1,
-      // a text leaf wider or taller than the box it sits in (e.g. a label wider than its column)
-      overflowsParent: el.children.length === 0 && (r.left < pr.left - 0.5 || r.right > pr.right + 0.5 || r.top < pr.top - 0.5 || r.bottom > pr.bottom + 0.5),
-      outsideCard: cr && el !== card ? (r.left < cr.left - 0.5 || r.right > cr.right + 0.5 || r.top < cr.top - 0.5 || r.bottom > cr.bottom + 0.5) : false });
-  }
-  return out;
-}
+import { openApp, measure, legibility } from './page.mjs';
 
 async function ready(app) {
   await app.page.waitForSelector('.day', { timeout: 10000 });
@@ -129,32 +111,7 @@ test('legibility: no text below 24 px, contrast at least 4.5:1 on the lightest c
   const app = await openApp({ weather: 'ok' });
   try {
     await ready(app);
-    const r = await app.page.evaluate(async () => {
-      await document.fonts.ready;
-      const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-      const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
-      const over = (fg, a, bg) => fg.map((v, i) => v * a + bg[i] * (1 - a));
-      // The lightest card background: the page's lightest colour under the card's top fill (8.5 % white),
-      // or the night clock's top fill — whichever is lighter.
-      const page = [0x1a, 0x23, 0x40];
-      const bgs = [over([255, 255, 255], 0.085, page), over([150, 160, 255], 0.075, page)];
-      const bg = bgs.sort((x, y) => lum(y) - lum(x))[0];
-      const bad = [];
-      for (const el of document.querySelectorAll('#stage *')) {
-        if (el.closest('svg') || !el.childNodes.length) continue;
-        const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
-        if (!own) continue;
-        const cs = getComputedStyle(el), m = cs.color.match(/[\d.]+/g).map(Number);
-        const fg = over(m.slice(0, 3), m.length > 3 ? m[3] : 1, bg);
-        const contrast = (lum(fg) + 0.05) / (lum(bg) + 0.05);
-        if (parseFloat(cs.fontSize) < 24 || contrast < 4.5) bad.push(el.className + ' "' + el.textContent.trim().slice(0, 20) + '" ' + cs.fontSize + ' ' + contrast.toFixed(2));
-      }
-      const t = document.querySelector('.clock-time');
-      const width = (text) => { const s = document.createElement('span'); s.textContent = text; t.appendChild(s); const w = s.getBoundingClientRect().width; s.remove(); return w; };
-      return { bad, inter: ['300 104px Inter', '400 30px Inter', '500 34px Inter'].map((f) => document.fonts.check(f)),
-        loaded: [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.weight).sort().join(','),
-        family: getComputedStyle(document.body).fontFamily, tnum: [width('1111'), width('0000')] };
-    });
+    const r = await app.page.evaluate(legibility, '#stage *');
     assert.deepEqual(r.bad, [], 'text below 24 px or below 4.5:1');
     assert.match(r.family, /^"?Inter"?,/);
     assert.deepEqual(r.inter, [true, true, true], 'Inter 300/400/500 available');

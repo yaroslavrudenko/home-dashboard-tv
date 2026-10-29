@@ -2,7 +2,7 @@
  *   Weather.url(places, cfg)           ONE request carries everything the dashboard shows for every place
  *   Weather.parse(json, cfg)           one place's answer → the model; throws only when current weather is unusable
  *   Weather.forHour(model, hourKey, cfg) the rows to show now: the hourly strip and the days from the wall clock
- *   Weather.createStore(...)           refresh cycle: one request, last good data kept, jittered back-off
+ *   Weather.createStore(...)           one request per refresh (js/refresher.js), last good data kept
  * Times in the answer are the place's local wall time (timezone=auto), so sunrise "06:01" and the hourly
  * labels need no time-zone arithmetic here. */
 var Weather = (function () {
@@ -81,23 +81,10 @@ var Weather = (function () {
   }
 
   // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, onChange(store), random() (optional) }
+  // The cycle (one request in flight, jittered back-off, stop()) is the shared Refresher.
   function createStore(places, cfg, deps) {
     var state = {};
-    var failures = 0, inFlight = false, timer = null, nextAt = 0, generation = 0;
-    var random = deps.random || Math.random;
     for (var i = 0; i < places.length; i++) state[places[i].id] = { data: null, updatedAt: 0, error: null };
-
-    // After n failed refreshes in a row: full jitter between the floor and the schedule's ceiling.
-    function delayAfter(n) {
-      if (n === 0) return cfg.refreshMs;
-      var ceiling = n > cfg.retryMs.length ? cfg.refreshMs : cfg.retryMs[n - 1];
-      return Math.round(cfg.retryFloorMs + random() * (ceiling - cfg.retryFloorMs));
-    }
-    function schedule(ms) {
-      if (timer !== null) deps.clearTimeout(timer);
-      nextAt = deps.now() + ms;
-      timer = deps.setTimeout(function () { timer = null; refresh(); }, ms);
-    }
 
     function parseOrNull(json) { try { return parse(json, cfg); } catch (e) { return null; } }
 
@@ -112,22 +99,12 @@ var Weather = (function () {
       return failed;
     }
 
-    function refresh() {
-      if (inFlight) return false;
-      inFlight = true;
-      var mine = generation;
-      deps.getJson(url(places, cfg), cfg.timeoutMs, function (err, json) {
-        if (mine !== generation) return;           // stopped meanwhile: a late answer changes nothing
-        inFlight = false;
-        failures = accept(err, json) ? failures + 1 : 0;
-        schedule(delayAfter(failures));
-        deps.onChange(api);
-      });
-      return true;
-    }
+    var cycle = Refresher.create(cfg, deps, function (finish) {
+      deps.getJson(url(places, cfg), cfg.timeoutMs, function (err, json) { finish(function () { return accept(err, json); }); });
+    }, function () { deps.onChange(api); });
 
     var api = {
-      refresh: refresh,
+      refresh: cycle.refresh,
       get: function (id) { return state[id] ? state[id].data : null; },
       // Stale = we have data but the last attempt failed, or it is older than staleAfterMs, or the device clock
       // went backwards past it (an age below zero cannot be trusted as fresh).
@@ -138,14 +115,9 @@ var Weather = (function () {
         var age = deps.now() - s.updatedAt;
         return { kind: s.error || age < 0 || age > cfg.staleAfterMs ? 'stale' : 'fresh', updatedAt: s.updatedAt };
       },
-      nextAt: function () { return timer === null ? 0 : nextAt; },
-      failures: function () { return failures; },
-      stop: function () {
-        generation++;
-        inFlight = false;
-        if (timer !== null) deps.clearTimeout(timer);
-        timer = null;
-      }
+      nextAt: cycle.nextAt,
+      failures: cycle.failures,
+      stop: cycle.stop
     };
     return api;
   }

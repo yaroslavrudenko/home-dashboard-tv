@@ -13,21 +13,42 @@ const { ROOT } = require('./harness');
 
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-// Decision 21 (F13): least privilege — the app's own files plus Open-Meteo.
-test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV profile, internet, Open-Meteo only', () => {
+// Decision 21 (F13): least privilege — the app's own files plus exactly the hosts it reads (batch 2: news, alerts, TomTom).
+const ORIGINS = ['https://api.open-meteo.com', 'https://www.newsru.co.il', 'https://www.pravda.com.ua', 'https://feeds.bbci.co.uk',
+  'https://www.oref.org.il', 'https://api.tomtom.com'];
+test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV profile, internet, exactly the hosts the app reads', () => {
   const x = read('config.xml');
   assert.match(x, /<tizen:application id="HomeDash01\.Dashboard" package="HomeDash01" required_version="3\.0"\/>/);
   assert.match(x, /<name>Home Dashboard<\/name>/);
   assert.match(x, /<tizen:profile name="tv-samsung"\/>/);
   assert.match(x, /<tizen:privilege name="http:\/\/tizen\.org\/privilege\/internet"\/>/);
-  assert.match(x, /<access origin="https:\/\/api\.open-meteo\.com" subdomains="false"\/>/);
-  assert.equal((x.match(/<access /g) || []).length, 1, 'one origin');
+  assert.deepEqual([...x.matchAll(/<access origin="([^"]+)" subdomains="false"\/>/g)].map((m) => m[1]), ORIGINS);
+  assert.equal((x.match(/<access /g) || []).length, ORIGINS.length, 'no other origin');
   const csp = x.match(/<tizen:content-security-policy>([^<]+)</)[1];
   assert.match(csp, /default-src 'self'/);
-  assert.match(csp, /connect-src https:\/\/api\.open-meteo\.com(;|$)/);
+  assert.equal(csp.match(/connect-src ([^;]+)/)[1].trim(), ORIGINS.join(' '));
   assert.ok(!/\*/.test(csp), 'no wildcard: ' + csp);
   assert.match(x, /<icon src="img\/icon\.png"\/>/);
   assert.match(x, /<content src="index\.html"\/>/);
+});
+
+// Every host the code reads is in the policy, and nothing else: the feeds, the alert feed, TomTom and Open-Meteo.
+test('every URL in js/config.js is on an origin config.xml allows', () => {
+  const urls = [...read('js/config.js').matchAll(/'(https:\/\/[^']+)'/g)].map((m) => new URL(m[1]).origin);
+  assert.ok(urls.length >= 6, urls.join(' '));
+  for (const o of urls) assert.ok(ORIGINS.includes(o), o);
+  for (const o of ORIGINS) assert.ok(urls.includes(o), 'unused origin ' + o);
+});
+
+// The TomTom key never enters the repository: the committed config carries the placeholder, the build replaces it.
+test('js/config.js holds the TomTom placeholder, never a key; build.local.env.example documents TOMTOM_KEY', () => {
+  assert.match(read('js/config.js'), /key: '__TOMTOM_KEY__',/);
+  for (const f of fs.readdirSync(path.join(ROOT, 'js'))) {
+    const keys = [...read('js/' + f).matchAll(/\bkey\s*:\s*'([^']*)'/g)].map((m) => m[1]);
+    assert.ok(keys.every((k) => k === '__TOMTOM_KEY__'), 'js/' + f + ': ' + keys);
+  }
+  assert.match(read('build.local.env.example'), /^TOMTOM_KEY=$/m);
+  assert.match(read('.gitignore'), /^build\.local\.env$/m);
 });
 
 test('the tile icon is a 512×423 PNG (square icons are stretched on Samsung TVs)', () => {
@@ -83,7 +104,7 @@ test('the Inter font files referenced by the CSS exist, carry the OFL licence an
 });
 
 // A temp copy of the app with stub `tizen` / `sdb` that log every call. Returns { dir, log(), run(args) }.
-function sandbox() {
+function sandbox(env) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homedash-build-'));
   for (const f of ['build.sh', 'config.xml', 'index.html', 'css', 'js', 'img', 'fonts', 'tools']) fs.cpSync(path.join(ROOT, f), path.join(dir, f), { recursive: true });
   const log = path.join(dir, 'calls.log');
@@ -91,7 +112,7 @@ function sandbox() {
   const tizen = stub('stub-tizen', 'touch "${@: -1}/stub.wgt"\n');
   const sdb = stub('stub-sdb', '');
   stub('tools/find-tv.sh', 'echo 127.0.0.1:1\n');                       // never scan the real network
-  fs.writeFileSync(path.join(dir, 'build.local.env'), 'CERT_PROFILE=stub\nDEVICE_PROFILE=/dev/null\nTV=127.0.0.1:1\n');
+  fs.writeFileSync(path.join(dir, 'build.local.env'), 'CERT_PROFILE=stub\nDEVICE_PROFILE=/dev/null\nTV=127.0.0.1:1\n' + (env || ''));
   return {
     dir,
     log: () => (fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : ''),
@@ -167,4 +188,36 @@ test('find-tv.sh with TV_DUID installs only on the device that reports it, even 
   assert.equal(none.status, 1);
   assert.equal(none.stdout, '');
   assert.match(none.stderr, /none reports TV_DUID=CCCC/);
+});
+
+test('build.sh --package with TOMTOM_KEY puts the key into the packaged config only; without it the placeholder stays', () => {
+  const sb = sandbox('TOMTOM_KEY=AbC123xyz\n');
+  try {
+    const r = sb.run(['--package']);
+    assert.equal(r.status, 0, r.stderr);
+    const packaged = fs.readFileSync(path.join(sb.dir, '.buildResult', 'js', 'config.js'), 'utf8');
+    assert.match(packaged, /key: 'AbC123xyz',/);
+    assert.ok(!packaged.includes('__TOMTOM_KEY__'));
+    assert.match(fs.readFileSync(path.join(sb.dir, 'js', 'config.js'), 'utf8'), /key: '__TOMTOM_KEY__',/, 'the source copy is untouched');
+    assert.match(r.stdout, /TomTom key: injected/);
+    assert.ok(!r.stdout.includes('AbC123xyz'), 'the key is never printed');
+  } finally { sb.close(); }
+  const none = sandbox();
+  try {
+    const r = none.run(['--package']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(fs.readFileSync(path.join(none.dir, '.buildResult', 'js', 'config.js'), 'utf8'), /key: '__TOMTOM_KEY__',/);
+    assert.match(r.stdout, /TomTom key: not set/);
+  } finally { none.close(); }
+});
+
+test('build.sh refuses a TOMTOM_KEY with anything but letters and digits, before building', () => {
+  const sb = sandbox("TOMTOM_KEY='abc/def'\n");
+  try {
+    const r = sb.run(['--package']);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stderr, /TOMTOM_KEY must be letters and digits only/);
+    assert.equal(sb.log(), '', 'tizen never ran');
+    assert.ok(!fs.existsSync(path.join(sb.dir, '.buildResult')), 'nothing built');
+  } finally { sb.close(); }
 });

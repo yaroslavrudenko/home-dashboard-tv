@@ -3,9 +3,7 @@ var View = (function () {
   var doc = null, els = {}, sizes = { hours: 0, days: 0 };
   var lastClockText = {};              // clock id → key of what was last drawn (unchanged cards are not touched)
 
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  var esc = Html.esc;
   function temp(t) {
     if (t === null || t === undefined) return '—';
     var r = Math.round(t);
@@ -156,10 +154,12 @@ var View = (function () {
   // The status line speaks only about data on screen: "updated at" or "not updating · data from". Loading
   // and failure are said once, in the weather card itself.
   function renderStatus(kind, time) {
-    var text = kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
-    els.status.className = 'status is-' + kind;
-    els.status.innerHTML = text ? '<span class="status-dot"></span>' + esc(text) : '';
+    Html.setStatus(els.status, 'status', kind, statusText(kind, time));
+  }
+  // "Обновлено в 20:32" / "Не обновляется · данные от 20:32" / nothing (loading and failure are said in the card)
+  function statusText(kind, time) {
+    return kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
   }
 
-  return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, temp: temp, diffText: diffText };
+  return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, statusText: statusText, temp: temp, diffText: diffText };
 })();

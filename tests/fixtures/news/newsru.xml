@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:blogChannel="http://backend.userland.com/blogChannelModule">
+  <channel>
+    <title>Newsru Израиль :: Важные новости</title>
+    <link>https://www.newsru.co.il</link>
+    <description>Новости :: Важные новости</description>
+    <language>ru</language>
+    <item>
+      <title><![CDATA[Ракетная тревога в центре страны: перехваты над Шфелой, пострадавших нет]]></title>
+      <link>https://www.newsru.co.il/rest/29oct2026/shfela_alert.html</link>
+      <description><![CDATA[Сирены прозвучали в Реховоте, Нес-Ционе и Ришон-ле-Ционе. По данным ЦАХАЛа, все цели перехвачены.]]></description>
+      <category>Безопасность</category>
+      <enclosure url="https://images.newsru.co.il/l/238/69/2386956.jpg" length="66929" type="image/jpeg"></enclosure>
+      <guid isPermaLink="true">https://www.newsru.co.il/rest/29oct2026/shfela_alert.html</guid>
+      <pubDate>Thu, 29 Oct 2026 20:28:00 +0200</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Кнессет 26-го созыва соберется на первое заседание 9 ноября]]></title>
+      <link>https://www.newsru.co.il/israel/29oct2026/knesset_first_session.html</link>
+      <description><![CDATA[Президент начнет консультации с фракциями о кандидате на пост премьер-министра в понедельник.]]></description>
+      <category>Политика</category>
+      <enclosure url="https://images.newsru.co.il/l/238/69/2386956.jpg" length="66929" type="image/jpeg"></enclosure>
+      <guid isPermaLink="true">https://www.newsru.co.il/israel/29oct2026/knesset_first_session.html</guid>
+      <pubDate>Thu, 29 Oct 2026 20:15:00 +0200</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Минфин: цены на бензин в ноябре снизятся на 14 агорот за литр]]></title>
+      <link>https://www.newsru.co.il/finance/29oct2026/benzin.html</link>
+      <description><![CDATA[Максимальная цена литра бензина 95 на заправках с самообслуживанием составит 7,48 шекеля.]]></description>
+      <category>Экономика</category>
+      <enclosure url="https://images.newsru.co.il/l/238/69/2386956.jpg" length="66929" type="image/jpeg"></enclosure>
+      <guid isPermaLink="true">https://www.newsru.co.il/finance/29oct2026/benzin.html</guid>
+      <pubDate>Thu, 29 Oct 2026 19:52:00 +0200</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Аэропорт Бен-Гурион: вечерние рейсы в Европу задерживаются из-за сильного ветра]]></title>
+      <link>https://www.newsru.co.il/israel/29oct2026/ben_gurion_wind.html</link>
+      <description><![CDATA[]]></description>
+      <category>Израиль</category>
+      <enclosure url="https://images.newsru.co.il/l/238/69/2386956.jpg" length="66929" type="image/jpeg"></enclosure>
+      <guid isPermaLink="true">https://www.newsru.co.il/israel/29oct2026/ben_gurion_wind.html</guid>
+      <pubDate>Thu, 29 Oct 2026 19:40:00 +0200</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Министерство здравоохранения рекомендовало пожилым людям сделать прививку от гриппа до конца ноября, не дожидаясь начала сезонной волны заболеваний]]></title>
+      <link>https://www.newsru.co.il/health/29oct2026/flu.html</link>
+      <description><![CDATA[В больничных кассах открыта запись на вакцинацию.]]></description>
+      <category>Здоровье</category>
+      <enclosure url="https://images.newsru.co.il/l/238/69/2386956.jpg" length="66929" type="image/jpeg"></enclosure>
+      <guid isPermaLink="true">https://www.newsru.co.il/health/29oct2026/flu.html</guid>
+      <pubDate>Thu, 29 Oct 2026 19:05:00 +0200</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Шторм на побережье: купание запрещено до субботы]]></title>
+      <link>https://www.newsru.co.il/israel/29oct2026/storm.html</link>
+      <description><![CDATA[]]></description>
+      <category>Израиль</category>
+      <enclosure url="https://images.newsru.co.il/l/238/69/2386956.jpg" length="66929" type="image/jpeg"></enclosure>
+      <guid isPermaLink="true">https://www.newsru.co.il/israel/29oct2026/storm.html</guid>
+      <pubDate>Thu, 29 Oct 2026 18:30:00 +0200</pubDate>
+    </item>
+  </channel>
+</rss>

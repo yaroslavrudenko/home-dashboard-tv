@@ -36,6 +36,76 @@ var Config = {
     days: 7                             // daily list length
   },
 
+  // Screens, switched with the remote's ◀ ▶: 'main' (clocks + weather), 'news', 'traffic'. Auto-rotation shows the
+  // next one every intervalMs (enabled: false turns it off); any key press pauses it for pauseAfterKeyMs, and an
+  // Israel alert on screen pauses it until the alert is gone.
+  screens: ['main', 'news', 'traffic'],
+  rotation: { enabled: true, intervalMs: 45 * 1000, pauseAfterKeyMs: 2 * 60 * 1000 },
+
+  // News: Russian-language feeds, merged, de-duplicated and sorted newest first. All feeds come in ONE parallel
+  // round every refreshMs. vesty.co.il publishes no live feed (every /Integration/StoryRss*.xml is weeks old), so
+  // NEWSru.co.il "Важные новости" stands for Israel. `id` names the source in js/i18n.js ('news.src.<id>').
+  news: {
+    feeds: [
+      { id: 'newsru', url: 'https://www.newsru.co.il/il/www/news/main' },
+      { id: 'pravda', url: 'https://www.pravda.com.ua/rus/rss/' },
+      { id: 'bbc', url: 'https://feeds.bbci.co.uk/russian/rss.xml' }
+    ],
+    perFeed: 15,                        // items kept from each feed (newest first)
+    listSize: 6,                        // headlines under the lead story; fewer are shown when they do not fit
+    refreshMs: 10 * 60 * 1000,
+    timeoutMs: 20 * 1000,
+    retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
+    retryFloorMs: 30 * 1000,
+    staleAfterMs: 35 * 60 * 1000
+  },
+
+  // Traffic from TomTom (Routing API, one batch request for every route and road). The key is NOT kept here: the
+  // build replaces the placeholder with TOMTOM_KEY from the git-ignored build.local.env. Without a key the screen
+  // shows how to connect one and sends nothing. Coordinates are lat,lon; edit freely.
+  traffic: {
+    key: '__TOMTOM_KEY__',
+    base: 'https://api.tomtom.com/routing/1/batch/sync/json',
+    routes: [
+      { id: 'telaviv', from: [31.8928, 34.8113], to: [32.0741, 34.7922] },      // Rehovot → Tel Aviv, Azrieli
+      { id: 'rishon', from: [31.8928, 34.8113], to: [31.9640, 34.8044] },       // Rehovot → Rishon LeZion
+      { id: 'jerusalem', from: [31.8928, 34.8113], to: [31.7890, 35.2030] }     // Rehovot → Jerusalem, entrance
+    ],
+    // Main roads: a stretch of each, measured as a route (same request): delay against free flow.
+    roads: [
+      { id: 'ayalon', from: [32.0405, 34.7905], to: [32.1050, 34.8040] },       // Ayalon (20), Holon → Rokach, northbound
+      { id: 'road4', from: [31.8640, 34.8170], to: [31.9990, 34.8330] },        // Route 4, Bilu → Beit Dagan
+      { id: 'road1', from: [31.9550, 34.9120], to: [31.7960, 35.1480] },        // Route 1, Ben Shemen → Motza
+      { id: 'road6', from: [31.8790, 34.9230], to: [32.0820, 34.9520] }         // Route 6, Nahshon → Kesem
+    ],
+    visibleRefreshMs: 5 * 60 * 1000,    // while the traffic screen is on
+    refreshMs: 15 * 60 * 1000,          // otherwise
+    timeoutMs: 20 * 1000,
+    retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
+    retryFloorMs: 30 * 1000,
+    staleAfterMs: 30 * 60 * 1000,
+    // Delay chip colour: travel time against free flow
+    amberRatio: 1.15,
+    redRatio: 1.5
+  },
+
+  // Pikud HaOref alerts. `areas` are the alert area names (Hebrew, exactly as the feed writes them) that raise the
+  // full-screen alert; `nearby` only shows a quiet notice. `name` is how the screen calls the area in Russian.
+  alerts: {
+    url: 'https://www.oref.org.il/WarningMessages/alert/alerts.json',
+    areas: [{ he: 'רחובות', name: 'Реховот' }],
+    nearby: [
+      { he: 'נס ציונה', name: 'Нес-Циона' }, { he: 'ראשון לציון', name: 'Ришон-ле-Цион' }, { he: 'יבנה', name: 'Явне' },
+      { he: 'גדרה', name: 'Гедера' }, { he: 'מזכרת בתיה', name: 'Мазкерет-Батья' }, { he: 'קרית עקרון', name: 'Кирьят-Экрон' },
+      { he: 'באר יעקב', name: 'Беэр-Яаков' }, { he: 'רמלה', name: 'Рамла' }, { he: 'לוד', name: 'Лод' },
+      { he: 'אשדוד', name: 'Ашдод' }, { he: 'תל אביב', name: 'Тель-Авив' }
+    ],
+    pollMs: 5 * 1000,                   // the next poll starts this long after the previous one ENDED
+    timeoutMs: 4 * 1000,
+    graceMs: 60 * 1000,                 // the alert stays this long after the feed stops listing the area
+    failAfter: 3                        // consecutive failed polls before "no connection" is shown
+  },
+
   // Burn-in care: the whole layout moves by a few pixels every `shiftMs`, slowly.
   burnIn: { shiftMs: 3 * 60 * 1000, offsets: [[0, 0], [8, 4], [-6, 8], [-8, -4], [6, -8], [2, 6], [-4, -6]] },
 

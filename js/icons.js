@@ -1,6 +1,6 @@
 /* Line-style weather icons as inline SVG strings (soft colours and per-size stroke widths via CSS). ES5.
  * Icons.weather(code, isDay) maps an Open-Meteo WMO code to an icon; Icons.glyph(name) gives the small
- * detail icons (wind, drop, umbrella, sunrise, sunset). */
+ * detail icons (wind, drop, umbrella, sunrise, sunset) and the screens' glyphs (car, warning, news). */
 var Icons = (function () {
   var CLOUD = 'M19 46h27a9 9 0 0 0 0-18a13 13 0 0 0-25-2a10 10 0 0 0-2 20z';
   var maskSeq = 0;
@@ -75,7 +75,13 @@ var Icons = (function () {
     drop: '<g class="ic-drop"><path d="M32 12c8 11 13 18 13 25a13 13 0 0 1-26 0c0-7 5-14 13-25z"/></g>',
     umbrella: '<g class="ic-umbrella"><path d="M10 32a22 22 0 0 1 44 0z"/><path d="M32 32v16a5 5 0 0 1-10 0"/></g>',
     sunrise: '<g class="ic-sun"><path d="M18 44a14 14 0 0 1 28 0"/><line x1="10" y1="50" x2="54" y2="50"/><path d="M32 12v14M25 19l7-7 7 7"/></g>',
-    sunset: '<g class="ic-sun"><path d="M18 44a14 14 0 0 1 28 0"/><line x1="10" y1="50" x2="54" y2="50"/><path d="M32 12v14M25 19l7 7 7-7"/></g>'
+    sunset: '<g class="ic-sun"><path d="M18 44a14 14 0 0 1 28 0"/><line x1="10" y1="50" x2="54" y2="50"/><path d="M32 12v14M25 19l7 7 7-7"/></g>',
+    // a car seen from the front (traffic), a warning triangle (alerts), a folded newspaper (news)
+    car: '<g class="ic-car"><path d="M14 40l5-14a5 5 0 0 1 5-3h16a5 5 0 0 1 5 3l5 14"/><rect x="10" y="38" width="44" height="12" rx="4"/>' +
+      '<path d="M16 50v5M48 50v5"/><circle cx="19" cy="44" r="1.6"/><circle cx="45" cy="44" r="1.6"/></g>',
+    warning: '<g class="ic-warning"><path d="M32 10l24 42H8z"/><path d="M32 26v12"/><circle cx="32" cy="45" r="1.4"/></g>',
+    news: '<g class="ic-news"><rect x="12" y="14" width="34" height="38" rx="4"/><path d="M46 24h6v22a6 6 0 0 1-12 0"/>' +
+      '<path d="M19 23h20M19 31h20M19 39h12"/></g>'
   };
   function glyph(name) { return svg('g-' + name, GLYPHS[name] || ''); }
 

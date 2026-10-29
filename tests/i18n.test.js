@@ -42,3 +42,31 @@ test('placeholders are filled; dates read naturally in each language', () => {
   ctx.I18n.setLang('he');
   assert.equal(ctx.I18n.lang(), 'en', 'an unknown language falls back to English');
 });
+
+test('batch 2: every screen, source, traffic and alert string exists in both languages', () => {
+  const ctx = load(FILES);
+  const keys = ['screen.main', 'screen.news', 'screen.traffic', 'n.more', 'n.justNow', 'n.minAgo', 'n.hAgo', 'n.dAgo', 'n.loading', 'n.failed', 'n.partial',
+    't.roads', 't.from', 't.min', 't.hmin', 't.usual', 't.delay', 't.km', 't.noData', 't.noKey', 't.noKeySub', 't.loading', 't.failed',
+    'a.generic', 'a.since', 'a.shelter', 'a.shelterFor', 'a.nearby', 'a.offline']
+    .concat(ctx.Config.news.feeds.map((f) => 'n.src.' + f.id))
+    .concat(ctx.Config.traffic.routes.map((r) => 't.route.' + r.id), ctx.Config.traffic.roads.map((r) => 't.road.' + r.id))
+    .concat(['ok', 'slow', 'jam'].map((l) => 't.level.' + l))
+    .concat(['missiles', 'aircraft', 'infiltration', 'earthquake', 'tsunami', 'hazmat', 'radiological', 'prealert'].map((k) => 'a.kind.' + k));
+  for (const lang of ['ru', 'en']) {
+    ctx.I18n.setLang(lang);
+    for (const k of keys) assert.ok(ctx.I18n.t(k) && ctx.I18n.t(k) !== k, lang + ' ' + k);
+  }
+  ctx.I18n.setLang('ru');
+  assert.equal(ctx.I18n.t('a.kind.missiles'), 'Ракетный обстрел');
+  assert.equal(ctx.I18n.t('t.noKey'), 'Подключите ключ TomTom, чтобы видеть пробки');
+});
+
+test('"how long ago" for a headline: just now, minutes, hours, days; a time in the future reads "just now"', () => {
+  const ctx = load(FILES);
+  ctx.I18n.setLang('ru');
+  const m = 60000;
+  assert.deepEqual([0, 59999, m, 12 * m, 59 * m, 60 * m, 23 * 60 * m + 59 * m, 24 * 60 * m, 3 * 24 * 60 * m, -5 * m].map((d) => ctx.I18n.ago(d)),
+    ['Только что', 'Только что', '1 мин назад', '12 мин назад', '59 мин назад', '1 ч назад', '23 ч назад', '1 дн. назад', '3 дн. назад', 'Только что']);
+  ctx.I18n.setLang('en');
+  assert.equal(ctx.I18n.ago(12 * m), '12 min ago');
+});

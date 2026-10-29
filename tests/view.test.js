@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
 
-const ctx = load(['js/config.js', 'js/i18n.js', 'js/tz.js', 'js/icons.js', 'js/view.js']);
+const ctx = load(['js/config.js', 'js/i18n.js', 'js/tz.js', 'js/html.js', 'js/icons.js', 'js/view.js']);
 
 test('temperatures use a typographic minus and never show "-0°"', () => {
   assert.equal(ctx.View.temp(21.4), '21°');

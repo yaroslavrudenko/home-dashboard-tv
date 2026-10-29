@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load, fixture, fakeTimers } = require('./harness');
 
-const FILES = ['js/config.js', 'js/weather.js'];
+const FILES = ['js/config.js', 'js/refresher.js', 'js/weather.js'];
 const T0 = Date.parse('2026-10-29T18:32:00Z');
 
 test('one URL carries every place (comma-separated coordinates), current, hourly and daily data, with no key', () => {

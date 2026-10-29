@@ -1,0 +1,2 @@
+# Recorded feed answers are kept byte for byte (the alert feed answers BOM + CRLF when there is no alert).
+tests/fixtures/oref/* -text
