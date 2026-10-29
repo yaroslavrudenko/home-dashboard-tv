@@ -1,7 +1,7 @@
 'use strict';
 // World clocks: the UTC offset of each zone, the "Europe/Kyiv" → "Europe/Kiev" fallback for old
 // Chromium (Tizen 3.0 = Chromium 47, tzdata 2015), the built-in daylight-saving rules used when Intl
-// cannot help, and the rule that a clock is never silently wrong (approx marker or "--:--").
+// cannot help, and the rule that a clock is never silently wrong (an approx marker or "zone unknown").
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load } = require('./harness');
@@ -85,13 +85,29 @@ test('neither Intl nor a rule: the clock says it does not know ("--:--"), never 
   assert.equal(ctx.Tz.wallTime(r, Date.now()).ok, false);
 });
 
-test('Intl and the rules disagree (an outdated TV time-zone database): the clock is marked approximate', () => {
-  const ctx = load(FILES);
+// Decision 3 (F2): on a disagreement the rule (checked against tzdata 2025–2030) is shown, unmarked, logged once.
+test('Intl and the rules disagree (an outdated TV time-zone database): the built-in rule is shown, unmarked, and logged once', () => {
+  const warnings = [];
+  const ctx = load(FILES, { console: { warn: (m) => warnings.push(m) } });
   const clock = { id: 'x', zones: ['Asia/Jerusalem'], rule: 'EU' };   // EU rule differs from Israel in late March
   const utc = AT('2026-03-28T12:00:00Z');                             // Israel already +3, EU still +2
-  const w = ctx.Tz.wallTime(ctx.Tz.resolve(clock, utc), utc);
-  assert.equal(w.offset, 180, 'the Intl offset is shown');
-  assert.equal(w.approx, true);
+  const r = ctx.Tz.resolve(clock, utc);
+  const w = ctx.Tz.wallTime(r, utc);
+  assert.equal(w.offset, 120, 'the rule offset is shown');
+  assert.equal(w.approx, false, 'nothing is marked');
+  ctx.Tz.wallTime(r, utc + 60000);
+  assert.equal(warnings.length, 1, 'the disagreement is logged once: ' + warnings);
+  assert.match(warnings[0], /Asia\/Jerusalem.*180.*120/);
+});
+
+test('wall-time helpers: "HH:MM" and the hour key in Open-Meteo\'s local format', () => {
+  const ctx = load(FILES);
+  const utc = AT('2026-10-29T18:32:00Z');
+  const w = ctx.Tz.wallTime(ctx.Tz.resolve(clockOf(ctx, 'sydney'), utc), utc);
+  assert.equal(ctx.Tz.hhmm(w), '05:32');
+  assert.equal(ctx.Tz.hourKey(w), '2026-10-30T05');
+  assert.equal(ctx.Tz.hhmm({ ok: false }), '--:--');
+  assert.equal(ctx.Tz.hourKey({ ok: false }), null);
 });
 
 test('an unparsable Intl answer is rejected rather than turned into a wrong offset', () => {

@@ -22,6 +22,11 @@ test('clock difference to the home clock', () => {
   assert.equal(ctx.View.diffText(undefined, 120), '');
 });
 
+test('the home clock shows no difference to itself', () => {
+  ctx.I18n.setLang('ru');
+  assert.equal(ctx.View.diffText(120, undefined), '', 'App passes no home offset for the home clock');
+});
+
 test('every weather code maps to an icon', () => {
   for (const c of [0, 1, 2, 3, 45, 51, 61, 71, 80, 95, 99]) assert.match(ctx.Icons.weather(c, true), /^<svg class="icon /);
 });

@@ -3,45 +3,49 @@
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
   var store = null;
-  var clockTimer = null, shiftIndex = 0;
+  var clockTimer = null, shiftIndex = 0, weatherDrawn = '';
   var KEY_BACK = 10009;
 
   function mainPlace() { return Config.places[0]; }
+  function wallNow(i) { return Tz.wallTime(resolved[i], Date.now()); }
 
-  // "HH:MM" of a UTC moment on the home (first) clock.
-  function homeTime(utc) {
-    var w = Tz.wallTime(resolved[0], utc);
-    return w.ok ? Tz.pad2(w.hours) + ':' + Tz.pad2(w.minutes) : '--:--';
+  // The wall-clock hour of a weather place, from the clock linked to it (null: no such clock or zone unknown).
+  function placeHourKey(placeId) {
+    for (var i = 0; i < Config.clocks.length; i++) if (Config.clocks[i].place === placeId) return Tz.hourKey(wallNow(i));
+    return null;
   }
 
   function renderClocks() {
-    var now = Date.now(), list = [], home = Tz.wallTime(resolved[0], now);
+    var list = [], home = wallNow(0);
     for (var i = 0; i < Config.clocks.length; i++) {
-      var c = Config.clocks[i], wall = Tz.wallTime(resolved[i], now);
+      var c = Config.clocks[i], wall = wallNow(i);
       var data = store && c.place ? store.get(c.place) : null;
-      list.push({ id: c.id, wall: wall, homeOffset: home.ok ? home.offset : undefined,
-        isNight: wall.ok && (wall.hours < Config.dayStartsHour || wall.hours >= Config.nightStartsHour),
-        weather: data ? { temp: data.current.temp, code: data.current.code, isDay: data.current.isDay } : null });
+      var fresh = data !== null && store.status(c.place).kind === 'fresh';
+      list.push({ id: c.id, wall: wall, homeOffset: i > 0 && home.ok ? home.offset : undefined,
+        // Night tint: the place's own sunrise/sunset when the weather is fresh, otherwise fixed local hours.
+        isNight: fresh ? !data.current.isDay : wall.ok && (wall.hours < Config.dayStartsHour || wall.hours >= Config.nightStartsHour),
+        weather: data ? { temp: data.current.temp, code: data.current.code, isDay: data.current.isDay, stale: !fresh } : null });
     }
     View.renderClocks(list);
   }
 
-  function renderStatus() {
-    var s = store.status(mainPlace().id);
-    View.renderStatus(s.kind, s.updatedAt ? homeTime(s.updatedAt) : '');
-  }
-
-  function renderWeather() {
-    var id = mainPlace().id, s = store.status(id);
-    View.renderWeather(store.get(id), id, I18n.t(s.kind === 'failed' ? 'w.failed' : 'w.loading'));
-    renderStatus();
+  // The main weather card, the status line and the clocks; the card itself only when its hour or state changed.
+  function render() {
+    var id = mainPlace().id, s = store.status(id), hour = placeHourKey(id);
+    var drawn = [hour, s.kind, s.updatedAt, store.nextAt()].join('|');
+    if (drawn !== weatherDrawn) {
+      weatherDrawn = drawn;
+      var data = store.get(id), next = store.nextAt();
+      View.renderWeather(data ? Weather.forHour(data, hour, Config.weather) : null,
+        { place: id, kind: s.kind, retryAt: next ? Tz.hhmm(Tz.wallTime(resolved[0], Math.ceil(next / 60000) * 60000)) : '' });   // never "retry at" the minute already shown
+    }
+    View.renderStatus(s.kind, s.updatedAt ? Tz.hhmm(Tz.wallTime(resolved[0], s.updatedAt)) : '');
     renderClocks();
   }
 
   // Clocks change on the minute: wake just after the next minute boundary.
   function tick() {
-    renderClocks();
-    if (store) renderStatus();          // "stale" can start by age alone
+    if (store) render(); else renderClocks();
     var now = Date.now();
     clockTimer = setTimeout(tick, 60000 - now % 60000 + 50);
   }
@@ -54,12 +58,16 @@ var App = (function () {
     stage.style.transform = t;
   }
 
+  // The screen saver is switched off while the app runs. The TV's own Eco "Auto Power Off" is a separate
+  // setting the app cannot override (README).
   function keepScreenOn() {
     try {
       if (window.webapis && webapis.appcommon) {
-        webapis.appcommon.setScreenSaver(webapis.appcommon.AppCommonScreenSaverState.SCREEN_SAVER_OFF);
+        webapis.appcommon.setScreenSaver(webapis.appcommon.AppCommonScreenSaverState.SCREEN_SAVER_OFF,
+          function () { console.log('screensaver: off'); },
+          function (e) { console.error('screensaver: ' + (e && (e.name + ' ' + e.message))); });
       }
-    } catch (e) { /* not on a TV, or the API is missing on this firmware */ }
+    } catch (e) { console.error('screensaver: ' + e.message); }
   }
 
   function onKey(e) {
@@ -84,16 +92,15 @@ var App = (function () {
     document.documentElement.dir = I18n.dir();
     var now = Date.now();
     for (var i = 0; i < Config.clocks.length; i++) resolved.push(Tz.resolve(Config.clocks[i], now));
-    View.init(document, Config.clocks);
+    View.init(document, Config.clocks, { hours: Config.weather.hours, days: Config.weather.days });
 
     store = Weather.createStore(Config.places, Config.weather, {
       getJson: Net.getJson,
       now: function () { return Date.now(); },
       setTimeout: function (f, ms) { return setTimeout(f, ms); },
       clearTimeout: function (t) { clearTimeout(t); },
-      onChange: renderWeather
+      onChange: render
     });
-    renderWeather();
     tick();
     store.refresh();
 

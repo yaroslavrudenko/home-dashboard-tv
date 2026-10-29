@@ -45,6 +45,10 @@ normal Terminal window and allow local-network access; the background `sdb` serv
 tries the given address and otherwise scans the Mac's /24 network for port 26101; `./build.sh` calls it
 on its own. Developer Mode is bound to the Mac's address, so it survives the TV moving.
 
+**More than one TV in Developer Mode?** Put the TV's DUID in `build.local.env` as `TV_DUID=` (read it once
+with `sdb shell 0 getduid`). `find-tv.sh` then asks every candidate for its DUID (read-only) and installs
+only on the matching one; without `TV_DUID` it refuses to choose between several devices.
+
 ## 4. Samsung certificates
 
 You need an **author** certificate and a **distributor** certificate whose request carries the TV's DUID
@@ -80,6 +84,7 @@ cp build.local.env.example build.local.env
 # CERT_PROFILE=<security profile name>
 # DEVICE_PROFILE=<path to device-profile.xml>
 # TV=<tv-ip>:26101
+# TV_DUID=<sdb shell 0 getduid>   (optional; required when more than one TV is in Developer Mode)
 ./build.sh --package     # build + sign only: .buildResult/HomeDashboard.wgt, no TV needed
 ./build.sh               # build + sign + push device profile + install + launch
 ```

@@ -16,8 +16,8 @@ test('Russian is the default language; English is available', () => {
 test('every string key exists in both languages and is not empty', () => {
   const ctx = load(FILES);
   const keys = ['city.israel', 'city.ukraine', 'city.sydney', 'place.rehovot', 'place.kyiv', 'place.sydney', 'clock.same', 'clock.ahead',
-    'clock.behind', 'clock.approx', 'clock.unknown', 'w.feels', 'w.high', 'w.low', 'w.wind', 'w.humidity', 'w.rain', 'w.sunrise',
-    'w.sunset', 'w.kmh', 'w.now', 'w.today', 'w.hourly', 'w.daily', 'w.updated', 'w.stale', 'w.loading', 'w.failed'];
+    'clock.behind', 'clock.unknown', 'w.feels', 'w.high', 'w.low', 'w.wind', 'w.humidity', 'w.rain', 'w.sunrise',
+    'w.sunset', 'w.kmh', 'w.now', 'w.today', 'w.hourly', 'w.daily', 'w.updated', 'w.stale', 'w.loading', 'w.failed', 'w.retry', 'w.retrySoon'];
   for (const lang of ['ru', 'en']) {
     ctx.I18n.setLang(lang);
     for (const k of keys) assert.ok(ctx.I18n.t(k) && ctx.I18n.t(k) !== k, lang + ' ' + k);

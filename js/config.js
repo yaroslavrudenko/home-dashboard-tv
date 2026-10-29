@@ -15,7 +15,7 @@ var Config = {
   ],
 
   // Weather places. The first one is the main card (current weather, hourly strip, 7-day forecast).
-  // All places are requested in parallel, one request per place per refresh.
+  // Every place comes in ONE Open-Meteo request per refresh (comma-separated coordinates).
   places: [
     { id: 'rehovot', lat: 31.8928, lon: 34.8113 },
     { id: 'kyiv', lat: 50.4501, lon: 30.5234 },
@@ -26,16 +26,21 @@ var Config = {
     base: 'https://api.open-meteo.com/v1/forecast',
     refreshMs: 15 * 60 * 1000,          // regular refresh
     timeoutMs: 15 * 1000,               // one request
-    retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],   // back-off after failed refreshes, then refreshMs
+    // Back-off ceilings after 1, 2, 3, 4 failed refreshes, then refreshMs. Each wait is drawn at random
+    // between retryFloorMs and its ceiling (full jitter), so it never loops tightly and never exceeds the ceiling.
+    retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
+    retryFloorMs: 30 * 1000,
     staleAfterMs: 45 * 60 * 1000,       // data older than this is marked stale even without a failure
     hours: 12,                          // hourly strip length
+    forecastHours: 24,                  // hourly rows fetched: the strip can follow the clock for 12 h without new data
     days: 7                             // daily list length
   },
 
   // Burn-in care: the whole layout moves by a few pixels every `shiftMs`, slowly.
   burnIn: { shiftMs: 3 * 60 * 1000, offsets: [[0, 0], [8, 4], [-6, 8], [-8, -4], [6, -8], [2, 6], [-4, -6]] },
 
-  // A clock card shows the night style between these local hours (no weather needed for the hint).
+  // A clock card is tinted for the night from its place's fresh weather (Open-Meteo's is_day); without fresh
+  // weather, between these local hours.
   dayStartsHour: 6,
   nightStartsHour: 19
 };

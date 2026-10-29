@@ -7,6 +7,7 @@ const out = path.resolve(process.argv[2] || path.join(ROOT, 'docs', 'screenshot.
 const app = await openApp({ weather: 'ok' });
 try {
   await app.page.waitForSelector('.day', { timeout: 10000 });
+  await app.page.evaluate(() => document.fonts.ready);
   await new Promise((r) => setTimeout(r, 300));
   await app.page.screenshot({ path: out });
   console.log(out);

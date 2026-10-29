@@ -7,8 +7,10 @@
  *      and the offset is sanity-checked: a whole number of quarter hours within ±14 h.
  *   2. Built-in daylight-saving rules (IL / EU / AU_SYD) when Intl is missing or rejects every name.
  *      The result is marked `source: 'rules'` and the card shows "≈", so it is never silently wrong.
- *   3. Nothing works: `source: 'none'`, the card shows "--:--" and says the zone is unknown.
- * When both 1 and 2 are available they are compared; a disagreement sets `mismatch` (shown as "≈" too).
+ *   3. Nothing works: `source: 'none'`, the card says the zone is unknown instead of a time.
+ * When both 1 and 2 are available and disagree, the built-in rule wins: it is checked against real tzdata for
+ * every hour of 2025–2030, while the TV's Intl data is frozen in 2015 or may ignore `timeZone` altogether.
+ * The disagreement is logged once per clock and not marked on screen.
  */
 var Tz = (function () {
   var HOUR = 3600000;
@@ -89,10 +91,16 @@ var Tz = (function () {
 
   // Wall time of a resolved clock at `utc`: { ok, approx, hours, minutes, weekday, day, month, offset }.
   function wallTime(resolved, utc) {
-    var offset = null, approx = resolved.source !== 'intl';
-    if (resolved.formatter) offset = intlOffset(resolved.formatter, utc);
-    if (offset === null && resolved.rule) { offset = resolved.rule(utc); approx = true; }
-    else if (offset !== null && resolved.rule && resolved.rule(utc) !== offset) approx = true;   // mismatch
+    var offset = resolved.formatter ? intlOffset(resolved.formatter, utc) : null;
+    var approx = offset === null;                 // no exact Intl answer: the rule's time is approximate
+    if (resolved.rule) {
+      var ruled = resolved.rule(utc);
+      if (offset !== null && ruled !== offset && !resolved.warned) {
+        resolved.warned = true;
+        if (typeof console !== 'undefined') console.warn('tz: ' + resolved.zone + ' Intl says ' + offset + ' min, the built-in rule ' + ruled + ' min; showing the rule');
+      }
+      offset = ruled;
+    }
     if (offset === null) return { ok: false, approx: true };
     var w = new Date(utc + offset * 60000);
     return { ok: true, approx: approx, offset: offset, hours: w.getUTCHours(), minutes: w.getUTCMinutes(),
@@ -100,6 +108,10 @@ var Tz = (function () {
   }
 
   function pad2(n) { return n < 10 ? '0' + n : String(n); }
+  // "20:32" of a wall time, "--:--" when the zone is unknown.
+  function hhmm(w) { return w.ok ? pad2(w.hours) + ':' + pad2(w.minutes) : '--:--'; }
+  // "2026-10-29T20": the wall time's hour in the format of Open-Meteo's local times, null when unknown.
+  function hourKey(w) { return w.ok ? w.year + '-' + pad2(w.month + 1) + '-' + pad2(w.day) + 'T' + pad2(w.hours) : null; }
 
-  return { resolve: resolve, wallTime: wallTime, intlOffset: intlOffset, rules: RULES, pad2: pad2 };
+  return { resolve: resolve, wallTime: wallTime, intlOffset: intlOffset, rules: RULES, pad2: pad2, hhmm: hhmm, hourKey: hourKey };
 })();

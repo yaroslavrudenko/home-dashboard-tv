@@ -30,12 +30,12 @@ var I18n = (function () {
         'city.israel': 'Израиль', 'city.ukraine': 'Украина', 'city.sydney': 'Сидней',
         'place.rehovot': 'Реховот', 'place.kyiv': 'Киев', 'place.sydney': 'Сидней',
         'clock.same': 'Как здесь', 'clock.ahead': '+{h} ч', 'clock.behind': '−{h} ч',
-        'clock.approx': 'время по встроенным правилам', 'clock.unknown': 'часовой пояс неизвестен',
+        'clock.unknown': 'Пояс неизвестен',
         'w.feels': 'Ощущается как {t}', 'w.high': 'Макс.', 'w.low': 'Мин.',
         'w.wind': 'Ветер', 'w.humidity': 'Влажность', 'w.rain': 'Осадки', 'w.sunrise': 'Восход', 'w.sunset': 'Закат',
         'w.kmh': 'км/ч', 'w.now': 'Сейчас', 'w.today': 'Сегодня', 'w.hourly': 'Почасовой прогноз', 'w.daily': 'Прогноз на 7 дней',
-        'w.updated': 'Обновлено в {time}', 'w.stale': 'не обновляется · данные от {time}', 'w.loading': 'Загружаем погоду…',
-        'w.failed': 'Погода недоступна · повторим позже'
+        'w.updated': 'Обновлено в {time}', 'w.stale': 'Не обновляется · данные от {time}', 'w.loading': 'Загружаем погоду…',
+        'w.failed': 'Погода временно недоступна', 'w.retry': 'Повторим в {time}', 'w.retrySoon': 'Повторим позже'
       }
     },
     en: {
@@ -49,12 +49,12 @@ var I18n = (function () {
         'city.israel': 'Israel', 'city.ukraine': 'Ukraine', 'city.sydney': 'Sydney',
         'place.rehovot': 'Rehovot', 'place.kyiv': 'Kyiv', 'place.sydney': 'Sydney',
         'clock.same': 'Same time', 'clock.ahead': '+{h} h', 'clock.behind': '−{h} h',
-        'clock.approx': 'time from built-in rules', 'clock.unknown': 'time zone unknown',
+        'clock.unknown': 'Zone unknown',
         'w.feels': 'Feels like {t}', 'w.high': 'H', 'w.low': 'L',
         'w.wind': 'Wind', 'w.humidity': 'Humidity', 'w.rain': 'Rain', 'w.sunrise': 'Sunrise', 'w.sunset': 'Sunset',
         'w.kmh': 'km/h', 'w.now': 'Now', 'w.today': 'Today', 'w.hourly': 'Hourly forecast', 'w.daily': '7-day forecast',
-        'w.updated': 'Updated at {time}', 'w.stale': 'not updating · data from {time}', 'w.loading': 'Loading the weather…',
-        'w.failed': 'Weather unavailable · will retry'
+        'w.updated': 'Updated at {time}', 'w.stale': 'Not updating · data from {time}', 'w.loading': 'Loading the weather…',
+        'w.failed': 'Weather is temporarily unavailable', 'w.retry': 'Retrying at {time}', 'w.retrySoon': 'Will retry soon'
       }
     }
   };
@@ -77,7 +77,6 @@ var I18n = (function () {
       var text = own !== undefined ? own : (TABLES.en.s[key] !== undefined ? TABLES.en.s[key] : key);
       return fill(text, vars);
     },
-    weekday: function (i) { return table().weekdays[i]; },
     weekdayShort: function (i) { return table().weekdaysShort[i]; },
     dateLong: function (weekdayIndex, day, monthIndex) {
       var tb = table();

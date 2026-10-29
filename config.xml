@@ -5,9 +5,10 @@
     <name>Home Dashboard</name>
     <icon src="img/icon.png"/>
     <content src="index.html"/>
-    <!-- Open-Meteo today; alerts, currency, Hebcal, news and traffic later: any HTTPS origin -->
-    <access origin="*" subdomains="true"/>
-    <tizen:content-security-policy>default-src * 'unsafe-inline' data: blob:</tizen:content-security-policy>
+    <!-- Least privilege: the app's own files plus Open-Meteo only. Widen it when a new source ships.
+         script-src file: covers $WEBAPIS/webapis/webapis.js, which the TV serves from its file system. -->
+    <access origin="https://api.open-meteo.com" subdomains="false"/>
+    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src https://api.open-meteo.com</tizen:content-security-policy>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:profile name="tv-samsung"/>
     <tizen:setting screen-orientation="landscape" context-menu="disable" background-support="disable"

@@ -11,14 +11,16 @@ var Net = (function () {
       done(err, json);
     }
     xhr.onreadystatechange = function () {
-      if (xhr.readyState !== 4) return;
-      if (xhr.status !== 200) { finish(xhr.status ? 'http ' + xhr.status : 'network'); return; }
+      // Status 0 = no HTTP answer: a timeout, abort or network error fires its own event right after
+      // this one, so that event names the cause.
+      if (xhr.readyState !== 4 || !xhr.status) return;
+      if (xhr.status !== 200) { finish('http ' + xhr.status); return; }
       var json;
       try { json = JSON.parse(xhr.responseText); } catch (e) { finish('parse'); return; }
       finish(null, json);
     };
     xhr.ontimeout = function () { finish('timeout'); };
-    xhr.onerror = function () { finish('network'); };
+    xhr.onerror = xhr.onabort = function () { finish('network'); };
     try {
       xhr.open('GET', url, true);
       xhr.timeout = timeoutMs;

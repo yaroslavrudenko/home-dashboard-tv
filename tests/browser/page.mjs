@@ -16,7 +16,13 @@ const ORIGIN = 'http://dashboard.test';
 const REHOVOT = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'rehovot.json'), 'utf8'));
 export const FIXED_NOW = Date.parse(REHOVOT.current.time + ':00Z') - REHOVOT.utc_offset_seconds * 1000 + 2 * 60000;
 const BY_LAT = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney' };
-const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png' };
+const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2' };
+
+// The answer to one multi-location request: one recorded fixture per requested latitude, in order.
+export function weatherAnswer(url) {
+  const lats = new URL(url).searchParams.get('latitude').split(',');
+  return '[' + lats.map((lat) => fs.readFileSync(path.join(FIXTURES, BY_LAT[lat] + '.json'), 'utf8')).join(',') + ']';
+}
 
 function loadPuppeteer() {
   const dir = process.env.PUPPETEER_CORE_DIR;
@@ -26,7 +32,10 @@ function loadPuppeteer() {
   }
 }
 
-// opts: { weather: 'ok' | 'fail', lang }
+// opts: { weather: 'ok' | 'fail' | 'ok-then-fail' | (n, url) => { status, body }, lang,
+//         configure: source of a function(Config) run as js/config.js assigns it,
+//         init: source of a script run before the app (e.g. remove Intl, stub tizen / webapis) }
+// window.__offsetMs moves the app's clock (Date.now) forward.
 export async function openApp(opts = {}) {
   const puppeteer = loadPuppeteer();
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'dashboard-browser-'));
@@ -37,16 +46,19 @@ export async function openApp(opts = {}) {
   const weatherRequests = [];
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.evaluateOnNewDocument((fixed, lang) => {
+  await page.evaluateOnNewDocument((fixed, lang, configure, init) => {
     const start = Date.now(), realNow = Date.now;
-    Date.now = () => fixed + (realNow() - start);
-    // The language is set on Config the moment js/config.js assigns it, before the app boots.
-    if (lang) {
+    window.__offsetMs = 0;
+    Date.now = () => fixed + (realNow() - start) + window.__offsetMs;
+    if (init) (0, eval)(init);
+    // Config is adjusted the moment js/config.js assigns it, before the app boots.
+    if (lang || configure) {
+      const fn = configure ? (0, eval)('(' + configure + ')') : null;
       let cfg;
       Object.defineProperty(window, 'Config', { configurable: true,
-        get: () => cfg, set: (v) => { v.lang = lang; cfg = v; } });
+        get: () => cfg, set: (v) => { if (lang) v.lang = lang; if (fn) fn(v); cfg = v; } });
     }
-  }, FIXED_NOW, opts.lang || null);
+  }, FIXED_NOW, opts.lang || null, opts.configure ? String(opts.configure) : null, opts.init || null);
   await page.setRequestInterception(true);
   page.on('request', (req) => {
     const url = req.url();
@@ -58,10 +70,11 @@ export async function openApp(opts = {}) {
         : req.respond({ status: 200, contentType: MIME[path.extname(file)] || 'application/octet-stream', body: fs.readFileSync(file) });
     } else if (url.startsWith('https://api.open-meteo.com/')) {
       weatherRequests.push(url);
-      const lat = new URL(url).searchParams.get('latitude');
-      done = opts.weather === 'fail' ? req.respond({ status: 503, body: '' })
-        : req.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' },
-          body: fs.readFileSync(path.join(FIXTURES, BY_LAT[lat] + '.json')) });
+      const n = weatherRequests.length;
+      const fail = opts.weather === 'fail' || (opts.weather === 'ok-then-fail' && n > 1);
+      const answer = typeof opts.weather === 'function' ? opts.weather(n, url)
+        : fail ? { status: 503, body: '' } : { status: 200, body: weatherAnswer(url) };
+      done = req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
     } else done = req.abort();
     Promise.resolve(done).catch(() => {});
   });

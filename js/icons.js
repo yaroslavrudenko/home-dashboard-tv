@@ -1,4 +1,4 @@
-/* Line-style weather icons as inline SVG strings (one stroke width everywhere, soft colours via CSS). ES5.
+/* Line-style weather icons as inline SVG strings (soft colours and per-size stroke widths via CSS). ES5.
  * Icons.weather(code, isDay) maps an Open-Meteo WMO code to an icon; Icons.glyph(name) gives the small
  * detail icons (wind, drop, umbrella, sunrise, sunset). */
 var Icons = (function () {
@@ -41,7 +41,7 @@ var Icons = (function () {
   }
   function flakes(xs) {
     var out = '<g class="ic-snow">';
-    for (var i = 0; i < xs.length; i++) out += '<circle cx="' + xs[i] + '" cy="' + (i % 2 ? 57 : 53) + '" r="1.6"/>';
+    for (var i = 0; i < xs.length; i++) out += '<circle cx="' + xs[i] + '" cy="' + (i % 2 ? 57 : 53) + '" r="2.6"/>';
     return out + '</g>';
   }
 
@@ -73,13 +73,11 @@ var Icons = (function () {
   var GLYPHS = {
     wind: '<g class="ic-wind"><path d="M10 26h28a6 6 0 1 0-6-6"/><path d="M10 36h38a6 6 0 1 1-6 6"/><path d="M10 46h18"/></g>',
     drop: '<g class="ic-drop"><path d="M32 12c8 11 13 18 13 25a13 13 0 0 1-26 0c0-7 5-14 13-25z"/></g>',
-    umbrella: '<g class="ic-rain"><path d="M10 32a22 22 0 0 1 44 0z"/><path d="M32 32v16a5 5 0 0 1-10 0"/></g>',
+    umbrella: '<g class="ic-umbrella"><path d="M10 32a22 22 0 0 1 44 0z"/><path d="M32 32v16a5 5 0 0 1-10 0"/></g>',
     sunrise: '<g class="ic-sun"><path d="M18 44a14 14 0 0 1 28 0"/><line x1="10" y1="50" x2="54" y2="50"/><path d="M32 12v14M25 19l7-7 7 7"/></g>',
-    sunset: '<g class="ic-sun"><path d="M18 44a14 14 0 0 1 28 0"/><line x1="10" y1="50" x2="54" y2="50"/><path d="M32 12v14M25 19l7 7 7-7"/></g>',
-    sun: SUN,
-    moon: MOON
+    sunset: '<g class="ic-sun"><path d="M18 44a14 14 0 0 1 28 0"/><line x1="10" y1="50" x2="54" y2="50"/><path d="M32 12v14M25 19l7 7 7-7"/></g>'
   };
   function glyph(name) { return svg('g-' + name, GLYPHS[name] || ''); }
 
-  return { weather: weather, glyph: glyph, kind: kind };
+  return { weather: weather, glyph: glyph };
 })();

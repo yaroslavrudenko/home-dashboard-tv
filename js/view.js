@@ -1,6 +1,6 @@
 /* Rendering: builds the dashboard's HTML from plain data. No timers, no network. ES5. */
 var View = (function () {
-  var doc = null, els = {};
+  var doc = null, els = {}, sizes = { hours: 0, days: 0 };
   var lastClockText = {};              // clock id → key of what was last drawn (unchanged cards are not touched)
 
   function esc(s) {
@@ -12,9 +12,13 @@ var View = (function () {
     return (r < 0 ? '−' + (-r) : String(r === 0 ? 0 : r)) + '°';   // typographic minus, never "-0°"
   }
   function byId(id) { return doc.getElementById(id); }
+  function repeat(html, n) { var out = ''; for (var i = 0; i < n; i++) out += html; return out; }
+  var STALE_MARK = '<span class="stale-mark"></span>';
 
-  function init(document, clocks) {
+  // size: { hours, days } — the strip and list lengths, so the empty states keep the same rows.
+  function init(document, clocks, size) {
     doc = document;
+    sizes = size;
     els = { clocks: byId('clocks'), now: byId('now'), hourly: byId('hourly'), daily: byId('daily'), status: byId('status') };
     var html = '';
     for (var i = 0; i < clocks.length; i++) {
@@ -24,7 +28,7 @@ var View = (function () {
     lastClockText = {};
   }
 
-  // Difference to the first (home) clock: "Как здесь", "+9 ч", "−1 ч", "+5:30".
+  // Difference to the first (home) clock: "Как здесь", "+9 ч", "−1 ч", "+5:30". Empty on the home clock.
   function diffText(offset, homeOffset) {
     if (offset === undefined || homeOffset === undefined) return '';
     var d = offset - homeOffset;
@@ -33,17 +37,17 @@ var View = (function () {
     return I18n.t(d > 0 ? 'clock.ahead' : 'clock.behind', { h: m ? h + ':' + Tz.pad2(m) : h });
   }
 
-  // c: { id, wall (Tz.wallTime), homeOffset, isNight, weather: { temp, code, isDay } | null }
+  // c: { id, wall (Tz.wallTime), homeOffset (undefined on the home clock), isNight,
+  //      weather: { temp, code, isDay, stale } | null }
   function clockHtml(c) {
-    var w = c.wall, time = w.ok ? Tz.pad2(w.hours) + ':' + Tz.pad2(w.minutes) : '--:--';
-    var note = !w.ok ? I18n.t('clock.unknown') : (w.approx ? '≈ ' + I18n.t('clock.approx') : '');
-    var weather = c.weather ? '<span class="clock-weather">' + Icons.weather(c.weather.code, c.weather.isDay) +
-      '<span class="clock-temp">' + temp(c.weather.temp) + '</span></span>' : '';
-    return '<div class="clock-head"><span class="clock-city">' + esc(I18n.t('city.' + c.id)) + '</span>' +
-      '<span class="clock-dn">' + Icons.glyph(c.isNight ? 'moon' : 'sun') + '</span></div>' +
-      '<div class="clock-time' + (w.ok && !w.approx ? '' : ' is-approx') + '">' + (w.ok && w.approx ? '<span class="approx">≈</span>' : '') + time + '</div>' +
+    var w = c.wall, cw = c.weather;
+    var time = !w.ok ? '<div class="clock-time is-unknown">' + esc(I18n.t('clock.unknown')) + '</div>'
+      : '<div class="clock-time">' + (w.approx ? '<span class="approx">≈</span>' : '') + Tz.hhmm(w) + '</div>';
+    var weather = cw ? '<span class="clock-weather' + (cw.stale ? ' is-stale' : '') + '">' + Icons.weather(cw.code, cw.isDay) +
+      '<span class="clock-temp">' + temp(cw.temp) + '</span>' + (cw.stale ? STALE_MARK : '') + '</span>' : '';
+    return '<div class="clock-head"><span class="clock-city">' + esc(I18n.t('city.' + c.id)) + '</span></div>' + time +
       '<div class="clock-date">' + (w.ok ? esc(I18n.dateLong(w.weekday, w.day, w.month)) : '&nbsp;') + '</div>' +
-      '<div class="clock-meta"><span class="clock-diff">' + esc(note || diffText(w.offset, c.homeOffset)) + '</span>' + weather + '</div>';
+      '<div class="clock-meta"><span class="clock-diff">' + esc(diffText(w.offset, c.homeOffset)) + '</span>' + weather + '</div>';
   }
 
   function renderClocks(list) {
@@ -52,12 +56,12 @@ var View = (function () {
       // What the card shows, as one string: an unchanged card is not rewritten (icons carry unique mask ids,
       // so the HTML itself cannot be compared).
       var key = [w.ok, w.approx, w.hours, w.minutes, w.day, w.offset, c.homeOffset, c.isNight,
-        cw ? Math.round(cw.temp) + '/' + cw.code + '/' + cw.isDay : '', I18n.lang()].join('|');
+        cw ? Math.round(cw.temp) + '/' + cw.code + '/' + cw.isDay + '/' + cw.stale : '', I18n.lang()].join('|');
       if (lastClockText[c.id] === key) continue;
       lastClockText[c.id] = key;
       var el = byId('clock-' + c.id);
       el.innerHTML = clockHtml(c);
-      el.className = 'card clock' + (list[i].isNight ? ' is-night' : '');
+      el.className = 'card clock' + (c.isNight ? ' is-night' : '');
     }
   }
 
@@ -66,24 +70,20 @@ var View = (function () {
       '</span><span class="detail-value">' + esc(value) + '</span></div></div>';
   }
   function pct(v) { return v === null ? '—' : Math.round(v) + '%'; }
+  function popText(pop) { return pop !== null && pop >= 20 ? pop + '%' : ''; }
+  function title(key) { return '<div class="card-title">' + esc(I18n.t(key)) + '</div>'; }
 
-  // m: Weather.parse model or null; placeId for the name; message when there is no data yet.
-  function renderWeather(m, placeId, message) {
-    if (!m) {
-      var empty = '<div class="placeholder">' + esc(message) + '</div>';
-      els.now.innerHTML = '<div class="now-place">' + esc(I18n.t('place.' + placeId)) + '</div>' + empty;
-      els.hourly.innerHTML = '<div class="card-title">' + esc(I18n.t('w.hourly')) + '</div>';
-      els.daily.innerHTML = '<div class="card-title">' + esc(I18n.t('w.daily')) + '</div>';
-      return;
-    }
-    var c = m.current, t = m.today;
-    els.now.innerHTML =
-      '<div class="now-top"><div class="now-main">' +
-        '<div class="now-place">' + esc(I18n.t('place.' + placeId)) + '</div>' +
-        '<div class="now-temp">' + temp(c.temp) + '</div>' +
+  var EMPTY_HOUR = '<div class="hour is-empty"><div class="hour-label">&nbsp;</div><div class="skeleton"></div></div>';
+  var EMPTY_DAY = '<div class="day is-empty"><div class="skeleton"></div></div>';
+
+  function nowHtml(v, placeName, stale) {
+    var c = v.current, t = v.today || { min: null, max: null, pop: null, sunrise: null, sunset: null };
+    return '<div class="now-top"><div class="now-main">' +
+        '<div class="now-place">' + esc(placeName) + '</div>' +
+        '<div class="now-temp">' + temp(c.temp) + (stale ? STALE_MARK : '') + '</div>' +
         '<div class="now-cond">' + esc(I18n.condition(c.code)) + '</div>' +
-        '<div class="now-sub">' + esc(c.feels === null ? '' : I18n.t('w.feels', { t: temp(c.feels) })) +
-          '<span class="now-hl">' + esc(I18n.t('w.high')) + ' ' + temp(t.max) + '&nbsp;&nbsp;' + esc(I18n.t('w.low')) + ' ' + temp(t.min) + '</span></div>' +
+        '<div class="now-sub">' + (c.feels === null ? '' : '<span>' + esc(I18n.t('w.feels', { t: temp(c.feels) })) + '</span>') +
+          '<span>' + esc(I18n.t('w.high')) + ' ' + temp(t.max) + '</span><span>' + esc(I18n.t('w.low')) + ' ' + temp(t.min) + '</span></div>' +
       '</div><div class="now-icon">' + Icons.weather(c.code, c.isDay) + '</div></div>' +
       '<div class="details">' +
         detail('wind', I18n.t('w.wind'), c.wind === null ? '—' : Math.round(c.wind) + ' ' + I18n.t('w.kmh')) +
@@ -92,39 +92,73 @@ var View = (function () {
         detail('sunrise', I18n.t('w.sunrise'), t.sunrise || '—') +
         detail('sunset', I18n.t('w.sunset'), t.sunset || '—') +
       '</div>';
-
-    var h = '<div class="card-title">' + esc(I18n.t('w.hourly')) + '</div><div class="hours">';
-    for (var i = 0; i < m.hourly.length; i++) {
-      var hr = m.hourly[i];
-      h += '<div class="hour' + (hr.now ? ' is-now' : '') + '"><div class="hour-label">' + esc(hr.now ? I18n.t('w.now') : hr.hour) + '</div>' +
-        Icons.weather(hr.code, hr.isDay) + '<div class="hour-pop">' + (hr.pop !== null && hr.pop >= 20 ? hr.pop + '%' : '&nbsp;') + '</div>' +
-        '<div class="hour-temp">' + temp(hr.temp) + '</div></div>';
-    }
-    els.hourly.innerHTML = h + '</div>';
-
-    // 7-day list with Apple-style range bars on one shared scale (the week's min … max).
-    var lo = Infinity, hi = -Infinity, k;
-    for (k = 0; k < m.daily.length; k++) { lo = Math.min(lo, m.daily[k].min); hi = Math.max(hi, m.daily[k].max); }
-    var span = Math.max(hi - lo, 1);
-    var d = '<div class="card-title">' + esc(I18n.t('w.daily')) + '</div><div class="days">';
-    for (k = 0; k < m.daily.length; k++) {
-      var day = m.daily[k];
-      var left = ((day.min - lo) / span * 100).toFixed(1), width = Math.max((day.max - day.min) / span * 100, 4).toFixed(1);
-      d += '<div class="day"><div class="day-name">' + esc(k === 0 ? I18n.t('w.today') : I18n.weekdayShort(day.weekday)) + '</div>' +
-        '<div class="day-icon">' + Icons.weather(day.code, true) + '<span class="day-pop">' + (day.pop !== null && day.pop >= 20 ? day.pop + '%' : '') + '</span></div>' +
-        '<div class="day-min">' + temp(day.min) + '</div>' +
-        '<div class="range"><div class="range-fill" style="left:' + left + '%;width:' + width + '%"></div></div>' +
-        '<div class="day-max">' + temp(day.max) + '</div></div>';
-    }
-    els.daily.innerHTML = d + '</div>';
   }
 
-  // kind: 'fresh' | 'stale' | 'loading' | 'failed'; time: "HH:MM" of the last good data.
+  function hourHtml(hr, isNow) {
+    if (!hr) return EMPTY_HOUR;
+    return '<div class="hour' + (isNow ? ' is-now' : '') + '"><div class="hour-label">' + esc(isNow ? I18n.t('w.now') : hr.hour) + '</div>' +
+      (hr.code === null ? '<div class="icon"></div>' : Icons.weather(hr.code, hr.isDay)) +
+      '<div class="hour-pop">' + (popText(hr.pop) || '&nbsp;') + '</div><div class="hour-temp">' + temp(hr.temp) + '</div></div>';
+  }
+
+  // 7-day list with Apple-style range bars: every bar is a window onto ONE cold→warm gradient spanning the
+  // week's min…max, so a bar's colour means its temperature. Today carries a dot at the current temperature.
+  function dailyHtml(v) {
+    var lo = Infinity, hi = -Infinity, k, day;
+    for (k = 0; k < v.daily.length; k++) {
+      day = v.daily[k];
+      if (day && day.min !== null && day.max !== null) { lo = Math.min(lo, day.min); hi = Math.max(hi, day.max); }
+    }
+    var span = Math.max(hi - lo, 1), out = '';
+    for (k = 0; k < v.daily.length; k++) {
+      day = v.daily[k];
+      if (!day) { out += EMPTY_DAY; continue; }
+      var isToday = day === v.today, bar = '';
+      if (day.min !== null && day.max !== null) {
+        var left = (day.min - lo) / span * 100, width = Math.max((day.max - day.min) / span * 100, 4);
+        left = Math.min(left, 100 - width);
+        var size = (100 / width * 100).toFixed(1), pos = width >= 100 ? 0 : (left / (100 - width) * 100).toFixed(1);
+        bar = '<div class="range-fill" style="left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%;background-size:' + size +
+          '% 100%;background-position:' + pos + '% 0"></div>';
+        // the dot's centre runs from 8 px to (width − 8 px): it never leaves the track
+        if (isToday) bar += '<div class="range-dot" style="left:calc((100% - 16px) * ' + Math.max(0, Math.min(1, (v.current.temp - lo) / span)).toFixed(3) + ')"></div>';
+      }
+      out += '<div class="day"><div class="day-name">' + esc(isToday ? I18n.t('w.today') : I18n.weekdayShort(day.weekday)) + '</div>' +
+        '<div class="day-icon">' + (day.code === null ? '' : Icons.weather(day.code, true)) + '<span class="day-pop">' + popText(day.pop) + '</span></div>' +
+        '<div class="day-min">' + temp(day.min) + '</div><div class="range">' + bar + '</div>' +
+        '<div class="day-max">' + temp(day.max) + '</div></div>';
+    }
+    return out;
+  }
+
+  // v: Weather.forHour view or null (no data yet). s: { place, kind ('fresh'|'stale'|'loading'|'failed'), retryAt ("HH:MM"|'') }.
+  function renderWeather(v, s) {
+    var placeName = I18n.t('place.' + s.place);
+    var hours = '', days = '', i;
+    if (!v) {
+      var failed = s.kind === 'failed';
+      els.now.className = 'card now is-empty';
+      els.now.innerHTML = '<div class="now-place">' + esc(placeName) + '</div><div class="empty-state">' + Icons.weather(3, true) +
+        '<div class="empty-text">' + esc(I18n.t(failed ? 'w.failed' : 'w.loading')) + '</div>' +
+        (failed ? '<div class="empty-sub">' + esc(s.retryAt ? I18n.t('w.retry', { time: s.retryAt }) : I18n.t('w.retrySoon')) + '</div>' : '') + '</div>';
+      hours = repeat(EMPTY_HOUR, sizes.hours);
+      days = repeat(EMPTY_DAY, sizes.days);
+    } else {
+      els.now.className = 'card now' + (s.kind === 'stale' ? ' is-stale' : '');
+      els.now.innerHTML = nowHtml(v, placeName, s.kind === 'stale');
+      for (i = 0; i < v.hourly.length; i++) hours += hourHtml(v.hourly[i], i === 0 && v.nowShown);
+      days = dailyHtml(v);
+    }
+    els.hourly.innerHTML = title('w.hourly') + '<div class="hours">' + hours + '</div>';
+    els.daily.innerHTML = title('w.daily') + '<div class="days">' + days + '</div>';
+  }
+
+  // The status line speaks only about data on screen: "updated at" or "not updating · data from". Loading
+  // and failure are said once, in the weather card itself.
   function renderStatus(kind, time) {
-    var text = kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) :
-      kind === 'failed' ? I18n.t('w.failed') : I18n.t('w.loading');
+    var text = kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
     els.status.className = 'status is-' + kind;
-    els.status.innerHTML = '<span class="status-dot"></span>' + esc(text);
+    els.status.innerHTML = text ? '<span class="status-dot"></span>' + esc(text) : '';
   }
 
   return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, temp: temp, diffText: diffText };

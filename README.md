@@ -7,31 +7,44 @@ at home, in one glance from the sofa. Switch the TV on, open the app, and leave 
 
 It is a real installed **Tizen web app** (a signed `.wgt` package), not a web page: the TV's browser is
 slow and limited, while an installed app starts instantly, keeps the screen on and exits with Back.
-It runs on every Samsung Tizen TV from 2016 on. The oldest target is a 2017 UE50MU7000 (Tizen 3.0,
-Chromium 47), so the code is plain ES5 with no framework, no bundler and no backend.
+It runs on Samsung Tizen TVs from 2017 on (Tizen 3.0 or newer; 2016 models run Tizen 2.x and refuse the
+package). The oldest target is a 2017 UE50MU7000 (Tizen 3.0, Chromium 47), so the code is plain ES5 with
+no framework, no bundler and no backend. The typeface, [Inter](https://rsms.me/inter/), ships inside the
+app (static Light / Regular / Medium, Latin + Cyrillic, about 96 KB), so the TV shows the same type as the
+screenshot instead of whatever system font it has.
 
 ## What it shows
 
 - **World clocks**: Israel (Asia/Jerusalem), Ukraine (Europe/Kyiv) and Sydney (Australia/Sydney), in 24-hour
-  time with the weekday, the date, a day/night hint, the difference to Israel and each city's current temperature.
+  time with the weekday, the date, the difference to Israel and each city's current temperature. A card is
+  tinted for the night from that city's sunrise and sunset.
 - **Weather** for Rehovot from [Open-Meteo](https://open-meteo.com/) (free, no API key): temperature, feels-like,
   condition, wind, humidity, today's high/low, chance of rain, sunrise/sunset, a 12-hour strip and a 7-day list.
 - **Status**: "Updated at HH:MM". When a refresh fails, the last good data stays on screen and is marked as
-  not updating, with the time it is from.
+  not updating, with the time it is from; every temperature from that data (the main card and each clock
+  card) is dimmed and carries a small amber dot. With no data at all, the weather card says so once, with
+  the time of the next attempt, and the forecast rows stay in place as quiet placeholders.
 
 ### Behaviour worth knowing
 
 - **The time is never silently wrong.** The TV's own time-zone setting is not trusted: each clock takes UTC
   from the device and converts it with the zone's rules. Old TVs ship a 2015 time-zone database that does
   not know "Europe/Kyiv", so the app falls back to "Europe/Kiev". If the TV has no usable time-zone support
-  at all, built-in daylight-saving rules for Israel, the EU and Sydney are used and the clock shows "≈".
-  If neither works, the clock shows "--:--".
-- **Weather refresh**: every 15 minutes, all places requested in parallel, one request per place. After a
-  failure it retries after 1, 2, 4 and 8 minutes, then returns to every 15 minutes. It never loops tightly.
-  Data older than 45 minutes is marked stale even if no request failed.
+  at all, built-in daylight-saving rules for Israel, the EU and Sydney are used and the clock shows a small
+  "≈". When the TV's time-zone data and the built-in rule disagree, the rule wins (it is tested against the
+  real time-zone database for every hour of 2025–2030) and the disagreement is logged. If neither works,
+  the clock says "Zone unknown" instead of a time.
+- **Weather refresh**: every 15 minutes, ONE request for all places (Open-Meteo takes comma-separated
+  coordinates), about 1.5 KB compressed. After a failure it waits a random time between 30 seconds and
+  1, 2, 4 and 8 minutes, then up to 15 minutes, so it never loops tightly and never synchronises. Data
+  older than 45 minutes is marked stale even if no request failed. "Now" and "Today" follow the clock, not
+  the age of the data.
 - **Burn-in care**: the whole layout drifts by a few pixels every 3 minutes, slowly (6 s), so static text
-  never sits on the same pixels for hours.
-- **Screen stays on** while the app runs; **Back** closes it.
+  never sits on the same pixels for hours. The layout is its own GPU layer, so a drift repaints nothing.
+- **Screen saver**: switched off while the app runs (the result is logged); **Back** closes the app.
+  The TV's own **Eco "Auto Power Off"** is separate and an app cannot override it: it switches the TV off
+  after about 4 hours without a remote key press. For an always-on dashboard turn it off in
+  *Settings → General → Eco Solution → Auto Power Off*. Not yet verified on the TV for a run longer than 4 hours.
 - **Languages**: Russian (default) and English. Hebrew and Ukrainian slots are ready in `js/i18n.js`.
 
 ## Configure
@@ -51,7 +64,10 @@ cp build.local.env.example build.local.env   # fill in CERT_PROFILE, DEVICE_PROF
 ./build.sh                                   # build + sign + install on the TV + launch
 ```
 
-`tools/find-tv.sh` finds the TV again when the router gives it a new address.
+`tools/find-tv.sh` finds the TV again when the router gives it a new address. It never guesses: when
+several devices answer, it stops unless `TV_DUID` in `build.local.env` names the TV, and then it installs
+only on the device that reports that DUID. `./build.sh` refuses any argument other than `--package` and
+`--help` before it builds or connects to anything.
 
 ## Develop and test
 
@@ -59,7 +75,7 @@ Open `index.html` in desktop Chrome at 1920×1080 for development. Tests use Nod
 have no dependencies in this repo:
 
 ```sh
-tests/run.sh                         # unit tests: time zones, weather parsing, refresh/stale/back-off, i18n, packaging
+tests/run.sh                         # unit tests: time zones, weather parsing, refresh/stale/back-off, i18n, packaging, build.sh / find-tv.sh
 PUPPETEER_CORE_DIR=<dir with puppeteer-core> tests/run.sh --browser   # + layout smoke in headless Chrome at 1920×1080
 ACORN=<path to acorn> tools/es5-gate.sh                               # every script must parse as ES5
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
@@ -83,3 +99,5 @@ without puppeteer-core.
 ## License
 
 MIT © Yaroslav Rudenko. See [LICENSE](LICENSE).
+The bundled Inter font is © The Inter Project Authors, under the SIL Open Font License 1.1
+([fonts/OFL.txt](fonts/OFL.txt)).
