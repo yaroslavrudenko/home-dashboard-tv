@@ -78,8 +78,8 @@ client is written against TomTom's documented answers and tested on them; it has
 notice appears over everything: the kind of alert, the area, the time it started and the instruction. It
 never ends on a guess: it stays for the instruction's minutes after the area was last listed (10 minutes when
 the instruction names none) and until the feed has answered without the area for a full minute; a failed or
-malformed answer never counts as "not listed". Only Pikud HaOref's own end message for the area ("the event
-has ended", "you may leave the protected space") clears it sooner. The remote cannot dismiss it (Back still
+malformed answer never counts as "not listed". An end message ("the event has ended") never clears or shortens
+it: end messages are recognised by exact title only so that they never raise one. The remote cannot dismiss it (Back still
 closes the app) and the rotation waits. An alert in a nearby town shows a quiet line in the bottom-right
 corner (three names at most, "и ещё N" for the rest). If the feed cannot be reached three times in a row, the
 corner says "Тревоги: нет связи" — and during an alert the alert itself says so, with the time of the last good

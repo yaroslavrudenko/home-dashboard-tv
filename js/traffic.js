@@ -9,9 +9,11 @@
  *   Traffic.level(summary, cfg)    'ok' | 'slow' | 'jam': travel time against free flow
  *   Traffic.createStore(cfg, deps) the refresh cycle: shorter while the screen is visible
  * Failures, and what each costs in requests (the free tier is ~2,500 items a day):
- *   transport, a malformed batch, an item 5xx, or every item failed   → jittered back-off (js/refresher.js)
- *   403 / 401 (key refused), 429 (daily limit) for the batch or an item → wait the regular interval or longer
- *   an item TomTom cannot route (NO_ROUTE_FOUND-type)                → "no data" on its row, the regular interval
+ *   403 / 401 (key refused), 429 (daily limit) for the batch or ANY item → wait the regular interval or longer,
+ *                                                                     even when other items failed otherwise
+ *   transport, a malformed batch, every item failed, or any item error
+ *   other than the one below (5xx, 400 INVALID_REQUEST, …)            → jittered back-off (js/refresher.js)
+ *   an item TomTom cannot route (NO_ROUTE_FOUND-type) and nothing else → "no data" on its row, the regular interval
  * Every failure keeps the last good values and their times. */
 var Traffic = (function () {
   var QUERY = '/json?travelMode=car&routeType=fastest&traffic=true&computeTravelTimeFor=all&routeRepresentation=summaryOnly';
@@ -70,7 +72,7 @@ var Traffic = (function () {
     // Stores the answers and returns how the round went for js/refresher.js: falsy, true (back off) or
     // Refresher.WAIT (refused: the regular interval or longer). `problem` remembers a refusal for the screen.
     function accept(err, json) {
-      var list = null, failed = 0, server = false, refused = null, now = deps.now();
+      var list = null, failed = 0, broken = false, refused = null, now = deps.now();
       if (!err) { try { list = parse(json, n); } catch (e) { err = 'shape'; } }
       if (err) refused = refusal(+(/^http (\d+)$/.exec(err) || [])[1]);
       for (var i = 0; i < n; i++) {
@@ -78,12 +80,12 @@ var Traffic = (function () {
         if (d) { s.data = d; s.updatedAt = now; s.error = null; continue; }
         s.error = list ? itemError(json.batchItems[i]) : refused || err;
         failed++;
-        if (s.error === 'server') server = true;
-        else if (s.error === 'key' || s.error === 'limit') refused = refused || s.error;
+        if (s.error === 'key' || s.error === 'limit') refused = refused || s.error;
+        else if (s.error !== 'route') broken = true;
       }
       problem = refused;
-      if (!list || failed === n || server) return refused && !server ? Refresher.WAIT : true;
-      if (refused) return Refresher.WAIT;
+      if (refused) return Refresher.WAIT;          // a refusal wins: retrying sooner cannot lift it
+      if (!list || failed === n || broken) return true;
       lastAt = now;
       return false;
     }

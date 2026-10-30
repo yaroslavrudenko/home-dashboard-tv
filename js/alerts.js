@@ -13,16 +13,20 @@
  * { id, cat, title, data: [area, …], desc } (or a list of them) while there is one. The category is never read:
  * the recorded active and "ended" answers share cat "1". */
 var Alerts = (function () {
-  // End messages: "the event has ended", "you may leave the protected space". An end is never an alert.
-  var ENDED = /האירוע הסתיים|ניתן לצאת מהמרחב המוגן/;
+  // End messages: "the event has ended", "you may leave the protected space". Only these exact titles (trimmed) are
+  // ends; they are told apart only so that they never RAISE an alert, and they never clear or shorten one. Any other
+  // wording ("you may NOT leave…", extra words) is an alert: when unsure, alert. The third is Oref's real
+  // post-event wording "you may leave the protected space but stay near it" (FB4-A7b).
+  var ENDS = ['האירוע הסתיים', 'ניתן לצאת מהמרחב המוגן', 'ניתן לצאת מהמרחב המוגן אך יש להישאר בקרבתו'];
   var KINDS = [
     [/רקטות|טילים/, 'missiles'], [/כלי טיס/, 'aircraft'], [/מחבלים/, 'infiltration'], [/רעידת אדמה/, 'earthquake'],
     [/צונאמי/, 'tsunami'], [/חומרים מסוכנים/, 'hazmat'], [/רדיולוגי/, 'radiological'], [/צפויות להתקבל התרעות/, 'prealert']
   ];
-  var SHELTER = /היכנסו למרחב המוגן/, MINUTES = /(\d+)\s*דקות/, BLANK = /^\s*$/;
+  var SHELTER = /היכנסו למרחב המוגן/, MINUTES = /(\d+)\s*דקות/, BLANK = /^\s*$/, EDGES = /^\s+|\s+$/g;
 
   function shapeError() { return new Error('alerts: unexpected shape'); }
   function text(v) { return typeof v === 'string' && !BLANK.test(v); }
+  function isEnd(title) { return ENDS.indexOf(title.replace(EDGES, '')) >= 0; }
 
   function record(o) {
     if (!o || typeof o !== 'object' || Array.isArray(o) || !text(o.title)) throw shapeError();
@@ -34,13 +38,13 @@ var Alerts = (function () {
   }
 
   function parse(raw) {
-    var body = String(raw === undefined || raw === null ? '' : raw).replace(/^﻿/, '').replace(/^\s+|\s+$/g, '');
+    var body = String(raw === undefined || raw === null ? '' : raw).replace(/^﻿/, '').replace(EDGES, '');
     var out = { alerts: [], ended: [] };
     if (!body) return out;
     var json = JSON.parse(body);                   // throws on a block page or a cut answer
     var list = Array.isArray(json) ? json : [json], records = [], i;
     for (i = 0; i < list.length; i++) records.push(record(list[i]));   // every record valid, or the poll failed
-    for (i = 0; i < records.length; i++) (ENDED.test(records[i].title) ? out.ended : out.alerts).push(records[i]);
+    for (i = 0; i < records.length; i++) (isEnd(records[i].title) ? out.ended : out.alerts).push(records[i]);
     return out;
   }
 
@@ -68,21 +72,11 @@ var Alerts = (function () {
     return { minutes: m ? +m[1] : null };
   }
 
-  // Event ids are digit strings that grow with time; compared as text (18 digits do not fit a double).
-  // Returns -1 / 0 / 1, or null when they cannot be compared (the correlation is uncertain).
-  function compareIds(a, b) {
-    if (!/^\d+$/.test(a) || !/^\d+$/.test(b)) return null;
-    a = a.replace(/^0+(?=\d)/, ''); b = b.replace(/^0+(?=\d)/, '');
-    return a.length !== b.length ? (a.length < b.length ? -1 : 1) : a === b ? 0 : a < b ? -1 : 1;
-  }
-
   /* The one lifetime rule, per configured place (`places`: { he, name }):
    *   listed       lastSeenAt = now; absence cleared; holdUntil ≥ now + max(graceMs, the instruction's minutes or
-   *                defaultHoldMs); the event id remembered.
+   *                defaultHoldMs), the longest of every record in the answer that covers the place.
    *   not listed   (a SUCCESSFUL poll) absence starts; the place clears at the first such poll at or after
-   *                max(holdUntil, absentSince + graceMs) — or at once on an end message covering it whose id is not
-   *                older than the event (an end without a comparable id, for another area or for an older event
-   *                changes nothing).
+   *                max(holdUntil, absentSince + graceMs). End messages change nothing (ids are never compared).
    *   failed poll  pending absence is forgotten: an outage never counts as absence.
    * view(): what the screen shows for these places, or null; the same object while nothing visible changed. */
   function createTracker(places, cfg) {
@@ -92,34 +86,24 @@ var Alerts = (function () {
       var instr = instruction(rec.desc), m = instr && instr.minutes ? instr.minutes * 60000 : cfg.defaultHoldMs;
       return Math.max(cfg.graceMs, m);
     }
-    function ends(ended, place, eventId) {
-      for (var i = 0; i < ended.length; i++) {
-        if (!coversAny(ended[i], place)) continue;
-        var c = compareIds(ended[i].id, eventId);
-        if (c !== null && c >= 0) return true;
-      }
-      return false;
-    }
-
     function seen(parsed, now) {
       for (var j = 0; j < places.length; j++) {
-        var he = places[j].he, t = tracks[he], hit = null, id = '';
+        var he = places[j].he, t = tracks[he], hit = null, hold = 0;
         for (var i = 0; i < parsed.alerts.length; i++) {
-          var rec = parsed.alerts[i];
+          var rec = parsed.alerts[i], h;
           if (!coversAny(rec, he)) continue;
-          if (!hit) hit = rec;
-          if (id === '' || compareIds(rec.id, id) === 1) id = rec.id;
+          h = holdMs(rec);                           // the longest hold wins, and its record gives the words on screen
+          if (!hit || h > hold) { hit = rec; hold = h; }   // (a tie keeps the first)
         }
         if (hit) {
-          if (!t) t = tracks[he] = { holdUntil: 0, eventId: '' };
+          if (!t) t = tracks[he] = { holdUntil: 0 };
           t.record = hit;
           t.lastSeenAt = now;
           t.absentSince = null;
-          t.holdUntil = Math.max(t.holdUntil, now + holdMs(hit));
-          if (t.eventId === '' || compareIds(id, t.eventId) === 1) t.eventId = id;
+          t.holdUntil = Math.max(t.holdUntil, now + hold);
         } else if (t) {
           if (t.absentSince === null) t.absentSince = now;
-          if (ends(parsed.ended, he, t.eventId) || now >= Math.max(t.holdUntil, t.absentSince + cfg.graceMs)) delete tracks[he];
+          if (now >= Math.max(t.holdUntil, t.absentSince + cfg.graceMs)) delete tracks[he];
         }
       }
       return refreshView(now);

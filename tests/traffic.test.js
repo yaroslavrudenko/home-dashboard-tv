@@ -209,3 +209,33 @@ test('C5: no row is ever "loading" once any answer arrived (the whole screen sho
     assert.ok(!kinds.includes('loading'), JSON.stringify(x).slice(0, 30) + ': ' + kinds);
   }
 });
+
+// FB4-C6 (Codex #4): a refusal wins over a 5xx in the same batch — retrying sooner cannot lift a key or quota refusal.
+test('FB4-C6: 403+503 and 429+503 in one batch wait the regular interval (15 min), never the fast back-off', () => {
+  const ctx = load(FILES);
+  for (const [codes, problem] of [[[403, 503], 'key'], [[429, 503], 'limit'], [[503, 200, 429], 'limit']]) {
+    const s = makeStore(ctx);
+    s.store.refresh(); answer(s, items(codes));
+    assert.deepEqual(s.clock.pending(), [15 * 60000], JSON.stringify(codes) + ': waits 900,000 ms');
+    assert.equal(s.store.status().problem, problem);
+  }
+});
+
+// FB4-C7 (Codex #5): only a recognised permanent routing outcome (NO_ROUTE_FOUND-type) leaves a round successful;
+// any other item error is a failed round: back-off, the last good rows and times kept (lastAt is not moved: the
+// round returns before it is set, so a later visit still refreshes on the last SUCCESSFUL round's time).
+test('FB4-C7: a partial 400 INVALID_REQUEST is a failed round (back-off), the last good rows kept', () => {
+  const ctx = load(FILES);
+  const s = makeStore(ctx);
+  s.store.refresh(); answer(s, batch());
+  s.clock.advance(15 * 60000);
+  const b = batch();
+  b.batchItems[5] = { statusCode: 400, response: { error: { description: 'INVALID_REQUEST: bad query' } } };
+  answer(s, b);
+  const wait = s.clock.pending()[0];
+  assert.ok(wait >= BACKOFF[0] && wait <= BACKOFF[1], 'back-off, not the regular 15 min: ' + wait);
+  assert.equal(s.store.roads()[2].data.travel, plain(ctx.Traffic.parse(batch(), 7))[5].travel, 'the last good row is kept');
+  assert.equal(s.store.roads()[2].updatedAt, T0, 'with its time');
+  assert.equal(s.store.roads()[2].kind, 'stale');
+  assert.equal(s.store.status().kind, 'stale', 'the screen is not current');
+});

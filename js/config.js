@@ -108,7 +108,7 @@ var Config = {
     timeoutMs: 4 * 1000,
     // An alert never ends on a guess (js/alerts.js): it stays for the instruction's minutes after the area was last
     // listed ("stay in the protected space 10 min"), or defaultHoldMs when the instruction names no duration, AND
-    // until the feed has answered without the area for graceMs; a verified end message clears it sooner.
+    // until the feed has answered without the area for graceMs. An end message never clears or shortens it.
     graceMs: 60 * 1000,
     defaultHoldMs: 10 * 60 * 1000,
     failAfter: 3                        // consecutive failed polls before "no connection" is shown

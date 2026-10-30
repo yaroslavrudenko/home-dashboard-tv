@@ -402,6 +402,22 @@ test('an alert in Rehovot: full screen over the main screen at once; the remote 
   } finally { await app.close(); }
 });
 
+// FB4-A8 (frontend review F1): two records for Rehovot, 1 min and 10 min, in either order: the overlay says what
+// the hold does — «10 мин», never «1 мин».
+test('FB4-A8: two records for Rehovot (1 min and 10 min), either order: the overlay instruction says «10 мин»', async () => {
+  const rec = (id, n) => ({ id, cat: '1', title: 'ירי רקטות וטילים', data: ['רחובות'], desc: 'היכנסו למרחב המוגן ושהו בו ' + n + ' דקות' });
+  for (const pair of [[rec('100', 1), rec('200', 10)], [rec('200', 10), rec('100', 1)]]) {
+    const app = await openApp({ news: 'ok', alerts: () => ({ status: 200, body: JSON.stringify(pair) }) });
+    try {
+      await ready(app);
+      await app.page.waitForSelector('#alert.is-on');
+      const instr = await app.page.$eval('#alert .alert-instr', (e) => e.textContent);
+      assert.equal(instr, 'Войдите в защищённое помещение и оставайтесь там 10 мин', 'order ' + pair.map((r) => r.id).join(','));
+      assert.deepEqual(app.errors, []);
+    } finally { await app.close(); }
+  }
+});
+
 test('the alert stays for its hold after the last listing and a grace of confirmed absence, then fades; rotation resumes', async () => {
   const t0 = Date.now();
   let clearAt = 0;
