@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="img/icon.png" width="160" alt="Home Dashboard icon: a golden sun whose face is a clock, with a white cloud, on a night-blue sky">
+  <img src="img/icon.png" width="160" alt="Home Dashboard icon: four widget tiles on graphite: a white clock, a blue sky with a sun, a red news card and a green route">
 </p>
 
 <h1 align="center">Home Dashboard</h1>
