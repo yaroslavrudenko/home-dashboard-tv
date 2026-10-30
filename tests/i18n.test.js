@@ -16,7 +16,7 @@ test('Russian is the default language; the switch cycles Russian, Hebrew, Ukrain
 
 test('every string key exists in both languages and is not empty', () => {
   const ctx = load(FILES);
-  const keys = ['city.israel', 'city.ukraine', 'city.sydney', 'place.rehovot', 'place.kyiv', 'place.sydney', 'clock.same', 'clock.ahead',
+  const keys = ['city.israel', 'city.ukraine', 'city.sydney', 'place.kyiv', 'place.sydney', 'clock.same', 'clock.ahead',
     'clock.behind', 'clock.unknown', 'w.feels', 'w.high', 'w.low', 'w.wind', 'w.humidity', 'w.rain', 'w.sunrise',
     'w.sunset', 'w.kmh', 'w.now', 'w.today', 'w.hourly', 'w.daily', 'w.updated', 'w.stale', 'w.loading', 'w.failed', 'w.retry', 'w.retrySoon'];
   for (const lang of ['ru', 'en']) {
@@ -56,10 +56,11 @@ test('batch 2: every screen, source, traffic and alert string exists in both lan
     'a.generic', 'a.since', 'a.shelter', 'a.shelterFor', 'a.nearby', 'a.offline',
     // batch 8: the "no connection · last answer" line, the alert preview and the Alerts screen
     'a.offlineSince', 'a.preview', 'screen.alerts', 'a.home.quiet', 'a.checked', 'a.checking', 'a.near.title', 'a.near.quiet',
-    'a.recent', 'a.recent.none', 'a.recent.loading', 'a.recent.failed']
+    'a.recent', 'a.recent.none', 'a.recent.loading', 'a.recent.failed',
+    // batch 10: the home-alert line and the city picker (the route and home names now come from js/cities.js)
+    'a.banner', 'a.bannerSince', 'city.title', 'city.sub', 'city.hint', 'city.saveFailed', 'city.saved']
     .concat(ctx.Config.news.feeds.map((f) => 'n.src.' + f.id), ctx.Config.news.columns.map((c) => 'n.col.' + c.id))
     .concat(ctx.Config.traffic.columns.map((c) => 't.col.' + c.id))
-    .concat(ctx.Config.traffic.routes.map((r) => 't.route.' + r.id))
     .concat(['ok', 'slow', 'jam'].map((l) => 't.level.' + l))
     .concat(['missiles', 'aircraft', 'infiltration', 'earthquake', 'tsunami', 'hazmat', 'radiological', 'prealert'].map((k) => 'a.kind.' + k));
   for (const lang of ['ru', 'en']) {
@@ -70,7 +71,7 @@ test('batch 2: every screen, source, traffic and alert string exists in both lan
   assert.equal(ctx.I18n.t('a.kind.missiles'), 'Ракетный обстрел');
   assert.equal(ctx.I18n.t('t.noKey'), 'Подключите токен Mapbox, чтобы видеть пробки');
   // Batch 7: the Mapbox map says «Карта недоступна» again (m.unavailable, m.staleFrom); t.dataFrom stays gone.
-  for (const gone of ['t.limit', 'n.partial', 't.col.roads', 't.road.ayalon', 't.dataFrom']) assert.equal(ctx.I18n.t(gone), gone, gone + ' has no reader: removed');
+  for (const gone of ['t.limit', 'n.partial', 't.col.roads', 't.road.ayalon', 't.dataFrom', 'place.rehovot', 't.route.tlv', 't.route.glilot']) assert.equal(ctx.I18n.t(gone), gone, gone + ' has no reader: removed');
 });
 
 test('"how long ago" for a headline: just now, minutes, hours, days; a time in the future reads "just now"', () => {

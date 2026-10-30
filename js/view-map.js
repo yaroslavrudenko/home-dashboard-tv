@@ -1,5 +1,5 @@
 /* The traffic map screen: one glass card holding ONE image of the live traffic (Mapbox Static Images, traffic-night-v2),
- * a small home dot on Rehovot and the attribution Mapbox requires («© Mapbox © OpenStreetMap»). The image is fetched
+ * a small home dot on the home city and the attribution Mapbox requires («© Mapbox © OpenStreetMap»). The image is fetched
  * through Net.getImage with a deadline; a new one replaces the old one only once it has loaded, so a failed refresh keeps
  * the last one on screen and the header says «Карта недоступна · данные от HH:MM». Until the first image is in, a quiet
  * line in the middle of the card says it is loading (or unavailable); the dot waits for the image.

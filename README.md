@@ -36,8 +36,8 @@
 | 🎵 **Plays under «Настин кинозал»'s music** | Open the player, start a channel, open the dashboard: the music keeps playing under the dashboard ([below](#plays-under-настин-кинозал)). Two apps, one family. |
 | 📺 **An installed app on a 2017 TV** | A signed Tizen `.wgt` for Tizen 3.0 / Chromium 47 (the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
 | 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources. |
-| 🚗 **Live Israeli traffic** | Ten routes from Rehovot with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map of the centre of Israel. |
-| 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in Rehovot opens the Alerts screen at once, red and full, with an attention sound; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
+| 🚗 **Live Israeli traffic** | Ten routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
+| 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in your home city opens the Alerts screen at once, red and full, with an attention sound, and a red line «Тревога в Реховоте» stays at the top of every other screen; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
 | 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
@@ -122,7 +122,7 @@ once (0.6 s after the last press), and a rotation arrival keeps each screen's ow
 - **World clocks**: Israel (Asia/Jerusalem), Ukraine (Europe/Kyiv) and Sydney (Australia/Sydney), in 24-hour
   time with the weekday, the date, the difference to Israel and each city's current temperature. A card is
   tinted for the night from that city's sunrise and sunset.
-- **Weather** for Rehovot from [Open-Meteo](https://open-meteo.com/) (free, no API key): temperature, feels-like,
+- **Weather** for the home city (Rehovot by default; see [Home city](#home-city)) from [Open-Meteo](https://open-meteo.com/) (free, no API key): temperature, feels-like,
   condition, wind, humidity, today's high/low, chance of rain, sunrise/sunset, a 12-hour strip and a 7-day list.
 - **Status**: "Updated at HH:MM". When a refresh fails, the last good data stays on screen and is marked as
   not updating, with the time it is from; every temperature from that data (the main card and each clock
@@ -171,9 +171,10 @@ only, while the header stays "Updated at"; when nothing came at all the header s
 в HH:MM». Hebrew is drawn in a bundled Noto Sans Hebrew (Regular, the Hebrew block only, about 7 KB, OFL) so the TV does not
 depend on its system fonts for it.
 
-**4 · Traffic**: ten widgets in two columns of five. «Города»: from Rehovot to the centres of Tel Aviv, Jerusalem, Haifa,
-Beer Sheva and Ashkelon; «Рядом»: to Modi'in, Rishon LeZion, Ben Gurion Airport (Terminal 3), Holon and Glilot (Cinema
-City). Each widget: the name and a soft green / amber / red chip with the delay, the travel time now and the length, and a
+**4 · Traffic**: ten widgets in two columns of five, all from the home city. For Rehovot (the default) «Города»: to the
+centres of Tel Aviv, Jerusalem, Haifa, Beer Sheva and Ashkelon; «Рядом»: to Modi'in, Rishon LeZion, Ben Gurion Airport
+(Terminal 3), Holon and Glilot (Cinema City). Any other home city gets five of Tel Aviv, Jerusalem, Haifa, Beer Sheva,
+Ashkelon and Netanya (never itself) and its five nearest cities (see [Home city](#home-city)). Each widget: the name and a soft green / amber / red chip with the delay, the travel time now and the length, and a
 time bar (bars compare within a column). The times are LIVE traffic from the
 [Mapbox Directions API](https://docs.mapbox.com/api/navigation/directions/) (profile `driving-traffic`): one GET per route,
 the ten started together, no geometry. The delay is the time now over the usual time at this hour (`duration_typical`);
@@ -212,10 +213,11 @@ current. It needs a Mapbox token (see Build); without one the screen says how to
 were checked live by the coordinator on 2026-10-30 16:28 (e.g. Tel Aviv 32.0 min vs a usual 39.3, Jerusalem 44.9 vs 56.4);
 the tests run on Mapbox's documented answer shape.
 
-**5 · Traffic map**: the live traffic of the centre of Israel — Tel Aviv, Rehovot, Ashdod and Jerusalem — as ONE picture from
+**5 · Traffic map**: the live traffic around the home city (for Rehovot: Tel Aviv, Rehovot, Ashdod and Jerusalem; any other
+city is in the middle) as ONE picture from
 the [Mapbox Static Images API](https://docs.mapbox.com/api/maps/static-images/) in Mapbox's live-traffic style
 (`traffic-night-v2`: green, orange and red lines over a night map), with the same Mapbox token as the routes. A white dot
-marks Rehovot (placed by Web Mercator, so it sits exactly on the town), and the card carries the attribution Mapbox requires,
+marks the home city (placed by Web Mercator, so it sits exactly on the town), and the card carries the attribution Mapbox requires,
 «© Mapbox © OpenStreetMap». The picture is asked for at half the card's size `@2x`, so it fills the card pixel for pixel.
 It is refreshed while it is shown (the same one-gate rule as the routes, `Config.map`): at once on every ◀ ▶ open, every
 5 minutes while the map is on view and the TV shows it, never while hidden (leaving the screen or the TV hiding the page stops
@@ -240,39 +242,72 @@ cached for 2), never while hidden; a failed answer keeps the last list and the h
 **Israel alerts**: the live alert feed is read every 5 seconds (one request at a time, 4-second timeout). What happens
 depends on where the alert is:
 
-- **Rehovot (home, `alerts.areas`).** The moment an alert starts, the app switches to this screen from whatever screen is
+- **The home city (Rehovot by default, `alerts.areas`).** The moment an alert starts, the app switches to this screen from whatever screen is
   on view, and the screen itself becomes the alert: deep red, filling the screen, with the kind of alert, the area, the
   time it started and the instruction. The recent alerts refresh at once, as on a ◀ ▶ open. A short attention chime
-  (three soft bell tones, about 2 s, `sounds/alert.wav`, made by `tools/make-chime.mjs`) plays at the start and again every
+  (three soft bell tones, about 2 s) plays at the start and again every
   30 seconds while the alert is up, five times at most (`alerts.sound`: `enabled`, `repeatMs`, `maxPlays`). The rotation
   stops while the alert is up and for 2 minutes after it clears (`rotation.afterAlertMs`), then carries on from this
   screen. Only the START of an alert switches and rings: if you leave with ◀ ▶, a new record of the same alert does not
-  pull you back. The alert never ends on a guess: it stays for the instruction's minutes after the area was last listed
+  pull you back; while the alert is up every other screen carries a slim red line at the top, «Тревога в Реховоте · с
+  20:32» («אזעקה ברחובות · מ־20:32», «Тривога в Реховоті · з 20:32»), never for the preview. The chime is made on the
+  spot with Web Audio (`js/chime.js`, the recipe of `tools/make-chime.mjs`): on the TV the HTML5 media player may be busy
+  with the music of «Настин кинозал» behind the dashboard, and Web Audio does not need it. Only where Web Audio is missing
+  or fails is the bundled `sounds/alert.wav` played instead. The alert never ends on a guess: it stays for the instruction's minutes after the area was last listed
   (10 minutes when the instruction names none) and until the feed has answered without the area for a full minute; a
   failed or malformed answer never counts as "not listed". An end message ("the event has ended") never clears or
   shortens it: end messages are recognised by exact title only so that they never raise one. The remote cannot dismiss
   it (Back still closes the app).
-- **Nearby towns (`alerts.nearby`).** A quiet line in the corner and in this screen's «Рядом» card; no switch, no sound.
+- **Nearby towns (`alerts.nearby`: derived from the home city).** A quiet line in the corner and in this screen's «Рядом» card; no switch, no sound.
 - **Anywhere else in Israel.** Only in this screen's list of recent alerts; nothing else on screen, no sound.
 
 - **Hebrew original.** In Russian and Ukrainian the kind is in the interface language; when the screen has no word for
   the kind, Pikud HaOref's Hebrew title is shown under it as its own right-to-left line (figures stay where Hebrew puts
   them, e.g. «… מספר 12»), and an instruction the screen cannot translate is shown the same way. In Hebrew the alert's own
   words are the main line (nothing translated twice).
-- **Area names in three languages.** Areas are configured by their Hebrew names in `js/config.js` (`alerts.areas`,
-  `alerts.nearby`), spelled as in Pikud HaOref's area list (a test checks every name against a copy of it in
-  `tests/fixtures/oref/`), each with its Russian and Ukrainian name; a name never breaks at its hyphen.
+- **Area names in three languages.** Areas come from the city catalogue `js/cities.js`: each city's Hebrew name and the
+  Pikud HaOref names its alerts are matched against (`match`: «קריית גת, כרמי גת» for Kiryat Gat, the «מודיעין - …»
+  centres for Modi'in), spelled as in Pikud HaOref's area list (a test checks every name against a copy of it in
+  `tests/fixtures/oref/`), each with its Russian and Ukrainian name; a name never breaks at its hyphen. A district in the
+  recent-alerts list («ראשון לציון - מזרח») is named as its city.
 - **Nearby corner line.** Bottom-right (bottom-left in Hebrew); three names at most, «и ещё N» for the rest.
 - **No connection.** If the feed cannot be reached three times in a row, the corner says «Тревоги: нет связи · последний
   ответ 20:32» (the time of the last good answer; just «Тревоги: нет связи» before the first one, or when the line would
   not fit next to nearby towns — their names come first), and during an alert the alert itself says so. The app never
   claims "all clear". The feed answers only inside Israel.
 - **Alert preview (the blue key).** Press the remote's **blue** key to see how an alert looks: the Alerts screen opens
-  and shows the alert for 10 seconds (`alerts.previewMs`) with a sample record for Rehovot (rocket and missile fire, stay 10
+  and shows the alert for 10 seconds (`alerts.previewMs`) with a sample record for the home city (rocket and missile fire, stay 10
   minutes) under a white band «Проверка тревоги — это не настоящая тревога» (in Hebrew «בדיקת התרעה — זו אינה התרעה
   אמיתית», in Ukrainian «Перевірка тривоги — це не справжня тривога»). Back or any other key ends it (and does nothing
   else). The chime plays once so you can hear it. The preview never touches the real alert state, and a real alert
   always wins: it replaces the preview at once (and rings), and the blue key does nothing while one is up.
+
+## Home city
+
+Everything that is about "here" follows one city: the main weather card (and the Israel clock's temperature), the ten
+traffic routes and their names, the traffic map's centre and dot, the alert at home, the nearby towns and the red alert line.
+Rehovot is the default; 83 Israeli cities are in the catalogue [`js/cities.js`](js/cities.js) (every city of roughly 20,000
+people or more, plus the small towns around Rehovot).
+
+- **On the TV.** Press **OK**: a sheet lists the cities in the interface language's order, the current one ticked. **▲ ▼**
+  move, **◀ ▶** jump to the next / previous letter, **OK** chooses, **Back** (or 30 seconds without a key) closes it with no
+  change. A new city is saved on the TV and the app restarts once (about a second), then a toast says «Город: Хайфа». The
+  sheet never opens over an alert, and a real alert closes it.
+- **At build time.** For a TV in another city, add `HOME_CITY=<id>` to `build.local.env` (an id from `js/cities.js`, e.g.
+  `haifa`, `tlv`, `jlm`, `beersheva`). The build writes it into the packaged `js/config.js` only; an id that is not in the
+  catalogue stops the build.
+- **Which wins.** The city chosen on the TV, then `HOME_CITY` (`homeCity` in `js/config.js`), then Rehovot. Rebuilding with
+  a new `HOME_CITY` does not override a city already chosen on that TV; choose again with OK.
+- **What a city gets.** Rehovot keeps the owner's hand-tuned routes, map view and nearby towns exactly. Any other city:
+  «Города» are five of Tel Aviv, Jerusalem, Haifa, Beer Sheva, Ashkelon and Netanya (never itself); «Рядом» are its five
+  nearest cities (at least 2 km away); the map is centred on it; the nearby alerts are the cities within 20 km (11 at
+  most; with fewer than 3, the 3 nearest within 40 km). Remote towns are honest: Eilat's «Рядом» are far away and it has no
+  nearby alert towns.
+- **The cost.** A change of city costs no extra Mapbox request: still 10 per traffic round and 1 map image, both only while
+  their screen is on view, under the same daily caps. Travel times cached for one city are never shown for another.
+- **Maintenance.** `node tools/cities.mjs --order` re-sorts the picker for every language; `node tools/cities.mjs --check`
+  compares the catalogue with Pikud HaOref's live area list and Open-Meteo's geocoding (run it at every release: a renamed
+  Oref area would silently stop that city's home alerts).
 
 ## Languages
 
@@ -299,9 +334,11 @@ in the config is only the first start's language, `languages` the order of the s
 
 ## Configure
 
-Everything lives in [`js/config.js`](js/config.js): language, screens and rotation, clocks (zones and order),
-weather places (the first is the main card), news feeds per language, traffic routes and when they are refreshed
-(`traffic.schedule`), the traffic map, alert areas, refresh intervals and burn-in timing. Names on screen are in `js/i18n.js`.
+Everything lives in [`js/config.js`](js/config.js): language, the home city (`homeCity`), screens and rotation, clocks
+(zones and order), weather places (the first is the home city's main card), news feeds per language, when the traffic
+routes are refreshed (`traffic.schedule`), the traffic map, the alert feed, refresh intervals and burn-in timing. The
+routes, the map's view and the alert areas are derived from the home city ([`js/cities.js`](js/cities.js),
+[`js/homecity.js`](js/homecity.js)). Names on screen are in `js/i18n.js`.
 
 ## Build, sign and install on any Samsung TV
 
@@ -337,7 +374,8 @@ ACORN=<path to acorn> tools/es5-gate.sh                               # every sc
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
 PUPPETEER_CORE_DIR=... node tools/readme-shots.mjs [--map <png>]      # the README gallery and hero (docs/screenshots/)
 PUPPETEER_CORE_DIR=... node tools/make-icon.mjs                       # img/icon.svg → img/icon.png (512×423)
-node tools/make-chime.mjs                                             # sounds/alert.wav (the alert's attention sound)
+node tools/make-chime.mjs                                             # sounds/alert.wav (the attention sound where Web Audio is missing)
+node tools/cities.mjs --order | --check                               # the home-city catalogue: picker order / drift against the live sources
 ```
 
 The browser tests answer Open-Meteo, the news feeds, the alert feed, its history and Mapbox from `tests/fixtures/` (the
@@ -358,3 +396,5 @@ map image a real traffic-night-v2 picture made smaller); they fail (never skip) 
 MIT © Yaroslav Rudenko. See [LICENSE](LICENSE). The same licence covers the sibling project [Настин кинозал](https://github.com/yaroslavrudenko/nastin-kinozal), an IPTV player for the same TVs.
 The bundled Inter font is © The Inter Project Authors, under the SIL Open Font License 1.1
 ([fonts/OFL.txt](fonts/OFL.txt)).
+City centres in `js/cities.js`: [GeoNames](https://www.geonames.org/) via Open-Meteo's geocoding, CC BY 4.0; six of them
+are centroids of Pikud HaOref area points from [oref_alert](https://github.com/amitfin/oref_alert) (MIT).

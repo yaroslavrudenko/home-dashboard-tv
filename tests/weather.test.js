@@ -22,9 +22,10 @@ test('one URL carries every place (comma-separated coordinates), current, hourly
   assert.ok(!/key|token|appid/i.test(u.search), 'no API key');
 });
 
+// Batch 10: the main place is the home city's ('home'; Rehovot by default, js/homecity.js), never a region's id.
 test('Rehovot is the default (main) place; Kyiv and Sydney are optional extras', () => {
   const ctx = load(FILES);
-  assert.equal(ctx.Config.places[0].id, 'rehovot');
+  assert.equal(ctx.Config.places[0].id, 'home');
   assert.deepEqual([ctx.Config.places[0].lat, ctx.Config.places[0].lon], [31.8928, 34.8113]);
 });
 
@@ -150,7 +151,7 @@ test('a refresh is ONE request for every place, with a timeout; a second refresh
   assert.equal(s.store.refresh(), false);
   assert.equal(s.calls.length, 1);
   s.answer('ok');
-  for (const id of ['rehovot', 'kyiv', 'sydney']) assert.equal(s.store.status(id).kind, 'fresh', id);
+  for (const id of ['home', 'kyiv', 'sydney']) assert.equal(s.store.status(id).kind, 'fresh', id);
   assert.equal(s.changes(), 1, 'one render per refresh');
 });
 
@@ -158,19 +159,19 @@ test('a failed refresh keeps the last good data and marks it stale; success clea
   const ctx = load(FILES);
   const s = makeStore(ctx, () => 0.5);
   s.store.refresh(); s.answer('ok');
-  const good = s.store.get('rehovot');
-  assert.equal(s.store.status('rehovot').kind, 'fresh');
+  const good = s.store.get('home');
+  assert.equal(s.store.status('home').kind, 'fresh');
   s.clock.advance(15 * 60000);                     // the scheduled refresh fires
   assert.equal(s.calls.length, 2);
   s.answer('timeout');
-  assert.equal(s.store.get('rehovot'), good, 'last good data kept');
-  for (const id of ['rehovot', 'kyiv', 'sydney']) assert.equal(s.store.status(id).kind, 'stale', 'a failed request marks every place stale: ' + id);
-  const st = s.store.status('rehovot');
+  assert.equal(s.store.get('home'), good, 'last good data kept');
+  for (const id of ['home', 'kyiv', 'sydney']) assert.equal(s.store.status(id).kind, 'stale', 'a failed request marks every place stale: ' + id);
+  const st = s.store.status('home');
   assert.equal(st.updatedAt, T0, 'the time of the data shown, not of the failure');
   s.clock.advance(60000);                          // the first back-off step is at most one minute
   assert.equal(s.calls.length, 3);
   s.answer('ok');
-  assert.equal(s.store.status('rehovot').kind, 'fresh');
+  assert.equal(s.store.status('home').kind, 'fresh');
 });
 
 test('data older than staleAfterMs is stale even without a failed request', () => {
@@ -179,9 +180,9 @@ test('data older than staleAfterMs is stale even without a failed request', () =
   s.store.refresh(); s.answer('ok');
   s.store.stop();                                  // no further refreshes
   s.clock.advance(ctx.Config.weather.staleAfterMs);
-  assert.equal(s.store.status('rehovot').kind, 'fresh', 'exactly at the limit still fresh');
+  assert.equal(s.store.status('home').kind, 'fresh', 'exactly at the limit still fresh');
   s.clock.advance(1);
-  assert.equal(s.store.status('rehovot').kind, 'stale');
+  assert.equal(s.store.status('home').kind, 'stale');
 });
 
 // Decision 17 (F16)
@@ -193,18 +194,18 @@ test('a device clock that went backwards past the data makes it stale, not fresh
     getJson: (url, ms, done) => done(null, ['rehovot', 'kyiv', 'sydney'].map(fixture)),
     now: () => now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, onChange: () => {} });
   store.refresh();
-  assert.equal(store.status('rehovot').kind, 'fresh');
+  assert.equal(store.status('home').kind, 'fresh');
   now = T0 - 60000;
-  assert.equal(store.status('rehovot').kind, 'stale');
+  assert.equal(store.status('home').kind, 'stale');
 });
 
 test('first start with no network: "failed", not stale and not empty forever', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  assert.equal(s.store.status('rehovot').kind, 'loading');
+  assert.equal(s.store.status('home').kind, 'loading');
   s.store.refresh(); s.answer('network');
-  assert.equal(s.store.status('rehovot').kind, 'failed');
-  assert.equal(s.store.get('rehovot'), null);
+  assert.equal(s.store.status('home').kind, 'failed');
+  assert.equal(s.store.get('home'), null);
   assert.ok(s.store.nextAt() > T0, 'the next attempt is known (shown as "retrying at")');
 });
 
@@ -241,7 +242,7 @@ test('one place failing marks the cycle as failed for back-off but keeps the oth
   const s = makeStore(ctx, () => 1);
   s.store.refresh();
   s.answer('ok', (list) => { list[1] = { nonsense: true }; });
-  assert.equal(s.store.status('rehovot').kind, 'fresh');
+  assert.equal(s.store.status('home').kind, 'fresh');
   assert.equal(s.store.status('sydney').kind, 'fresh');
   assert.equal(s.store.status('kyiv').kind, 'failed');
   assert.equal(s.store.failures(), 1);
@@ -252,11 +253,11 @@ test('an answer that does not parse counts as a failure and keeps the previous d
   const ctx = load(FILES);
   const s = makeStore(ctx);
   s.store.refresh(); s.answer('ok');
-  const good = s.store.get('rehovot');
+  const good = s.store.get('home');
   s.store.refresh();
   s.calls[1].done(null, { nonsense: true });
-  assert.equal(s.store.get('rehovot'), good);
-  assert.equal(s.store.status('rehovot').kind, 'stale');
+  assert.equal(s.store.get('home'), good);
+  assert.equal(s.store.status('home').kind, 'stale');
 });
 
 // Decision 17 (Codex 5)
@@ -268,7 +269,7 @@ test('stop() wins over a request already in flight: its late answer neither rend
   s.answer('ok');
   assert.equal(s.changes(), 0, 'no render');
   assert.deepEqual(s.clock.pending(), [], 'no timer');
-  assert.equal(s.store.get('rehovot'), null, 'nothing stored');
+  assert.equal(s.store.get('home'), null, 'nothing stored');
   assert.equal(s.store.refresh(), true, 'a new refresh can start after stop');
 });
 

@@ -1,0 +1,274 @@
+{
+ "commit": "5df4e33",
+ "place0": {
+  "id": "rehovot",
+  "lat": 31.8928,
+  "lon": 34.8113
+ },
+ "clock0Place": "rehovot",
+ "routes": [
+  {
+   "id": "tlv",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    32.0853,
+    34.7818
+   ]
+  },
+  {
+   "id": "jlm",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    31.7816,
+    35.2186
+   ]
+  },
+  {
+   "id": "haifa",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    32.8185,
+    34.9988
+   ]
+  },
+  {
+   "id": "beersheva",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    31.2518,
+    34.7913
+   ]
+  },
+  {
+   "id": "ashkelon",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    31.6688,
+    34.5743
+   ]
+  },
+  {
+   "id": "modiin",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    31.8986,
+    35.0076
+   ]
+  },
+  {
+   "id": "rishon",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    31.964,
+    34.8044
+   ]
+  },
+  {
+   "id": "airport",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    32.0004,
+    34.8706
+   ]
+  },
+  {
+   "id": "holon",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    32.0158,
+    34.7874
+   ]
+  },
+  {
+   "id": "glilot",
+   "from": [
+    31.8928,
+    34.8113
+   ],
+   "to": [
+    32.1449,
+    34.8073
+   ]
+  }
+ ],
+ "columns": [
+  {
+   "id": "cities",
+   "legs": [
+    "tlv",
+    "jlm",
+    "haifa",
+    "beersheva",
+    "ashkelon"
+   ]
+  },
+  {
+   "id": "near",
+   "legs": [
+    "modiin",
+    "rishon",
+    "airport",
+    "holon",
+    "glilot"
+   ]
+  }
+ ],
+ "map": {
+  "center": [
+   31.93,
+   34.94
+  ],
+  "zoom": 9.6,
+  "home": [
+   31.8928,
+   34.8113
+  ]
+ },
+ "alerts": {
+  "areas": [
+   {
+    "he": "רחובות",
+    "ru": "Реховот",
+    "uk": "Реховот"
+   }
+  ],
+  "nearby": [
+   {
+    "he": "נס ציונה",
+    "ru": "Нес-Циона",
+    "uk": "Нес-Ціона"
+   },
+   {
+    "he": "ראשון לציון",
+    "ru": "Ришон-ле-Цион",
+    "uk": "Рішон-ле-Ціон"
+   },
+   {
+    "he": "יבנה",
+    "ru": "Явне",
+    "uk": "Явне"
+   },
+   {
+    "he": "גדרה",
+    "ru": "Гедера",
+    "uk": "Гедера"
+   },
+   {
+    "he": "מזכרת בתיה",
+    "ru": "Мазкерет-Батья",
+    "uk": "Мазкерет-Батья"
+   },
+   {
+    "he": "קריית עקרון",
+    "ru": "Кирьят-Экрон",
+    "uk": "Кір’ят-Екрон"
+   },
+   {
+    "he": "באר יעקב",
+    "ru": "Беэр-Яаков",
+    "uk": "Беер-Яаков"
+   },
+   {
+    "he": "רמלה",
+    "ru": "Рамла",
+    "uk": "Рамла"
+   },
+   {
+    "he": "לוד",
+    "ru": "Лод",
+    "uk": "Лод"
+   },
+   {
+    "he": "אשדוד",
+    "ru": "Ашдод",
+    "uk": "Ашдод"
+   },
+   {
+    "he": "תל אביב",
+    "ru": "Тель-Авив",
+    "uk": "Тель-Авів"
+   }
+  ]
+ },
+ "names": {
+  "ru": {
+   "place.rehovot": "Реховот",
+   "t.route.tlv": "Тель-Авив",
+   "t.route.jlm": "Иерусалим",
+   "t.route.haifa": "Хайфа",
+   "t.route.beersheva": "Беэр-Шева",
+   "t.route.ashkelon": "Ашкелон",
+   "t.route.modiin": "Модиин",
+   "t.route.rishon": "Ришон-ле-Цион",
+   "t.route.airport": "Аэропорт",
+   "t.route.holon": "Холон",
+   "t.route.glilot": "Глилот"
+  },
+  "he": {
+   "place.rehovot": "רחובות",
+   "t.route.tlv": "תל אביב",
+   "t.route.jlm": "ירושלים",
+   "t.route.haifa": "חיפה",
+   "t.route.beersheva": "באר שבע",
+   "t.route.ashkelon": "אשקלון",
+   "t.route.modiin": "מודיעין",
+   "t.route.rishon": "ראשון לציון",
+   "t.route.airport": "נתב״ג",
+   "t.route.holon": "חולון",
+   "t.route.glilot": "גלילות"
+  },
+  "uk": {
+   "place.rehovot": "Реховот",
+   "t.route.tlv": "Тель-Авів",
+   "t.route.jlm": "Єрусалим",
+   "t.route.haifa": "Хайфа",
+   "t.route.beersheva": "Беер-Шева",
+   "t.route.ashkelon": "Ашкелон",
+   "t.route.modiin": "Модіїн",
+   "t.route.rishon": "Рішон-ле-Ціон",
+   "t.route.airport": "Аеропорт",
+   "t.route.holon": "Холон",
+   "t.route.glilot": "Глілот"
+  },
+  "en": {
+   "place.rehovot": "Rehovot",
+   "t.route.tlv": "Tel Aviv",
+   "t.route.jlm": "Jerusalem",
+   "t.route.haifa": "Haifa",
+   "t.route.beersheva": "Beer Sheva",
+   "t.route.ashkelon": "Ashkelon",
+   "t.route.modiin": "Modi'in",
+   "t.route.rishon": "Rishon LeZion",
+   "t.route.airport": "Airport",
+   "t.route.holon": "Holon",
+   "t.route.glilot": "Glilot"
+  }
+ }
+}

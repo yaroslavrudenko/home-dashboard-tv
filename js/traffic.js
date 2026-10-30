@@ -9,6 +9,7 @@
  *   Traffic.decide(cfg, facts)     'due', or why a round may not be sent now (THE gate; see below)
  *   Traffic.correct(record, now)   the accounting record after a clock correction, or null when none is needed
  *   Traffic.createStore(cfg, deps) the store: asks decide() on every path, keeps the accounting record and the row cache
+ *   Traffic.signature(routes)      which routes a cached row belongs to (a short hash of every id, from and to)
  * When a round is sent (the judges' COMMON DECISION 2026-10-30 and the owner's explicit-open rule; cfg.schedule):
  * only while the traffic screen is the one on view AND the TV shows it (document visible), one round at a time, with a
  * valid accounting record, and never past dailyRequestCap (3,000) requests on the UTC date. On top of that: an explicit
@@ -23,7 +24,7 @@
  * move lastAttemptAt. Storage that fails, or a record that is corrupt (an impossible date included), pauses sending. A clock that went back is
  * corrected without sending (Traffic.correct). Any failure — transport, a malformed answer, a refusal (401/403/429) —
  * keeps the last good values and their times; the rows and their failure state are kept in `tt-cache` and shown at once
- * after a restart. A route Mapbox cannot route (NoRoute / NoSegment) and nothing else is "no data" on its row and a
+ * after a restart — only for the same routes (`sig`): after a change of home city the old city's times are never shown. A route Mapbox cannot route (NoRoute / NoSegment) and nothing else is "no data" on its row and a
  * good round. */
 var Traffic = (function () {
   var QUERY = '?overview=false&access_token=';
@@ -96,8 +97,21 @@ var Traffic = (function () {
     return ratio >= cfg.redRatio ? 'jam' : ratio >= cfg.amberRatio ? 'slow' : 'ok';
   }
 
-  function validCache(c, n) {
-    if (!c || c.v !== VERSION || !Array.isArray(c.rows) || c.rows.length !== n || typeof c.failed !== 'boolean' ||
+  // FNV-1a (32 bit, shifts and adds: exact in ES5 arithmetic) of every route's id, from and to, as 8 hex digits.
+  function signature(routes) {
+    var text = '', h = 0x811c9dc5, i;
+    for (i = 0; i < routes.length; i++) text += routes[i].id + ':' + routes[i].from.join(',') + '>' + routes[i].to.join(',') + '|';
+    for (i = 0; i < text.length; i++) {
+      h ^= text.charCodeAt(i);
+      h = (h + (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24)) >>> 0;
+    }
+    return ('0000000' + h.toString(16)).slice(-8);
+  }
+  // A cache written before signatures existed (5df4e33) holds the owner's Rehovot routes: kept for exactly those.
+  var LEGACY_SIG = '5004d845';
+
+  function validCache(c, n, sig) {
+    if (!c || c.v !== VERSION || (c.sig === undefined ? sig !== LEGACY_SIG : c.sig !== sig) || !Array.isArray(c.rows) || c.rows.length !== n || typeof c.failed !== 'boolean' ||
         (c.problem !== null && c.problem !== 'refused') || !count(c.attemptAt)) return false;
     for (var i = 0; i < n; i++) {
       var r = c.rows[i], d = r && r.data;
@@ -116,8 +130,8 @@ var Traffic = (function () {
     var timer = null, generation = 0;
 
     function readJson(key) { try { return JSON.parse(storage.getItem(key)); } catch (e) { return undefined; } }
-    var cached = storage ? readJson(CACHE) : null;
-    if (validCache(cached, n)) { rows = cached.rows; failed = cached.failed; problem = cached.problem; answeredFor = cached.attemptAt; }
+    var cached = storage ? readJson(CACHE) : null, sig = signature(cfg.routes);
+    if (validCache(cached, n, sig)) { rows = cached.rows; failed = cached.failed; problem = cached.problem; answeredFor = cached.attemptAt; }
     else for (i = 0; i < n; i++) rows.push({ data: null, updatedAt: 0, error: null });
 
     // The accounting record (js/ledger.js): null when storage is unusable or the record is corrupt; a fresh one on a first
@@ -126,7 +140,7 @@ var Traffic = (function () {
     function account(now) { return ledger.read(now); }
     function persist(r) { paused = !ledger.write(r); return !paused; }
     function saveCache() {
-      try { storage.setItem(CACHE, JSON.stringify({ v: VERSION, rows: rows, failed: failed, problem: problem, attemptAt: answeredFor })); }
+      try { storage.setItem(CACHE, JSON.stringify({ v: VERSION, sig: sig, rows: rows, failed: failed, problem: problem, attemptAt: answeredFor })); }
       catch (e) { /* the rows on screen still hold for this run */ }
     }
 
@@ -271,5 +285,6 @@ var Traffic = (function () {
     return api;
   }
 
-  return { hasToken: hasToken, urls: urls, summary: summary, level: level, decide: decide, correct: Ledger.correct, validDate: Ledger.validDate, createStore: createStore };
+  return { hasToken: hasToken, urls: urls, summary: summary, level: level, decide: decide, correct: Ledger.correct, validDate: Ledger.validDate, createStore: createStore,
+    signature: signature };
 })();

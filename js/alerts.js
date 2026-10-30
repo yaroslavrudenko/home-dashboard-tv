@@ -5,6 +5,7 @@
  *                                 an area that is not a non-empty string) throws, and the caller counts that as a
  *                                 failed poll, never as "no alert".
  *   Alerts.covers(area, name)     does the feed's area name `area` belong to the configured area `name`?
+ *   Alerts.coversPlace(area, place)  …to a configured place: any of its Oref names (place.match, default [place.he])
  *   Alerts.isEnd(title)           is it one of the feed's end messages (exact, trimmed)?
  *   Alerts.text(v)                is v a string with something other than white space in it?
  *   Alerts.kind(title)            the alert's category key from its Hebrew title ('missiles', …) or null
@@ -62,8 +63,15 @@ var Alerts = (function () {
     if (a.indexOf(n) !== 0) return false;
     return /^ ?-/.test(a.slice(n.length));
   }
-  function coversAny(rec, name) {
-    for (var k = 0; k < rec.areas.length; k++) if (covers(rec.areas[k], name)) return true;
+  // A configured place ({ he, match }) is listed under any of its Oref names: Kiryat Gat is "קריית גת, כרמי גת", Modi'in
+  // is "מודיעין מכבים רעות" and the "מודיעין - …" centres.
+  function coversPlace(area, place) {
+    var names = place.match || [place.he];
+    for (var i = 0; i < names.length; i++) if (covers(area, names[i])) return true;
+    return false;
+  }
+  function coversAny(rec, place) {
+    for (var k = 0; k < rec.areas.length; k++) if (coversPlace(rec.areas[k], place)) return true;
     return false;
   }
 
@@ -86,7 +94,7 @@ var Alerts = (function () {
       ids: home.he, startedAt: now }, nearby: st.nearby, around: st.around, offline: st.offline, checkedAt: st.checkedAt, preview: true };
   }
 
-  /* The one lifetime rule, per configured place (`places`: { he, ru, uk }):
+  /* The one lifetime rule, per configured place (`places`: { he, ru, uk, match }; kept by its `he`):
    *   listed       lastSeenAt = now; absence cleared; holdUntil ≥ now + max(graceMs, the instruction's minutes or
    *                defaultHoldMs), the longest of every record in the answer that covers the place.
    *   not listed   (a SUCCESSFUL poll) absence starts; the place clears at the first such poll at or after
@@ -105,7 +113,7 @@ var Alerts = (function () {
         var he = places[j].he, t = tracks[he], hit = null, hold = 0;
         for (var i = 0; i < parsed.alerts.length; i++) {
           var rec = parsed.alerts[i], h;
-          if (!coversAny(rec, he)) continue;
+          if (!coversAny(rec, places[j])) continue;
           h = holdMs(rec);                           // the longest hold wins, and its record gives the words on screen
           if (!hit || h > hold) { hit = rec; hold = h; }   // (a tie keeps the first)
         }
@@ -209,5 +217,5 @@ var Alerts = (function () {
     return api;
   }
 
-  return { parse: parse, covers: covers, kind: kind, instruction: instruction, isEnd: isEnd, text: text, createMonitor: createMonitor, preview: preview };
+  return { parse: parse, covers: covers, coversPlace: coversPlace, kind: kind, instruction: instruction, isEnd: isEnd, text: text, createMonitor: createMonitor, preview: preview };
 })();

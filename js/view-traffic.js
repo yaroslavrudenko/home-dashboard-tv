@@ -1,4 +1,4 @@
-/* The Traffic screen: two columns of five widgets — the owner's ten routes from Rehovot («Города», «Рядом»; the main
+/* The Traffic screen: two columns of five widgets — the ten routes from the home city («Города», «Рядом»; the main
  * roads are on the traffic map screen). Every widget is the same: the name and a coloured chip (the delay), the time now
  * and the length, and a time bar. Without a Mapbox token: one calm card saying how to connect it. ES5. */
 var TrafficView = (function () {
@@ -38,12 +38,12 @@ var TrafficView = (function () {
     return scale;
   }
 
-  // One widget; item: { id, view }. A widget without data on a drawn screen has failed (the batch is applied
+  // One widget; item: { id, name (the destination in the interface language), view }. A widget without data on a drawn screen has failed (the batch is applied
   // whole: tests/traffic.test.js C5): a quiet dash and «Нет данных», the empty track keeps its shape.
   function widgetHtml(item, scale) {
     var v = item.view, d = v.data;
     return '<div class="card tw' + (v.kind === 'stale' ? ' is-stale' : '') + '"><div class="tw-top"><span class="tw-name">' +
-        esc(I18n.t('t.route.' + item.id)) + '</span>' +
+        esc(item.name) + '</span>' +
         (d ? '<span class="chip lv-' + v.level + '">' + esc(chipText(d)) + '</span>' : '') + '</div>' +
       '<div class="tw-mid">' + (d ? '<span class="tw-time">' + minutesHtml(d.travel) + '</span>' +
           (d.length !== null ? '<span class="tw-km">' + esc(I18n.t('t.km', { n: Math.round(d.length / 1000) })) + '</span>' : '')
@@ -78,7 +78,7 @@ var TrafficView = (function () {
     Html.setStatus(els.status, 'status screen-status', 'none', '');
   }
 
-  // m: { columns: [{ id, items: [{ id, view }] }], kind ('loading' | 'failed' | 'fresh' | 'stale'), updating, future,
+  // m: { columns: [{ id, items: [{ id, name, view }] }], kind ('loading' | 'failed' | 'fresh' | 'stale'), updating, future,
   //      updated ("HH:MM" or "DD.MM HH:MM": the oldest row on screen), ago (its age in minutes), problem ('storage' | 'cap'
   //      | 'refused' | null), resumeAt ("HH:MM" or "DD.MM HH:MM") }. With data the cards stay, the header says when the
   //      data is from, and a problem is a second line under it; with none, one card says what is happening.

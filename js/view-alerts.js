@@ -8,17 +8,20 @@
 var AlertsScreenView = (function () {
   var esc = Html.esc;
   var AREAS_SHOWN = 3;
-  var els = {}, places = {}, drawn = '';
+  var els = {}, places = [], drawn = '';
 
   // cfg: Config.alerts — its configured places name the feed's areas.
   function init(el, cfg) {
     el.innerHTML = Html.screenHead('screen.alerts', 'alerts-status') + '<div class="screen-body al-body" id="al-body"></div>' +
       '<div id="alert" class="alert" role="alert"></div>';
     els = { body: el.querySelector('#al-body'), status: el.querySelector('#alerts-status') };
-    var all = cfg.areas.concat(cfg.nearby);
-    places = {};
-    for (var i = 0; i < all.length; i++) places[all[i].he] = all[i];
+    places = cfg.areas.concat(cfg.nearby);
     drawn = '';
+  }
+  // The configured place a feed area belongs to (its name, or a district of it: "ראשון לציון - מזרח"), or null.
+  function placeOf(area) {
+    for (var i = 0; i < places.length; i++) if (Alerts.coversPlace(area, places[i])) return places[i];
+    return null;
   }
 
   function block(cls, text) { return '<div class="' + cls + '">' + esc(text) + '</div>'; }
@@ -62,15 +65,18 @@ var AlertsScreenView = (function () {
   }
 
   // One recent alert. Hebrew left untranslated is its own right-to-left block.
+  // A configured place is named once however many of its districts are listed (Tel Aviv has four).
   function areasHtml(areas) {
-    var he = I18n.lang() === 'he', names = [], foreign = 0, i;
-    for (i = 0; i < areas.length && i < AREAS_SHOWN; i++) {
-      var p = places[areas[i]];
-      names.push(p && !he ? AlertView.nameOf(p) : areas[i]);
-      if (!p) foreign++;
+    var he = I18n.lang() === 'he', names = [], seen = [], foreign = 0, more = 0, i;
+    for (i = 0; i < areas.length; i++) {
+      var p = placeOf(areas[i]);
+      if (p && seen.indexOf(p) >= 0) continue;
+      if (p) seen.push(p);
+      if (names.length < AREAS_SHOWN) { names.push(p && !he ? AlertView.nameOf(p) : areas[i]); if (!p) foreign++; }
+      else more++;
     }
-    var list = namesHtml(names, ', '), html = areas.length > AREAS_SHOWN ? withAreas('a.nearbyMore', { n: areas.length - AREAS_SHOWN }, list) : list;
-    return '<div class="al-areas"' + (!he && foreign === names.length && areas.length <= AREAS_SHOWN ? ' dir="rtl" lang="he"' : '') + '>' + html + '</div>';
+    var list = namesHtml(names, ', '), html = more ? withAreas('a.nearbyMore', { n: more }, list) : list;
+    return '<div class="al-areas"' + (!he && foreign === names.length && !more ? ' dir="rtl" lang="he"' : '') + '>' + html + '</div>';
   }
   function rowHtml(e, today) {
     var when = (e.date === today ? '' : e.date.slice(0, 5) + ' ') + e.time;

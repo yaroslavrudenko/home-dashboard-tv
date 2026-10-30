@@ -19,7 +19,8 @@ const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers
 // oref.org.il answers a CORS preflight without Access-Control-Allow-Origin / -Allow-Headers (measured 2026-10-29), so a
 // poll that needs a preflight never reaches the GET: the harness answers OPTIONS the same way.
 // FB5-WX: the Israel regions (haifa, telaviv, beersheva) are derived from the Rehovot recording (tests/fixtures).
-const BY_LAT = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney', '32.794': 'haifa', '32.0853': 'telaviv', '31.2518': 'beersheva' };
+// Batch 10: Haifa as the home city (js/cities.js: its centre, 32.8185) answers with the Haifa region's recording.
+const BY_LAT = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney', '32.794': 'haifa', '32.0853': 'telaviv', '31.2518': 'beersheva', '32.8185': 'haifa' };
 const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff' };
 
 // The answer to one multi-location request: one recorded fixture per requested latitude, in order.
@@ -75,6 +76,8 @@ async function answerFor(kind, opts, url, n) {
 // opts: { weather: 'ok' | 'fail' | 'ok-then-fail' | (n, url) => { status, body }, lang, news, alerts, traffic,
 //         now (the app's clock at start; default FIXED_NOW), cpuThrottle (CPU slow-down factor from the first byte),
 //         configure: source of a function(Config) run as js/config.js assigns it,
+//         home: source of a function(Config) run right after the home city is written into Config (HomeCity.apply at
+//         boot: the routes, the map and the alert areas exist only from then on),
 //         init: source of a script run before the app (e.g. remove Intl, stub tizen / webapis) }
 // window.__offsetMs moves the app's clock (Date.now) forward.
 export async function openApp(opts = {}) {
@@ -88,7 +91,7 @@ export async function openApp(opts = {}) {
   const requests = { news: [], alerts: [], history: [], traffic: [], map: [] };
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  await page.evaluateOnNewDocument((fixed, lang, configure, init) => {
+  await page.evaluateOnNewDocument((fixed, lang, configure, init, home) => {
     const start = Date.now(), realNow = Date.now;
     window.__offsetMs = 0;
     Date.now = () => fixed + (realNow() - start) + window.__offsetMs;
@@ -100,7 +103,13 @@ export async function openApp(opts = {}) {
       Object.defineProperty(window, 'Config', { configurable: true,
         get: () => cfg, set: (v) => { if (lang) v.lang = lang; if (fn) fn(v); cfg = v; } });
     }
-  }, opts.now || FIXED_NOW, opts.lang || null, opts.configure ? String(opts.configure) : null, opts.init || null);
+    if (home) {
+      const after = (0, eval)('(' + home + ')');
+      let hc;
+      Object.defineProperty(window, 'HomeCity', { configurable: true, get: () => hc,
+        set: (v) => { const apply = v.apply; v.apply = (c, d) => { apply(c, d); after(c); }; hc = v; } });
+    }
+  }, opts.now || FIXED_NOW, opts.lang || null, opts.configure ? String(opts.configure) : null, opts.init || null, opts.home ? String(opts.home) : null);
   await page.setRequestInterception(true);
   page.on('request', (req) => {
     const url = req.url();

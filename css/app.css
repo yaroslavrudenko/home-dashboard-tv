@@ -195,7 +195,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 
 /* ---- News, Traffic and the alert are mostly words: proportional figures (tabular ones space out hyphens, as in
    "Тель-Авив"); only the figures that change in place stay tabular. */
-#screen-news, #screen-traffic, #screen-map, #screen-alerts, .corner, .alert { -webkit-font-feature-settings: normal; font-feature-settings: normal; }
+#screen-news, #screen-traffic, #screen-map, #screen-alerts, .corner, .alert, .banner { -webkit-font-feature-settings: normal; font-feature-settings: normal; }
 .screen-status, .news-time, .tw-time, .tw-km, .chip, .alert-since { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
 
 /* ---- Israel weather: three region cards on the clocks' grid; the day rows are the main 7-day list's (.day) ---- */
@@ -333,6 +333,19 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
   font-size: 44px; font-weight: 500; color: #5a111b; background: #fff; }
 .alert.is-preview .alert-body { top: 104px; }
 
+/* ---- The home-alert line: while an alert at home is up, every screen but the Alerts screen (the alert itself)
+   carries a slim red pill in the middle of the top margin (8 px down: the burn-in shift never moves it off the glass). */
+.banner { display: none; position: absolute; left: 0; right: 0; top: 8px; height: 36px; z-index: 2; justify-content: center; }
+.banner.is-on { display: flex; -webkit-animation: banner-in 0.3s ease-out; animation: banner-in 0.3s ease-out; }
+.banner-pill { display: flex; align-items: center; height: 36px; padding: 0 22px; border-radius: 18px; white-space: nowrap;
+  background: #c4283a linear-gradient(180deg, #d4313f 0%, #b0202f 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 6px 18px rgba(120, 10, 20, 0.45); }
+.banner-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 12px; background: #fff;
+  -webkit-animation: alert-pulse 1.3s ease-in-out infinite alternate; animation: alert-pulse 1.3s ease-in-out infinite alternate; }
+.banner-text { font-size: 24px; line-height: 36px; font-weight: 500; color: #fff; letter-spacing: 0.005em; }
+@-webkit-keyframes banner-in { from { opacity: 0; -webkit-transform: translateY(-6px); } to { opacity: 1; -webkit-transform: none; } }
+@keyframes banner-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
 /* ---- The Alerts screen: home and nearby at the start, the recent alerts in Israel at the end ---------------- */
 .al-body { -webkit-align-items: stretch; align-items: stretch; }
 .al-side { display: flex; flex-direction: column; width: 720px; flex: 0 0 720px; }
@@ -370,6 +383,37 @@ html[dir="ltr"] .al-kind[dir="rtl"], html[dir="ltr"] .al-areas[dir="rtl"] { text
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 24px rgba(0, 0, 0, 0.35);
   opacity: 0; visibility: hidden; -webkit-transition: opacity 0.3s ease, visibility 0s linear 0.3s; transition: opacity 0.3s ease, visibility 0s linear 0.3s; }
 .toast.is-on { opacity: 1; visibility: visible; -webkit-transition: opacity 0.2s ease, visibility 0s; transition: opacity 0.2s ease, visibility 0s; }
+
+/* ---- The city picker (the OK key): a sheet in the middle over a dim, nine rows in a window; the focused row is a soft
+   pill and stays in the middle (the list moves by one transform). Names never break and are never cut. ---------- */
+.city { position: fixed; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 30; display: flex; align-items: center; justify-content: center;
+  background: rgba(0, 0, 0, 0.55); opacity: 0; visibility: hidden;
+  -webkit-transition: opacity 0.16s ease, visibility 0s linear 0.16s; transition: opacity 0.16s ease, visibility 0s linear 0.16s; }
+.city.is-on { opacity: 1; visibility: visible; -webkit-transition: opacity 0.22s ease-out, visibility 0s; transition: opacity 0.22s ease-out, visibility 0s; }
+.city-sheet { position: relative; width: 880px; padding: 40px 40px 32px; border-radius: 28px; background: #1c1c1e;   /* no backdrop-filter on Chromium 47: solid, so nothing reads through */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 30px 80px rgba(0, 0, 0, 0.5);
+  -webkit-transform: translateY(16px); transform: translateY(16px); -webkit-transition: -webkit-transform 0.22s ease-out; transition: transform 0.22s ease-out;
+  -webkit-font-feature-settings: normal; font-feature-settings: normal; }
+.city.is-on .city-sheet { -webkit-transform: none; transform: none; }
+.city-title { font-size: 48px; line-height: 56px; font-weight: 500; color: #fff; }
+.city-sub { margin-top: 8px; font-size: 28px; line-height: 36px; color: rgba(255, 255, 255, 0.62); }
+.city-window { position: relative; height: 648px; margin-top: 24px; overflow: hidden; }   /* 9 rows of 72 px */
+.city-list { will-change: transform; }
+.city-row { display: flex; align-items: center; height: 72px; padding: 0 24px; border-radius: 18px; white-space: nowrap; }
+.city-row.is-focus { background: rgba(255, 255, 255, 0.16); }
+.city-name { -webkit-padding-end: 20px; font-size: 40px; line-height: 48px; color: #fff; }
+.city-alt { font-size: 28px; line-height: 36px; color: rgba(255, 255, 255, 0.62); }
+/* the current city: a green check at the row's end (left in Hebrew), drawn with two borders (no glyph to miss on the TV) */
+.city-check { -webkit-margin-start: auto; width: 14px; height: 26px; margin-top: -6px; border: solid #30d158; border-width: 0 4px 4px 0;
+  -webkit-transform: rotate(45deg); transform: rotate(45deg); }
+html[dir="rtl"] .city-check { margin-left: 8px; }
+.city-badge { position: absolute; top: 276px; width: 96px; height: 96px; border-radius: 48px; display: flex; align-items: center; justify-content: center;
+  font-size: 48px; font-weight: 500; color: #fff; background: rgba(255, 255, 255, 0.22); opacity: 0;
+  -webkit-transition: opacity 0.2s ease; transition: opacity 0.2s ease; left: 50%; margin-left: -48px; }
+.city-badge.is-on { opacity: 1; }
+.city-msg { display: none; margin-top: 16px; font-size: 28px; color: #ffd59a; text-align: center; }
+.city-msg.is-on { display: block; }
+.city-hint { margin-top: 24px; font-size: 24px; line-height: 32px; color: rgba(255, 255, 255, 0.62); text-align: center; }
 
 /* ---- Hebrew: the whole layout right to left. Flex rows, the -webkit-margin-start / -end above and text-align: end
    mirror by themselves; here only what is placed by left / right or drawn from the left. Figures stay left to right

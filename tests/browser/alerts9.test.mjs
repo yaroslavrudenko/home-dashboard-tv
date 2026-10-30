@@ -12,8 +12,13 @@ const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown',
 const LEFT = 37, RIGHT = 39, BLUE = 406;
 const QUIET_BODY = '﻿\r\n';
 const HOME = (title) => JSON.stringify({ id: '1', cat: '1', title: title || 'ירי רקטות וטילים', data: ['רחובות'], desc: 'היכנסו למרחב המוגן ושהו בו 10 דקות' });
-// Every play() of an audio element is counted (and resolves: headless Chrome would refuse autoplay).
-const SOUND_SPY = 'window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(this.src.replace(/^.*\\//, "")); return Promise.resolve(); };';
+// Every ring is counted: a Web Audio ring (batch 10, js/chime.js) is the one gain it connects to the speakers ('chime');
+// a play() of an audio element (the bundled WAV, the fallback) counts by its file name (and resolves: headless Chrome
+// would refuse autoplay).
+const SOUND_SPY = 'window.__plays = []; HTMLMediaElement.prototype.play = function () { window.__plays.push(this.src.replace(/^.*\\//, "")); return Promise.resolve(); };' +
+  'var connect = AudioNode.prototype.connect; AudioNode.prototype.connect = function (t) { if (t instanceof AudioDestinationNode) window.__plays.push("chime"); return connect.apply(this, arguments); };';
+// No Web Audio on this TV: the bundled WAV is the sound.
+const NO_WEB_AUDIO = 'window.AudioContext = undefined; window.webkitAudioContext = undefined;';
 const plays = (p) => p.evaluate(() => window.__plays.slice());
 const screenOn = (p) => p.evaluate(() => document.querySelector('.screen.is-active').id);
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
@@ -53,7 +58,7 @@ test('B9: a Rehovot alert starting on another screen opens the Alerts screen at 
     assert.equal(await screenOn(p), 'screen-alerts', 'still there');
     assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);
     await wait(1600);
-    assert.deepEqual(await plays(p), ['alert.wav', 'alert.wav', 'alert.wav'], 'once at the start, then every 500 ms, three at most');
+    assert.deepEqual(await plays(p), ['chime', 'chime', 'chime'], 'once at the start, then every 500 ms, three at most');
     assert.equal(await screenOn(p), 'screen-alerts', 'rotation held: 2.5 s after the last key it would have moved every 400 ms');
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
@@ -98,7 +103,7 @@ test('B9: only the START of a home alert switches: the viewer moves away with �
     await p.waitForFunction(() => document.querySelector('#alert .alert-kind').textContent === 'Проникновение террористов', { timeout: 3000, polling: 50 });
     await wait(500);
     assert.equal(await screenOn(p), 'screen-map', 'no second switch while the same alert is up');
-    assert.deepEqual(await plays(p), ['alert.wav'], 'no second start of the sound');
+    assert.deepEqual(await plays(p), ['chime'], 'no second start of the sound');
   } finally { await app.close(); }
 });
 
@@ -112,7 +117,7 @@ test('B9: the preview opens the Alerts screen under its banner and plays the sou
     await press(p, BLUE);
     await p.waitForSelector('#alert.is-on .alert-preview', { timeout: 2000 });
     await wait(800);
-    assert.deepEqual([await screenOn(p), await plays(p)], ['screen-alerts', ['alert.wav']]);
+    assert.deepEqual([await screenOn(p), await plays(p)], ['screen-alerts', ['chime']]);
     assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);
     await wait(1000);
     assert.equal((await plays(p)).length, 1, 'the preview rings once');
@@ -142,5 +147,49 @@ test('B9: the alert clears: no more sound; the rotation stays on the Alerts scre
     assert.equal(await screenOn(p), 'screen-alerts', 'held after the alert cleared');
     assert.equal((await plays(p)).length, n, 'silent once cleared');
     await p.waitForFunction(() => document.querySelector('.screen.is-active').id === 'screen-main', { timeout: 3000, polling: 50 });
+  } finally { await app.close(); }
+});
+
+test('B10 (A): no Web Audio on the TV — the bundled WAV rings instead (start of a home alert, and the preview)', async () => {
+  const f = feed();
+  const app = await openApp({ news: 'ok', history: 'history.json', init: NO_WEB_AUDIO + SOUND_SPY, alerts: f.answer, configure: FAST });
+  try {
+    await ready(app);
+    const p = app.page;
+    await press(p, BLUE);
+    await p.waitForSelector('#alert.is-on .alert-preview', { timeout: 2000 });
+    await wait(300);
+    assert.deepEqual(await plays(p), ['alert.wav'], 'the preview: the WAV once');
+    await press(p, BLUE);
+    f.body = HOME();
+    await p.waitForSelector('#alert.is-on .alert-kind', { timeout: 3000 });
+    await wait(300);
+    assert.deepEqual(await plays(p), ['alert.wav', 'alert.wav'], 'the real alert: the WAV');
+    assert.deepEqual(app.errors, []);
+  } finally { await app.close(); }
+});
+
+test('B10 (A): the Web Audio ring really sounds — rendered offline in Chrome: about 2 s, peak near the WAV\'s 0.6, silent at the end', async () => {
+  const app = await openApp({ news: 'ok' });
+  try {
+    await ready(app);
+    const r = await app.page.evaluate(() => new Promise((resolve) => {
+      const RATE = 44100, off = new OfflineAudioContext(1, Math.round(RATE * 2.3), RATE);
+      off.resume = null;                          // an offline context starts by rendering, never by resume()
+      // Chime makes its context with `new`: a constructor that returns the offline one
+      const chime = Chime.create({ AudioContext: function () { return off; }, setTimeout: (f, ms) => setTimeout(f, ms), log: (m) => resolve({ error: m }),
+        makeAudio: () => { throw new Error('the WAV must not be used'); } });
+      chime.play();
+      off.startRendering().then((buf) => {
+        const d = buf.getChannelData(0);
+        let peak = 0, first = -1, last = -1;
+        for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > peak) peak = v; if (v > 0.01) { if (first < 0) first = i; last = i; } }
+        resolve({ peak: +peak.toFixed(2), from: +(first / RATE).toFixed(2), to: +(last / RATE).toFixed(2) });
+      });
+    }));
+    assert.equal(r.error, undefined);
+    assert.ok(r.peak >= 0.5 && r.peak <= 0.7, 'the WAV\'s level: ' + r.peak);
+    assert.ok(r.from >= 0.04 && r.from <= 0.07, 'starts at once (50 ms lead): ' + r.from);
+    assert.ok(r.to >= 1.9 && r.to <= 2.06, 'about 2 s: ' + r.to);
   } finally { await app.close(); }
 });

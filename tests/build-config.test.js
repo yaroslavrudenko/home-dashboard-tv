@@ -306,3 +306,35 @@ test('Mapbox quota (FB5C-10): Jerusalem DST end 2026-10-25 parked — the 25-hou
   assert.equal(d.perHomeDate['2026-10-25'], 1500, '1,500 min / 10 = 150 rounds on the home date');
   for (const n of ALL(d)) assert.ok(n <= 3000);
 });
+
+// Batch 10 (C/T10): HOME_CITY in build.local.env sets the home city of the PACKAGED config: one line replaced, the
+// repository copy untouched; a value that is not a catalogue id stops the build before anything is packaged.
+test('build.sh --package with HOME_CITY: one homeCity line replaced in the package only; a bad id stops the build; unset keeps Rehovot', () => {
+  const homeLine = (file) => fs.readFileSync(file, 'utf8').split('\n').filter((l) => /^\s*homeCity:/.test(l));
+  const sb = sandbox('HOME_CITY=haifa\n');
+  try {
+    const r = sb.run(['--package']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /Home city: haifa/);
+    const packaged = homeLine(path.join(sb.dir, '.buildResult', 'js', 'config.js'));
+    assert.equal(packaged.length, 1);
+    assert.match(packaged[0], /^ {2}homeCity: 'haifa',/);
+    assert.match(homeLine(path.join(sb.dir, 'js', 'config.js'))[0], /^ {2}homeCity: 'rehovot',/, 'the source copy is untouched');
+  } finally { sb.close(); }
+  for (const bad of ['Haifa', 'haifa;rm', 'atlantis', 'airport', 'hai fa']) {
+    const b = sandbox('HOME_CITY="' + bad + '"\n');
+    try {
+      const r = b.run(['--package']);
+      assert.equal(r.status, 2, bad + ': ' + r.stdout + r.stderr);
+      assert.match(r.stderr, /HOME_CITY/);
+      assert.ok(!fs.existsSync(path.join(b.dir, '.buildResult')), 'nothing built for ' + bad);
+      assert.equal(b.log(), '', 'no tizen call for ' + bad);
+    } finally { b.close(); }
+  }
+  const none = sandbox();
+  try {
+    assert.equal(none.run(['--package']).status, 0);
+    assert.match(homeLine(path.join(none.dir, '.buildResult', 'js', 'config.js'))[0], /^ {2}homeCity: 'rehovot',/);
+  } finally { none.close(); }
+  assert.match(read('build.local.env.example'), /^HOME_CITY=$/m);
+});

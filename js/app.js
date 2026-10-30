@@ -4,9 +4,13 @@
  * (Config.alerts.previewMs; any key ends it; a real alert always wins).
  * An alert at home (Config.alerts.areas) opens the Alerts screen the moment it starts — that screen is then the alert,
  * red and full — holds the rotation (and Config.rotation.afterAlertMs after it clears) and rings (Config.alerts.sound).
+ * While it is up, every other screen carries the red line «Тревога в <home> · с HH:MM» at the top (js/view-banner.js).
  * Nearby alerts keep their quiet corner line; alerts elsewhere in Israel are only in the Alerts screen's list.
  * A screen opened with ◀ ▶ — or on view when the language changes — refreshes its data at once.
  * Only the screen on view is redrawn per minute; a hidden screen is redrawn when it comes into view.
+ * The home city (Config.homeCity, or the one chosen on the TV: OK opens the picker, js/view-city.js) is resolved and its
+ * routes, map, weather place and alert areas written into Config before anything is made (js/homecity.js); a new choice
+ * is saved and the app reloads once, with a toast naming the city.
  * Everything platform-specific is guarded so the same files run in desktop Chrome. ES5. */
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
@@ -17,11 +21,13 @@ var App = (function () {
   // The language key: the first of these colour keys the TV lets the app register ('ColorF2Yellow' = 405 on Samsung).
   var LANG_KEYS = [{ name: 'ColorF2Yellow', code: 405 }, { name: 'ColorF0Red', code: 403 }], langKey = LANG_KEYS[0].code;
   var LANG_STORE = 'homedash.lang';
+  // The home city: remembered on the TV; a one-shot flag (sessionStorage) asks for the toast after the reload.
+  var CITY_STORE = 'homedash.city', CITY_TOAST = 'homedash.cityToast', KEY_OK = 13;
   var KEY_UP = 38, KEY_DOWN = 40, NEWS_SETTLE_MS = 600, newsTimer = null;   // ▲ ▼ switch the language too
   // The alert preview: the blue key (Samsung 'ColorF3Blue' = 406); previewAt is when it started (0: off).
   var PREVIEW_KEY = { name: 'ColorF3Blue', code: 406 }, previewAt = 0, previewTimer = null;
-  // The attention sound (bundled, PCM WAV: what Chromium 47 on the 2017 TVs plays); one element, loaded at boot.
-  var CHIME_URL = 'sounds/alert.wav', chime = null;
+  // The attention sound: made with Web Audio (js/chime.js); the bundled WAV only where Web Audio is missing or fails.
+  var CHIME_URL = 'sounds/alert.wav';
 
   function mainPlace() { return Config.places[0]; }
   function wallNow(i) { return Tz.wallTime(resolved[i], Date.now()); }
@@ -69,7 +75,8 @@ var App = (function () {
     if (drawn !== weatherDrawn) {
       weatherDrawn = drawn;
       var data = store.get(id);
-      View.renderWeather(data ? Weather.forHour(data, hour, Config.weather) : null, { place: id, kind: s.kind, retryAt: retryAt(store.nextAt()) });
+      View.renderWeather(data ? Weather.forHour(data, hour, Config.weather) : null, { name: HomeCity.name(Config.home.city, I18n.lang()), kind: s.kind,
+        retryAt: retryAt(store.nextAt()) });
     }
     View.renderStatus(s.kind, homeHhmm(s.updatedAt));
     renderClocks();
@@ -106,7 +113,10 @@ var App = (function () {
   // The traffic screen's columns (Config.traffic.columns) filled with each route's current view.
   function trafficColumns() {
     var t = Config.traffic, legs = {}, routes = traffic.routes(), cols = [], i, j;
-    for (i = 0; i < t.routes.length; i++) legs[t.routes[i].id] = { id: t.routes[i].id, view: routes[i] };
+    for (i = 0; i < t.routes.length; i++) {
+      var id = t.routes[i].id;
+      legs[id] = { id: id, name: HomeCity.name(Config.home.names[id], I18n.lang()), view: routes[i] };
+    }
     for (i = 0; i < t.columns.length; i++) {
       var items = [];
       for (j = 0; j < t.columns[i].legs.length; j++) items.push(legs[t.columns[i].legs[j]]);
@@ -164,13 +174,20 @@ var App = (function () {
   function renderAlerts() {
     var st = alerts.state();
     if (st.active && previewAt) endPreview(false);
+    if (st.active) CityView.close();              // nothing stands over a real alert
     var shown = previewAt ? Alerts.preview(st, Config.alerts, previewAt) : st;
     AlertView.render(shown, shown.active ? homeHhmm(shown.active.startedAt) : '', homeHhmm(st.checkedAt));
     if (screens.hold(!!st.active)) {
-      if (st.active) { sound.start(); openAlerts(); return; }
+      if (st.active) { sound.start(); openAlerts(); renderBanner(); return; }
       sound.stop();
     }
+    renderBanner();
     if (currentId() === 'alerts') renderAlertsScreen();
+  }
+  // The home-alert line: the real alert only (never the preview), on every screen but the Alerts screen.
+  function renderBanner() {
+    var a = alerts.state().active;
+    AlertBanner.render(!!a && currentId() !== 'alerts', Config.alerts.areas[0], a ? homeHhmm(a.startedAt) : '');
   }
   // The Alerts screen comes into view as if the remote opened it (its recent alerts refresh at once); when it is on view
   // already, its recent alerts refresh the same way.
@@ -187,15 +204,6 @@ var App = (function () {
     renderAlerts();
     openAlerts();
     sound.once();
-  }
-  // play() fails without a sound device or when the TV refuses it (Chromium 50+ answers a rejected promise; 47 throws
-  // or returns nothing): logged, never an error on screen.
-  function playChime() {
-    try {
-      chime.currentTime = 0;
-      var p = chime.play();
-      if (p && typeof p.then === 'function') p.then(null, function (e) { console.error('alert sound: ' + (e && e.message)); });
-    } catch (e) { console.error('alert sound: ' + e.message); }
   }
   function endPreview(redraw) {
     clearTimeout(previewTimer);
@@ -226,6 +234,7 @@ var App = (function () {
     select(id, !auto);
     if (!auto) refreshOnOpen(id);
     RENDER[id]();
+    renderBanner();
     incoming.style.transition = 'none';
     incoming.style.transform = 'translateX(' + SLIDE_PX * dir + 'px)';
     void incoming.offsetWidth;                     // commit the start position before the transition
@@ -271,6 +280,7 @@ var App = (function () {
   // Alerts screen); every key pauses the rotation. While the preview is up any key only ends it. Nothing dismisses a real
   // alert (◀ ▶ may leave its screen; the rotation never does while it is up).
   function onKey(e) {
+    if (CityView.isOpen()) { e.preventDefault(); CityView.key(e.keyCode); screens.touch(); return; }
     if (previewAt || e.keyCode === PREVIEW_KEY.code) {
       e.preventDefault();
       if (previewAt) endPreview(true); else startPreview();
@@ -283,6 +293,7 @@ var App = (function () {
       return;
     }
     if (e.keyCode === KEY_LEFT || e.keyCode === KEY_RIGHT) { e.preventDefault(); screens.step(e.keyCode === KEY_RIGHT ? 1 : -1); return; }
+    if (e.keyCode === KEY_OK) { e.preventDefault(); if (!alerts.state().active) CityView.open(Config.home.id); }
     if (e.keyCode === langKey || e.keyCode === KEY_DOWN) { e.preventDefault(); switchLang(1); }
     else if (e.keyCode === KEY_UP) { e.preventDefault(); switchLang(-1); }
     screens.touch();
@@ -316,9 +327,9 @@ var App = (function () {
     document.documentElement.dir = I18n.dir();
     Html.relabel(document);
   }
-  function showToast() {
+  function showToast(text) {
     var el = document.getElementById('toast');
-    el.textContent = I18n.t('lang.name');
+    el.textContent = text;
     el.className = 'toast is-on';
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { el.className = 'toast'; }, TOAST_MS);
@@ -333,9 +344,34 @@ var App = (function () {
     news.use(lang);
     clearTimeout(newsTimer);
     newsTimer = setTimeout(function () { newsTimer = null; news.refresh(); select(currentId(), true); refreshOnOpen(currentId()); }, NEWS_SETTLE_MS);
-    showToast();
+    showToast(I18n.t('lang.name'));
     renderCurrent();
     renderAlerts();
+  }
+
+  // ---- home city ----------------------------------------------------------------------------------------------
+  function sessionStore() { try { return window.sessionStorage || null; } catch (e) { return null; } }
+  // The remembered city, else Config.homeCity, else Rehovot; its sections written into Config before anything is made.
+  function startCity() {
+    var st = storage(), saved = null;
+    try { saved = st && st.getItem(CITY_STORE); } catch (e) { saved = null; }
+    HomeCity.apply(Config, HomeCity.derive(Cities, HomeCity.resolve(Cities, saved, Config.homeCity)));
+  }
+  // A new city: written and read back (a TV that refuses storage keeps the city: false), then one reload — the same
+  // cold start as switching the TV on, so nothing built for the old city survives.
+  function chooseCity(id) {
+    var st = storage(), ok = false;
+    try { st.setItem(CITY_STORE, id); ok = st.getItem(CITY_STORE) === id; } catch (e) { console.error('city not saved: ' + e.message); }
+    if (!ok) return false;
+    try { sessionStore().setItem(CITY_TOAST, '1'); } catch (e) { /* no toast after the reload */ }
+    location.reload();
+    return true;
+  }
+  // After a reload for a new city: «Город: Хайфа», once.
+  function cityToast() {
+    var ss = sessionStore(), due = false;
+    try { due = !!(ss && ss.getItem(CITY_TOAST)); if (due) ss.removeItem(CITY_TOAST); } catch (e) { due = false; }
+    if (due) showToast(I18n.t('city.saved', { name: HomeCity.name(Config.home.city, I18n.lang()) }));
   }
 
   // Data older than its interval (or not fresh) is refreshed when the TV wakes.
@@ -369,6 +405,7 @@ var App = (function () {
 
   function start() {
     applyLang(startLang());
+    startCity();
     var now = Date.now();
     for (var i = 0; i < Config.clocks.length; i++) resolved.push(Tz.resolve(Config.clocks[i], now));
     View.init(document, Config.clocks, { hours: Config.weather.hours, days: Config.weather.days });
@@ -378,6 +415,8 @@ var App = (function () {
     MapView.init(document.getElementById('screen-map'));
     AlertsScreenView.init(document.getElementById('screen-alerts'), Config.alerts);   // makes the alert layer (#alert)
     AlertView.init(document.getElementById('alert'), document.getElementById('corner'));
+    AlertBanner.init(document.getElementById('banner'));
+    CityView.init(document.getElementById('city'), Cities, withTimers({ choose: chooseCity }));
     buildScreens();
     screens = Screens.create(Config.screens.length, Config.rotation, withTimers({ onShow: showScreen }));
 
@@ -388,8 +427,9 @@ var App = (function () {
         documentVisible: function () { return !document.hidden; }, onChange: onData('traffic') }));
       map = createMap();
     }
-    chime = new Audio(CHIME_URL);
-    sound = AlertSound.create(Config.alerts.sound, withTimers({ play: playChime }));
+    var chime = Chime.create(withTimers({ AudioContext: window.AudioContext || window.webkitAudioContext,
+      makeAudio: function () { return new Audio(CHIME_URL); }, log: function (m) { console.error(m); } }));
+    sound = AlertSound.create(Config.alerts.sound, withTimers({ play: chime.play }));
     alerts = Alerts.createMonitor(Config.alerts, withTimers({ getText: Net.getText, onChange: renderAlerts }));
     history = AlertsHistory.createController(Config.alerts.history, withTimers({ getJson: Net.getJson,
       documentVisible: function () { return !document.hidden; }, onChange: onData('alerts') }));
@@ -402,6 +442,7 @@ var App = (function () {
     alerts.poll();
     renderAlerts();
 
+    cityToast();
     setInterval(shift, Config.burnIn.shiftMs);
     keepScreenOn();
     registerKeys();

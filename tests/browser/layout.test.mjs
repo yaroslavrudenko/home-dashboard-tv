@@ -209,8 +209,12 @@ test('Back (10009) exits the app, other keys do not; the screen saver is switche
     await ready(app);
     const p = app.page;
     const press = (code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); return e.defaultPrevented; }, code);
-    assert.equal(await press(13), false);
+    // batch 10: OK opens the city picker; Back then closes the picker (the app stays), and only the next Back exits
+    assert.equal(await press(13), true, 'OK opens the city picker');
     assert.ok(!(await p.evaluate(() => window.__calls)).includes('exit'), 'Enter does not exit');
+    assert.equal(await press(10009), true, 'Back is consumed');
+    assert.ok(!(await p.evaluate(() => window.__calls)).includes('exit'), 'the first Back closes the picker, never the app');
+    assert.equal(await p.evaluate(() => document.getElementById('city').className), 'city');
     assert.equal(await press(10009), true, 'Back is consumed');
     const calls = await p.evaluate(() => window.__calls);
     assert.ok(calls.includes('exit'), 'Back exits: ' + calls);

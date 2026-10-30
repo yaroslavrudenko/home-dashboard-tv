@@ -129,9 +129,10 @@ var View = (function () {
     return out;
   }
 
-  // v: Weather.forHour view or null (no data yet). s: { place, kind ('fresh'|'stale'|'loading'|'failed'), retryAt ("HH:MM"|'') }.
+  // v: Weather.forHour view or null (no data yet). s: { name (the home city in the interface language), kind ('fresh' |
+  // 'stale' | 'loading' | 'failed'), retryAt ("HH:MM" | '') }.
   function renderWeather(v, s) {
-    var placeName = I18n.t('place.' + s.place);
+    var placeName = s.name;
     var hours = '', days = '', i;
     if (!v) {
       var failed = s.kind === 'failed';

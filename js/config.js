@@ -6,22 +6,28 @@ var Config = {
   lang: 'ru',
   languages: ['ru', 'he', 'uk'],
 
+  // The home city: the main weather card, the traffic routes and map, and the alert areas are all derived from it
+  // (js/homecity.js, from the catalogue js/cities.js). The OK key opens the city picker on the TV; the choice is
+  // remembered there and wins over this value from then on.
+  homeCity: 'rehovot',                // HOME_CITY: build.local.env may set another catalogue id (js/cities.js)
+
   // World clocks, left to right. `zones` lists IANA names in order of preference: the first one the TV's
   // time-zone database accepts is used (Chromium 47 ships tzdata from 2015 and knows Kyiv only as
   // "Europe/Kiev"). `rule` is the built-in daylight-saving rule used when the TV has no usable Intl
   // time-zone support at all (see js/tz.js); the card then carries a small "≈" marker.
-  // `place` links the card to a weather place below (its current temperature is shown on the card).
+  // `place` links the card to a weather place below (its current temperature is shown on the card); 'home' is the home
+  // city's.
   clocks: [
-    { id: 'israel', zones: ['Asia/Jerusalem', 'Asia/Tel_Aviv'], rule: 'IL', place: 'rehovot' },
+    { id: 'israel', zones: ['Asia/Jerusalem', 'Asia/Tel_Aviv'], rule: 'IL', place: 'home' },
     { id: 'ukraine', zones: ['Europe/Kyiv', 'Europe/Kiev'], rule: 'EU', place: 'kyiv' },
     { id: 'sydney', zones: ['Australia/Sydney'], rule: 'AU_SYD', place: 'sydney' }
   ],
 
-  // Weather places. The first one is the main card (current weather, hourly strip, 7-day forecast); the last three are
-  // the regions of the Israel weather screen. Every place comes in ONE Open-Meteo request per refresh
-  // (comma-separated coordinates), so a screen more costs no request more.
+  // Weather places. The first one is the main card (current weather, hourly strip, 7-day forecast): the home city, its
+  // coordinates filled in at boot (js/homecity.js); the last three are the regions of the Israel weather screen. Every
+  // place comes in ONE Open-Meteo request per refresh (comma-separated coordinates), so a screen more costs no request more.
   places: [
-    { id: 'rehovot', lat: 31.8928, lon: 34.8113 },
+    { id: 'home' },
     { id: 'kyiv', lat: 50.4501, lon: 30.5234 },
     { id: 'sydney', lat: -33.8688, lon: 151.2093 },
     { id: 'haifa', lat: 32.794, lon: 34.9896 },
@@ -89,29 +95,13 @@ var Config = {
 
   // Traffic from Mapbox (Directions API, profile driving-traffic: live traffic for Israel; one GET per route, the ten in
   // parallel). The token is NOT kept here: the build replaces the placeholder with MAPBOX_TOKEN from the git-ignored
-  // build.local.env. Without a token the screen shows how to connect one and sends nothing. Coordinates are lat,lon; edit
-  // freely. The live traffic picture is on the map screen (a Mapbox image).
+  // build.local.env. Without a token the screen shows how to connect one and sends nothing. The live traffic picture is
+  // on the map screen (a Mapbox image).
+  // The ten routes (`routes`: { id, from, to }, lat,lon) and their two columns of five (`columns`: «Города», «Рядом») are
+  // derived from the home city at boot (js/homecity.js): all from home, to five big cities and to the five nearest.
   traffic: {
     token: '__MAPBOX_TOKEN__',
     base: 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/',
-    // Routes, all from Rehovot (the screen's grouping is `columns` below).
-    routes: [
-      { id: 'tlv', from: [31.8928, 34.8113], to: [32.0853, 34.7818] },          // Tel Aviv, city centre (Dizengoff Square)
-      { id: 'jlm', from: [31.8928, 34.8113], to: [31.7816, 35.2186] },          // Jerusalem, city centre (Zion Square)
-      { id: 'haifa', from: [31.8928, 34.8113], to: [32.8185, 34.9988] },        // Haifa, city centre (Paris Square)
-      { id: 'beersheva', from: [31.8928, 34.8113], to: [31.2518, 34.7913] },    // Beer Sheva, city centre
-      { id: 'ashkelon', from: [31.8928, 34.8113], to: [31.6688, 34.5743] },     // Ashkelon, city centre
-      { id: 'modiin', from: [31.8928, 34.8113], to: [31.8986, 35.0076] },       // Modi'in, city centre
-      { id: 'rishon', from: [31.8928, 34.8113], to: [31.9640, 34.8044] },       // Rishon LeZion
-      { id: 'airport', from: [31.8928, 34.8113], to: [32.0004, 34.8706] },      // Ben Gurion Airport, Terminal 3
-      { id: 'holon', from: [31.8928, 34.8113], to: [32.0158, 34.7874] },        // Holon, city centre
-      { id: 'glilot', from: [31.8928, 34.8113], to: [32.1449, 34.8073] }        // Glilot, Cinema City
-    ],
-    // The screen: two columns of five widgets, left to right (`legs`: route ids, top to bottom).
-    columns: [
-      { id: 'cities', legs: ['tlv', 'jlm', 'haifa', 'beersheva', 'ashkelon'] },
-      { id: 'near', legs: ['modiin', 'rishon', 'airport', 'holon', 'glilot'] }
-    ],
     // When a round is sent (js/traffic.js, Traffic.decide: one gate for every path), at any hour, only while the screen
     // is on view: an explicit ◀ ▶ open sends at once; a rotation arrival, the screen staying open and wake wait
     // minIntervalMs since the last ATTEMPT (failures and refusals included). Quota: Mapbox's free tier is 100,000
@@ -133,36 +123,27 @@ var Config = {
   },
 
   // The traffic map: ONE image from the Mapbox Static Images API in the live-traffic style (traffic-night-v2), with the
-  // same Mapbox token as the routes (traffic.token above, put in by the build), centred so that Tel Aviv, Rehovot, Ashdod
-  // and Jerusalem fill the card with little sea; `home` is the dot on Rehovot. When it is loaded (js/trafficmap.js, one
+  // same Mapbox token as the routes (traffic.token above, put in by the build). Its `center`, `zoom` and `home` (the dot)
+  // come from the home city at boot (js/homecity.js; Rehovot keeps the owner's view: Tel Aviv, Rehovot, Ashdod and
+  // Jerusalem fill the card with little sea). When it is loaded (js/trafficmap.js, one
   // gate): only while the map is on view and the TV shows the page, at once on a ◀ ▶ open, else every refreshMs; one image
   // at a time; never past dailyRequestCap images per UTC date, reserved in localStorage before each and never refunded.
   // Static Images' free tier is 50,000 a MONTH: any 31 days touch at most 32 UTC dates, so ≤ 32 × 600 = 19,200.
   map: {
     base: 'https://api.mapbox.com/styles/v1/mapbox/traffic-night-v2/static/',
-    center: [31.93, 34.94],             // lat, lon (checked on the live image 2026-10-30: Tel Aviv to Jerusalem, Ashdod in)
-    zoom: 9.6,
     maxSide: 1280,                      // the API's largest side, in map points (the image is asked @2x)
-    home: [31.8928, 34.8113],           // Rehovot
     refreshMs: 5 * 60 * 1000,
     timeoutMs: 20 * 1000,
     staleAfterMs: 15 * 60 * 1000,
     dailyRequestCap: 600
   },
 
-  // Pikud HaOref alerts. `areas` are the alert area names (Hebrew, exactly as Pikud HaOref's area list writes them —
-  // tests/fixtures/oref/districts_heb.json; a test checks every name) that raise the full-screen alert; `nearby` only
-  // shows a quiet notice. The screen calls an area by its name in the interface language: `he` itself, `ru`, `uk`.
+  // Pikud HaOref alerts. `areas` (the home city: raises the full-screen alert) and `nearby` (the cities around it: only a
+  // quiet notice) are derived from the home city at boot (js/homecity.js): { he, ru, uk, en, ruIn, ukIn, match }, where
+  // `match` holds the area names exactly as Pikud HaOref's area list writes them (tests/fixtures/oref/districts_heb.json;
+  // a test checks every name). The screen calls an area by its name in the interface language.
   alerts: {
     url: 'https://www.oref.org.il/WarningMessages/alert/alerts.json',
-    areas: [{ he: 'רחובות', ru: 'Реховот', uk: 'Реховот' }],
-    nearby: [
-      { he: 'נס ציונה', ru: 'Нес-Циона', uk: 'Нес-Ціона' }, { he: 'ראשון לציון', ru: 'Ришон-ле-Цион', uk: 'Рішон-ле-Ціон' },
-      { he: 'יבנה', ru: 'Явне', uk: 'Явне' }, { he: 'גדרה', ru: 'Гедера', uk: 'Гедера' },
-      { he: 'מזכרת בתיה', ru: 'Мазкерет-Батья', uk: 'Мазкерет-Батья' }, { he: 'קריית עקרון', ru: 'Кирьят-Экрон', uk: 'Кір’ят-Екрон' },
-      { he: 'באר יעקב', ru: 'Беэр-Яаков', uk: 'Беер-Яаков' }, { he: 'רמלה', ru: 'Рамла', uk: 'Рамла' }, { he: 'לוד', ru: 'Лод', uk: 'Лод' },
-      { he: 'אשדוד', ru: 'Ашдод', uk: 'Ашдод' }, { he: 'תל אביב', ru: 'Тель-Авив', uk: 'Тель-Авів' }
-    ],
     pollMs: 5 * 1000,                   // the next poll starts this long after the previous one ENDED
     timeoutMs: 4 * 1000,
     // An alert never ends on a guess (js/alerts.js): it stays for the instruction's minutes after the area was last
@@ -172,8 +153,9 @@ var Config = {
     defaultHoldMs: 10 * 60 * 1000,
     failAfter: 3,                       // consecutive failed polls before "no connection" is shown
     previewMs: 10 * 1000,               // the blue key's alert preview stays this long (any key ends it sooner)
-    // An alert at home rings a short attention sound (sounds/alert.wav): at its start, then every repeatMs while it is
-    // up, maxPlays times at most. Never for nearby or other alerts; the preview plays it once.
+    // An alert at home rings a short attention sound (made with Web Audio, js/chime.js; the bundled sounds/alert.wav only
+    // where Web Audio is missing): at its start, then every repeatMs while it is up, maxPlays times at most. Never for
+    // nearby or other alerts; the preview plays it once.
     sound: { enabled: true, repeatMs: 30 * 1000, maxPlays: 5 },
     // The Alerts screen's list of recent alerts in Israel (js/alerts-history.js): asked only while that screen is on
     // view. mode=2 is the last 7 days (`days`, said on screen when the list is empty); mode=3 (a month) can run to

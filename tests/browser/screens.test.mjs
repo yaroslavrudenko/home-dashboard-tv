@@ -84,7 +84,7 @@ test('rotation moves on by itself, pauses after a key press, and the pause ends'
     await ready(app);
     const p = app.page;
     await p.waitForFunction(() => document.querySelectorAll('.dot')[1].className === 'dot is-on', { timeout: 3000, polling: 50 });
-    assert.equal(await press(p, ENTER), false, 'OK is not consumed, it only pauses');
+    assert.equal(await press(p, 49), false, 'a key with no action is not consumed, it only pauses (batch 10: OK opens the city picker)');
     await wait(1800);
     assert.deepEqual(await dots(p), dotsAt(1), 'paused after a key press (would have moved at 1 s)');
     await p.waitForFunction(() => document.querySelectorAll('.dot')[2].className === 'dot is-on', { timeout: 2500, polling: 50 });
@@ -618,7 +618,7 @@ test('A6: many configured areas in one alert: every name on one line, the list a
   const many = JSON.stringify({ id: '1', cat: '1', title: 'ירי רקטות וטילים', desc: 'היכנסו למרחב המוגן ושהו בו 10 דקות',
     data: ['רחובות', 'נס ציונה', 'ראשון לציון - מזרח', 'מזכרת בתיה', 'קריית עקרון', 'באר יעקב', 'יבנה', 'גדרה'] });
   const app = await openApp({ news: 'ok', alerts: () => ({ status: 200, body: many }),
-    configure: (c) => { c.alerts.areas = c.alerts.areas.concat(c.alerts.nearby.slice(0, 7)); } });
+    home: (c) => { c.alerts.areas = c.alerts.areas.concat(c.alerts.nearby.slice(0, 7)); } });   // batch 10: the areas exist once the home city is applied
   try {
     await ready(app);
     const p = app.page;
