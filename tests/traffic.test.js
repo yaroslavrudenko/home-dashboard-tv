@@ -13,7 +13,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { load, fakeTimers } = require('./harness');
 
-const FILES = ['js/config.js', 'js/tz.js', 'js/traffic.js'];
+const FILES = ['js/config.js', 'js/tz.js', 'js/ledger.js', 'js/traffic.js'];
 const T0 = Date.parse('2026-10-29T18:34:00Z');     // 20:34 in Israel (winter time, UTC+2)
 const NOON = Date.parse('2026-10-30T12:00:00Z');
 const FUTURE = Date.parse('2099-01-01T12:00:00Z');

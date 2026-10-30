@@ -23,7 +23,7 @@ function memoryStorage() {
 }
 
 function trafficDays(opts) {
-  const ctx = load(['js/config.js', 'js/tz.js', 'js/traffic.js', 'js/screens.js']);
+  const ctx = load(['js/config.js', 'js/tz.js', 'js/ledger.js', 'js/traffic.js', 'js/screens.js']);
   const C = ctx.Config;
   C.traffic.token = 'pk.SIMULATION1';
   if (opts.configure) opts.configure(C);

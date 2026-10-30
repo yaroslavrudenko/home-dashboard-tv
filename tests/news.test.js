@@ -129,13 +129,15 @@ test('L2: only the active language\'s two feeds are fetched — Russian, Hebrew,
   }
 });
 
-test('L2: use(lang) fetches the new language\'s feeds at once, shows them loading, and ignores the old round\'s late answers', () => {
+test('L2: use(lang) puts the new language\'s feeds on screen (loading) and fetches nothing; refresh() fetches them; the old round\'s late answers change nothing', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx, () => 0.5, 'ru');
   s.store.refresh();
   const old = s.calls.splice(0, s.calls.length);                     // the Russian round, still in flight
   s.store.use('he');
-  assert.deepEqual(s.calls.map((c) => c.url.split('/')[2]), ['www.ynet.co.il', 'www.globes.co.il'], 'at once, the new feeds only');
+  assert.equal(s.calls.length, 0, 'use() alone fetches nothing (the app waits for the remote to settle)');
+  s.store.refresh();
+  assert.deepEqual(s.calls.map((c) => c.url.split('/')[2]), ['www.ynet.co.il', 'www.globes.co.il'], 'refresh(): the new feeds only');
   assert.deepEqual([s.store.column('il').source, s.store.column('il').kind, s.store.column('econ').kind], ['ynet', 'loading', 'loading']);
   assert.equal(s.store.status().kind, 'loading');
   old.forEach((c) => c.done(null, feed(c.url.includes('finance') ? 'newsrufin' : 'newsru')));
@@ -148,8 +150,10 @@ test('L2: use(lang) fetches the new language\'s feeds at once, shows them loadin
   s.store.use('he');
   assert.equal(s.calls.length, 0, 'the same language again: nothing');
   s.store.use('uk');
+  s.store.refresh();
   s.answer();
   s.store.use('he');
+  s.store.refresh();
   assert.equal(s.store.column('il').kind, 'fresh', 'back to Hebrew: its stories stay on view while they refresh');
   assert.equal(s.calls.length, 2);
 });

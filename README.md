@@ -17,14 +17,14 @@
   <img alt="A real installed app, not a web page" src="https://img.shields.io/badge/installed%20Tizen%20app-.wgt-34a853?style=for-the-badge"><br>
   <img alt="Five screens with auto-rotation" src="https://img.shields.io/badge/screens-5%20·%20auto--rotation-8e44ad?style=for-the-badge">
   <img alt="Israel alerts checked every 5 seconds" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s-c0392b?style=for-the-badge">
-  <img alt="Live traffic: Mapbox inside its free tier, Waze live map" src="https://img.shields.io/badge/live%20traffic-Mapbox%20·%20Waze-f39c12?style=for-the-badge">
+  <img alt="Live traffic: Mapbox routes and map, inside the free tier" src="https://img.shields.io/badge/live%20traffic-Mapbox%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="204 automated tests" src="https://img.shields.io/badge/tests-204%20passing-brightgreen?style=for-the-badge">
+  <img alt="216 automated tests" src="https://img.shields.io/badge/tests-216%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/main.png" width="900" alt="Home screen at 1920×1080: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with a 12-hour strip, and a 7-day forecast">
+  <img src="docs/screenshots/main.png" width="900" alt="Home screen at 1920×1080 in Russian: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with a 12-hour strip, and a 7-day forecast">
 </p>
 
 ## See it in action
@@ -32,16 +32,22 @@
 <table>
   <tr>
     <td><img src="docs/screenshots/israel-weather.png" alt="Weather in Israel: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with the weather now and a 5-day forecast"></td>
-    <td><img src="docs/screenshots/news.png" alt="News: two columns of Hebrew headlines, Israel from Ynet and Economy from Globes, five each, newest first"></td>
+    <td><img src="docs/screenshots/news.png" alt="News in Russian: two columns, Israel and Economy from NEWSru, five headlines each, newest first"></td>
   </tr>
-  <tr><td align="center"><b>Weather in Israel</b> — North, Centre, South, five days ahead</td><td align="center"><b>News</b> — Ynet and Globes in Hebrew, right to left</td></tr>
+  <tr><td align="center"><b>Weather in Israel</b> — North, Centre, South, five days ahead</td><td align="center"><b>News</b> — the sources follow the interface language</td></tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshots/traffic.png" alt="Traffic: ten routes from Rehovot in two columns — cities and nearby places — each with the travel time now, the delay in colour and the distance"></td>
+    <td><img src="docs/screenshots/traffic.png" alt="Traffic: ten routes from Rehovot in two columns, each with the live travel time from Mapbox, the delay against a typical day in colour, and the distance"></td>
+    <td><img src="docs/screenshots/traffic-map.png" alt="Traffic map: a Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot"></td>
   </tr>
-  <tr><td colspan="2" align="center"><b>Traffic</b> — ten routes from home, refreshed the moment you open the screen</td></tr>
+  <tr><td align="center"><b>Traffic</b> — ten routes, live, refreshed the moment you open the screen</td><td align="center"><b>Traffic map</b> — live road colours around home</td></tr>
+  <tr>
+    <td><img src="docs/screenshots/main-hebrew.png" alt="The home screen in Hebrew, mirrored right to left"></td>
+    <td><img src="docs/screenshots/news-ukrainian.png" alt="News in Ukrainian: Ukraine and Economy columns from Ukrainska Pravda and Ekonomichna Pravda"></td>
+  </tr>
+  <tr><td align="center"><b>עברית</b> — the whole layout mirrors</td><td align="center"><b>Українська</b> — news about Ukraine</td></tr>
 </table>
 
-<sub>Screenshots are rendered at 1920×1080 in desktop Chrome from the test fixtures (the headlines and traffic numbers are sample data). They show the batch-5 version: Hebrew news in a Russian interface and the TomTom routes; batch 6 moved the traffic to Mapbox and the map to Waze, and the news now follows the interface language (below). New screenshots are still to come.</sub>
+<sub>Screenshots at 1920×1080 in desktop Chrome. The traffic map is a real Mapbox image (Friday afternoon); the other screens use the test fixtures, so the headlines, temperatures and travel times are sample data.</sub>
 
 It is a real installed **Tizen web app** (a signed `.wgt` package), not a web page: the TV's browser is
 slow and limited, while an installed app starts instantly, keeps the screen on and exits with Back.
@@ -57,7 +63,7 @@ Five screens, switched with the remote's ◀ ▶ and shown in turn every 45 seco
 mark the current one). Any key pauses the rotation for two minutes; `rotation.enabled: false` in the config
 turns it off. A screen that is not on view keeps its content and costs nothing: it is redrawn when it comes in.
 A screen opened with ◀ ▶ refreshes its data at once (the owner's rule, 2026-10-30): the weather for the home and Israel
-screens, both news feeds, the traffic round (within its daily cap), the live map page. A request already running is
+screens, both news feeds, the traffic round (within its daily cap), a new map image (within its own). A request already running is
 never started twice, and a rotation arrival keeps each screen's own schedule.
 
 **1 · Home**
@@ -156,14 +162,18 @@ current. It needs a Mapbox token (see Build); without one the screen says how to
 were checked live by the coordinator on 2026-10-30 16:28 (e.g. Tel Aviv 32.0 min vs a usual 39.3, Jerusalem 44.9 vs 56.4);
 the tests run on Mapbox's documented answer shape.
 
-**5 · Traffic map**: [Waze's live map](https://www.waze.com/live-map/) of Israel (`embed.waze.com`, free, no key), centred on
-Rehovot, in the same glass card. The page is loaded the first time the screen is shown (a rotation visit included), again
-on every ◀ ▶ open (the open-refresh rule), and otherwise stays loaded while hidden: idle, it asked the network nothing in
-5 minutes (measured in Chrome, 2026-10-30). The page never takes the remote: it cannot be focused or clicked, and focus that
-slips into it is handed back at once, so ◀ ▶ and Back keep working. Until it has loaded the card says «Загружаем карту…».
-Measured in headless Chrome (2026-10-30), Waze served the map but answered 403 to its own traffic-data request
-(`live-map/api/georss`, guarded by reCAPTCHA), and with a Tizen 3.0 user agent its reCAPTCHA asks for "a supported browser";
-whether the live traffic layer appears on the TV's Chromium 47 is not yet verified on the TV.
+**5 · Traffic map**: the live traffic of the centre of Israel — Tel Aviv, Rehovot, Ashdod and Jerusalem — as ONE picture from
+the [Mapbox Static Images API](https://docs.mapbox.com/api/maps/static-images/) in Mapbox's live-traffic style
+(`traffic-night-v2`: green, orange and red lines over a night map), with the same Mapbox token as the routes. A white dot
+marks Rehovot (placed by Web Mercator, so it sits exactly on the town), and the card carries the attribution Mapbox requires,
+«© Mapbox © OpenStreetMap». The picture is asked for at half the card's size `@2x`, so it fills the card pixel for pixel.
+It is refreshed while it is shown (the same one-gate rule as the routes, `Config.map`): at once on every ◀ ▶ open, every
+5 minutes while the map is on view and the TV shows it, never while hidden (leaving the screen or the TV hiding the page stops
+the image in flight), one image at a time with a 20-second deadline. A failed image keeps the last one on screen and the
+header says «Карта недоступна · данные от HH:MM». Each image is reserved in the TV's localStorage (`map-quota`) before it is
+asked for and never refunded, at most 600 a UTC date: Static Images' free tier is 50,000 a month, and any 31 days touch at
+most 32 UTC dates, so ≤ 32 × 600 = 19,200. (Batch 6 embedded Waze's live map instead; on the TV that frame opened the TV's
+browser, so it is gone. The map's place names come from Mapbox, in English.)
 
 **Israel alerts (all screens)**: the [Home Front Command](https://www.oref.org.il/) alert feed is read every
 5 seconds (one request at a time, 4-second timeout). When an alert covers Rehovot, a deep-red full-screen
@@ -181,10 +191,11 @@ test checks every name against a copy of it in `tests/fixtures/oref/`), each wit
 
 ## Languages
 
-Русский · עברית · Українська. The remote's **yellow** key switches to the next one (ru → he → uk → ru): a short toast
-names it in its own words and every screen changes at once, with no reload. The choice is remembered on the TV
-(localStorage); `lang` in the config is only the first start's language, `languages` the order of the switch. If the TV
-refuses the yellow key, the red one is used.
+Русский · עברית · Українська. On the remote, **▼** switches to the next language and **▲** to the previous one
+(ru → he → uk → ru); the **yellow** key (the red one if the TV refuses yellow) works like ▼. A short toast names the language
+in its own words and every screen changes at once, with no reload; holding ▲ / ▼ never sends a burst of requests — only the
+language you land on fetches its news, 0.6 s after the last press. The choice is remembered on the TV (localStorage); `lang`
+in the config is only the first start's language, `languages` the order of the switch.
 
 - **News follows the language**: Russian — Israeli news in Russian (NEWSru.co.il); Hebrew — the top Hebrew outlets (Ynet,
   Globes); Ukrainian — news about Ukraine in Ukrainian (Українська правда, Економічна правда). Only the active language's
@@ -246,8 +257,8 @@ PUPPETEER_CORE_DIR=... node tools/make-icon.mjs                       # img/icon
 ```
 
 The browser tests answer Open-Meteo, the news feeds, the alert feed and Mapbox from `tests/fixtures/` (the
-recorded or documented shape of each source; the batch-2 news stories in them are invented, the batch-6 ones recorded) and
-stand a stub page in for Waze; they fail (never skip) without puppeteer-core.
+recorded or documented shape of each source; the batch-2 news stories in them are invented, the batch-6 ones recorded, the
+map image a real traffic-night-v2 picture made smaller); they fail (never skip) without puppeteer-core.
 
 ## Roadmap
 

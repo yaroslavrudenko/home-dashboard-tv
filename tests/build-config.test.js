@@ -15,13 +15,11 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 // Decision 21 (F13): least privilege — the app's own files plus exactly the hosts it reads (batch 2: news, alerts, traffic;
 // batch 6: Mapbox instead of TomTom).
-// Batch 6: the news feeds of the three languages (L2), and the traffic map is Waze's live page in a frame — its own host
-// in frame-src, the hosts that page loads (recorded from its network log in Chrome, 2026-10-30) in <access> only.
+// Batch 6: the news feeds of the three languages (L2) and Mapbox; batch 7: the traffic map is a Mapbox image (img-src),
+// the Waze frame and its hosts are gone.
 const DATA = ['https://api.open-meteo.com', 'https://www.newsru.co.il', 'https://www.ynet.co.il', 'https://www.globes.co.il',
   'https://www.pravda.com.ua', 'https://epravda.com.ua', 'https://www.oref.org.il', 'https://api.mapbox.com'];
-const FRAME = ['https://embed.waze.com', 'https://www.waze.com', 'https://web-assets.waze.com', 'https://www.google.com',
-  'https://www.gstatic.com', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'];
-const ORIGINS = DATA.concat(FRAME);
+const ORIGINS = DATA;
 test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV profile, internet, exactly the hosts the app reads', () => {
   const x = read('config.xml');
   assert.match(x, /<tizen:application id="HomeDash01\.Dashboard" package="HomeDash01" required_version="3\.0"\/>/);
@@ -35,19 +33,18 @@ test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV pr
   assert.match(csp, /default-src 'self'/);
   assert.equal(csp.match(/connect-src ([^;]+)/)[1].trim(), DATA.join(' '));
   assert.ok(!/\*/.test(csp), 'no wildcard: ' + csp);
-  assert.equal(csp.match(/img-src ([^;]+)/)[1].trim(), "'self' data:", 'the TomTom map tiles are gone');
-  assert.equal(csp.match(/frame-src ([^;]+)/)[1].trim(), 'https://embed.waze.com', 'the Waze frame only');
-  assert.equal(csp.match(/child-src ([^;]+)/)[1].trim(), 'https://embed.waze.com', 'Chromium 47 reads frames from child-src');
+  assert.equal(csp.match(/img-src ([^;]+)/)[1].trim(), "'self' data: https://api.mapbox.com", 'the traffic map image from Mapbox only');
+  assert.ok(!/frame-src|child-src|waze/.test(x), 'no frame and no Waze host');
   assert.match(x, /<icon src="img\/icon\.png"\/>/);
   assert.match(x, /<content src="index\.html"\/>/);
 });
 
-// Every host the code reads is in the policy, and nothing else: the feeds, the alert feed, Mapbox, Open-Meteo, the Waze frame.
+// Every host the code reads is in the policy, and nothing else: the feeds, the alert feed, Mapbox, Open-Meteo.
 test('every URL in js/config.js is on an origin config.xml allows', () => {
   const urls = [...read('js/config.js').matchAll(/'(https:\/\/[^']+)'/g)].map((m) => new URL(m[1]).origin);
-  assert.ok(urls.length >= 10, urls.join(' '));
+  assert.ok(urls.length >= 10, urls.join(' '));   // six feeds, weather, alerts, the routes and the map
   for (const o of urls) assert.ok(ORIGINS.includes(o), o);
-  for (const o of DATA.concat('https://embed.waze.com')) assert.ok(urls.includes(o), 'unused origin ' + o);
+  for (const o of DATA) assert.ok(urls.includes(o), 'unused origin ' + o);
 });
 
 // The Mapbox token never enters the repository: the committed config carries the placeholder, the build replaces it.

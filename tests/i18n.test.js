@@ -52,7 +52,7 @@ test('batch 2: every screen, source, traffic and alert string exists in both lan
   // FB5C: the night window, the month cap and the per-status refusal copy are gone; the judges' exact copy added.
   const keys = ['screen.main', 'screen.news', 'screen.traffic', 'screen.map', 'n.justNow', 'n.minAgo', 'n.hAgo', 'n.dAgo', 'n.loading', 'n.failed', 'n.colFailed', 'n.colFailedRetry', 'n.failedRetry',
     't.min', 't.hmin', 't.delay', 't.km', 't.noData', 't.noKey', 't.noKeySub', 't.failed',
-    't.updated', 't.updating', 't.updatingFrom', 't.future', 't.stale', 't.cap', 't.refused', 't.storage', 'm.loading',
+    't.updated', 't.updating', 't.updatingFrom', 't.future', 't.stale', 't.cap', 't.refused', 't.storage', 'm.loading', 'm.unavailable', 'm.staleFrom',
     'a.generic', 'a.since', 'a.shelter', 'a.shelterFor', 'a.nearby', 'a.offline']
     .concat(ctx.Config.news.feeds.map((f) => 'n.src.' + f.id), ctx.Config.news.columns.map((c) => 'n.col.' + c.id))
     .concat(ctx.Config.traffic.columns.map((c) => 't.col.' + c.id))
@@ -66,8 +66,8 @@ test('batch 2: every screen, source, traffic and alert string exists in both lan
   ctx.I18n.setLang('ru');
   assert.equal(ctx.I18n.t('a.kind.missiles'), 'Ракетный обстрел');
   assert.equal(ctx.I18n.t('t.noKey'), 'Подключите токен Mapbox, чтобы видеть пробки');
-  // Batch 6: the Waze map says nothing of its own beyond "loading" (m.unavailable, t.dataFrom were the TomTom map's).
-  for (const gone of ['t.limit', 'n.partial', 't.col.roads', 't.road.ayalon', 'm.unavailable', 't.dataFrom']) assert.equal(ctx.I18n.t(gone), gone, gone + ' has no reader: removed');
+  // Batch 7: the Mapbox map says «Карта недоступна» again (m.unavailable, m.staleFrom); t.dataFrom stays gone.
+  for (const gone of ['t.limit', 'n.partial', 't.col.roads', 't.road.ayalon', 't.dataFrom']) assert.equal(ctx.I18n.t(gone), gone, gone + ' has no reader: removed');
 });
 
 test('"how long ago" for a headline: just now, minutes, hours, days; a time in the future reads "just now"', () => {

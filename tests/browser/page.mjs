@@ -36,18 +36,17 @@ function loadPuppeteer() {
   }
 }
 
-// News feeds, the alert feed, Mapbox and the Waze map: `opts.news` 'ok' (tests/fixtures/news) | 'fail' | 'live' (fetched
-// from the real feeds by Node at that moment) | (url) => { status, body }; `opts.alerts` a file in tests/fixtures/oref |
-// 'fail' | (n) => { status, body }; `opts.traffic` (one GET per route) 'ok' (that route's answer in
-// tests/fixtures/mapbox/routes.json) | 'fail' | 'live' (the real Mapbox,
-// for a measurement with a real token) | (round, url) => { status, body } (round: 1 for the first ten GETs, …); `opts.waze` 'stub' (a
-// small page standing in for embed.waze.com) | 'live' (the real Waze page and every host it loads, straight from the
-// network). Left out: the request is aborted (a network failure), as before these screens existed.
+// News feeds, the alert feed and Mapbox: `opts.news` 'ok' (tests/fixtures/news) | 'fail' | 'live' (fetched from the real
+// feeds by Node at that moment) | (url) => { status, body }; `opts.alerts` a file in tests/fixtures/oref | 'fail' |
+// (n) => { status, body }; `opts.traffic` (one GET per route) 'ok' (that route's answer in tests/fixtures/mapbox/routes.json)
+// | 'fail' | (round, url) => { status, body } (round: 1 for the first ten GETs, …); `opts.map` (the traffic map image)
+// 'ok' (tests/fixtures/mapbox/static.png, a real traffic-night-v2 image made smaller) | 'fail' | (n, url) => { status, body }
+// | { hang: true }; `opts.traffic` / `opts.map` 'live': straight to the real Mapbox (a measurement with a real token).
+// Left out: the request is aborted (a network failure), as before these screens existed.
 // Every news feed of every language, the most specific address first (NEWSru serves both of its sections).
 const NEWS_FEEDS = [['https://www.newsru.co.il/il/www/section/finance', 'newsrufin'], ['https://www.newsru.co.il/', 'newsru'],
   ['https://www.ynet.co.il/', 'ynet'], ['https://www.globes.co.il/', 'globes'], ['https://www.pravda.com.ua/', 'pravda'], ['https://epravda.com.ua/', 'epravda']];
-const WAZE = /^https:\/\/(embed\.waze\.com|www\.waze\.com|web-assets\.waze\.com|www\.google\.com|www\.gstatic\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|csp\.withgoogle\.com)\//;
-const WAZE_STUB = '<!doctype html><html><body style="margin:0;background:#a9d3df;font:40px sans-serif"><div id="waze-stub">Waze live map (stub)</div></body></html>';
+const MAP = /^https:\/\/api\.mapbox\.com\/styles\//;
 const fixtureText = (rel) => fs.readFileSync(path.join(FIXTURES, rel));
 // The Mapbox answers of one round, in route order (tests/fixtures/mapbox/routes.json), and which route a GET asks for
 // (its destination, lon,lat, is the answer's second waypoint).
@@ -67,7 +66,7 @@ async function answerFor(kind, opts, url, n) {
     return { status: 200, body: fixtureText('news/' + newsSource(url) + '.xml') };   // 'ok', or a function that answered null
   }
   if (kind === 'alerts') return { status: 200, body: fixtureText('oref/' + o) };
-  if (kind === 'waze') return { status: 200, contentType: 'text/html', body: WAZE_STUB };
+  if (kind === 'map') return { status: 200, contentType: 'image/png', headers: { 'Cache-Control': 'max-age=60,s-maxage=30' }, body: fixtureText('mapbox/static.png') };
   return { status: 200, body: JSON.stringify(trafficFixture()[routeIndexOf(url)]) };
 }
 
@@ -84,7 +83,7 @@ export async function openApp(opts = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080 });
   const weatherRequests = [];
-  const requests = { news: [], alerts: [], traffic: [], waze: [] };
+  const requests = { news: [], alerts: [], traffic: [], map: [] };
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.evaluateOnNewDocument((fixed, lang, configure, init) => {
@@ -117,11 +116,11 @@ export async function openApp(opts = {}) {
         : fail ? { status: 503, body: '' } : { status: 200, body: weatherAnswer(url) };
       done = req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
     } else {
-      const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : WAZE.test(url) ? 'waze'
+      const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : MAP.test(url) ? 'map'
         : url.startsWith('https://api.mapbox.com/') ? 'traffic' : null;
       if (kind) requests[kind].push({ url, method: req.method(), headers: req.headers(), body: req.postData() });
       if (!kind || opts[kind] === undefined) done = req.abort();
-      else if ((kind === 'waze' || kind === 'traffic') && opts[kind] === 'live') done = req.continue();   // the real service
+      else if ((kind === 'map' || kind === 'traffic') && opts[kind] === 'live') done = req.continue();   // the real service
       else if (req.method() === 'OPTIONS') done = req.respond(kind === 'alerts' ? { status: 200, headers: { Allow: 'GET, HEAD' }, body: '' } : { status: 204, headers: CORS });
       else done = answerFor(kind, opts, url, requests[kind].length).then((a) => (a.hang ? null
         : req.respond({ status: a.status, headers: Object.assign({}, CORS, a.headers), contentType: a.contentType, body: a.body })));

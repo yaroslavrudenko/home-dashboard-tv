@@ -685,14 +685,14 @@ test('an alert nearby (not in Rehovot): only a quiet notice in the corner, no ov
 // once at once (weather for the main and Israel screens, both news feeds, the traffic batch, a new map overlay round);
 // a rotation arrival does not; an open while that source's request is in flight starts nothing.
 test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotation arrival does not; in flight, nothing', async () => {
-  const app = await openApp({ ...QUIET, configure: KEY, traffic: 'ok', waze: 'stub' });
+  const app = await openApp({ ...QUIET, configure: KEY, traffic: 'ok', map: 'ok' });
   try {
     await ready(app);
     const p = app.page;
     await wait(500);
     const count = () => ({ weather: app.weatherRequests.length, news: app.requests.news.filter((r) => r.method === 'GET').length,
       traffic: app.requests.traffic.filter((r) => r.method === 'GET').length / 10,
-      map: app.requests.waze.filter((r) => r.url.startsWith('https://embed.waze.com/iframe?')).length });
+      map: app.requests.map.length });
     const boot = count();
     assert.deepEqual([boot.weather, boot.news, boot.traffic, boot.map], [1, 2, 0, 0], 'boot: the map page is not loaded');
     const step = async (code) => { await press(p, code); await wait(800); return count(); };
@@ -703,11 +703,11 @@ test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotat
     c = await step(RIGHT);                                             // traffic
     assert.equal(c.traffic, 1, '◀ ▶ to traffic: one batch');
     c = await step(RIGHT);                                             // map
-    assert.equal(c.map, 1, 'first map visit: the Waze page, once');
+    assert.equal(c.map, 1, 'first map visit: one image');
     c = await step(LEFT);                                              // traffic again, seconds later
     assert.equal(c.traffic, 2, '◀ ▶ back to traffic: one more batch, whatever its age');
     c = await step(RIGHT);                                             // map again
-    assert.equal(c.map, 2, '◀ ▶ back to the map: the page reloaded once');
+    assert.equal(c.map, 2, '◀ ▶ back to the map: one new image');
     c = await step(RIGHT);                                             // main
     assert.deepEqual([c.weather, c.news, c.traffic, c.map], [3, 4, 2, 2], '◀ ▶ to the main screen: one weather request; the map left loaded, not reloaded');
   } finally { await app.close(); }

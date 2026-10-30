@@ -59,30 +59,17 @@ var Traffic = (function () {
     return a.json && PERMANENT[a.json.code] ? 'route' : 'shape';
   }
 
-  var VERSION = 1, QUOTA = 'tt-quota', CACHE = 'tt-cache', DAY_MS = 86400000, MINUTE = 60000;
+  var VERSION = 1, QUOTA = 'tt-quota', CACHE = 'tt-cache', MINUTE = 60000;
   var ROW_ERRORS = { key: 1, busy: 1, route: 1, item: 1, timeout: 1, shape: 1 };
-
-  // The UTC date of a moment, "YYYY-MM-DD" (the accounting day: one fixed length, home dates can be 25 h long).
-  function utcDate(ms) { return new Date(ms).toISOString().slice(0, 10); }
-  function nextUtcMidnight(ms) { return (Math.floor(ms / DAY_MS) + 1) * DAY_MS; }
+  var usedOn = Ledger.usedOn, utcDate = Ledger.utcDate, copyRecord = Ledger.copy;   // the accounting: js/ledger.js
   function count(v) { return typeof v === 'number' && isFinite(v) && v >= 0 && Math.floor(v) === v; }
-  // A real calendar date "YYYY-MM-DD": it survives the round trip through Date.UTC (2026-02-31 and 0000-00-00 do not).
-  function validDate(d) {
-    if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
-    var t = Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10));
-    return t >= 0 && utcDate(t) === d;
-  }
-  function validRecord(r) {
-    return !!r && r.v === VERSION && validDate(r.utcDate) && count(r.used) && count(r.lastAttemptAt) && count(r.retryNotBefore);
-  }
+
   // A Retry-After header (delta seconds or an HTTP date) as a moment, or 0 when absent, malformed or already past.
   function retryAfterAt(value, now) {
     var t = /^\s*\d+\s*$/.test(value) ? now + 1000 * +value : value ? Date.parse(value) : NaN;
     return isFinite(t) && t > now ? Math.ceil(t) : 0;
   }
   var DEADLINE_STATUS = { 'http 403': 1, 'http 429': 1, 'http 503': 1 };   // the answers whose Retry-After is recorded
-  // Requests already used on now's UTC date: a strictly later date starts again at 0.
-  function usedOn(r, now) { return r.utcDate < utcDate(now) ? 0 : r.used; }
 
   // THE gate: may a round be sent now? facts: { selected (the traffic screen is on view), visible (the TV shows the
   // page), explicitOpen (the remote just opened the screen), busy (a round in flight), storage (the record was read and
@@ -98,20 +85,10 @@ var Traffic = (function () {
     return 'due';
   }
 
-  // A clock that went back: an attempt time in the future is rebased to now; an accounting date in the future becomes
-  // today's UTC date with `used` kept (no correction ever grants a fresh budget). Null when nothing needs correcting.
-  function correct(r, now) {
-    var today = utcDate(now), out = null;
-    if (r.lastAttemptAt > now) { out = copyRecord(r); out.lastAttemptAt = now; }
-    if (r.utcDate > today) { out = out || copyRecord(r); out.utcDate = today; }
-    return out;
-  }
-  function copyRecord(r) { return { v: VERSION, utcDate: r.utcDate, used: r.used, lastAttemptAt: r.lastAttemptAt, retryNotBefore: r.retryNotBefore }; }
-
   // The earliest moment decide() can say 'due' to a path other than an explicit open (the cap: the next UTC date too).
   function earliest(cfg, r, n, now) {
     var t = Math.max(r.lastAttemptAt + cfg.schedule.minIntervalMs, r.retryNotBefore);
-    return usedOn(r, now) + n > cfg.schedule.dailyRequestCap ? Math.max(t, nextUtcMidnight(now)) : t;
+    return usedOn(r, now) + n > cfg.schedule.dailyRequestCap ? Math.max(t, Ledger.nextUtcMidnight(now)) : t;
   }
 
   function level(s, cfg) {
@@ -143,23 +120,11 @@ var Traffic = (function () {
     if (validCache(cached, n)) { rows = cached.rows; failed = cached.failed; problem = cached.problem; answeredFor = cached.attemptAt; }
     else for (i = 0; i < n; i++) rows.push({ data: null, updatedAt: 0, error: null });
 
-    // The accounting record, or null when storage is unusable or the record is corrupt. None stored yet (a first
-    // install): a fresh record with no cooldown.
-    function account(now) {
-      if (!storage) return null;
-      var text;
-      try { text = storage.getItem(QUOTA); } catch (e) { return null; }
-      if (text === null) return { v: VERSION, utcDate: utcDate(now), used: 0, lastAttemptAt: 0, retryNotBefore: 0 };
-      var r;
-      try { r = JSON.parse(text); } catch (e) { return null; }
-      return validRecord(r) ? r : null;
-    }
-    // Writes the record and reads it back: true only when what is stored is exactly what was written.
-    function persist(r) {
-      var text = JSON.stringify(copyRecord(r));
-      try { storage.setItem(QUOTA, text); paused = storage.getItem(QUOTA) !== text; } catch (e) { paused = true; }
-      return !paused;
-    }
+    // The accounting record (js/ledger.js): null when storage is unusable or the record is corrupt; a fresh one on a first
+    // install. persist() writes it and reads it back; a failure pauses sending.
+    var ledger = Ledger.open(storage, QUOTA);
+    function account(now) { return ledger.read(now); }
+    function persist(r) { paused = !ledger.write(r); return !paused; }
     function saveCache() {
       try { storage.setItem(CACHE, JSON.stringify({ v: VERSION, rows: rows, failed: failed, problem: problem, attemptAt: answeredFor })); }
       catch (e) { /* the rows on screen still hold for this run */ }
@@ -183,7 +148,7 @@ var Traffic = (function () {
 
     // Every path comes here: a clock correction first (it sends nothing), then the gate, then the reservation.
     function check(explicit) {
-      var now = deps.now(), r = account(now), fixed = r && correct(r, now);
+      var now = deps.now(), r = account(now), fixed = r && Ledger.correct(r, now);
       if (fixed) { plan(now, persist(fixed) ? fixed : null, true); return; }
       if (decide(cfg, facts(now, r, explicit)) !== 'due') { plan(now, r, false); return; }
       var next = { utcDate: utcDate(now), used: usedOn(r, now) + n, lastAttemptAt: now, retryNotBefore: r.retryNotBefore };
@@ -306,5 +271,5 @@ var Traffic = (function () {
     return api;
   }
 
-  return { hasToken: hasToken, urls: urls, summary: summary, level: level, decide: decide, correct: correct, validDate: validDate, createStore: createStore };
+  return { hasToken: hasToken, urls: urls, summary: summary, level: level, decide: decide, correct: Ledger.correct, validDate: Ledger.validDate, createStore: createStore };
 })();

@@ -6,7 +6,8 @@
  *                                    collapsed. Feed HTML is never rendered: the views escape this text.
  *   News.merge(lists)                the items of the lists in one list, newest first, each story once
  *   News.createStore(cfg, deps, lang)  the language's feeds (cfg.columns[].feeds[lang]) in ONE parallel round per refresh
- *                                    (js/refresher.js); use(lang) switches to another language's feeds at once;
+ *                                    (js/refresher.js); use(lang) switches to another language's feeds (fetched on the
+ *                                    next refresh());
  *                                    column(columnId) gives its feed's top cfg.perColumn stories and that feed's own state
  * Parsing is a small text scanner (no DOMParser, no XML library), so the same code runs on the TV and in the Node
  * tests; it steps over CDATA sections and comments before it looks for any tag, so "</item>" inside a headline is
@@ -207,15 +208,15 @@ var News = (function () {
 
     var api = {
       refresh: function () { return cycle.refresh(); },
-      // Another language: its feeds at once, a fresh cycle (the old one's late answers change nothing; its back-off is
-      // forgotten). What a feed showed before stays with it, so coming back shows those stories while they refresh.
+      // Another language: its feeds on screen at once, a fresh cycle (the old one's late answers change nothing; its
+      // back-off is forgotten); nothing is fetched until refresh() — the caller waits for the remote to settle. What a
+      // feed showed before stays with it, so coming back shows those stories while they refresh.
       use: function (l) {
         if (l === lang) return;
         lang = l;
         feeds = feedsFor(cfg, l);
         cycle.stop();
         cycle = newCycle();
-        cycle.refresh();
       },
       // One column (Config.news.columns id) in the current language: { source (its feed id), items (the feed's top
       // cfg.perColumn stories, the last good ones while it fails), kind, updatedAt }.

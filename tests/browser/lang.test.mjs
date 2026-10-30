@@ -10,14 +10,14 @@ const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown',
 const YELLOW = 405, RIGHT = 39, LEFT = 37;
 const SCREENS = ['main', 'israel', 'news', 'traffic', 'map'];
 const TOKEN = (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; };
-const QUIET = { news: 'ok', alerts: 'empty-bom.txt', traffic: 'ok', waze: 'stub', configure: TOKEN };
+const QUIET = { news: 'ok', alerts: 'empty-bom.txt', traffic: 'ok', map: 'ok', configure: TOKEN };
 async function ready(app) { await app.page.waitForSelector('.day', { timeout: 10000 }); await wait(300); }
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
 const state = (p) => p.evaluate(() => ({ lang: document.documentElement.lang, dir: document.documentElement.dir, stored: localStorage.getItem('homedash.lang'),
   toast: [document.getElementById('toast').className, document.getElementById('toast').textContent],
   titles: [...document.querySelectorAll('.screen-title')].map((t) => t.textContent), israel: document.querySelector('#clock-israel .clock-city').textContent }));
 const feedsOf = (app) => app.requests.news.map((r) => newsSource(r.url));
-const counts = (app) => ({ weather: app.weatherRequests.length, news: app.requests.news.length, traffic: app.requests.traffic.length, waze: app.requests.waze.length });
+const counts = (app) => ({ weather: app.weatherRequests.length, news: app.requests.news.length, traffic: app.requests.traffic.length, map: app.requests.map.length });
 
 test('L1: the yellow key cycles Русский → עברית → Українська → Русский at once on every screen, with the toast, and remembers it', async () => {
   const app = await openApp(QUIET);
@@ -43,6 +43,35 @@ test('L1: the yellow key cycles Русский → עברית → Українс
   } finally { await app.close(); }
 });
 
+// The owner (2026-10-30): «я бы хотел чтобы локализация переключалась бы по нажатию кнопок вверх и вниз».
+const UP = 38, DOWN = 40;
+test('L1: ▼ switches to the next language and ▲ to the previous (ru → he → uk), with the toast, at once, remembered', async () => {
+  const app = await openApp(QUIET);
+  try {
+    await ready(app);
+    const p = app.page, seq = [];
+    for (const k of [DOWN, DOWN, DOWN, UP, UP, UP]) { assert.equal(await press(p, k), true, 'the key is the app\'s'); const s = await state(p); seq.push([s.lang, s.stored, s.toast[1]]); }
+    assert.deepEqual(seq, [['he', 'he', 'עברית'], ['uk', 'uk', 'Українська'], ['ru', 'ru', 'Русский'], ['uk', 'uk', 'Українська'], ['he', 'he', 'עברית'], ['ru', 'ru', 'Русский']]);
+    assert.equal(await p.evaluate(() => document.querySelector('.screen.is-active').id), 'screen-main', '▲ ▼ never change the screen');
+  } finally { await app.close(); }
+});
+
+test('L1: a held ▼ (seven presses) redraws at once but fetches ONE news round, of the language it lands on, 600 ms after the last press', async () => {
+  const app = await openApp(QUIET);
+  try {
+    await ready(app);
+    const p = app.page, before = app.requests.news.length;
+    for (let i = 0; i < 7; i++) await press(p, DOWN);             // ru → he → uk → ru → he → uk → ru → he
+    assert.deepEqual([(await state(p)).lang, (await state(p)).dir], ['he', 'rtl'], 'drawn at once');
+    await wait(300);
+    assert.equal(app.requests.news.length, before, 'nothing while the remote is still moving');
+    await wait(700);
+    assert.deepEqual(feedsOf(app).slice(before), ['ynet', 'globes'], 'one round, the landing language only');
+    await wait(1000);
+    assert.equal(app.requests.news.length, before + 2, 'and nothing more');
+  } finally { await app.close(); }
+});
+
 test('L1/L2: a switch asks the network for the new language\'s two feeds and nothing else — no weather, traffic or map request', async () => {
   const app = await openApp(QUIET);
   try {
@@ -51,16 +80,16 @@ test('L1/L2: a switch asks the network for the new language\'s two feeds and not
     await press(p, LEFT); await wait(500);         // ◀ the map
     await press(p, LEFT); await wait(800);         // ◀ traffic: the map and the routes loaded once
     assert.deepEqual(feedsOf(app), ['newsru', 'newsrufin'], 'Russian at boot: NEWSru only');
-    assert.ok(counts(app).traffic === 10 && counts(app).waze >= 1, JSON.stringify(counts(app)));
+    assert.ok(counts(app).traffic === 10 && counts(app).map >= 1, JSON.stringify(counts(app)));
     const before = counts(app);
     await press(p, YELLOW);
     await wait(1500);
     const after = counts(app);
-    assert.deepEqual([after.weather, after.traffic, after.waze], [before.weather, before.traffic, before.waze], 'no other request');
+    assert.deepEqual([after.weather, after.traffic, after.map], [before.weather, before.traffic, before.map], 'no other request');
     assert.deepEqual(feedsOf(app).slice(before.news), ['ynet', 'globes'], 'Hebrew: Ynet and Globes, at once');
     await press(p, YELLOW); await wait(1500);
     assert.deepEqual(feedsOf(app).slice(before.news + 2), ['pravda', 'epravda'], 'Ukrainian: Ukrainska Pravda and Ekonomichna Pravda');
-    assert.deepEqual([counts(app).weather, counts(app).traffic, counts(app).waze], [before.weather, before.traffic, before.waze]);
+    assert.deepEqual([counts(app).weather, counts(app).traffic, counts(app).map], [before.weather, before.traffic, before.map]);
   } finally { await app.close(); }
 });
 

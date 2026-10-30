@@ -284,13 +284,22 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .tbar-delay.lv-slow { background: #ffcf8a; }
 .tbar-delay.lv-jam { background: #ff8f80; }
 
-/* ---- Traffic map: Waze's live map in one glass card; a quiet line in its middle until the page has loaded ---- */
-.map-card { flex: 1 1 auto; background: #0e1424; }
-/* the frame never takes a click or the focus: the remote drives the app, never the map */
-.map-frame { position: absolute; left: 0; top: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
+/* ---- Traffic map: one Mapbox live-traffic image filling the glass card, a home dot on Rehovot, the attribution ---- */
+.map-card { flex: 1 1 auto; background: #0e1424; }   /* the night map's own ground until the image is in */
+.map-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+.map-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+/* Rehovot: a small white dot with a soft halo, placed by js (Web Mercator); hidden until there is an image under it */
+.map-home { display: none; position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 8px;
+  background: #fff; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.18); }
+.map-card.no-image .map-home, .map-card.no-image .map-attribution { visibility: hidden; }
+/* the attribution Mapbox requires, small and quiet in the corner over the sea (bottom-left in every language: Jerusalem's
+   label sits in the bottom-right corner) */
+.map-attribution { position: absolute; left: 24px; bottom: 16px; padding: 4px 12px; border-radius: 12px; background: rgba(14, 20, 36, 0.7);
+  font-size: 24px; color: rgba(255, 255, 255, 0.72); direction: ltr; white-space: nowrap; }
 .map-note { display: none; }
 .map-note.is-on { position: absolute; left: 0; right: 0; top: 50%; margin-top: -32px; display: flex; justify-content: center; }
 .map-note-text { padding: 12px 32px; border-radius: 32px; background: rgba(14, 20, 36, 0.82); font-size: 32px; color: rgba(255, 255, 255, 0.85); }
+.map-empty { flex: 1 1 auto; display: flex; }
 
 /* ---- The Israel alert: over every screen, deep red and calm; a slow pulse of light (opacity only) ------- */
 .alert {

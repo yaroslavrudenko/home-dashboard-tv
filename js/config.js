@@ -89,7 +89,7 @@ var Config = {
   // Traffic from Mapbox (Directions API, profile driving-traffic: live traffic for Israel; one GET per route, the ten in
   // parallel). The token is NOT kept here: the build replaces the placeholder with MAPBOX_TOKEN from the git-ignored
   // build.local.env. Without a token the screen shows how to connect one and sends nothing. Coordinates are lat,lon; edit
-  // freely. The live traffic picture is on the map screen (Waze).
+  // freely. The live traffic picture is on the map screen (a Mapbox image).
   traffic: {
     token: '__MAPBOX_TOKEN__',
     base: 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/',
@@ -131,11 +131,22 @@ var Config = {
     redRatio: 1.5
   },
 
-  // The traffic map: Waze's live map (embed.waze.com: free, no key), centred on Rehovot (TomTom, used before, has no live
-  // traffic for Israel: blank flow tiles, measured 2026-10-30). The page is loaded the first
-  // time the map is shown and again on every ◀ ▶ open; in between it stays loaded (idle, it asks the network nothing).
+  // The traffic map: ONE image from the Mapbox Static Images API in the live-traffic style (traffic-night-v2), with the
+  // same Mapbox token as the routes (traffic.token above, put in by the build), centred so that Tel Aviv, Rehovot, Ashdod
+  // and Jerusalem fill the card with little sea; `home` is the dot on Rehovot. When it is loaded (js/trafficmap.js, one
+  // gate): only while the map is on view and the TV shows the page, at once on a ◀ ▶ open, else every refreshMs; one image
+  // at a time; never past dailyRequestCap images per UTC date, reserved in localStorage before each and never refunded.
+  // Static Images' free tier is 50,000 a MONTH: any 31 days touch at most 32 UTC dates, so ≤ 32 × 600 = 19,200.
   map: {
-    url: 'https://embed.waze.com/iframe?zoom=11&lat=31.8928&lon=34.8113&ct=livemap'
+    base: 'https://api.mapbox.com/styles/v1/mapbox/traffic-night-v2/static/',
+    center: [31.93, 34.94],             // lat, lon (checked on the live image 2026-10-30: Tel Aviv to Jerusalem, Ashdod in)
+    zoom: 9.6,
+    maxSide: 1280,                      // the API's largest side, in map points (the image is asked @2x)
+    home: [31.8928, 34.8113],           // Rehovot
+    refreshMs: 5 * 60 * 1000,
+    timeoutMs: 20 * 1000,
+    staleAfterMs: 15 * 60 * 1000,
+    dailyRequestCap: 600
   },
 
   // Pikud HaOref alerts. `areas` are the alert area names (Hebrew, exactly as Pikud HaOref's area list writes them —

@@ -6,10 +6,9 @@
     <icon src="img/icon.png"/>
     <content src="index.html"/>
     <!-- Least privilege: the app's own files plus exactly the hosts it reads: weather (Open-Meteo), the news feeds of the
-         three languages (NEWSru; Ynet, Globes; Ukrainska Pravda, Ekonomichna Pravda), the Israel alert feed, Mapbox routing (live traffic),
-         and the traffic map: Waze's live map page in a frame with the hosts that page loads (recorded from its network log
-         in Chrome, 2026-10-30: its assets, its map tiles and data, Google fonts and Google's reCAPTCHA). Widen it only when
-         a new source ships. script-src file: covers $WEBAPIS/webapis/webapis.js, which the TV serves from its file system. -->
+         three languages (NEWSru; Ynet, Globes; Ukrainska Pravda, Ekonomichna Pravda), the Israel alert feed, and Mapbox:
+         the routes' live traffic (connect-src) and the live-traffic map image (img-src). Widen it only when a new source
+         ships. script-src file: covers $WEBAPIS/webapis/webapis.js, which the TV serves from its file system. -->
     <access origin="https://api.open-meteo.com" subdomains="false"/>
     <access origin="https://www.newsru.co.il" subdomains="false"/>
     <access origin="https://www.ynet.co.il" subdomains="false"/>
@@ -18,14 +17,7 @@
     <access origin="https://epravda.com.ua" subdomains="false"/>
     <access origin="https://www.oref.org.il" subdomains="false"/>
     <access origin="https://api.mapbox.com" subdomains="false"/>
-    <access origin="https://embed.waze.com" subdomains="false"/>
-    <access origin="https://www.waze.com" subdomains="false"/>
-    <access origin="https://web-assets.waze.com" subdomains="false"/>
-    <access origin="https://www.google.com" subdomains="false"/>
-    <access origin="https://www.gstatic.com" subdomains="false"/>
-    <access origin="https://fonts.googleapis.com" subdomains="false"/>
-    <access origin="https://fonts.gstatic.com" subdomains="false"/>
-    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src https://api.open-meteo.com https://www.newsru.co.il https://www.ynet.co.il https://www.globes.co.il https://www.pravda.com.ua https://epravda.com.ua https://www.oref.org.il https://api.mapbox.com; frame-src https://embed.waze.com; child-src https://embed.waze.com</tizen:content-security-policy>
+    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://api.mapbox.com; connect-src https://api.open-meteo.com https://www.newsru.co.il https://www.ynet.co.il https://www.globes.co.il https://www.pravda.com.ua https://epravda.com.ua https://www.oref.org.il https://api.mapbox.com</tizen:content-security-policy>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
     <tizen:profile name="tv-samsung"/>
