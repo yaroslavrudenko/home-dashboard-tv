@@ -6,14 +6,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openApp, measure, legibility, FIXED_NOW } from './page.mjs';
+import { openApp, measure, legibility, FIXED_NOW, trafficFixture, routeIndexOf } from './page.mjs';
 
 const orefFixture = (name) => fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'oref', name));
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); return e.defaultPrevented; }, code);
 const LEFT = 37, RIGHT = 39, ENTER = 13, BACK = 10009;
-const KEY = (c) => { c.traffic.key = 'FIXTUREKEY123'; };
+const KEY = (c) => { c.traffic.token = 'pk.FIXTURE123'; };
 const QUIET = { news: 'ok', alerts: 'empty-bom.txt' };
 async function ready(app) { await app.page.waitForSelector('.day', { timeout: 10000 }); await wait(200); }
 const active = (p) => p.evaluate(() => [...document.querySelectorAll('.screen')].map((s) => [s.id, s.className, getComputedStyle(s).visibility]));
@@ -92,7 +92,7 @@ test('rotation moves on by itself, pauses after a key press, and the pause ends'
 });
 
 test('a hidden screen costs nothing: refreshes while it is hidden never touch its DOM; it is drawn when it comes into view', async () => {
-  const app = await openApp({ ...QUIET, configure: (c) => { c.news.refreshMs = 250; } });
+  const app = await openApp({ ...QUIET, lang: 'he', configure: (c) => { c.news.refreshMs = 250; } });
   try {
     await ready(app);
     const p = app.page;
@@ -111,18 +111,17 @@ test('a hidden screen costs nothing: refreshes while it is hidden never touch it
     const [shown, expected] = await p.evaluate(() => [document.querySelectorAll('.news-col')[1].querySelector('.news-time').textContent,
       I18n.ago(Date.now() - Date.parse('2026-10-29T18:31:00Z'))]);   // Globes' newest story
     assert.equal(shown, expected, 'drawn with current times the moment it shows');
-    assert.match(shown, /^[4-9] мин назад$/);
+    assert.match(shown, /^לפני [4-9] דק׳$/);
   } finally { await app.close(); }
 });
 
-// FB5-NS: two columns of Israeli news in Hebrew — «Израиль» (Ynet) and «Экономика» (Globes) — five stories each.
+// FB5-NS: two columns of Israeli news in Hebrew — «ישראל» (Ynet) and «כלכלה» (Globes) — five stories each; since batch 6
+// the Hebrew interface shows them (L2), the Russian one NEWSru.
 const NEWS_COLS = () => [...document.querySelectorAll('.news-col')].map((c) => ({
   title: c.querySelector('.news-col-title').textContent, src: c.querySelector('.src-name').textContent,
   state: c.querySelector('.news-col-state') ? c.querySelector('.news-col-state').textContent : '',
   empty: c.querySelector('.news-col-empty') ? c.querySelector('.news-col-empty').textContent : '',
-  emptyDir: c.querySelector('.news-col-empty') ? c.querySelector('.news-col-empty').getAttribute('dir') : '',
-  dir: c.querySelector('.news-rows').getAttribute('dir'), align: getComputedStyle(c.querySelector('.news-rows')).textAlign,
-  timeDir: c.querySelector('.news-time') ? c.querySelector('.news-time').getAttribute('dir') : '',
+  dir: getComputedStyle(c.querySelector('.news-rows')).direction, align: getComputedStyle(c.querySelector('.news-rows')).textAlign,
   rows: [...c.querySelectorAll('.news-row')].map((r) => ({ time: r.querySelector('.news-time') ? r.querySelector('.news-time').textContent : '',
     title: r.querySelector('.news-title') ? r.querySelector('.news-title').textContent : '', top: Math.round(r.getBoundingClientRect().top),
     titleH: r.querySelector('.news-title') ? r.querySelector('.news-title').getBoundingClientRect().height : 0,
@@ -130,7 +129,7 @@ const NEWS_COLS = () => [...document.querySelectorAll('.news-col')].map((c) => (
   box: (() => { const b = c.getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })() }));
 
 test('FB5-NS: News — one parallel round of two feeds; «Израиль» (Ynet) and «Экономика» (Globes), five stories each, newest first, Hebrew right to left', async () => {
-  const app = await openApp(QUIET);
+  const app = await openApp({ ...QUIET, lang: 'he' });
   try {
     await ready(app);
     const p = app.page;
@@ -143,17 +142,17 @@ test('FB5-NS: News — one parallel round of two feeds; «Израиль» (Ynet
       assert.deepEqual(round.map((r) => new URL(r.url).host).sort(), ['www.globes.co.il', 'www.ynet.co.il']);
     const cols = await p.evaluate(NEWS_COLS);
     assert.deepEqual(cols.map((c) => [c.title, c.src, c.state, c.dir, c.align, c.rows.length]),
-      [['Израиль', 'Ynet', '', 'rtl', 'right', 5], ['Экономика', 'Globes', '', 'rtl', 'right', 5]]);
-    assert.deepEqual(cols.map((c) => c.timeDir), ['ltr', 'ltr'], 'the Russian time keeps its own direction in a Hebrew column («1 мин назад», never «мин назад 1»)');
+      [['ישראל', 'Ynet', '', 'rtl', 'start', 5], ['כלכלה', 'Globes', '', 'rtl', 'start', 5]]);
+    assert.ok(cols[0].box[0] > cols[1].box[0], 'L3: right to left — «ישראל» is the right column');
     assert.match(cols[0].rows[0].title, /^הממשלה אישרה הלילה/, 'Ynet newest first');
     assert.equal(cols[0].rows.filter((r) => /^רעידת אדמה/.test(r.title)).length, 1, 'the story Ynet repeats appears once');
     assert.match(cols[1].rows[0].title, /^הבורסה בתל אביב/, 'Globes newest first, though its feed lists it second');
-    assert.equal(cols[1].rows[0].time, '1 мин назад');
+    assert.equal(cols[1].rows[0].time, 'לפני 1 דק׳');
     for (let k = 0; k < 5; k++) assert.ok(Math.abs(cols[0].rows[k].top - cols[1].rows[k].top) <= 1, 'row ' + k + ' on one line across the columns');
     const view = await p.evaluate(() => ({ status: document.getElementById('news-status').textContent, statusCls: document.getElementById('news-status').className,
       injected: document.querySelectorAll('#screen-news script, #screen-news img, #screen-news a, #screen-news p').length }));
     assert.equal(view.injected, 0, 'no element from a feed reached the page');
-    assert.deepEqual([view.status, view.statusCls], ['Обновлено в 20:32', 'status screen-status is-fresh']);
+    assert.deepEqual([view.status, view.statusCls], ['עודכן ב־20:32', 'status screen-status is-fresh']);
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-news *')), [], 'nothing cut, outside its card or off screen');
     assert.deepEqual((await p.evaluate(legibility, '#screen-news *')).bad, [], 'every text ≥ 24 px and ≥ 4.5:1');
   } finally { await app.close(); }
@@ -167,7 +166,7 @@ const rssOf = (titles, host) => '<?xml version="1.0" encoding="UTF-8"?><rss vers
 test('FB5-NS: long Hebrew and Hebrew/Latin headlines: two lines each, five per column, rows on one grid, nothing off screen', async () => {
   const long = (i) => 'ראש הממשלה הודיע הערב על תוכנית כלכלית חדשה לחיזוק הצפון והדרום, הכוללת מענקים לעסקים קטנים, הקלות במס והשקעה בתשתיות ' + i;
   const mixed = (i) => 'Nvidia ו-Intel מרחיבות את פעילותן בישראל: 2,000 משרות חדשות בחיפה ובקריית גת עד 2028, כך הודיעו החברות ' + i;
-  const app = await openApp({ alerts: 'empty-bom.txt', news: (url) => (url.includes('ynet') ? { status: 200, body: rssOf([0, 1, 2, 3, 4, 5].map(long), 'www.ynet.co.il') }
+  const app = await openApp({ alerts: 'empty-bom.txt', lang: 'he', news: (url) => (url.includes('ynet') ? { status: 200, body: rssOf([0, 1, 2, 3, 4, 5].map(long), 'www.ynet.co.il') }
     : { status: 200, body: rssOf([0, 1, 2, 3, 4, 5].map(mixed), 'www.globes.co.il') }) });
   try {
     await ready(app);
@@ -191,9 +190,9 @@ test('FB5-NS: long Hebrew and Hebrew/Latin headlines: two lines each, five per c
 // FB5-NS / FB5B-N7 / N9: per-column state — a feed that fails affects only its own column; both configured columns are
 // always drawn (loading or failed inside each), and a partial failure is said once: in the failed column only.
 test('FB5B-N9: one feed down — only its column says so and keeps its stories, the header stays fresh; a feed with nothing yet says so in its column', async () => {
-  let globes = 0;
+  let econ = 0;
   const later = await openApp({ alerts: 'empty-bom.txt', configure: (c) => { c.news.refreshMs = 400; },
-    news: (url) => (url.includes('globes') && ++globes > 1 ? { status: 503, body: '' } : null) });
+    news: (url) => (url.includes('section/finance') && ++econ > 1 ? { status: 503, body: '' } : null) });
   try {
     await ready(later);
     const p = later.page;
@@ -202,11 +201,11 @@ test('FB5B-N9: one feed down — only its column says so and keeps its stories, 
     await wait(300);
     const cols = await p.evaluate(NEWS_COLS);
     assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 5], ['Экономика', 'Не обновляется · данные от 20:32', 5]],
-      'Globes keeps its last five stories and says it is not updating; Ynet is unaffected');
+      'the economy feed keeps its last five stories and says it is not updating; the Israel feed is unaffected');
     assert.match(await p.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), /is-fresh \| Обновлено в 20:3\d$/, 'said once: the header stays fresh');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-news *')), []);
   } finally { await later.close(); }
-  const never = await openApp({ alerts: 'empty-bom.txt', news: (url) => (url.includes('globes') ? { status: 503, body: '' } : null) });
+  const never = await openApp({ alerts: 'empty-bom.txt', news: (url) => (url.includes('section/finance') ? { status: 503, body: '' } : null) });
   try {
     await ready(never);
     await toScreen(never.page, 'news');
@@ -234,8 +233,8 @@ test('FB5B-N7: both feeds pending, then both failed: both configured columns sta
     await pending.page.waitForSelector('.news-col');
     await wait(700);
     const cols = await pending.page.evaluate(NEWS_COLS);
-    assert.deepEqual(cols.map((c) => [c.title, c.src, c.empty, c.rows.length]), [['Израиль', 'Ynet', 'Загружаем новости…', 0], ['Экономика', 'Globes', 'Загружаем новости…', 0]]);
-    assert.deepEqual(cols.map((c) => c.emptyDir), ['ltr', 'ltr'], 'the Russian line keeps its direction in a Hebrew column (the ellipsis at its end)');
+    assert.deepEqual(cols.map((c) => [c.title, c.src, c.empty, c.rows.length]), [['Израиль', 'NEWSru', 'Загружаем новости…', 0], ['Экономика', 'NEWSru', 'Загружаем новости…', 0]]);
+    assert.deepEqual(cols.map((c) => c.dir), ['ltr', 'ltr'], 'Russian: the page\'s own direction, the ellipsis at the end');
     assert.equal(await pending.page.$eval('#news-status', (e) => e.textContent), '');
     assert.equal(await pending.page.$$eval('#screen-news .empty-state', (e) => e.length), 0, 'no whole-screen message');
   } finally { await pending.close(); }
@@ -267,7 +266,7 @@ test('Traffic without a key: a calm invitation, and not a single request to TomT
     await toScreen(p, 'traffic');
     await wait(800);
     assert.deepEqual(await p.$eval('#screen-traffic', (s) => [s.querySelector('.screen-title').textContent, s.querySelector('.empty-text').textContent, s.querySelector('.empty-sub').textContent]),
-      ['Пробки', 'Подключите ключ TomTom, чтобы видеть пробки', 'TOMTOM_KEY в build.local.env, затем пересоберите приложение']);
+      ['Пробки', 'Подключите токен Mapbox, чтобы видеть пробки', 'MAPBOX_TOKEN в build.local.env, затем пересоберите приложение']);
     assert.equal(app.requests.traffic.length, 0);
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
   } finally { await app.close(); }
@@ -279,9 +278,9 @@ const WIDGETS = () => [...document.querySelectorAll('.tcol')].map((c) => ({ titl
     w.querySelector('.chip') ? w.querySelector('.chip').className + ' ' + w.querySelector('.chip').textContent : (w.querySelector('.tnodata') || {}).textContent,
     w.querySelector('.tw-km') ? w.querySelector('.tw-km').textContent : '', Math.round(w.getBoundingClientRect().top), Math.round(w.getBoundingClientRect().bottom)]) }));
 // A fast gate for tests that need a second round while the screen stays open.
-const FAST = (c) => { c.traffic.key = 'FIXTUREKEY123'; c.traffic.schedule.minIntervalMs = 400; };
+const FAST = (c) => { c.traffic.token = 'pk.FIXTURE123'; c.traffic.schedule.minIntervalMs = 400; };
 
-test('FB5B-T1: Traffic with a key (recorded shape): one POST for the ten routes; two columns of five widgets on one grid', async () => {
+test('FB5B-T1: Traffic with a token (Mapbox): ten GETs started together, one per route; two columns of five widgets on one grid', async () => {
   const app = await openApp({ ...QUIET, traffic: 'ok', configure: KEY });
   try {
     await ready(app);
@@ -290,19 +289,20 @@ test('FB5B-T1: Traffic with a key (recorded shape): one POST for the ten routes;
     await toScreen(p, 'traffic');
     await p.waitForSelector('.tw-time');
     await wait(700);
-    const posts = app.requests.traffic.filter((r) => r.method === 'POST');
-    assert.equal(posts.length, 1, 'one batch request');
-    assert.equal(JSON.parse(posts[0].body).batchItems.length, 10);
+    const gets = app.requests.traffic.filter((r) => r.method === 'GET');
+    assert.equal(gets.length, 10, 'one round: a GET per route');
+    assert.ok(gets.every((r) => /^https:\/\/api\.mapbox\.com\/directions\/v5\/mapbox\/driving-traffic\/34\.8113,31\.8928;[\d.]+,[\d.]+\?overview=false&access_token=pk\.FIXTURE123$/.test(r.url)), gets[0].url);
+    assert.equal(new Set(gets.map((r) => r.url)).size, 10, 'ten different routes');
     const cols = await p.evaluate(WIDGETS);
     assert.deepEqual(cols.map((c) => c.title), ['Города', 'Рядом']);
     assert.deepEqual(cols[0].items.map((w) => w.slice(0, 4)), [
-      ['Тель-Авив', '39 мин', 'chip lv-jam +14 мин', '27 км'], ['Иерусалим', '50 мин', 'chip lv-ok +2 мин', '57 км'],
-      ['Хайфа', '1 ч 32 мин', 'chip lv-slow +15 мин', '118 км'], ['Беэр-Шева', '1 ч 06 мин', 'chip lv-ok +2 мин', '101 км'],
-      ['Ашкелон', '34 мин', 'chip lv-ok +1 мин', '42 км']]);
+      ['Тель-Авив', '32 мин', 'chip lv-ok Свободно', '27 км'], ['Иерусалим', '45 мин', 'chip lv-ok Свободно', '60 км'],
+      ['Хайфа', '1 ч 39 мин', 'chip lv-ok Свободно', '119 км'], ['Беэр-Шева', '1 ч 10 мин', 'chip lv-slow +10 мин', '88 км'],
+      ['Ашкелон', '45 мин', 'chip lv-ok +3 мин', '37 км']]);
     assert.deepEqual(cols[1].items.map((w) => w.slice(0, 4)), [
-      ['Модиин', '25 мин', 'chip lv-slow +4 мин', '24 км'], ['Ришон-ле-Цион', '19 мин', 'chip lv-slow +3 мин', '12 км'],
-      ['Аэропорт', '24 мин', 'chip lv-ok +1 мин', '30 км'], ['Холон', '33 мин', 'chip lv-jam +12 мин', '22 км'],
-      ['Глилот', '42 мин', 'chip lv-slow +7 мин', '44 км']]);
+      ['Модиин', '25 мин', 'chip lv-ok Свободно', '30 км'], ['Ришон-ле-Цион', '21 мин', 'chip lv-jam +8 мин', '12 км'],
+      ['Аэропорт', '32 мин', 'chip lv-ok Свободно', '25 км'], ['Холон', '32 мин', 'chip lv-ok Свободно', '22 км'],
+      ['Глилот', '43 мин', 'chip lv-ok +3 мин', '38 км']]);
     for (let k = 0; k < 5; k++) assert.equal(new Set(cols.map((c) => c.items[k][4] + '/' + c.items[k][5])).size, 1, 'row ' + k + ' on one grid: ' + cols.map((c) => c.items[k][4]));
     // FB5B-T5 (FE F10): one rhythm — the gap between widgets equals the gap between the columns
     const gaps = await p.evaluate(() => { const tw = [...document.querySelectorAll('.tw')], col = [...document.querySelectorAll('.tcol')];
@@ -315,17 +315,16 @@ test('FB5B-T1: Traffic with a key (recorded shape): one POST for the ten routes;
   } finally { await app.close(); }
 });
 
-const tomtomFixture = () => JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'tomtom', 'batch.json'), 'utf8'));
-const NO_ROUTE = { statusCode: 400, response: { error: { description: 'Engine error while executing route request: NO_ROUTE_FOUND' } } };
+const NO_ROUTE = { code: 'NoRoute', message: 'No route found', routes: [] };
 const toTraffic = (p) => toScreen(p, 'traffic');
 
 // C4 (D6, D7, D8, D12): one encoding per screen, no hairline slivers, a failed row keeps its shape, smaller units.
-// A column's bars share its scale («Города»: its longest, Haifa, 5520 s).
+// A column's bars share its scale («Города»: its longest, Haifa, 5922 s).
 test('C4: route bars share one time scale per column; no delay sliver under a minute; a failed route keeps «—», «Нет данных» and its track', async () => {
-  const b = tomtomFixture();
-  b.batchItems[1] = NO_ROUTE;                       // Jerusalem cannot be routed
-  Object.assign(b.batchItems[6].response.routes[0].summary, { travelTimeInSeconds: 1000, noTrafficTravelTimeInSeconds: 960, trafficDelayInSeconds: 40 });
-  const app = await openApp({ ...QUIET, configure: KEY, traffic: () => ({ status: 200, body: JSON.stringify(b) }) });
+  const b = trafficFixture();
+  b[1] = NO_ROUTE;                                  // Jerusalem cannot be routed
+  Object.assign(b[6].routes[0], { duration: 1000, duration_typical: 960 });   // Rishon: 40 s over the usual
+  const app = await openApp({ ...QUIET, configure: KEY, traffic: (round, url) => ({ status: 200, body: JSON.stringify(b[routeIndexOf(url)]) }) });
   try {
     await ready(app);
     const p = app.page;
@@ -347,23 +346,22 @@ test('C4: route bars share one time scale per column; no delay sliver under a mi
     });
     const [tlv, , haifa, beersheva] = v.cities;
     assert.ok(Math.abs(haifa.free + haifa.delay - haifa.track) < 1, 'Haifa, the longest, fills its track');
-    assert.ok(Math.abs((tlv.free + tlv.delay) / haifa.track - 2310 / 5520) < 0.01, 'Tel Aviv on the same scale: ' + JSON.stringify(tlv));
-    assert.ok(Math.abs((beersheva.free + beersheva.delay) / haifa.track - 3930 / 5520) < 0.01, 'Beer Sheva: ' + JSON.stringify(beersheva));
+    assert.ok(Math.abs((tlv.free + tlv.delay) / haifa.track - 1920.4 / 5922.3) < 0.01, 'Tel Aviv on the same scale: ' + JSON.stringify(tlv));
+    assert.ok(Math.abs((beersheva.free + beersheva.delay) / haifa.track - 4210.5 / 5922.3) < 0.01, 'Beer Sheva: ' + JSON.stringify(beersheva));
     assert.deepEqual([v.jerusalem.time, v.jerusalem.timeCls, v.jerusalem.nodata, v.jerusalem.bar, v.jerusalem.fill], ['—', 'tw-time is-none', 'Нет данных', true, 0]);
     assert.equal(v.jerusalem.barGap, v.jerusalem.okBarGap, 'its track sits where every widget\'s bar sits');
-    assert.deepEqual(v.unit, ['30px', '39 мин']);
+    assert.deepEqual(v.unit, ['30px', '32 мин']);
     assert.deepEqual(v.rishon, ['Свободно', 0], 'a 40 s delay: neither "+1 мин" nor a sliver (one threshold for words and bars)');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, []);
   } finally { await app.close(); }
 });
 
-// FB5C-7: TomTom refusing (401/403/429) — said plainly with when it is tried again; with last good data the cards stay
+// FB5C-7: Mapbox refusing (401/403/429) — said plainly with when it is tried again; with last good data the cards stay
 // under the amber data-time line and the refusal is a second line that never replaces it; stale chips stay legible.
 test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line stays, the refusal below it; stale chips stay legible', async () => {
   for (const status of [403, 429]) {
-    let posts = 0;
-    const app = await openApp({ ...QUIET, configure: FAST, traffic: () => (++posts === 1 ? { status: 200, body: JSON.stringify(tomtomFixture()) } : { status, body: '' }) });
+    const app = await openApp({ ...QUIET, configure: FAST, traffic: (round) => (round === 1 ? null : { status, body: '' }) });
     try {
       await ready(app);
       const p = app.page;
@@ -378,7 +376,7 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
           title: document.querySelector('.tcol-title').getBoundingClientRect().top };
       });
       assert.equal(v.text, 'Данные устарели · обновлено 20:32 · 0 мин назад', status + ': the data-time line');
-      assert.match(v.note, /^TomTom отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:3\d$/, status + ': ' + v.note);
+      assert.match(v.note, /^Mapbox отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:3\d$/, status + ': ' + v.note);
       assert.equal(v.color, 'rgba(255, 214, 150, 0.85)', status + ': amber');
       assert.equal(v.noteColor, 'rgba(255, 214, 150, 0.85)');
       for (const bx of [v.box, v.noteBox]) assert.ok(bx[0] >= 0 && bx[1] <= 1920 && bx[2] >= 0 && bx[3] <= 1080, status + ': inside the screen ' + bx);
@@ -399,7 +397,7 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
       await p.waitForSelector('#screen-traffic .empty-text');
       await wait(700);
       const v = await p.$eval('#screen-traffic', (e) => [e.querySelector('.empty-text').textContent, !!e.querySelector('.empty-sub'), e.querySelector('#traffic-note').textContent]);
-      assert.match(v[0], /^TomTom отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:5\d$/, status + ': ' + v[0]);
+      assert.match(v[0], /^Mapbox отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:4\d$/, status + ': ' + v[0] + ' (the attempt + 10 min)');
       assert.deepEqual(v.slice(1), [false, ''], 'one message, in the card');
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     } finally { await app.close(); }
@@ -409,8 +407,8 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
 // Stored state for the screens below: the accounting record and the row cache as js/traffic.js keeps them.
 const UTC_DAY = new Date(FIXED_NOW).toISOString().slice(0, 10);
 const quota = (o) => JSON.stringify(Object.assign({ v: 1, utcDate: UTC_DAY, used: 10, lastAttemptAt: FIXED_NOW - 41 * 60000, retryNotBefore: 0 }, o));
-const cache = (at) => JSON.stringify({ v: 1, rows: tomtomFixture().batchItems.map((it) => { const s = it.response.routes[0].summary;
-  return { data: { travel: s.travelTimeInSeconds, free: s.noTrafficTravelTimeInSeconds, delay: s.travelTimeInSeconds - s.noTrafficTravelTimeInSeconds, length: s.lengthInMeters }, updatedAt: at, error: null }; }),
+const cache = (at) => JSON.stringify({ v: 1, rows: trafficFixture().map((a) => { const r = a.routes[0];
+  return { data: { travel: r.duration, free: r.duration_typical, delay: Math.max(r.duration - r.duration_typical, 0), length: r.distance }, updatedAt: at, error: null }; }),
   failed: false, problem: null, attemptAt: at });
 const stored = (q, c) => 'localStorage.setItem("tt-quota", ' + JSON.stringify(q) + ');' + (c ? 'localStorage.setItem("tt-cache", ' + JSON.stringify(c) + ');' : '');
 const head = (p) => p.evaluate(() => [document.getElementById('traffic-status').textContent, document.getElementById('traffic-note').textContent,
@@ -424,23 +422,23 @@ test('FB5C-7: the header copy — updating, stale with its age, future-dated dat
       1, ['Данные устарели · обновлено 19:51 · 41 мин назад', '', '', 10]],
     ['future-dated data: no negative age; the attempt time rebased, nothing sent', { traffic: 'ok', init: stored(quota({ lastAttemptAt: FIXED_NOW + 3600000 }), cache(FIXED_NOW + 3600000)) },
       0, ['Данные устарели · время данных требует проверки', '', '', 10]],
-    ['the daily cap: nothing sent; the data line stays, the cap below it', { traffic: 'ok', init: stored(quota({ used: 580 }), cache(FIXED_NOW - 41 * 60000)) },
+    ['the daily cap: nothing sent; the data line stays, the cap below it', { traffic: 'ok', init: stored(quota({ used: 3000 }), cache(FIXED_NOW - 41 * 60000)) },
       0, ['Данные устарели · обновлено 19:51 · 41 мин назад', 'Дневной лимит запросов пробок исчерпан · обновление после 30.10 02:00', '', 10]],
-    ['the daily cap with no cache: the card says it', { traffic: 'ok', init: stored(quota({ used: 580 })) },
+    ['the daily cap with no cache: the card says it', { traffic: 'ok', init: stored(quota({ used: 3000 })) },
       0, ['', '', 'Дневной лимит запросов пробок исчерпан · обновление после 30.10 02:00', 0]],
     ['a corrupt counter: paused, nothing sent', { traffic: 'ok', init: 'localStorage.setItem("tt-quota", "{used:");' },
       0, ['', '', 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов', 0]],
     ['a corrupt counter over cached rows: the data line stays, the pause below it', { traffic: 'ok', init: 'localStorage.setItem("tt-quota", "{used:");localStorage.setItem("tt-cache", ' + JSON.stringify(cache(FIXED_NOW - 41 * 60000)) + ');' },
       0, ['Данные устарели · обновлено 19:51 · 41 мин назад', 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов', '', 10]]
   ];
-  for (const [name, o, posts, want] of cases) {
+  for (const [name, o, rounds, want] of cases) {
     const app = await openApp({ ...QUIET, configure: KEY, ...o });
     try {
       await ready(app);
       const p = app.page;
       await toTraffic(p);
       await wait(900);
-      assert.equal(app.requests.traffic.filter((r) => r.method === 'POST').length, posts, name + ': POSTs');
+      assert.equal(app.requests.traffic.filter((r) => r.method === 'GET').length, rounds * 10, name + ': rounds of ten GETs');
       assert.deepEqual(await head(p), want, name);
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), [], name);
       assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, [], name);
@@ -636,9 +634,9 @@ test('A6: many configured areas in one alert: every name on one line, the list a
 // B6: feed text with markup reaches the page only as text (kills "esc removed" in the news and alert views).
 test('B6: a hostile news headline and alert text are shown as literal text — no element, no script run', async () => {
   const hostile = '<?xml version="1.0"?><rss version="2.0"><channel><item><title>&amp;lt;img src=x onerror="window.__pwn=1"&amp;gt; כותרת</title>' +
-    '<link>https://www.ynet.co.il/x/1</link><pubDate>Thu, 29 Oct 2026 20:30:00 +0200</pubDate><description>&amp;lt;b&amp;gt;מודגש&amp;lt;/b&amp;gt;</description></item></channel></rss>';
+    '<link>https://www.newsru.co.il/x/1</link><pubDate>Thu, 29 Oct 2026 20:30:00 +0200</pubDate><description>&amp;lt;b&amp;gt;מודגש&amp;lt;/b&amp;gt;</description></item></channel></rss>';
   const alert = JSON.stringify({ id: '1', cat: '1', title: '<img src=x onerror="window.__pwn=2">התרעה', data: ['רחובות'], desc: '<b onmouseover="window.__pwn=3">הנחיה</b>' });
-  const app = await openApp({ news: (url) => (url.includes('ynet') ? { status: 200, body: hostile } : { status: 503, body: '' }), alerts: () => ({ status: 200, body: alert }) });
+  const app = await openApp({ news: (url) => (url.includes('section/israel') ? { status: 200, body: hostile } : { status: 503, body: '' }), alerts: () => ({ status: 200, body: alert }) });
   try {
     await ready(app);
     const p = app.page;
@@ -687,16 +685,16 @@ test('an alert nearby (not in Rehovot): only a quiet notice in the corner, no ov
 // once at once (weather for the main and Israel screens, both news feeds, the traffic batch, a new map overlay round);
 // a rotation arrival does not; an open while that source's request is in flight starts nothing.
 test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotation arrival does not; in flight, nothing', async () => {
-  const app = await openApp({ ...QUIET, configure: KEY, traffic: 'ok', tiles: 'ok' });
+  const app = await openApp({ ...QUIET, configure: KEY, traffic: 'ok', waze: 'stub' });
   try {
     await ready(app);
     const p = app.page;
     await wait(500);
     const count = () => ({ weather: app.weatherRequests.length, news: app.requests.news.filter((r) => r.method === 'GET').length,
-      traffic: app.requests.traffic.filter((r) => r.method === 'POST').length,
-      flow: app.requests.tiles.filter((r) => r.url.indexOf('/traffic/map/') >= 0).length, base: app.requests.tiles.filter((r) => r.url.indexOf('/map/1/tile/') >= 0).length });
+      traffic: app.requests.traffic.filter((r) => r.method === 'GET').length / 10,
+      map: app.requests.waze.filter((r) => r.url.startsWith('https://embed.waze.com/iframe?')).length });
     const boot = count();
-    assert.deepEqual([boot.weather, boot.news, boot.traffic, boot.flow, boot.base], [1, 2, 0, 0, 0], 'boot');
+    assert.deepEqual([boot.weather, boot.news, boot.traffic, boot.map], [1, 2, 0, 0], 'boot: the map page is not loaded');
     const step = async (code) => { await press(p, code); await wait(800); return count(); };
     let c = await step(RIGHT);                                         // Israel
     assert.deepEqual([c.weather, c.news], [2, 2], '◀ ▶ to the Israel weather: one weather request');
@@ -705,14 +703,13 @@ test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotat
     c = await step(RIGHT);                                             // traffic
     assert.equal(c.traffic, 1, '◀ ▶ to traffic: one batch');
     c = await step(RIGHT);                                             // map
-    const tiles = c.base;
-    assert.ok(tiles > 0 && c.flow === tiles, 'first map visit: the base map and one overlay round (' + tiles + ' tiles)');
+    assert.equal(c.map, 1, 'first map visit: the Waze page, once');
     c = await step(LEFT);                                              // traffic again, seconds later
     assert.equal(c.traffic, 2, '◀ ▶ back to traffic: one more batch, whatever its age');
     c = await step(RIGHT);                                             // map again
-    assert.deepEqual([c.base, c.flow], [tiles, 2 * tiles], '◀ ▶ back to the map: one new overlay round, the base map not again');
+    assert.equal(c.map, 2, '◀ ▶ back to the map: the page reloaded once');
     c = await step(RIGHT);                                             // main
-    assert.deepEqual([c.weather, c.news, c.traffic], [3, 4, 2], '◀ ▶ to the main screen: one weather request');
+    assert.deepEqual([c.weather, c.news, c.traffic, c.map], [3, 4, 2, 2], '◀ ▶ to the main screen: one weather request; the map left loaded, not reloaded');
   } finally { await app.close(); }
   // the rotation moves on by itself: no refresh on arrival
   const rot = await openApp({ ...QUIET, configure: (c) => { c.rotation.intervalMs = 700; } });

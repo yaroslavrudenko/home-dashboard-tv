@@ -7,7 +7,8 @@ var View = (function () {
   function temp(t) {
     if (t === null || t === undefined) return '—';
     var r = Math.round(t);
-    return (r < 0 ? '−' + (-r) : String(r === 0 ? 0 : r)) + '°';   // typographic minus, never "-0°"
+    // typographic minus, never "-0°"; sign and degree stay with the figure in right-to-left text
+    return I18n.ltr((r < 0 ? '−' + (-r) : String(r === 0 ? 0 : r)) + '°');
   }
   function byId(id) { return doc.getElementById(id); }
   function repeat(html, n) { var out = ''; for (var i = 0; i < n; i++) out += html; return out; }

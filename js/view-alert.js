@@ -1,5 +1,6 @@
 /* The Israel alert over every screen, the quiet "alert nearby" notice and the "alerts: no connection" marker. ES5.
- * Area names and texts the screen cannot translate are shown as the feed wrote them (Hebrew, right to left).
+ * Areas are named in the interface language (Config.alerts: he / ru / uk). Texts the screen cannot translate are shown
+ * as the feed wrote them (Hebrew, right to left); in Hebrew the feed's own title and instruction are the alert's words.
  * While an alert is up the overlay covers everything, so it carries its own connection line: an alert kept on
  * screen with a lost feed must say so. */
 var AlertView = (function () {
@@ -14,6 +15,9 @@ var AlertView = (function () {
   }
 
   function he(text) { return '<span dir="rtl" lang="he">' + esc(text) + '</span>'; }
+  // A configured area in the interface language ({ he, ru, uk }; Russian for a language it has no name in).
+  function nameOf(place) { return place[I18n.lang()] || place.ru; }
+  function namesOf(places) { var out = []; for (var i = 0; i < places.length; i++) out.push(nameOf(places[i])); return out; }
   function offlineLine(checked) {
     return '<span class="offline-dot"></span>' + esc(checked ? I18n.t('a.offlineSince', { time: checked }) : I18n.t('a.offline'));
   }
@@ -25,13 +29,17 @@ var AlertView = (function () {
     return '<div class="alert-areas' + (names.length > MANY_AREAS ? ' is-many' : '') + '">' + parts.join(' · ') + '</div>';
   }
 
+  // Hebrew: the feed's own words are the main line and the instruction (nothing translated twice). Otherwise the
+  // category in the interface language, the original title under it when the category is unknown.
   function alertHtml(a, since, offline, checked) {
-    var title = a.kind ? esc(I18n.t('a.kind.' + a.kind)) : esc(I18n.t('a.generic'));
-    var instr = a.instruction ? esc(a.instruction.minutes ? I18n.t('a.shelterFor', { n: a.instruction.minutes }) : I18n.t('a.shelter'))
+    var own = I18n.lang() === 'he';
+    var title = own ? esc(a.title) : a.kind ? esc(I18n.t('a.kind.' + a.kind)) : esc(I18n.t('a.generic'));
+    var instr = own ? esc(a.desc)
+      : a.instruction ? esc(a.instruction.minutes ? I18n.t('a.shelterFor', { n: a.instruction.minutes }) : I18n.t('a.shelter'))
       : a.desc ? he(a.desc) : '';
     return '<div class="alert-pulse"></div><div class="alert-body">' + Icons.glyph('warning') +
-      '<div class="alert-kind">' + title + '</div>' + (a.kind ? '' : '<div class="alert-orig">' + he(a.title) + '</div>') +
-      areasHtml(a.names) +
+      '<div class="alert-kind">' + title + '</div>' + (own || a.kind ? '' : '<div class="alert-orig">' + he(a.title) + '</div>') +
+      areasHtml(namesOf(a.places)) +
       '<div class="alert-since">' + esc(I18n.t('a.since', { time: since })) + '</div>' +
       (offline ? '<div class="alert-offline">' + offlineLine(checked) + '</div>' : '') +
       (instr ? '<div class="alert-instr">' + instr + '</div>' : '') + '</div>';
@@ -45,9 +53,9 @@ var AlertView = (function () {
   // The corner holds at most NEARBY_NAMES names; fewer when the line (with the offline marker) does not fit its
   // half of the bottom margin. Measured only when its content changed.
   function drawCorner(n, offline) {
-    var shown = n ? Math.min(n.names.length, NEARBY_NAMES) : 0;
+    var names = n ? namesOf(n.places) : [], shown = Math.min(names.length, NEARBY_NAMES);
     for (;;) {
-      corner.innerHTML = '<span class="corner-line">' + (n ? nearbyHtml(n.names, shown) : '') +
+      corner.innerHTML = '<span class="corner-line">' + (n ? nearbyHtml(names, shown) : '') +
         (offline ? '<span class="alerts-offline">' + offlineLine('') + '</span>' : '') + '</span>';
       if (shown <= 1 || corner.firstChild.offsetWidth <= corner.clientWidth) return;
       shown--;
@@ -57,13 +65,13 @@ var AlertView = (function () {
   // st: Alerts monitor state { active, nearby, offline, checkedAt }; since: "HH:MM" of active.startedAt;
   // checked: "HH:MM" of the last good answer (shown only while the feed is unreachable).
   function render(st, since, checked) {
-    var a = st.active, key = a ? [a.title, a.desc, a.names.join('|'), since, st.offline, st.offline ? checked : '', I18n.lang()].join('/') : '';
+    var a = st.active, key = a ? [a.title, a.desc, a.ids, since, st.offline, st.offline ? checked : '', I18n.lang()].join('/') : '';
     if (key !== drawnAlert) {
       drawnAlert = key;
       if (a) overlay.innerHTML = alertHtml(a, since, st.offline, checked);   // when it ends, the last text fades out with the overlay
       overlay.className = a ? 'alert is-on' : 'alert';
     }
-    var n = st.nearby, ck = [n ? n.names.join(', ') : '', st.offline, I18n.lang()].join('/');
+    var n = st.nearby, ck = [n ? n.ids : '', st.offline, I18n.lang()].join('/');
     if (ck !== drawnCorner) {
       drawnCorner = ck;
       drawCorner(n, st.offline);

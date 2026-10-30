@@ -98,9 +98,20 @@ test('every configured Hebrew area name matches at least one area on Pikud HaOre
   const official = JSON.parse(oref('districts_heb.json')).map((d) => d.label_he);
   assert.ok(official.length > 1000, 'the full list: ' + official.length);
   for (const p of [...ctx.Config.alerts.areas, ...ctx.Config.alerts.nearby]) {
-    assert.ok(official.some((a) => ctx.Alerts.covers(a, p.he)), p.he + ' (' + p.name + ') is not an official area name');
+    assert.ok(official.some((a) => ctx.Alerts.covers(a, p.he)), p.he + ' (' + p.ru + ') is not an official area name');
   }
   assert.ok(ctx.Config.alerts.nearby.some((p) => p.he === 'קריית עקרון'), 'Kiryat Ekron spelled as Oref spells it');
+});
+
+// Batch 6 (L3): the screen names every area in the interface language — Hebrew as Oref writes it, Russian, Ukrainian.
+test('L3: every configured area has its Russian and Ukrainian name (Ukrainian spelling where it differs)', () => {
+  const ctx = load(FILES);
+  for (const p of [...ctx.Config.alerts.areas, ...ctx.Config.alerts.nearby]) {
+    assert.match(p.ru, /^[А-ЯЁа-яё -]+$/, p.he + ' ru');
+    assert.match(p.uk, /^[А-ЩЬЮЯҐЄІЇа-щьюяґєії’ -]+$/, p.he + ' uk');
+  }
+  const uk = Object.fromEntries(ctx.Config.alerts.nearby.map((p) => [p.he, p.uk]));
+  assert.deepEqual([uk['נס ציונה'], uk['ראשון לציון'], uk['קריית עקרון'], uk['תל אביב']], ['Нес-Ціона', 'Рішон-ле-Ціон', 'Кір’ят-Екрон', 'Тель-Авів']);
 });
 
 test('match() names the configured places an alert covers, once each, in config order', () => {
@@ -108,7 +119,7 @@ test('match() names the configured places an alert covers, once each, in config 
   const twice = body({ id: '1', title: ROCKETS, data: ['ראשון לציון - מזרח', 'נס ציונה', 'ראשון לציון - מערב', 'אשקלון - דרום'], desc: '' });
   const s = monitor(ctx, () => [null, twice]);
   assert.equal(s.m.state().active, null, 'Rehovot is not listed');
-  assert.deepEqual([...s.m.state().nearby.names], ['Нес-Циона', 'Ришон-ле-Цион'], 'config order, Rishon once for two districts');
+  assert.deepEqual([...s.m.state().nearby.places.map((p) => p.ru)], ['Нес-Циона', 'Ришон-ле-Цион'], 'config order, Rishon once for two districts');
   const e = monitor(ctx, () => [null, oref('elsewhere.json')]);
   assert.equal(e.m.state().nearby, null, 'Ashkelon is not "nearby"');
 });
@@ -177,7 +188,7 @@ test('an alert in Rehovot: up at once with its start time; an unchanged alert is
   const st = s.m.state();
   assert.ok(st.active, 'raised');
   assert.equal(st.active.kind, 'missiles');
-  assert.deepEqual([...st.active.names], ['Реховот']);
+  assert.deepEqual([...st.active.places.map((p) => p.ru)], ['Реховот']);
   assert.equal(st.active.startedAt, T0);
   assert.equal(st.checkedAt, T0, 'the last good answer');
   assert.equal(s.changes(), 1);
@@ -387,7 +398,7 @@ test('an alert elsewhere raises nothing; nearby areas give the quiet notice only
   s.at(5000);
   const st = s.m.state();
   assert.equal(st.active, null);
-  assert.deepEqual([...st.nearby.names], ['Нес-Циона', 'Ришон-ле-Цион']);
+  assert.deepEqual([...st.nearby.places.map((p) => p.ru)], ['Нес-Циона', 'Ришон-ле-Цион']);
   s.at(10000);
   assert.ok(s.m.state().active, 'our own alert');
   assert.equal(s.m.state().nearby, null, 'the quiet notice gives way to the alert');

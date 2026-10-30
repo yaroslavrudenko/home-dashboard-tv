@@ -20,7 +20,7 @@ test('each feed\'s shape parses: CDATA (NEWSru, BBC), escaped text (Pravda), "+0
   assert.equal(nr[0].at, Date.parse('2026-10-29T18:28:00Z'));
   assert.equal(nr[0].key, 'https://www.newsru.co.il/rest/29oct2026/shfela_alert.html');
   assert.match(nr[0].summary, /^Сирены прозвучали в Реховоте/);
-  const pr = ctx.News.parse(feed('pravda'), 'pravda', 15);
+  const pr = ctx.News.parse(feed('pravda-rus'), 'pravda', 15);
   assert.equal(pr.length, 5);
   assert.equal(pr[0].summary, '', 'no description: no summary (the article body in content:encoded is never read)');
   const bbc = ctx.News.parse(feed('bbc'), 'bbc', 15);
@@ -49,7 +49,7 @@ test('feed text is sanitised: tags and scripts dropped, entities decoded, whites
 
 test('merge: newest first across feeds; a story carried twice (same headline or same address) appears once, the newest copy', () => {
   const ctx = load(FILES);
-  const lists = ['newsru', 'pravda', 'bbc'].map((id) => ctx.News.parse(feed(id), id, 15));
+  const lists = ['newsru', 'pravda-rus', 'bbc'].map((id) => ctx.News.parse(feed(id), id, 15));
   const all = ctx.News.merge(lists);
   assert.equal(all.length, 6 + 5 + 4 - 1, 'the BBC copy of the NEWSru story is dropped');
   for (let i = 1; i < all.length; i++) assert.ok(all[i - 1].at >= all[i].at, 'order at ' + i);
@@ -61,13 +61,14 @@ test('merge: newest first across feeds; a story carried twice (same headline or 
   assert.equal(distinct.length, 2, 'different stories both stay');
 });
 
-function makeStore(ctx, random) {
+// lang: the store's language (default 'he': Ynet and Globes, the feeds the batch-5 tests below were written for).
+function makeStore(ctx, random, lang) {
   const clock = fakeTimers(T0);
   const calls = [];
   let changes = 0;
   const store = ctx.News.createStore(ctx.Config.news, {
     getText: (url, timeoutMs, done) => calls.push({ url, timeoutMs, done }),
-    now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, random, onChange: () => { changes++; } });
+    now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, random, onChange: () => { changes++; } }, lang || 'he');
   // Answers every open request of the last round: per feed id, 'ok' | an error label | a body string.
   const answer = (by) => {
     const open = calls.splice(0, calls.length);
@@ -85,7 +86,8 @@ test('one refresh = ONE parallel round: every feed requested at once, with a tim
   const ctx = load(FILES);
   const s = makeStore(ctx);
   assert.equal(s.store.refresh(), true);
-  assert.deepEqual(s.calls.map((c) => c.url), plain(ctx.Config.news.feeds.map((f) => f.url)), 'both before any answer');
+  assert.deepEqual(s.calls.map((c) => c.url), ['https://www.ynet.co.il/Integration/StoryRss2.xml',
+    'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2'], 'both of the language\'s feeds before any answer');
   assert.ok(s.calls.every((c) => c.timeoutMs === 20000));
   assert.equal(s.store.refresh(), false);
   assert.equal(s.calls.length, 2);
@@ -93,24 +95,81 @@ test('one refresh = ONE parallel round: every feed requested at once, with a tim
   assert.equal(s.answer(), 2);
   assert.equal(s.changes(), 1, 'one render when the whole round is in');
   assert.equal(s.store.status().kind, 'fresh');
-  assert.deepEqual([s.store.column('ynet').items.length, s.store.column('globes').items.length], [5, 5]);
+  assert.deepEqual([s.store.column('il').items.length, s.store.column('econ').items.length], [5, 5]);
   assert.deepEqual(s.clock.pending(), [10 * 60000], 'next round in 10 min');
 });
 
-test('FB5-NS: config — two columns (Израиль: Ynet, Экономика: Globes), Hebrew right to left, five stories each, every column on a feed', () => {
+// FB5-NS + batch 6 (L2): the language picks the sources — ru: NEWSru's Israel and economy sections; he: Ynet and Globes;
+// uk: Ukrainska Pravda and Ekonomichna Pravda. Two columns, five stories each, one feed per column and language.
+test('L2: config — two columns, one feed per column in every language (ru NEWSru, he Ynet + Globes, uk Pravda + Ekonomichna Pravda)', () => {
   const ctx = load(FILES);
   const n = ctx.Config.news;
-  assert.deepEqual(plain(n.columns), [{ id: 'il', feed: 'ynet', dir: 'rtl' }, { id: 'econ', feed: 'globes', dir: 'rtl' }]);
+  assert.deepEqual(plain(n.columns), [{ id: 'il', feeds: { ru: 'newsru', he: 'ynet', uk: 'pravda' } }, { id: 'econ', feeds: { ru: 'newsrufin', he: 'globes', uk: 'epravda' } }]);
   assert.equal(n.perColumn, 5);
-  assert.deepEqual(plain(n.feeds.map((f) => f.id)), ['ynet', 'globes'], 'pravda and bbc are gone: 2 requests per refresh (was 3)');
-  for (const c of n.columns) assert.ok(n.feeds.some((f) => f.id === c.feed), c.id);
+  assert.deepEqual(plain(n.feeds.map((f) => [f.id, f.url])), [
+    ['newsru', 'https://www.newsru.co.il/il/www/section/israel'], ['newsrufin', 'https://www.newsru.co.il/il/www/section/finance'],
+    ['ynet', 'https://www.ynet.co.il/Integration/StoryRss2.xml'], ['globes', 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2'],
+    ['pravda', 'https://www.pravda.com.ua/rss/'], ['epravda', 'https://epravda.com.ua/rss/']]);
+  for (const lang of ctx.Config.languages) for (const c of n.columns) assert.ok(n.feeds.some((f) => f.id === c.feeds[lang]), lang + ' ' + c.id);
+});
+
+test('L2: only the active language\'s two feeds are fetched — Russian, Hebrew, Ukrainian', () => {
+  const ctx = load(FILES);
+  const want = { ru: ['newsru.co.il/il/www/section/israel', 'newsru.co.il/il/www/section/finance'], he: ['ynet.co.il', 'globes.co.il'],
+    uk: ['www.pravda.com.ua/rss/', '//epravda.com.ua/rss/'] };
+  for (const lang of ['ru', 'he', 'uk']) {
+    const s = makeStore(ctx, null, lang);
+    s.store.refresh();
+    assert.equal(s.calls.length, 2, lang + ': two requests, never the other languages\' feeds');
+    s.calls.forEach((c, i) => assert.ok(c.url.includes(want[lang][i]), lang + ' ' + c.url));
+    s.answer();
+    const il = s.store.column('il'), econ = s.store.column('econ');
+    assert.deepEqual([il.source, econ.source, il.kind, econ.kind, il.items.length, econ.items.length],
+      [ctx.Config.news.columns[0].feeds[lang], ctx.Config.news.columns[1].feeds[lang], 'fresh', 'fresh', 5, 5], lang);
+  }
+});
+
+test('L2: use(lang) fetches the new language\'s feeds at once, shows them loading, and ignores the old round\'s late answers', () => {
+  const ctx = load(FILES);
+  const s = makeStore(ctx, () => 0.5, 'ru');
+  s.store.refresh();
+  const old = s.calls.splice(0, s.calls.length);                     // the Russian round, still in flight
+  s.store.use('he');
+  assert.deepEqual(s.calls.map((c) => c.url.split('/')[2]), ['www.ynet.co.il', 'www.globes.co.il'], 'at once, the new feeds only');
+  assert.deepEqual([s.store.column('il').source, s.store.column('il').kind, s.store.column('econ').kind], ['ynet', 'loading', 'loading']);
+  assert.equal(s.store.status().kind, 'loading');
+  old.forEach((c) => c.done(null, feed(c.url.includes('finance') ? 'newsrufin' : 'newsru')));
+  assert.equal(s.changes(), 0, 'a late answer of the old language changes nothing');
+  assert.equal(s.store.column('il').kind, 'loading');
+  s.answer();
+  assert.equal(s.changes(), 1);
+  assert.deepEqual([s.store.column('il').kind, s.store.column('econ').kind], ['fresh', 'fresh']);
+  assert.deepEqual(s.clock.pending(), [10 * 60000], 'one cycle: the next round in 10 min, the old cycle\'s timer gone');
+  s.store.use('he');
+  assert.equal(s.calls.length, 0, 'the same language again: nothing');
+  s.store.use('uk');
+  s.answer();
+  s.store.use('he');
+  assert.equal(s.store.column('il').kind, 'fresh', 'back to Hebrew: its stories stay on view while they refresh');
+  assert.equal(s.calls.length, 2);
+});
+
+test('L2: the Ukrainian and Russian economy feeds parse as recorded (ISO pubDate of Ekonomichna Pravda; NEWSru\'s economy section)', () => {
+  const ctx = load(FILES);
+  const ep = ctx.News.parse(feed('epravda'), 'epravda', 15);
+  assert.equal(ep.length, 7);
+  assert.equal(ep[0].at, Date.parse('2026-10-29T14:00:00Z'), '"2026-10-29T16:00:00+02:00" in <pubDate>');
+  assert.match(ep[0].title, /^Міненерго про Київ/);
+  const nf = ctx.News.parse(feed('newsrufin'), 'newsrufin', 15);
+  assert.equal(nf.length, 7);
+  assert.match(nf[0].key, /^https:\/\/www\.newsru\.co\.il\/finance\//);
 });
 
 test('FB5-NS: a column is its own feed\'s top five, newest first, each story once', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
   s.store.refresh(); s.answer();
-  const il = s.store.column('ynet'), econ = s.store.column('globes');
+  const il = s.store.column('il'), econ = s.store.column('econ');
   assert.equal(il.kind, 'fresh');
   assert.deepEqual(plain(il.items.map((i) => i.key.slice(-6))), ['s1aa01', 's1aa02', 's1aa03', 's1aa04', 's1aa05'], 'Ynet: newest first; the repeated story once');
   assert.ok(il.items.every((i) => i.source === 'ynet') && econ.items.every((i) => i.source === 'globes'), 'no story crosses columns');
@@ -130,7 +189,7 @@ test('FB5-NS: one feed failing: only its column is stale and keeps its five stor
   assert.equal(st.kind, 'stale');
   assert.deepEqual([...st.failed], ['globes']);
   assert.equal(st.updatedAt, T0 + 10 * 60000, 'Ynet did update');
-  const econ = s.store.column('globes'), il = s.store.column('ynet');
+  const econ = s.store.column('econ'), il = s.store.column('il');
   assert.deepEqual([econ.kind, econ.items.length, econ.updatedAt], ['stale', 5, T0], 'Globes keeps its last stories and their time');
   assert.deepEqual([il.kind, il.updatedAt], ['fresh', T0 + 10 * 60000], 'Ynet unaffected');
   s.clock.advance(60000);                          // back-off: at most one minute
@@ -143,8 +202,8 @@ test('an answer with no stories (an error page served as 200) is a failure, not 
   const s = makeStore(ctx);
   s.store.refresh(); s.answer({ ynet: '<html><body>Service unavailable</body></html>' });
   assert.deepEqual([...s.store.status().failed], ['ynet']);
-  assert.deepEqual(plain(s.store.column('ynet')), { items: [], kind: 'failed', updatedAt: 0 }, 'FB5-NS: «Нет данных» in that column only');
-  assert.equal(s.store.column('globes').kind, 'fresh');
+  assert.deepEqual(plain(s.store.column('il')), { source: 'ynet', items: [], kind: 'failed', updatedAt: 0 }, 'FB5-NS: «Нет данных» in that column only');
+  assert.equal(s.store.column('econ').kind, 'fresh');
 });
 
 test('nothing yet and every feed failed: "failed" with a known retry time; stories older than 35 min are stale', () => {
@@ -158,10 +217,10 @@ test('nothing yet and every feed failed: "failed" with a known retry time; stori
   t.store.stop();
   t.clock.advance(35 * 60000);
   assert.equal(t.store.status().kind, 'fresh', 'exactly at the limit');
-  assert.equal(t.store.column('ynet').kind, 'fresh');
+  assert.equal(t.store.column('il').kind, 'fresh');
   t.clock.advance(1);
   assert.equal(t.store.status().kind, 'stale');
-  assert.equal(t.store.column('ynet').kind, 'stale', 'FB5-NS: the column too');
+  assert.equal(t.store.column('il').kind, 'stale', 'FB5-NS: the column too');
 });
 
 test('B2: distinct stories stay distinct — identity query, path case, signed numbers, Hebrew and punctuation-only headlines', () => {

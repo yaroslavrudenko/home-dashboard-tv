@@ -4,6 +4,14 @@ var Html = (function () {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // A fixed label: its string key rides on the element, so a language switch rewrites it in place (relabel) and the
+  // rest of the screen is left alone.
+  function label(key) { return ' data-i18n="' + esc(key) + '"'; }
+  function relabel(root) {
+    var els = root.querySelectorAll('[data-i18n]');
+    for (var i = 0; i < els.length; i++) els[i].textContent = I18n.t(els[i].getAttribute('data-i18n'));
+  }
+
   // The calm status line: a dot and one sentence, coloured by kind ('fresh' green, 'stale' amber); no text = empty.
   // Rewritten only when what it says changes.
   function setStatus(el, base, kind, text) {
@@ -12,11 +20,11 @@ var Html = (function () {
     if (el.innerHTML !== html) el.innerHTML = html;
   }
 
-  // A screen's header: its title on the left, its status line on the right (and under it, with noteId, a second line
-  // that says why the data cannot be updated, never in place of the status line).
-  function screenHead(title, statusId, noteId) {
+  // A screen's header: its title (the string `titleKey`) at the start, its status line at the end (and under it, with
+  // noteId, a second line that says why the data cannot be updated, never in place of the status line).
+  function screenHead(titleKey, statusId, noteId) {
     var status = '<div class="status screen-status" id="' + statusId + '"></div>';
-    return '<header class="screen-head"><h1 class="screen-title">' + esc(title) + '</h1>' +
+    return '<header class="screen-head"><h1 class="screen-title"' + label(titleKey) + '>' + esc(I18n.t(titleKey)) + '</h1>' +
       (noteId ? '<div class="head-side">' + status + '<div class="status-note" id="' + noteId + '"></div></div>' : status) + '</header>';
   }
 
@@ -29,5 +37,5 @@ var Html = (function () {
   // "Повторим в 20:33" / "Повторим позже": when a failed source is tried again.
   function retryText(retryAt) { return retryAt ? I18n.t('w.retry', { time: retryAt }) : I18n.t('w.retrySoon'); }
 
-  return { esc: esc, setStatus: setStatus, screenHead: screenHead, emptyState: emptyState, emptyCard: emptyCard, retryText: retryText };
+  return { esc: esc, label: label, relabel: relabel, setStatus: setStatus, screenHead: screenHead, emptyState: emptyState, emptyCard: emptyCard, retryText: retryText };
 })();

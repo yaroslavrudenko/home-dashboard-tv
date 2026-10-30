@@ -1,13 +1,17 @@
 /* Boot and timers: five screens (clocks + weather, the weather across Israel, news, traffic, traffic map) switched with ◀ ▶ and rotated every
- * Config.rotation.intervalMs, the Israel alert over all of them, burn-in shift, keep the screen on, Back exits.
+ * Config.rotation.intervalMs, the Israel alert over all of them, burn-in shift, keep the screen on, Back exits, the
+ * yellow key switches the interface language (Config.languages; remembered on the TV).
  * Only the screen on view is redrawn per minute; a hidden screen is redrawn when it comes into view.
  * Everything platform-specific is guarded so the same files run in desktop Chrome. ES5. */
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
-  var store = null, news = null, traffic = null, map = null, mapGrid = null, alerts = null, screens = null;
+  var store = null, news = null, traffic = null, alerts = null, screens = null;
   var screenEls = [], dotEls = [];
-  var clockTimer = null, shiftIndex = 0, weatherDrawn = '';
-  var KEY_BACK = 10009, KEY_LEFT = 37, KEY_RIGHT = 39, SLIDE_PX = 48, FADE_MS = 700;
+  var clockTimer = null, shiftIndex = 0, weatherDrawn = '', toastTimer = null;
+  var KEY_BACK = 10009, KEY_LEFT = 37, KEY_RIGHT = 39, SLIDE_PX = 48, FADE_MS = 700, TOAST_MS = 1600;
+  // The language key: the first of these colour keys the TV lets the app register ('ColorF2Yellow' = 405 on Samsung).
+  var LANG_KEYS = [{ name: 'ColorF2Yellow', code: 405 }, { name: 'ColorF0Red', code: 403 }], langKey = LANG_KEYS[0].code;
+  var LANG_STORE = 'homedash.lang';
 
   function mainPlace() { return Config.places[0]; }
   function wallNow(i) { return Tz.wallTime(resolved[i], Date.now()); }
@@ -51,7 +55,7 @@ var App = (function () {
   // The main screen: the weather card (only when its hour or state changed), the status line and the clocks.
   function renderMain() {
     var id = mainPlace().id, s = store.status(id), hour = placeHourKey(id);
-    var drawn = [hour, s.kind, s.updatedAt, store.nextAt()].join('|');
+    var drawn = [hour, s.kind, s.updatedAt, store.nextAt(), I18n.lang()].join('|');
     if (drawn !== weatherDrawn) {
       weatherDrawn = drawn;
       var data = store.get(id);
@@ -83,8 +87,8 @@ var App = (function () {
   function renderNews() {
     var st = news.status(), cols = [], i;
     for (i = 0; i < Config.news.columns.length; i++) {
-      var c = Config.news.columns[i], v = news.column(c.feed);
-      cols.push({ id: c.id, source: c.feed, dir: c.dir, items: v.items, kind: v.kind, updated: homeHhmm(v.updatedAt) });
+      var id = Config.news.columns[i].id, v = news.column(id);
+      cols.push({ id: id, source: v.source, items: v.items, kind: v.kind, updated: homeHhmm(v.updatedAt) });
     }
     NewsView.render(cols, { kind: st.kind, updated: homeHhmm(st.updatedAt), retryAt: retryAt(news.nextAt()) }, Date.now(), Config.news.perColumn);
   }
@@ -109,29 +113,11 @@ var App = (function () {
       resumeAt: homeStamp(st.resumeAt ? Math.ceil(st.resumeAt / 60000) * 60000 : 0) });
   }
 
-  function renderMap() {
-    if (!map) { MapView.renderNoKey(); return; }
-    var st = map.state();
-    MapView.render(st, homeHhmm(st.updatedAt));
-  }
-  // The map's tiles as { url, left, top } for one layer; the grid is computed once, from the card's size.
-  function mapTiles(url) {
-    if (!mapGrid) { var box = MapView.size(); mapGrid = TrafficMap.grid(Config.map, box.width, box.height); }
-    var out = [];
-    for (var i = 0; i < mapGrid.length; i++) out.push({ url: url(mapGrid[i]), left: mapGrid[i].left, top: mapGrid[i].top });
-    return out;
-  }
-  function createMap() {
-    var m = Config.map, key = Config.traffic.key;
-    return TrafficMap.createController(m, withTimers({
-      loadBase: function (done) { return MapView.loadBase(mapTiles(function (t) { return TrafficMap.baseUrl(m, key, t); }), m.tileSize, m.timeoutMs, done); },
-      loadFlow: function (stamp, done) { return MapView.loadFlow(mapTiles(function (t) { return TrafficMap.flowUrl(m, key, t, stamp); }), m.tileSize, m.timeoutMs, done); },
-      documentVisible: function () { return !document.hidden; }, onChange: onData('map') }));
-  }
   // localStorage, or null where the TV refuses it (traffic then pauses: its request counter cannot be kept).
   function storage() { try { return window.localStorage || null; } catch (e) { return null; } }
 
-  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, traffic: renderTraffic, map: renderMap };
+  // The map is Waze's own live page: nothing of ours to redraw on it (MapView.open loads it when it comes into view).
+  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, traffic: renderTraffic, map: function () {} };
   function currentId() { return Config.screens[screens ? screens.current() : 0]; }
   function renderCurrent() { RENDER[currentId()](); }
   // A data set changed: redraw it only if one of its screens (the ids given) is on view.
@@ -147,19 +133,19 @@ var App = (function () {
   }
 
   // The owner's rule: a screen opened with ◀ ▶ (not a rotation arrival) refreshes its data at once — through each
-  // source's own refresh, which starts nothing while a request is in flight (traffic and the map: their setVisible).
+  // source's own refresh, which starts nothing while a request is in flight (traffic: its setVisible; the map: MapView.open reloads it).
   function refreshOnOpen(id) {
     if (id === 'main' || id === 'israel') store.refresh();
     else if (id === 'news') news.refresh();
   }
 
   // Cross-fade with a short slide (opacity and transform only). The incoming screen is drawn before it fades in, after
-  // its data was told it is on view (any visit, the rotation's included: traffic and the map load only then) and, when
+  // its data was told it is on view (any visit, the rotation's included: traffic loads only then, the map is created on its first visit) and, when
   // the remote opened it (auto false), asked to refresh.
   function showScreen(index, from, dir, auto) {
     var id = Config.screens[index], incoming = screenEls[index], outgoing = screenEls[from];
     if (traffic) traffic.setVisible(id === 'traffic', !auto);
-    if (map) map.setVisible(id === 'map', !auto);
+    if (id === 'map') MapView.open(Config.map.url, !auto);
     if (!auto) refreshOnOpen(id);
     RENDER[id]();
     incoming.style.transition = 'none';
@@ -203,22 +189,68 @@ var App = (function () {
     } catch (e) { console.error('screensaver: ' + e.message); }
   }
 
-  // Back exits; ◀ ▶ switch screens; every key pauses the rotation. Nothing dismisses an alert.
+  // Back exits; ◀ ▶ switch screens; the language key switches the language; every key pauses the rotation. Nothing
+  // dismisses an alert.
   function onKey(e) {
     if (e.keyCode === KEY_BACK) {
       e.preventDefault();
       try { tizen.application.getCurrentApplication().exit(); } catch (err) { /* desktop preview */ }
       return;
     }
-    if (e.keyCode === KEY_LEFT || e.keyCode === KEY_RIGHT) { e.preventDefault(); screens.step(e.keyCode === KEY_RIGHT ? 1 : -1); }
-    else screens.touch();
+    if (e.keyCode === KEY_LEFT || e.keyCode === KEY_RIGHT) { e.preventDefault(); screens.step(e.keyCode === KEY_RIGHT ? 1 : -1); return; }
+    if (e.keyCode === langKey) { e.preventDefault(); switchLang(); }
+    screens.touch();
+  }
+
+  // ---- language -----------------------------------------------------------------------------------------------
+  // The TV delivers a colour key only after the app registers it; the first key it accepts is the language key.
+  function registerLangKey() {
+    if (!window.tizen || !tizen.tvinputdevice) return;
+    for (var i = 0; i < LANG_KEYS.length; i++) {
+      try { tizen.tvinputdevice.registerKey(LANG_KEYS[i].name); langKey = LANG_KEYS[i].code; return; }
+      catch (e) { console.error('language key ' + LANG_KEYS[i].name + ': ' + e.message); }
+    }
+  }
+  function known(lang) { return Config.languages.indexOf(lang) >= 0; }
+  // The remembered language, else Config.lang, else the first of Config.languages.
+  function startLang() {
+    var st = storage(), saved = null;
+    try { saved = st && st.getItem(LANG_STORE); } catch (e) { saved = null; }
+    return known(saved) ? saved : known(Config.lang) ? Config.lang : Config.languages[0];
+  }
+  function saveLang(lang) {
+    var st = storage();
+    try { if (st) st.setItem(LANG_STORE, lang); } catch (e) { console.error('language not saved: ' + e.message); }
+  }
+  // Strings, direction and the fixed labels; the drawn parts follow from their own keys, which carry the language.
+  function applyLang(lang) {
+    I18n.setLang(lang);
+    document.documentElement.lang = lang;
+    document.documentElement.dir = I18n.dir();
+    Html.relabel(document);
+  }
+  function showToast() {
+    var el = document.getElementById('toast');
+    el.textContent = I18n.t('lang.name');
+    el.className = 'toast is-on';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.className = 'toast'; }, TOAST_MS);
+  }
+  // The next language, at once on every screen: no reload; the only requests are the new language's news feeds.
+  function switchLang() {
+    var list = Config.languages, lang = list[(list.indexOf(I18n.lang()) + 1) % list.length];
+    applyLang(lang);
+    saveLang(lang);
+    news.use(lang);
+    showToast();
+    renderCurrent();
+    renderAlerts();
   }
 
   // Data older than its interval (or not fresh) is refreshed when the TV wakes.
   function refreshIfOld(s, refreshMs, refresh) { if (s.kind !== 'fresh' || Date.now() - s.updatedAt >= refreshMs) refresh(); }
 
   function onVisible() {
-    if (map) map.visibilityChanged();              // hidden: the map stops loading tiles; shown: it resumes (on view only)
     if (document.hidden) return;
     keepScreenOn();
     clearTimeout(clockTimer);
@@ -243,9 +275,7 @@ var App = (function () {
   }
 
   function start() {
-    I18n.setLang(Config.lang);
-    document.documentElement.lang = I18n.lang();
-    document.documentElement.dir = I18n.dir();
+    applyLang(startLang());
     var now = Date.now();
     for (var i = 0; i < Config.clocks.length; i++) resolved.push(Tz.resolve(Config.clocks[i], now));
     View.init(document, Config.clocks, { hours: Config.weather.hours, days: Config.weather.days });
@@ -258,11 +288,10 @@ var App = (function () {
     screens = Screens.create(Config.screens.length, Config.rotation, withTimers({ onShow: showScreen }));
 
     store = Weather.createStore(Config.places, Config.weather, withTimers({ getJson: Net.getJson, onChange: onData('main', 'israel') }));
-    news = News.createStore(Config.news, withTimers({ getText: Net.getText, onChange: onData('news') }));
-    if (Traffic.hasKey(Config.traffic)) {
-      traffic = Traffic.createStore(Config.traffic, withTimers({ postJson: Net.postJson, storage: storage(),
+    news = News.createStore(Config.news, withTimers({ getText: Net.getText, onChange: onData('news') }), I18n.lang());
+    if (Traffic.hasToken(Config.traffic)) {
+      traffic = Traffic.createStore(Config.traffic, withTimers({ getJson: Net.getJson, storage: storage(),
         documentVisible: function () { return !document.hidden; }, onChange: onData('traffic') }));
-      map = createMap();
     }
     alerts = Alerts.createMonitor(Config.alerts, withTimers({ getText: Net.getText, onChange: renderAlerts }));
 
@@ -276,6 +305,8 @@ var App = (function () {
 
     setInterval(shift, Config.burnIn.shiftMs);
     keepScreenOn();
+    registerLangKey();
+    MapView.keepFocus();
     document.addEventListener('keydown', onKey);
     document.addEventListener('visibilitychange', onVisible);
   }

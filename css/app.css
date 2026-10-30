@@ -72,11 +72,11 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
    alert feed's lost connection. Never an "all clear". js/view-alert.js shows fewer names when the line would not fit. */
 .corner { position: absolute; left: 1024px; right: 64px; bottom: 0; height: 48px; display: flex; align-items: center; justify-content: flex-end; font-size: 24px; white-space: nowrap; overflow: hidden; }
 .corner-line, .nearby, .alerts-offline { display: flex; align-items: center; flex: 0 0 auto; }
-.nearby + .alerts-offline { margin-left: 32px; }
+.nearby + .alerts-offline { -webkit-margin-start: 32px; }
 .nearby { color: #ffc9c2; }
-.nearby-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; background: #ff8f85; }
+.nearby-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; background: #ff8f85; }
 .alerts-offline { color: rgba(255, 255, 255, 0.62); }
-.offline-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; border: 2px solid rgba(255, 207, 138, 0.9); }
+.offline-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; border: 2px solid rgba(255, 207, 138, 0.9); }
 
 /* ---- cards ------------------------------------------------------------------------------------ */
 .card {
@@ -107,8 +107,8 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* ---- clocks ----------------------------------------------------------------------------------- */
 /* Vertical budget (984 px inside the page padding): clocks 280 · 24 · current 416 · 24 · hourly 240. */
 .clocks { display: flex; height: 280px; flex: 0 0 280px; }
-.clock { flex: 1 1 0; margin-right: 28px; padding: 24px 40px; display: flex; flex-direction: column; }
-.clock:last-child { margin-right: 0; }
+.clock { flex: 1 1 0; -webkit-margin-end: 28px; padding: 24px 40px; display: flex; flex-direction: column; }
+.clock:last-child { -webkit-margin-end: 0; }
 .clock.is-night { background: linear-gradient(180deg, rgba(150, 160, 255, 0.075) 0%, rgba(255, 255, 255, 0.03) 100%); }
 .clock-head { display: flex; align-items: center; height: 40px; }
 .clock-city { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
@@ -119,14 +119,14 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .clock-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; min-height: 36px; }
 .clock-diff { font-size: 26px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
 .clock-weather { display: flex; align-items: center; }
-.clock-weather .icon { width: 40px; height: 40px; margin-right: 8px; stroke-width: 4.5; }
+.clock-weather .icon { width: 40px; height: 40px; -webkit-margin-end: 8px; stroke-width: 4.5; }
 .clock-temp { font-size: 30px; font-weight: 400; color: rgba(255, 255, 255, 0.85); }
 .clock-weather.is-stale .clock-temp { color: rgba(255, 255, 255, 0.62); }
 .clock-weather.is-stale .icon { opacity: 0.62; }
 
 /* ---- main area: the daily card is exactly one clock column wide, so the column seams line up ---- */
 .main { display: flex; flex: 1 1 auto; margin-top: 24px; min-height: 0; }
-.col-left { display: flex; flex-direction: column; flex: 1 1 auto; margin-right: 28px; min-width: 0; }
+.col-left { display: flex; flex-direction: column; flex: 1 1 auto; -webkit-margin-end: 28px; min-width: 0; }
 .daily { flex: 0 0 auto; width: calc((100% - 56px) / 3); padding: 32px 40px; }
 
 /* current weather */
@@ -139,14 +139,14 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .now-cond { font-size: 36px; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
 .now-sub { font-size: 28px; color: rgba(255, 255, 255, 0.62); margin-top: 4px; white-space: nowrap; }
 .now-sub span { display: inline-block; }
-.now-sub span + span { margin-left: 24px; }
+.now-sub span + span { -webkit-margin-start: 24px; }
 .now-icon .icon { width: 210px; height: 210px; margin: 8px 0 0 0; stroke-width: 1.6; }
 .now-icon .ic-cloud { fill: rgba(227, 233, 243, 0.1); }
 .now-icon .ic-sun circle { fill: rgba(255, 213, 143, 0.18); }
 .now-icon .ic-moon path { fill: rgba(216, 220, 255, 0.14); }
 .details { display: flex; margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .detail { flex: 1 1 0; display: flex; align-items: center; }
-.detail .icon { width: 44px; height: 44px; margin-right: 16px; flex: 0 0 44px; stroke-width: 4; }
+.detail .icon { width: 44px; height: 44px; -webkit-margin-end: 16px; flex: 0 0 44px; stroke-width: 4; }
 .detail .icon g { stroke: rgba(255, 255, 255, 0.72); }                  /* one quiet tint for detail glyphs */
 .detail-text { display: flex; flex-direction: column; }
 .detail-label { font-size: 24px; color: rgba(255, 255, 255, 0.62); }
@@ -168,7 +168,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .hour-temp { font-size: 32px; color: rgba(255, 255, 255, 0.92); }
 .hour.is-empty .skeleton { width: 64px; height: 112px; margin-top: 8px; }
 .status { position: absolute; right: 40px; top: 24px; font-size: 24px; color: rgba(255, 255, 255, 0.62); display: flex; align-items: center; }
-.status-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; background: rgba(140, 230, 180, 0.7); }
+.status-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; background: rgba(140, 230, 180, 0.7); }
 .status.is-stale { color: rgba(255, 214, 150, 0.85); }
 .status.is-stale .status-dot { background: #ffcf8a; }
 .status.is-failed { color: rgba(255, 214, 150, 0.85); }        /* a failure the header says (e.g. both news feeds down): amber like stale */
@@ -183,9 +183,9 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .day-icon { position: relative; width: 72px; height: 82px; }
 .day-icon .icon { position: absolute; left: 14px; top: 19px; width: 44px; height: 44px; stroke-width: 4; }
 .day-pop { position: absolute; left: 0; right: 0; top: 61px; text-align: center; font-size: 24px; line-height: 20px; color: #8ec5ff; }
-.day-min { width: 72px; text-align: right; font-size: 30px; color: rgba(255, 255, 255, 0.62); }
-.day-max { width: 72px; text-align: right; font-size: 30px; color: rgba(255, 255, 255, 0.95); }
-.range { position: relative; flex: 1 1 auto; height: 16px; margin: 0 8px 0 16px; }
+.day-min { width: 72px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.62); }
+.day-max { width: 72px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.95); }
+.range { position: relative; flex: 1 1 auto; height: 16px; -webkit-margin-start: 16px; -webkit-margin-end: 8px; }
 .range:before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); }
 /* each fill shows its slice of one week-wide gradient (background-size / -position set per bar) */
 .range-fill { position: absolute; top: 4px; height: 8px; border-radius: 4px; background-repeat: no-repeat;
@@ -200,11 +200,11 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 
 /* ---- Israel weather: three region cards on the clocks' grid; the day rows are the main 7-day list's (.day) ---- */
 .israel-body { flex-direction: row; }
-.region { flex: 1 1 0; min-width: 0; margin-right: 28px; padding: 28px 40px 24px; display: flex; flex-direction: column; }
-.region:last-child { margin-right: 0; }
+.region { flex: 1 1 0; min-width: 0; -webkit-margin-end: 28px; padding: 28px 40px 24px; display: flex; flex-direction: column; }
+.region:last-child { -webkit-margin-end: 0; }
 .region-head { display: flex; align-items: baseline; white-space: nowrap; -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: no spaced hyphens */
 .region-name { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
-.region-city { margin-left: 16px; font-size: 26px; color: rgba(255, 255, 255, 0.62); }
+.region-city { -webkit-margin-start: 16px; font-size: 26px; color: rgba(255, 255, 255, 0.62); }
 .region-now { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
 .region-temp { font-size: 136px; font-weight: 300; line-height: 1; margin-top: 8px; text-indent: -6px; }   /* the main card's figure */
 .region.is-stale .region-temp { color: rgba(255, 255, 255, 0.62); }
@@ -214,6 +214,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .region-icon .ic-sun circle { fill: rgba(255, 213, 143, 0.18); }
 .region-icon .ic-moon path { fill: rgba(216, 220, 255, 0.14); }
 .region-sub { margin-top: 8px; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
+.region-part { display: inline-block; white-space: nowrap; }   /* «Вітер 14 км/год» whole: the line wraps only between the parts */
 /* the days fill the rest of the card, rows spread evenly: no empty band at the bottom */
 .region-days-title { margin-top: 32px; }
 .region .days { margin-top: 8px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
@@ -234,21 +235,20 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
    height, so row n on the left and on the right start on one line. A headline is a fixed two-line box. ---------- */
 .news-body { flex-direction: row; }
 .news-col { flex: 1 1 0; min-width: 0; padding: 28px 40px 16px; display: flex; flex-direction: column; }
-.news-col + .news-col { margin-left: 28px; }
+.news-col + .news-col { -webkit-margin-start: 28px; }
 .news-col-head { display: flex; align-items: center; height: 48px; flex: 0 0 48px; white-space: nowrap; }
-.src-dot { width: 12px; height: 12px; border-radius: 6px; margin-right: 16px; flex: 0 0 12px; }
-.src-dot.src-ynet { background: #8ec5ff; }
-.src-dot.src-globes { background: #c9b8ff; }   /* a source colour, never the fresh status green */
+.src-dot { width: 12px; height: 12px; border-radius: 6px; -webkit-margin-end: 16px; flex: 0 0 12px; }
+.src-dot.src-newsru, .src-dot.src-ynet, .src-dot.src-pravda { background: #8ec5ff; }        /* the news column */
+.src-dot.src-newsrufin, .src-dot.src-globes, .src-dot.src-epravda { background: #c9b8ff; }  /* the economy column: a source colour, never the fresh status green */
 .news-col-title { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
-.news-col-head .src-name { margin-left: 16px; font-size: 24px; color: rgba(255, 255, 255, 0.62); }
-.news-col-state { margin-left: auto; padding-left: 16px; font-size: 24px; color: rgba(255, 214, 150, 0.85); }
+.news-col-head .src-name { -webkit-margin-start: 16px; font-size: 24px; color: rgba(255, 255, 255, 0.62); }
+.news-col-state { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: rgba(255, 214, 150, 0.85); }
 .news-rows { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin-top: 8px; }
 .news-row { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; justify-content: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
 .news-row:first-child { border-top: 0; }
-.news-rows[dir="rtl"] { text-align: right; }   /* Hebrew headlines: read and aligned from the right, the time above on the same side */
 .news-time { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
 /* Two lines at most, always two lines tall: no measuring, and row n lines up across the columns; a longer headline ends
-   with an ellipsis (on the left in a right-to-left column). */
+   with an ellipsis (on the left in Hebrew). */
 .news-title { margin-top: 6px; height: 80px; overflow: hidden; font-size: 32px; line-height: 40px; color: rgba(255, 255, 255, 0.92);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .news-col-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
@@ -259,8 +259,8 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
    rhythm: 28 px between widgets and between the columns. Every widget has the same three rows — name + chip, time +
    length, bar — so rows line up across the screen. ---- */
 .traffic-body { flex-direction: row; }
-.tcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; margin-right: 28px; }
-.tcol:last-child { margin-right: 0; }
+.tcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; -webkit-margin-end: 28px; }
+.tcol:last-child { -webkit-margin-end: 0; }
 .tcol-title { height: 32px; flex: 0 0 32px; line-height: 32px; padding: 0 24px; white-space: nowrap; }
 .tw { flex: 1 1 0; min-height: 0; margin-top: 28px; padding: 18px 24px 20px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 28px; }
 .tw-top { display: flex; justify-content: space-between; align-items: center; }
@@ -271,7 +271,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .tw.is-stale .tw-time { color: rgba(255, 255, 255, 0.62); }
 .tw-time.is-none { color: rgba(255, 255, 255, 0.62); }   /* no time: a quiet dash keeps the slot (62 % = the legibility floor) */
 .tw-km, .tnodata { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
-.chip { flex: 0 0 auto; margin-left: 12px; padding: 2px 12px; border-radius: 18px; font-size: 24px; font-weight: 500; white-space: nowrap; }
+.chip { flex: 0 0 auto; -webkit-margin-start: 12px; padding: 2px 12px; border-radius: 18px; font-size: 24px; font-weight: 500; white-space: nowrap; }
 .chip.lv-ok { color: #a3eac4; background: rgba(140, 230, 180, 0.13); }
 .chip.lv-slow { color: #ffd59a; background: rgba(255, 207, 138, 0.13); }
 .chip.lv-jam { color: #ffaaa1; background: rgba(255, 140, 128, 0.15); }
@@ -284,29 +284,13 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .tbar-delay.lv-slow { background: #ffcf8a; }
 .tbar-delay.lv-jam { background: #ff8f80; }
 
-/* ---- Traffic map: one glass card, the night base map, the flow overlay, a home dot on Rehovot and a legend ---- */
-.map-card { flex: 1 1 auto; }
-.map-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
-#map-base { background: #0e1424; }   /* the night map's own ground under its tiles; the card keeps its glass edge */
-/* the overlay only over its base map; nothing over a note */
-.map-card.no-base #map-flow, .map-card.is-note .map-home, .map-card.is-note .map-legend { visibility: hidden; }
-.map-tile { position: absolute; display: block; }
-/* Rehovot: a small white dot with a soft halo in the middle of the card (the map is centred on it). */
-.map-home { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 8px;
-  background: #fff; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.18); }
-.map-legend { position: absolute; left: 24px; bottom: 24px; display: flex; align-items: center; padding: 10px 24px; border-radius: 28px;
-  background: rgba(14, 20, 36, 0.82); font-size: 24px; color: rgba(255, 255, 255, 0.85); white-space: nowrap; }
-.map-key { display: flex; align-items: center; }
-.map-key + .map-key { margin-left: 28px; }
-.map-swatch { width: 28px; height: 6px; border-radius: 3px; margin-right: 12px; }
-.map-swatch.lv-ok { background: #207721; }      /* TomTom flow style relative0-dark, line main colours: free flow */
-.map-swatch.lv-slow { background: #a9862c; }    /* 0.35–0.75 of free-flow speed */
-.map-swatch.lv-jam { background: #a10402; }     /* below 0.15 of free-flow speed */
-/* Loading, or a map that never loaded: one quiet line in the middle of the card. */
+/* ---- Traffic map: Waze's live map in one glass card; a quiet line in its middle until the page has loaded ---- */
+.map-card { flex: 1 1 auto; background: #0e1424; }
+/* the frame never takes a click or the focus: the remote drives the app, never the map */
+.map-frame { position: absolute; left: 0; top: 0; width: 100%; height: 100%; border: 0; pointer-events: none; }
 .map-note { display: none; }
 .map-note.is-on { position: absolute; left: 0; right: 0; top: 50%; margin-top: -32px; display: flex; justify-content: center; }
 .map-note-text { padding: 12px 32px; border-radius: 32px; background: rgba(14, 20, 36, 0.82); font-size: 32px; color: rgba(255, 255, 255, 0.85); }
-.map-empty { flex: 1 1 auto; display: flex; }
 
 /* ---- The Israel alert: over every screen, deep red and calm; a slow pulse of light (opacity only) ------- */
 .alert {
@@ -332,5 +316,23 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .alert-since { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.75); }
 /* The feed lost while the alert is up: said inside the overlay, in warm amber (about 8:1 on the deep red). */
 .alert-offline { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 32px; color: #ffd59a; }
-.alert-offline .offline-dot { width: 14px; height: 14px; border-radius: 7px; margin-right: 12px; border: 2px solid #ffd59a; }
+.alert-offline .offline-dot { width: 14px; height: 14px; border-radius: 7px; -webkit-margin-end: 12px; border: 2px solid #ffd59a; }
 .alert-instr { margin-top: 48px; padding: 16px 40px; border-radius: 40px; font-size: 40px; color: #fff; background: rgba(255, 255, 255, 0.1); }
+
+/* ---- The language toast: the new language's name in its own words, a moment in the lower middle, then gone ---- */
+.toast { position: fixed; left: 50%; bottom: 120px; z-index: 20; width: 480px; margin-left: -240px; padding: 20px 0; border-radius: 40px;
+  text-align: center; font-size: 40px; font-weight: 500; color: #fff; background: rgba(14, 20, 36, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 24px rgba(0, 0, 0, 0.35);
+  opacity: 0; visibility: hidden; -webkit-transition: opacity 0.3s ease, visibility 0s linear 0.3s; transition: opacity 0.3s ease, visibility 0s linear 0.3s; }
+.toast.is-on { opacity: 1; visibility: visible; -webkit-transition: opacity 0.2s ease, visibility 0s; transition: opacity 0.2s ease, visibility 0s; }
+
+/* ---- Hebrew: the whole layout right to left. Flex rows, the -webkit-margin-start / -end above and text-align: end
+   mirror by themselves; here only what is placed by left / right or drawn from the left. Figures stay left to right
+   (js/i18n.js ltr()). The page dots and ◀ ▶ stay physical (index.html: the dots are dir="ltr"). ---- */
+[dir="rtl"] .status { right: auto; left: 40px; }
+[dir="rtl"] .corner { left: 64px; right: 1024px; }
+[dir="rtl"] .clock-time { direction: ltr; text-align: right; }   /* "≈" before the time, as in every language */
+[dir="rtl"] .now-temp, [dir="rtl"] .region-temp { text-indent: 0; }
+/* a range bar and a time bar fill from the right: the coldest end next to the low temperature, the trip from the start */
+[dir="rtl"] .range, [dir="rtl"] .tbar { -webkit-transform: scaleX(-1); transform: scaleX(-1); }
+

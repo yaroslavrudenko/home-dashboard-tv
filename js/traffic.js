@@ -1,77 +1,68 @@
-/* Traffic from the TomTom Routing API. ES5.
- * Every route is one item of ONE synchronous batch request (POST /routing/1/batch/sync/json), asked for its summary
- * only (no geometry): travel time with live traffic, travel time without traffic, the delay and the length.
- *   Traffic.hasKey(cfg)            false while config.js still holds the build placeholder
- *   Traffic.request(cfg)           { url, body } of the batch request (one item per route)
- *   Traffic.parse(json, n)         n summaries (null where an item failed) from the batch answer; throws unless it
- *                                  is a batch answer with exactly n items
- *   Traffic.level(summary, cfg)    'ok' | 'slow' | 'jam': travel time against free flow
- *   Traffic.decide(cfg, facts)     'due', or why a batch may not be sent now (THE gate; see below)
+/* Traffic from the Mapbox Directions API, profile driving-traffic (live traffic for Israel; TomTom has none there,
+ * measured 2026-10-30). ES5.
+ * Every route is ONE GET /directions/v5/mapbox/driving-traffic/{from};{to}?overview=false (no geometry), the ten
+ * started together: travel time now (`duration`), the usual time at this hour (`duration_typical`), the length.
+ *   Traffic.hasToken(cfg)          false while config.js still holds the build placeholder
+ *   Traffic.urls(cfg)              the GET of every route, in cfg.routes order
+ *   Traffic.summary(json)          { travel, free (the typical time), delay, length } from one answer, or null
+ *   Traffic.level(summary, cfg)    'ok' | 'slow' | 'jam': travel time against the typical time
+ *   Traffic.decide(cfg, facts)     'due', or why a round may not be sent now (THE gate; see below)
  *   Traffic.correct(record, now)   the accounting record after a clock correction, or null when none is needed
  *   Traffic.createStore(cfg, deps) the store: asks decide() on every path, keeps the accounting record and the row cache
- * When a batch is sent (the judges' COMMON DECISION 2026-10-30 and the owner's explicit-open rule; cfg.schedule):
- * only while the traffic screen is the one on view AND the TV shows it (document visible), one batch at a time, with a
- * valid accounting record, and never past dailyItemCap (580) items on the UTC date. On top of that: an explicit ◀ ▶
- * open sends at once (openMinIntervalMs: 0); every other path — a rotation arrival, the screen staying open, wake —
- * waits minIntervalMs (25 min) since the last ATTEMPT, at any hour. A deadline TomTom gave (Retry-After on 403 / 429 /
- * 503, kept as retryNotBefore) holds for every path, explicit opens included.
- * TomTom's free routing tier is 20,000 items a MONTH for the whole account; 580 a UTC date: any 31 days touch at most
- * 32 UTC dates, so ≤ 18,560 items (17,860 parked on the screen).
- * The accounting record (localStorage `tt-quota`, { v: 1, utcDate, used, lastAttemptAt, retryNotBefore }) is written
- * and read back BEFORE every POST: used += 10, lastAttemptAt = now; nothing is ever refunded (failure, timeout,
- * refusal, crash) and the answer does not move lastAttemptAt. Storage that fails, or a record that is corrupt (an
- * impossible date included), pauses sending. A clock that went back is corrected without sending (Traffic.correct).
- * Any failure — transport, a malformed batch, any item error other than "cannot be routed", a refusal (401/403/429)
- * — keeps the last good values and their times; the rows and their failure state are kept in `tt-cache` and shown
- * at once after a restart. An item TomTom cannot route (NO_ROUTE_FOUND-type) and nothing else is "no data" on its row
- * and a good round. */
+ * When a round is sent (the judges' COMMON DECISION 2026-10-30 and the owner's explicit-open rule; cfg.schedule):
+ * only while the traffic screen is the one on view AND the TV shows it (document visible), one round at a time, with a
+ * valid accounting record, and never past dailyRequestCap (3,000) requests on the UTC date. On top of that: an explicit
+ * ◀ ▶ open sends at once (openMinIntervalMs: 0); every other path — a rotation arrival, the screen staying open, wake —
+ * waits minIntervalMs (10 min) since the last ATTEMPT, at any hour. A deadline Mapbox gave (Retry-After on 403 / 429 /
+ * 503, any of the ten answers; kept as retryNotBefore) holds for every path, explicit opens included.
+ * Mapbox's free tier is 100,000 Directions requests a MONTH; 3,000 a UTC date: any 31 days touch at most 32 UTC dates,
+ * so ≤ 96,000 requests (44,650 parked on the screen).
+ * The accounting record (localStorage `tt-quota` — "traffic", the name kept from the first provider so a TV keeps its
+ * count — { v: 1, utcDate, used, lastAttemptAt, retryNotBefore }) is written and read back BEFORE every round:
+ * used += 10, lastAttemptAt = now; nothing is ever refunded (failure, timeout, refusal, crash) and the answers do not
+ * move lastAttemptAt. Storage that fails, or a record that is corrupt (an impossible date included), pauses sending. A clock that went back is
+ * corrected without sending (Traffic.correct). Any failure — transport, a malformed answer, a refusal (401/403/429) —
+ * keeps the last good values and their times; the rows and their failure state are kept in `tt-cache` and shown at once
+ * after a restart. A route Mapbox cannot route (NoRoute / NoSegment) and nothing else is "no data" on its row and a
+ * good round. */
 var Traffic = (function () {
-  var QUERY = '/json?travelMode=car&routeType=fastest&traffic=true&computeTravelTimeFor=all&routeRepresentation=summaryOnly';
-  var PERMANENT = /NO_ROUTE_FOUND|MAP_MATCHING_FAILURE/;   // routing answers that a retry cannot change
+  var QUERY = '?overview=false&access_token=';
+  var PERMANENT = { NoRoute: 1, NoSegment: 1 };    // routing answers that a retry cannot change
 
-  function hasKey(cfg) { return typeof cfg.key === 'string' && /^[A-Za-z0-9]+$/.test(cfg.key); }
-  function point(p) { return p[0] + ',' + p[1]; }
+  // A Mapbox public token ("pk." …); the build placeholder is not one.
+  function hasToken(cfg) { return typeof cfg.token === 'string' && /^pk\.[A-Za-z0-9._-]+$/.test(cfg.token); }
+  function point(p) { return p[1] + ',' + p[0]; }   // Mapbox wants lon,lat; the config writes lat,lon
 
-  function request(cfg) {
-    var items = [];
-    for (var i = 0; i < cfg.routes.length; i++) items.push({ query: '/calculateRoute/' + point(cfg.routes[i].from) + ':' + point(cfg.routes[i].to) + QUERY });
-    return { url: cfg.base + '?key=' + encodeURIComponent(cfg.key), body: { batchItems: items } };
+  function urls(cfg) {
+    var out = [];
+    for (var i = 0; i < cfg.routes.length; i++) out.push(cfg.base + point(cfg.routes[i].from) + ';' + point(cfg.routes[i].to) + QUERY + encodeURIComponent(cfg.token));
+    return out;
   }
 
   function seconds(v) { return typeof v === 'number' && isFinite(v) && v >= 0 ? v : null; }
 
-  function summaryOf(item) {
-    var r = item && item.statusCode === 200 && item.response && item.response.routes;
-    var s = r && r[0] && r[0].summary;
-    if (!s) return null;
-    var travel = seconds(s.travelTimeInSeconds), delay = seconds(s.trafficDelayInSeconds);
+  // One answer: { travel, free (the typical time at this hour; the travel time when Mapbox has none), delay, length }.
+  function summary(json) {
+    var r = json && json.code === 'Ok' && json.routes && json.routes[0], travel = r ? seconds(r.duration) : null;
     if (travel === null) return null;
-    var free = seconds(s.noTrafficTravelTimeInSeconds);
-    if (free === null) free = delay === null ? travel : Math.max(travel - delay, 0);
-    return { travel: travel, free: free, delay: Math.max(travel - free, 0), length: seconds(s.lengthInMeters) };
+    var free = seconds(r.duration_typical);
+    if (free === null) free = travel;
+    return { travel: travel, free: free, delay: Math.max(travel - free, 0), length: seconds(r.distance) };
   }
 
-  // Throws when the answer is not a batch answer for these n items; a single failed item is null.
-  function parse(json, n) {
-    if (!json || !Array.isArray(json.batchItems) || json.batchItems.length !== n) throw new Error('traffic: not a batch answer');
-    var out = [];
-    for (var i = 0; i < n; i++) out.push(summaryOf(json.batchItems[i]));
-    return out;
-  }
-
-  // Why the batch, or one of its items, was refused: 'key' (401 / 403: the key, or TomTom's monthly limit on it) |
-  // 'busy' (429: too many requests) | null.
+  // Why a request was refused: 'key' (401 / 403: the token, or Mapbox's limit on it) | 'busy' (429) | null.
   function refusal(status) { return status === 401 || status === 403 ? 'key' : status === 429 ? 'busy' : null; }
-  // A failed item's class: 'key' | 'busy' | 'route' (cannot be routed; never a 5xx) | 'item' (anything else).
-  function itemError(item) {
-    var code = item && item.statusCode, err = item && item.response && item.response.error;
-    return refusal(code) || (!(code >= 500) && err && typeof err.description === 'string' && PERMANENT.test(err.description) ? 'route' : 'item');
+  // A failed route's class: 'key' | 'busy' | 'timeout' | 'route' (cannot be routed) | 'shape' (an answer that is not a
+  // route) | 'item' (anything else).
+  function errorOf(a) {
+    if (a.err) return refusal(+(/^http (\d+)$/.exec(a.err) || [])[1]) || (a.err === 'timeout' ? 'timeout' : 'item');
+    return a.json && PERMANENT[a.json.code] ? 'route' : 'shape';
   }
 
   var VERSION = 1, QUOTA = 'tt-quota', CACHE = 'tt-cache', DAY_MS = 86400000, MINUTE = 60000;
   var ROW_ERRORS = { key: 1, busy: 1, route: 1, item: 1, timeout: 1, shape: 1 };
 
-  // The UTC date of a moment, "YYYY-MM-DD" (the accounting day: TomTom counts in UTC, home dates can be 25 h long).
+  // The UTC date of a moment, "YYYY-MM-DD" (the accounting day: one fixed length, home dates can be 25 h long).
   function utcDate(ms) { return new Date(ms).toISOString().slice(0, 10); }
   function nextUtcMidnight(ms) { return (Math.floor(ms / DAY_MS) + 1) * DAY_MS; }
   function count(v) { return typeof v === 'number' && isFinite(v) && v >= 0 && Math.floor(v) === v; }
@@ -84,25 +75,25 @@ var Traffic = (function () {
   function validRecord(r) {
     return !!r && r.v === VERSION && validDate(r.utcDate) && count(r.used) && count(r.lastAttemptAt) && count(r.retryNotBefore);
   }
-  // TomTom's Retry-After (delta seconds or an HTTP date) as a moment, or 0 when absent, malformed or already past.
+  // A Retry-After header (delta seconds or an HTTP date) as a moment, or 0 when absent, malformed or already past.
   function retryAfterAt(value, now) {
     var t = /^\s*\d+\s*$/.test(value) ? now + 1000 * +value : value ? Date.parse(value) : NaN;
     return isFinite(t) && t > now ? Math.ceil(t) : 0;
   }
   var DEADLINE_STATUS = { 'http 403': 1, 'http 429': 1, 'http 503': 1 };   // the answers whose Retry-After is recorded
-  // Items already used on now's UTC date: a strictly later date starts again at 0.
+  // Requests already used on now's UTC date: a strictly later date starts again at 0.
   function usedOn(r, now) { return r.utcDate < utcDate(now) ? 0 : r.used; }
 
-  // THE gate: may a batch be sent now? facts: { selected (the traffic screen is on view), visible (the TV shows the
-  // page), explicitOpen (the remote just opened the screen), busy (a batch in flight), storage (the record was read and
-  // is valid), now, utcDate, used, lastAttemptAt, retryNotBefore (the record), items (per batch) }.
+  // THE gate: may a round be sent now? facts: { selected (the traffic screen is on view), visible (the TV shows the
+  // page), explicitOpen (the remote just opened the screen), busy (a round in flight), storage (the record was read and
+  // is valid), now, utcDate, used, lastAttemptAt, retryNotBefore (the record), requests (per round) }.
   // Returns 'due' | 'busy' | 'hidden' | 'storage' | 'cap' | 'floor' (the first reason that holds, in this order).
   function decide(cfg, f) {
     var s = cfg.schedule;
     if (f.busy) return 'busy';
     if (!f.selected || !f.visible) return 'hidden';
     if (!f.storage) return 'storage';
-    if (usedOn(f, f.now) + f.items > s.dailyItemCap) return 'cap';
+    if (usedOn(f, f.now) + f.requests > s.dailyRequestCap) return 'cap';
     if (f.now - f.lastAttemptAt < (f.explicitOpen ? s.openMinIntervalMs : s.minIntervalMs) || f.now < f.retryNotBefore) return 'floor';
     return 'due';
   }
@@ -120,7 +111,7 @@ var Traffic = (function () {
   // The earliest moment decide() can say 'due' to a path other than an explicit open (the cap: the next UTC date too).
   function earliest(cfg, r, n, now) {
     var t = Math.max(r.lastAttemptAt + cfg.schedule.minIntervalMs, r.retryNotBefore);
-    return usedOn(r, now) + n > cfg.schedule.dailyItemCap ? Math.max(t, nextUtcMidnight(now)) : t;
+    return usedOn(r, now) + n > cfg.schedule.dailyRequestCap ? Math.max(t, nextUtcMidnight(now)) : t;
   }
 
   function level(s, cfg) {
@@ -139,7 +130,7 @@ var Traffic = (function () {
     return true;
   }
 
-  // deps: { postJson(url, body, timeoutMs, done), now(), setTimeout, clearTimeout, storage (localStorage or null),
+  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, storage (localStorage or null),
   //         documentVisible() (optional: the TV shows the page; default true), onChange(store) }
   function createStore(cfg, deps) {
     var n = cfg.routes.length, storage = deps.storage || null, rows = [], i;
@@ -176,11 +167,11 @@ var Traffic = (function () {
 
     function facts(now, r, explicit) {
       return { selected: selected, visible: docVisible(), explicitOpen: !!explicit, busy: inFlight, storage: !!r, now: now,
-        utcDate: r ? r.utcDate : '', used: r ? r.used : 0, lastAttemptAt: r ? r.lastAttemptAt : 0, retryNotBefore: r ? r.retryNotBefore : 0, items: n };
+        utcDate: r ? r.utcDate : '', used: r ? r.used : 0, lastAttemptAt: r ? r.lastAttemptAt : 0, retryNotBefore: r ? r.retryNotBefore : 0, requests: n };
     }
 
     // Asked again when the gate can next open (a minute from now while storage is in trouble, and never sooner than a
-    // minute after a correction); no timer while not on view or while a batch is in flight.
+    // minute after a correction); no timer while not on view or while a round is in flight.
     function plan(now, r, corrected) {
       if (timer !== null) deps.clearTimeout(timer);
       timer = null;
@@ -200,55 +191,65 @@ var Traffic = (function () {
       send(now);
     }
 
-    // Stores the answers; `failed` when the round failed. `problem` remembers a refusal for the screen.
-    function accept(err, json) {
-      var list = null, bad = 0, broken = false, refused = false, t = deps.now();
-      if (!err) { try { list = parse(json, n); } catch (e) { err = 'shape'; } }
-      var whole = err ? refusal(+(/^http (\d+)$/.exec(err) || [])[1]) : null;
+    // Stores the round's answers ([{ err, json }] in route order); `failed` when the round failed. `problem` remembers a
+    // refusal for the screen.
+    function accept(answers) {
+      var bad = 0, broken = false, refused = false, t = deps.now();
       for (var i = 0; i < n; i++) {
-        var s = rows[i], d = list ? list[i] : null;
+        var s = rows[i], a = answers[i], d = a.err ? null : summary(a.json);
         if (d) { s.data = d; s.updatedAt = t; s.error = null; continue; }
-        s.error = list ? itemError(json.batchItems[i]) : whole || (ROW_ERRORS[err] ? err : 'item');
+        s.error = errorOf(a);
         bad++;
         if (s.error === 'key' || s.error === 'busy') refused = true;
         else if (s.error !== 'route') broken = true;
       }
       problem = refused ? 'refused' : null;
-      failed = refused || !list || bad === n || broken;
+      failed = refused || bad === n || broken;
     }
 
-    // A deadline TomTom gave (Retry-After on 403 / 429 / 503) joins the accounting record, written and read back, so
-    // the one gate enforces it for every path, explicit opens and restarts included; it never moves a deadline earlier.
-    function recordDeadline(err, meta, now) {
-      var at = DEADLINE_STATUS[err] && meta ? retryAfterAt(meta.retryAfter, now) : 0, r = at && account(now);
+    // A deadline Mapbox gave (Retry-After on 403 / 429 / 503; the latest of the round's answers) joins the accounting
+    // record, written and read back, so the one gate enforces it for every path, explicit opens and restarts included;
+    // it never moves a deadline earlier.
+    function recordDeadline(answers, now) {
+      var at = 0;
+      for (var i = 0; i < answers.length; i++) {
+        var a = answers[i];
+        if (DEADLINE_STATUS[a.err] && a.meta) at = Math.max(at, retryAfterAt(a.meta.retryAfter, now));
+      }
+      var r = at && account(now);
       if (!r || at <= r.retryNotBefore) return;
       var next = copyRecord(r);
       next.retryNotBefore = at;
       persist(next);
     }
 
-    var req = request(cfg);                        // the same request every time: built once
+    var list = urls(cfg);                          // the same requests every time: built once
+    // The ten routes at once; the answers are applied together when the last one is in (one render per round).
     function send(at) {
       inFlight = true;
-      var mine = generation;
-      deps.postJson(req.url, req.body, cfg.timeoutMs, function (err, json, meta) {
-        if (mine !== generation) return;           // stopped meanwhile: a late answer changes nothing
-        inFlight = false;
-        answeredFor = at;
-        accept(err, json);
-        saveCache();
-        var now = deps.now();
-        recordDeadline(err, meta, now);
-        plan(now, account(now), false);
-        deps.onChange(api);
-      });
+      var mine = generation, answers = [], pending = n;
+      for (var i = 0; i < n; i++) (function (i) {
+        deps.getJson(list[i], cfg.timeoutMs, function (err, json, meta) {
+          if (mine !== generation) return;         // stopped meanwhile: a late answer changes nothing
+          answers[i] = { err: err, json: json, meta: meta };
+          if (--pending) return;
+          inFlight = false;
+          answeredFor = at;
+          accept(answers);
+          saveCache();
+          var now = deps.now();
+          recordDeadline(answers, now);
+          plan(now, account(now), false);
+          deps.onChange(api);
+        });
+      })(i);
       deps.onChange(api);
     }
 
     // The last attempt failed: its answer said so, or it has no recorded answer at all (the app stopped mid-flight).
     function lastFailed(r) { return failed || (!inFlight && !!r && r.lastAttemptAt > answeredFor); }
 
-    // A row TomTom cannot route shows "no data", never its old value: a retry cannot change that answer.
+    // A row Mapbox cannot route shows "no data", never its old value: a retry cannot change that answer.
     function view(i, now, wasFailed) {
       var s = rows[i], age = now - s.updatedAt;
       if (!s.data || s.error === 'route') return { kind: s.error ? 'failed' : 'loading', data: null };
@@ -277,8 +278,8 @@ var Traffic = (function () {
         for (var i = 0; i < n; i++) out.push(view(i, now, f));
         return out;
       },
-      // The whole screen: kind 'loading' (nothing to show, a batch in flight) | 'failed' (nothing to show) | 'fresh' |
-      // 'stale' (a row on screen is old, future-dated, failed, or the last attempt failed); updating (a batch in flight);
+      // The whole screen: kind 'loading' (nothing to show, a round in flight) | 'failed' (nothing to show) | 'fresh' |
+      // 'stale' (a row on screen is old, future-dated, failed, or the last attempt failed); updating (a round in flight);
       // future (a row's time is ahead of the clock); updatedAt: the OLDEST row with data; problem: 'storage' | 'cap' |
       // 'refused' | null; resumeAt: when the cap or the refusal lets the next attempt go.
       status: function () {
@@ -291,7 +292,7 @@ var Traffic = (function () {
           if (v.kind !== 'fresh') stale = true;
           if (v.future) future = true;
         }
-        var p = !r || paused ? 'storage' : usedOn(r, now) + n > cfg.schedule.dailyItemCap ? 'cap' : problem;
+        var p = !r || paused ? 'storage' : usedOn(r, now) + n > cfg.schedule.dailyRequestCap ? 'cap' : problem;
         return { kind: any ? (stale ? 'stale' : 'fresh') : inFlight ? 'loading' : 'failed', updating: inFlight, future: future,
           updatedAt: any ? oldest : 0, problem: p, resumeAt: p === 'cap' || p === 'refused' ? earliest(cfg, r, n, now) : 0 };
       },
@@ -305,5 +306,5 @@ var Traffic = (function () {
     return api;
   }
 
-  return { hasKey: hasKey, request: request, parse: parse, level: level, decide: decide, correct: correct, validDate: validDate, createStore: createStore };
+  return { hasToken: hasToken, urls: urls, summary: summary, level: level, decide: decide, correct: correct, validDate: validDate, createStore: createStore };
 })();

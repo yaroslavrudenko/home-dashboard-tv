@@ -1,0 +1,502 @@
+[
+ {
+  "routes": [
+   {
+    "weight_typical": 2546.748,
+    "duration_typical": 2358.1,
+    "weight_name": "auto",
+    "weight": 2074.032,
+    "duration": 1920.4,
+    "distance": 27412.3,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 2546.748,
+      "duration_typical": 2358.1,
+      "weight": 2074.032,
+      "duration": 1920.4,
+      "steps": [],
+      "distance": 27412.3,
+      "summary": "Ayalon Highway, Route 431"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     34.7818,
+     32.0853
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-00"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 3654.936,
+    "duration_typical": 3384.2,
+    "weight_name": "auto",
+    "weight": 2909.52,
+    "duration": 2694.0,
+    "distance": 59830.6,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 3654.936,
+      "duration_typical": 3384.2,
+      "weight": 2909.52,
+      "duration": 2694.0,
+      "steps": [],
+      "distance": 59830.6,
+      "summary": "Route 1, Route 431"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     35.2186,
+     31.7816
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-01"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 6966.0,
+    "duration_typical": 6450.0,
+    "weight_name": "auto",
+    "weight": 6396.084,
+    "duration": 5922.3,
+    "distance": 118520.9,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 6966.0,
+      "duration_typical": 6450.0,
+      "weight": 6396.084,
+      "duration": 5922.3,
+      "steps": [],
+      "distance": 118520.9,
+      "summary": "Route 2, Route 6"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     34.9988,
+     32.8185
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-02"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 3901.824,
+    "duration_typical": 3612.8,
+    "weight_name": "auto",
+    "weight": 4547.34,
+    "duration": 4210.5,
+    "distance": 88004.2,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 3901.824,
+      "duration_typical": 3612.8,
+      "weight": 4547.34,
+      "duration": 4210.5,
+      "steps": [],
+      "distance": 88004.2,
+      "summary": "Route 40, Route 6"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     34.7913,
+     31.2518
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-03"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 2698.488,
+    "duration_typical": 2498.6,
+    "weight_name": "auto",
+    "weight": 2918.268,
+    "duration": 2702.1,
+    "distance": 36517.0,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 2698.488,
+      "duration_typical": 2498.6,
+      "weight": 2918.268,
+      "duration": 2702.1,
+      "steps": [],
+      "distance": 36517.0,
+      "summary": "Route 4"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     34.5743,
+     31.6688
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-04"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 1567.296,
+    "duration_typical": 1451.2,
+    "weight_name": "auto",
+    "weight": 1618.596,
+    "duration": 1498.7,
+    "distance": 29902.4,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 1567.296,
+      "duration_typical": 1451.2,
+      "weight": 1618.596,
+      "duration": 1498.7,
+      "steps": [],
+      "distance": 29902.4,
+      "summary": "Route 431"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     35.0076,
+     31.8986
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-05"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 844.02,
+    "duration_typical": 781.5,
+    "weight_name": "auto",
+    "weight": 1363.932,
+    "duration": 1262.9,
+    "distance": 11804.1,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 844.02,
+      "duration_typical": 781.5,
+      "weight": 1363.932,
+      "duration": 1262.9,
+      "steps": [],
+      "distance": 11804.1,
+      "summary": "Route 412, Route 42"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     34.8044,
+     31.964
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-06"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 2274.804,
+    "duration_typical": 2106.3,
+    "weight_name": "auto",
+    "weight": 2073.6,
+    "duration": 1920.0,
+    "distance": 24611.8,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 2274.804,
+      "duration_typical": 2106.3,
+      "weight": 2073.6,
+      "duration": 1920.0,
+      "steps": [],
+      "distance": 24611.8,
+      "summary": "Route 6, Route 1"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     34.8706,
+     32.0004
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-07"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 2430.432,
+    "duration_typical": 2250.4,
+    "weight_name": "auto",
+    "weight": 2047.896,
+    "duration": 1896.2,
+    "distance": 21730.5,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 2430.432,
+      "duration_typical": 2250.4,
+      "weight": 2047.896,
+      "duration": 1896.2,
+      "steps": [],
+      "distance": 21730.5,
+      "summary": "Ayalon Highway"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     34.7874,
+     32.0158
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-08"
+ },
+ {
+  "routes": [
+   {
+    "weight_typical": 2591.676,
+    "duration_typical": 2399.7,
+    "weight_name": "auto",
+    "weight": 2787.48,
+    "duration": 2581.0,
+    "distance": 37608.9,
+    "legs": [
+     {
+      "via_waypoints": [],
+      "admins": [
+       {
+        "iso_3166_1_alpha3": "ISR",
+        "iso_3166_1": "IL"
+       }
+      ],
+      "weight_typical": 2591.676,
+      "duration_typical": 2399.7,
+      "weight": 2787.48,
+      "duration": 2581.0,
+      "steps": [],
+      "distance": 37608.9,
+      "summary": "Ayalon Highway, Route 2"
+     }
+    ]
+   }
+  ],
+  "waypoints": [
+   {
+    "distance": 4.2,
+    "name": "Herzl",
+    "location": [
+     34.811296,
+     31.892791
+    ]
+   },
+   {
+    "distance": 6.8,
+    "name": "",
+    "location": [
+     34.8073,
+     32.1449
+    ]
+   }
+  ],
+  "code": "Ok",
+  "uuid": "fixture-09"
+ }
+]

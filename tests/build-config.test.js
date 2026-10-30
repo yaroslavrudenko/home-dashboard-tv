@@ -13,43 +13,54 @@ const { ROOT } = require('./harness');
 
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
-// Decision 21 (F13): least privilege — the app's own files plus exactly the hosts it reads (batch 2: news, alerts, TomTom).
-// FB5-NS: the news feeds are Ynet and Globes (newsru, pravda and bbc removed).
-const ORIGINS = ['https://api.open-meteo.com', 'https://www.ynet.co.il', 'https://www.globes.co.il',
-  'https://www.oref.org.il', 'https://api.tomtom.com'];
+// Decision 21 (F13): least privilege — the app's own files plus exactly the hosts it reads (batch 2: news, alerts, traffic;
+// batch 6: Mapbox instead of TomTom).
+// Batch 6: the news feeds of the three languages (L2), and the traffic map is Waze's live page in a frame — its own host
+// in frame-src, the hosts that page loads (recorded from its network log in Chrome, 2026-10-30) in <access> only.
+const DATA = ['https://api.open-meteo.com', 'https://www.newsru.co.il', 'https://www.ynet.co.il', 'https://www.globes.co.il',
+  'https://www.pravda.com.ua', 'https://epravda.com.ua', 'https://www.oref.org.il', 'https://api.mapbox.com'];
+const FRAME = ['https://embed.waze.com', 'https://www.waze.com', 'https://web-assets.waze.com', 'https://www.google.com',
+  'https://www.gstatic.com', 'https://fonts.googleapis.com', 'https://fonts.gstatic.com'];
+const ORIGINS = DATA.concat(FRAME);
 test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV profile, internet, exactly the hosts the app reads', () => {
   const x = read('config.xml');
   assert.match(x, /<tizen:application id="HomeDash01\.Dashboard" package="HomeDash01" required_version="3\.0"\/>/);
   assert.match(x, /<name>Home Dashboard<\/name>/);
   assert.match(x, /<tizen:profile name="tv-samsung"\/>/);
   assert.match(x, /<tizen:privilege name="http:\/\/tizen\.org\/privilege\/internet"\/>/);
+  assert.match(x, /<tizen:privilege name="http:\/\/tizen\.org\/privilege\/tv\.inputdevice"\/>/, 'L1: the language key is registered');
   assert.deepEqual([...x.matchAll(/<access origin="([^"]+)" subdomains="false"\/>/g)].map((m) => m[1]), ORIGINS);
   assert.equal((x.match(/<access /g) || []).length, ORIGINS.length, 'no other origin');
   const csp = x.match(/<tizen:content-security-policy>([^<]+)</)[1];
   assert.match(csp, /default-src 'self'/);
-  assert.equal(csp.match(/connect-src ([^;]+)/)[1].trim(), ORIGINS.join(' '));
+  assert.equal(csp.match(/connect-src ([^;]+)/)[1].trim(), DATA.join(' '));
   assert.ok(!/\*/.test(csp), 'no wildcard: ' + csp);
-  assert.equal(csp.match(/img-src ([^;]+)/)[1].trim(), "'self' data: https://api.tomtom.com", 'FB5-MAP: map tiles from TomTom only');
+  assert.equal(csp.match(/img-src ([^;]+)/)[1].trim(), "'self' data:", 'the TomTom map tiles are gone');
+  assert.equal(csp.match(/frame-src ([^;]+)/)[1].trim(), 'https://embed.waze.com', 'the Waze frame only');
+  assert.equal(csp.match(/child-src ([^;]+)/)[1].trim(), 'https://embed.waze.com', 'Chromium 47 reads frames from child-src');
   assert.match(x, /<icon src="img\/icon\.png"\/>/);
   assert.match(x, /<content src="index\.html"\/>/);
 });
 
-// Every host the code reads is in the policy, and nothing else: the feeds, the alert feed, TomTom and Open-Meteo.
+// Every host the code reads is in the policy, and nothing else: the feeds, the alert feed, Mapbox, Open-Meteo, the Waze frame.
 test('every URL in js/config.js is on an origin config.xml allows', () => {
   const urls = [...read('js/config.js').matchAll(/'(https:\/\/[^']+)'/g)].map((m) => new URL(m[1]).origin);
-  assert.ok(urls.length >= 5, urls.join(' '));   // FB5-NS: two feeds instead of three
+  assert.ok(urls.length >= 10, urls.join(' '));
   for (const o of urls) assert.ok(ORIGINS.includes(o), o);
-  for (const o of ORIGINS) assert.ok(urls.includes(o), 'unused origin ' + o);
+  for (const o of DATA.concat('https://embed.waze.com')) assert.ok(urls.includes(o), 'unused origin ' + o);
 });
 
-// The TomTom key never enters the repository: the committed config carries the placeholder, the build replaces it.
-test('js/config.js holds the TomTom placeholder, never a key; build.local.env.example documents TOMTOM_KEY', () => {
-  assert.match(read('js/config.js'), /key: '__TOMTOM_KEY__',/);
+// The Mapbox token never enters the repository: the committed config carries the placeholder, the build replaces it.
+// (Batch 6: the TomTom key is gone with TomTom.)
+test('js/config.js holds the Mapbox placeholder, never a token; build.local.env.example documents MAPBOX_TOKEN', () => {
+  assert.match(read('js/config.js'), /token: '__MAPBOX_TOKEN__',/);
   for (const f of fs.readdirSync(path.join(ROOT, 'js'))) {
-    const keys = [...read('js/' + f).matchAll(/\bkey\s*:\s*'([^']*)'/g)].map((m) => m[1]);
-    assert.ok(keys.every((k) => k === '__TOMTOM_KEY__'), 'js/' + f + ': ' + keys);
+    const keys = [...read('js/' + f).matchAll(/\b(?:key|token)\s*:\s*'([^']*)'/g)].map((m) => m[1]);
+    assert.ok(keys.every((k) => k === '__MAPBOX_TOKEN__'), 'js/' + f + ': ' + keys);
+    assert.ok(!/pk\.eyJ/.test(read('js/' + f)), 'js/' + f + ': no Mapbox token');
   }
-  assert.match(read('build.local.env.example'), /^TOMTOM_KEY=$/m);
+  assert.ok(!/TOMTOM/.test(read('js/config.js') + read('build.sh') + read('build.local.env.example')), 'TomTom gone');
+  assert.match(read('build.local.env.example'), /^MAPBOX_TOKEN=$/m);
   assert.match(read('.gitignore'), /^build\.local\.env$/m);
 });
 
@@ -69,7 +80,10 @@ test('build.sh --package stops after signing, before any TV command', () => {
 
 test('no secrets in the repository files that are packaged', () => {
   for (const f of ['config.xml', 'index.html', ...fs.readdirSync(path.join(ROOT, 'js')).map((f) => 'js/' + f)]) {
-    assert.ok(!/(api[_-]?key|apikey|token|password|OTT_KEY)\s*[:=]/i.test(read(f)), f);
+    // a secret is a literal value given to such a name; the one allowed is the build placeholder
+    const text = read(f).replace("token: '__MAPBOX_TOKEN__'", '');
+    assert.ok(!/(api[_-]?key|apikey|token|password|OTT_KEY)\s*[:=]\s*['"][^'"\n]+['"]/i.test(text), f);
+    assert.ok(!/pk\.eyJ|sk\.eyJ/.test(text), f + ': no Mapbox token');
   }
 });
 
@@ -206,47 +220,49 @@ test('find-tv.sh with TV_DUID installs only on the device that reports it, even 
   assert.match(none.stderr, /none reports TV_DUID=CCCC/);
 });
 
-test('build.sh --package with TOMTOM_KEY puts the key into the packaged config only; without it the placeholder stays', () => {
-  const sb = sandbox('TOMTOM_KEY=AbC123xyz\n');
+test('build.sh --package with MAPBOX_TOKEN puts the token into the packaged config only; without it the placeholder stays', () => {
+  const sb = sandbox('MAPBOX_TOKEN=pk.eyJ1IjoiZXhhbXBsZSJ9.AbC-12_x\n');
   try {
     const r = sb.run(['--package']);
     assert.equal(r.status, 0, r.stderr);
     const packaged = fs.readFileSync(path.join(sb.dir, '.buildResult', 'js', 'config.js'), 'utf8');
-    assert.match(packaged, /key: 'AbC123xyz',/);
-    assert.ok(!packaged.includes('__TOMTOM_KEY__'));
-    assert.match(fs.readFileSync(path.join(sb.dir, 'js', 'config.js'), 'utf8'), /key: '__TOMTOM_KEY__',/, 'the source copy is untouched');
-    assert.match(r.stdout, /TomTom key: injected/);
-    assert.ok(!r.stdout.includes('AbC123xyz'), 'the key is never printed');
+    assert.match(packaged, /token: 'pk\.eyJ1IjoiZXhhbXBsZSJ9\.AbC-12_x',/);
+    assert.ok(!packaged.includes('__MAPBOX_TOKEN__'));
+    assert.match(fs.readFileSync(path.join(sb.dir, 'js', 'config.js'), 'utf8'), /token: '__MAPBOX_TOKEN__',/, 'the source copy is untouched');
+    assert.match(r.stdout, /Mapbox token: injected/);
+    assert.ok(!r.stdout.includes('pk.eyJ1'), 'the token is never printed');
   } finally { sb.close(); }
   const none = sandbox();
   try {
     const r = none.run(['--package']);
     assert.equal(r.status, 0, r.stderr);
-    assert.match(fs.readFileSync(path.join(none.dir, '.buildResult', 'js', 'config.js'), 'utf8'), /key: '__TOMTOM_KEY__',/);
-    assert.match(r.stdout, /TomTom key: not set/);
+    assert.match(fs.readFileSync(path.join(none.dir, '.buildResult', 'js', 'config.js'), 'utf8'), /token: '__MAPBOX_TOKEN__',/);
+    assert.match(r.stdout, /Mapbox token: not set/);
   } finally { none.close(); }
 });
 
-test('build.sh refuses a TOMTOM_KEY with anything but letters and digits, before building', () => {
-  const sb = sandbox("TOMTOM_KEY='abc/def'\n");
-  try {
-    const r = sb.run(['--package']);
-    assert.equal(r.status, 2, r.stdout + r.stderr);
-    assert.match(r.stderr, /TOMTOM_KEY must be letters and digits only/);
-    assert.equal(sb.log(), '', 'tizen never ran');
-    assert.ok(!fs.existsSync(path.join(sb.dir, '.buildResult')), 'nothing built');
-  } finally { sb.close(); }
+test('build.sh refuses a MAPBOX_TOKEN that is not a public token (pk. then letters, digits, . _ -), before building', () => {
+  for (const bad of ["'pk.abc/def'", 'sk.eyJsecret', "'pk.a b'"]) {
+    const sb = sandbox('MAPBOX_TOKEN=' + bad + '\n');
+    try {
+      const r = sb.run(['--package']);
+      assert.equal(r.status, 2, bad + ': ' + r.stdout + r.stderr);
+      assert.match(r.stderr, /MAPBOX_TOKEN must be a public token/);
+      assert.equal(sb.log(), '', 'tizen never ran');
+      assert.ok(!fs.existsSync(path.join(sb.dir, '.buildResult')), 'nothing built');
+    } finally { sb.close(); }
+  }
 });
 
-// FB5C (quota; the judges' COMMON DECISION 2026-10-30 + the owner's explicit-open rule): TomTom's free routing tier is
-// 20,000 items a MONTH (docs.tomtom.com/pricing, read 2026-10-30), shared by every key on the account; every refresh costs
-// one item per route (10). The app sends at any hour while the screen is on view, at most every 25 min (rotation, staying
-// open, wake), on every explicit ◀ ▶ open, and never past 580 items per UTC date (a verified localStorage reservation
-// before every POST, no refunds). Simulated from the app's own code for every pattern, failures and restarts included.
+// FB5C (quota; the judges' COMMON DECISION 2026-10-30 + the owner's explicit-open rule), batch 6 (Mapbox): Mapbox's free
+// tier is 100,000 Directions requests a MONTH; every refresh costs one request per route (10). The app sends at any hour
+// while the screen is on view, at most every 10 min (rotation, staying open, wake), on every explicit ◀ ▶ open, and never
+// past 3,000 requests per UTC date (a verified localStorage reservation before every round, no refunds): 32 × 3,000 =
+// 96,000 (any 31 days touch at most 32 UTC dates). Simulated from the app's own code for every pattern, failures and restarts included.
 const { trafficDays } = require('./traffic-day');
 const ALL = (o) => Object.values(o.perUtcDate);
 
-test('TomTom quota (FB5C-10): every pattern ≤ 580 items per UTC date — failures, refusals, restarts and ◀ ▶ every minute included', () => {
+test('Mapbox quota (FB5C-10): every pattern ≤ 3,000 requests per UTC date — failures, refusals, restarts and ◀ ▶ every minute included', () => {
   const patterns = {
     'rotation on, all answers good': {},
     'rotation on, every round 503': { answer: () => 'http 503' },
@@ -262,30 +278,33 @@ test('TomTom quota (FB5C-10): every pattern ≤ 580 items per UTC date — failu
   for (const [name, o] of Object.entries(patterns)) {
     const d = trafficDays(Object.assign({ days: 2 }, o));
     assert.equal(d.legs, 10);
+    assert.equal(d.cap, 3000);
     assert.equal(d.hidden, 0, name + ': a request while another screen was on view');
-    for (const [date, n] of Object.entries(d.perUtcDate)) assert.ok(n <= 580, name + ': ' + n + ' items on ' + date);
+    assert.equal(d.items, d.batches * 10, name + ': ten requests per round');
+    for (const [date, n] of Object.entries(d.perUtcDate)) assert.ok(n <= 3000, name + ': ' + n + ' requests on ' + date);
     days[name] = d.perUtcDate;
   }
-  console.log('# routing items per UTC date', JSON.stringify(days));
+  console.log('# routing requests per UTC date', JSON.stringify(days));
   const clicks = trafficDays({ visits: 60000, days: 2 });
-  assert.equal(clicks.perUtcDate['2026-10-01'], 580, '◀ ▶ every minute: the cap binds, exactly at 580');
+  assert.equal(clicks.perUtcDate['2026-10-01'], 3000, '◀ ▶ every minute: the cap binds, exactly at 3,000');
   const m = trafficDays({ visits: 60000, days: 31 });
-  assert.ok(m.items <= 32 * 580 && ALL(m).every((n) => n <= 580), '31 days of ◀ ▶ every minute: ' + m.items);
+  assert.ok(m.items <= 32 * 3000 && ALL(m).every((n) => n <= 3000), '31 days of ◀ ▶ every minute: ' + m.items);
+  assert.ok(32 * 3000 < 100000, 'any 31 days (at most 32 UTC dates) stay under the free month');
 });
 
-test('TomTom quota (FB5C-10): parked on traffic — 58 batches per UTC date, requests at every hour, 31 days = 17,860 items', () => {
+test('Mapbox quota (FB5C-10): parked on traffic — 144 rounds per UTC date, requests at every hour, 31 days = 44,650 requests', () => {
   const day = trafficDays({ park: true, start: Date.parse('2026-10-30T00:00:00Z') - 1000, hours: 24 });
-  assert.equal(day.perUtcDate['2026-10-30'], 580, '58 batches on the UTC date');
+  assert.equal(day.perUtcDate['2026-10-30'], 1440, '144 rounds on the UTC date');
   assert.deepEqual([...new Set(day.hours)].sort((a, b) => a - b), [...Array(24).keys()], 'any hour: requests at every Israel hour');
   const failing = trafficDays({ park: true, restart: true, answer: () => 'timeout', start: Date.parse('2026-10-30T00:00:00Z') - 1000, hours: 24 });
-  assert.equal(failing.perUtcDate['2026-10-30'], 580, 'failing + a restart after every dispatch: still 58, 0 extra items per restart');
+  assert.equal(failing.perUtcDate['2026-10-30'], 1440, 'failing + a restart after every round: still 144, 0 extra requests per restart');
   const month = trafficDays({ park: true, days: 31 });
-  assert.equal(month.items, 17860, 'healthy cadence: 10 × ceil(31 × 1440 / 25)');
+  assert.equal(month.items, 44650, 'healthy cadence: 10 × (31 × 1440 / 10 + 1) — one at the open, then every 10 min, the last exactly at the end');
 });
 
-test('TomTom quota (FB5C-10): Jerusalem DST end 2026-10-25 parked — the 25-hour home date gets 60 batches; UTC never clips', () => {
+test('Mapbox quota (FB5C-10): Jerusalem DST end 2026-10-25 parked — the 25-hour home date gets 150 rounds; UTC never clips', () => {
   const start = Date.parse('2026-10-24T21:00:00Z');      // 2026-10-25 00:00 in Israel (summer time)
   const d = trafficDays({ park: true, start: start - 1000, hours: 25 });
-  assert.equal(d.perHomeDate['2026-10-25'], 600, '1,500 min / 25 = 60 batches on the home date');
-  for (const n of ALL(d)) assert.ok(n <= 580);
+  assert.equal(d.perHomeDate['2026-10-25'], 1500, '1,500 min / 10 = 150 rounds on the home date');
+  for (const n of ALL(d)) assert.ok(n <= 3000);
 });

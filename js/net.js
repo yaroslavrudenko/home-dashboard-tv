@@ -1,9 +1,6 @@
 /* HTTP over XMLHttpRequest (Chromium 47 has no fetch), always with a hard timeout. ES5.
  *   Net.request(opts, done)  opts: { url, timeoutMs, method ('GET'), body (string), headers ({}), json (bool) }
- *   Net.getJson(url, timeoutMs, done) / Net.getText(url, timeoutMs, done) / Net.postJson(url, body, timeoutMs, done)
- *   Net.getImage(url, timeoutMs, done)  an image (a map tile) with the same hard deadline: done(error, img) once, error
- *                                       'error' | 'timeout' | 'cancelled'; returns { img, cancel() }. A timeout or cancel
- *                                       removes the handlers and clears src, which stops the download.
+ *   Net.getJson(url, timeoutMs, done) / Net.getText(url, timeoutMs, done)
  * GETs carry no custom header: a plain GET needs no CORS preflight (the alert feed never answers one).
  * done(error, result) is called exactly once: error is a short string ('timeout', 'http 503', 'network', 'parse')
  * or null; result is the parsed JSON (json: true) or the response text. An HTTP error also passes a third argument,
@@ -41,27 +38,6 @@ var Net = (function () {
 
   function getJson(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true }, done); }
   function getText(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs }, done); }
-  function postJson(url, body, timeoutMs, done) {
-    return request({ url: url, timeoutMs: timeoutMs, method: 'POST', body: JSON.stringify(body), json: true,
-      headers: { 'Content-Type': 'application/json' } }, done);
-  }
 
-  function getImage(url, timeoutMs, done) {
-    var img = new Image(), finished = false, timer = null;
-    function finish(err) {
-      if (finished) return;
-      finished = true;
-      if (timer !== null) clearTimeout(timer);
-      img.onload = img.onerror = null;
-      if (err) img.src = '';
-      done(err, err ? null : img);
-    }
-    img.onload = function () { finish(null); };
-    img.onerror = function () { finish('error'); };
-    timer = setTimeout(function () { finish('timeout'); }, timeoutMs);
-    img.src = url;
-    return { img: img, cancel: function () { finish('cancelled'); } };
-  }
-
-  return { request: request, getJson: getJson, getText: getText, postJson: postJson, getImage: getImage };
+  return { request: request, getJson: getJson, getText: getText };
 })();

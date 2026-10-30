@@ -5,8 +5,9 @@
  *                                    it carries (scripts and tags dropped, HTML entities decoded), whitespace
  *                                    collapsed. Feed HTML is never rendered: the views escape this text.
  *   News.merge(lists)                the items of the lists in one list, newest first, each story once
- *   News.createStore(cfg, deps)      every feed in ONE parallel round per refresh (js/refresher.js); column(feedId) gives
- *                                    one feed's top cfg.perColumn stories and that feed's own state
+ *   News.createStore(cfg, deps, lang)  the language's feeds (cfg.columns[].feeds[lang]) in ONE parallel round per refresh
+ *                                    (js/refresher.js); use(lang) switches to another language's feeds at once;
+ *                                    column(columnId) gives its feed's top cfg.perColumn stories and that feed's own state
  * Parsing is a small text scanner (no DOMParser, no XML library), so the same code runs on the TV and in the Node
  * tests; it steps over CDATA sections and comments before it looks for any tag, so "</item>" inside a headline is
  * text, not structure. */
@@ -157,17 +158,26 @@ var News = (function () {
     return out;
   }
 
+  // The feed objects a language shows, one per column, in column order.
+  function feedsFor(cfg, lang) {
+    var byId = {}, out = [], i;
+    for (i = 0; i < cfg.feeds.length; i++) byId[cfg.feeds[i].id] = cfg.feeds[i];
+    for (i = 0; i < cfg.columns.length; i++) out.push(byId[cfg.columns[i].feeds[lang]]);
+    return out;
+  }
+
   // deps: { getText(url, timeoutMs, done), now(), setTimeout, clearTimeout, random() (optional), onChange(store) }
-  function createStore(cfg, deps) {
-    var feeds = cfg.feeds, state = {};
-    for (var i = 0; i < feeds.length; i++) state[feeds[i].id] = { top: [], updatedAt: 0, error: null };
+  // lang: the interface language; only its feeds are fetched (use(lang) switches).
+  function createStore(cfg, deps, lang) {
+    var feeds = feedsFor(cfg, lang), state = {}, cycle = null;
+    for (var i = 0; i < cfg.feeds.length; i++) state[cfg.feeds[i].id] = { top: [], updatedAt: 0, error: null };
 
     // Each feed's top stories are cut once per answer (de-duplicated, newest first), not per render.
-    function accept(answers) {
+    function accept(round, answers) {
       var failed = false;
-      for (var i = 0; i < feeds.length; i++) {
-        var s = state[feeds[i].id], a = answers[i], items = null;
-        if (!a.err) { try { items = parse(a.text, feeds[i].id, cfg.perFeed); } catch (e) { items = null; } }
+      for (var i = 0; i < round.length; i++) {
+        var s = state[round[i].id], a = answers[i], items = null;
+        if (!a.err) { try { items = parse(a.text, round[i].id, cfg.perFeed); } catch (e) { items = null; } }
         // An answer with no story at all (an error page served as 200) is a failure, not an empty feed.
         if (items && items.length) { s.top = merge([items]).slice(0, cfg.perColumn); s.updatedAt = deps.now(); s.error = null; }
         else { s.error = a.err || 'parse'; failed = true; }
@@ -181,26 +191,44 @@ var News = (function () {
       return s.error || age < 0 || age > cfg.staleAfterMs ? 'stale' : 'fresh';
     }
 
-    // Every feed at once; the answers are applied together, so one refresh renders once.
-    var cycle = Refresher.create(cfg, deps, function (finish) {
-      var answers = [], pending = feeds.length;
-      for (var i = 0; i < feeds.length; i++) (function (i) {
-        deps.getText(feeds[i].url, cfg.timeoutMs, function (err, text) {
-          answers[i] = { err: err, text: text };
-          if (--pending === 0) finish(function () { return accept(answers); });
-        });
-      })(i);
-    }, function () { deps.onChange(api); });
+    // Every feed of the language at once; the answers are applied together, so one refresh renders once.
+    function newCycle() {
+      return Refresher.create(cfg, deps, function (finish) {
+        var round = feeds, answers = [], pending = round.length;
+        for (var i = 0; i < round.length; i++) (function (i) {
+          deps.getText(round[i].url, cfg.timeoutMs, function (err, text) {
+            answers[i] = { err: err, text: text };
+            if (--pending === 0) finish(function () { return accept(round, answers); });
+          });
+        })(i);
+      }, function () { deps.onChange(api); });
+    }
+    cycle = newCycle();
 
     var api = {
-      refresh: cycle.refresh,
-      // One column: { items: the feed's top cfg.perColumn stories (the last good ones while it fails), kind, updatedAt }.
-      column: function (feedId) {
-        var s = state[feedId];
-        return { items: s.top, kind: kindOf(s, deps.now()), updatedAt: s.updatedAt };
+      refresh: function () { return cycle.refresh(); },
+      // Another language: its feeds at once, a fresh cycle (the old one's late answers change nothing; its back-off is
+      // forgotten). What a feed showed before stays with it, so coming back shows those stories while they refresh.
+      use: function (l) {
+        if (l === lang) return;
+        lang = l;
+        feeds = feedsFor(cfg, l);
+        cycle.stop();
+        cycle = newCycle();
+        cycle.refresh();
       },
-      // kind: 'loading' | 'failed' (nothing yet) | 'fresh' | 'stale' (some feed failed or is old); `failed` lists the
-      // sources whose stories are not current; updatedAt is the latest successful answer.
+      // One column (Config.news.columns id) in the current language: { source (its feed id), items (the feed's top
+      // cfg.perColumn stories, the last good ones while it fails), kind, updatedAt }.
+      column: function (columnId) {
+        for (var i = 0; i < cfg.columns.length; i++) {
+          if (cfg.columns[i].id !== columnId) continue;
+          var s = state[feeds[i].id];
+          return { source: feeds[i].id, items: s.top, kind: kindOf(s, deps.now()), updatedAt: s.updatedAt };
+        }
+        return null;
+      },
+      // The current language's feeds: kind 'loading' | 'failed' (nothing yet) | 'fresh' | 'stale' (some feed failed or
+      // is old); `failed` lists the sources whose stories are not current; updatedAt is the latest successful answer.
       status: function () {
         var any = false, errors = 0, latest = 0, failed = [], now = deps.now();
         for (var i = 0; i < feeds.length; i++) {
@@ -214,8 +242,8 @@ var News = (function () {
         if (!any) return { kind: errors === feeds.length ? 'failed' : 'loading', failed: failed };
         return { kind: failed.length ? 'stale' : 'fresh', updatedAt: latest, failed: failed };
       },
-      nextAt: cycle.nextAt,
-      stop: cycle.stop
+      nextAt: function () { return cycle.nextAt(); },
+      stop: function () { cycle.stop(); }
     };
     return api;
   }

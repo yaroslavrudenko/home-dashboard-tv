@@ -72,7 +72,7 @@ var Alerts = (function () {
     return { minutes: m ? +m[1] : null };
   }
 
-  /* The one lifetime rule, per configured place (`places`: { he, name }):
+  /* The one lifetime rule, per configured place (`places`: { he, ru, uk }):
    *   listed       lastSeenAt = now; absence cleared; holdUntil ≥ now + max(graceMs, the instruction's minutes or
    *                defaultHoldMs), the longest of every record in the answer that covers the place.
    *   not listed   (a SUCCESSFUL poll) absence starts; the place clears at the first such poll at or after
@@ -110,20 +110,22 @@ var Alerts = (function () {
     }
     function failed() { for (var he in tracks) if (tracks.hasOwnProperty(he)) tracks[he].absentSince = null; }
 
-    // The places on view (config order) and the most recently listed record for the words.
+    // The places on view (config order; the view names them in the interface language) and the most recently listed
+    // record for the words.
     function refreshView(now) {
-      var names = [], latest = null;
+      var on = [], ids = [], latest = null;
       for (var j = 0; j < places.length; j++) {
         var t = tracks[places[j].he];
         if (!t) continue;
-        names.push(places[j].name);
+        on.push(places[j]);
+        ids.push(places[j].he);
         if (!latest || t.lastSeenAt > latest.lastSeenAt) latest = t;
       }
       if (!latest) { startedAt = 0; shown = null; return shown; }
       if (!startedAt) startedAt = now;
       var r = latest.record;
-      if (!shown || shown.title !== r.title || shown.desc !== r.desc || shown.names.join('|') !== names.join('|') || shown.startedAt !== startedAt) {
-        shown = { title: r.title, desc: r.desc, kind: kind(r.title), instruction: instruction(r.desc), names: names, startedAt: startedAt };
+      if (!shown || shown.title !== r.title || shown.desc !== r.desc || shown.ids !== ids.join('|') || shown.startedAt !== startedAt) {
+        shown = { title: r.title, desc: r.desc, kind: kind(r.title), instruction: instruction(r.desc), places: on, ids: ids.join('|'), startedAt: startedAt };
       }
       return shown;
     }

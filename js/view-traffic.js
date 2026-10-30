@@ -1,6 +1,6 @@
 /* The Traffic screen: two columns of five widgets — the owner's ten routes from Rehovot («Города», «Рядом»; the main
  * roads are on the traffic map screen). Every widget is the same: the name and a coloured chip (the delay), the time now
- * and the length, and a time bar. Without a TomTom key: one calm card saying how to connect it. ES5. */
+ * and the length, and a time bar. Without a Mapbox token: one calm card saying how to connect it. ES5. */
 var TrafficView = (function () {
   var esc = Html.esc;
   var els = {}, drawn = '';
@@ -16,16 +16,17 @@ var TrafficView = (function () {
   function minutesHtml(sec) { return esc(minutes(sec)).replace(/(\s*[^\d\s]+)/g, '<span class="unit">$1</span>'); }
 
   function init(el) {
-    el.innerHTML = Html.screenHead(I18n.t('screen.traffic'), 'traffic-status', 'traffic-note') + '<div class="screen-body traffic-body" id="traffic-body"></div>';
+    el.innerHTML = Html.screenHead('screen.traffic', 'traffic-status', 'traffic-note') + '<div class="screen-body traffic-body" id="traffic-body"></div>';
     els = { body: el.querySelector('#traffic-body'), status: el.querySelector('#traffic-status'), note: el.querySelector('#traffic-note') };
     drawn = '';
   }
 
-  // The time bar: the free-flow part in quiet white, the delay in the level's colour. The widgets of a column share
-  // one scale (its longest trip), so bars compare within each column. Without data: the empty track only.
+  // The time bar: the usual part of the trip in quiet white, the delay over the usual in the level's colour (a trip
+  // faster than usual is all white). The widgets of a column share one scale (its longest trip), so bars compare within
+  // each column. Without data: the empty track only.
   function bar(d, level, scale) {
     if (!d) return '<div class="tbar"></div>';
-    var free = d.free / scale * 100, delay = d.delay / scale * 100;
+    var free = (d.travel - d.delay) / scale * 100, delay = d.delay / scale * 100;
     return '<div class="tbar"><div class="tbar-free" style="width:' + free.toFixed(1) + '%"></div>' +
       (d.delay >= NOTABLE_DELAY ? '<div class="tbar-delay lv-' + level + '" style="left:' + free.toFixed(1) + '%;width:' + delay.toFixed(1) + '%"></div>' : '') + '</div>';
   }
@@ -71,8 +72,8 @@ var TrafficView = (function () {
 
   // No key: the calm invitation. Drawn once.
   function renderNoKey() {
-    if (drawn === 'nokey') return;
-    drawn = 'nokey';
+    if (drawn === 'nokey' + I18n.lang()) return;
+    drawn = 'nokey' + I18n.lang();
     els.body.innerHTML = Html.emptyCard('traffic-empty', Icons.glyph('car'), I18n.t('t.noKey'), I18n.t('t.noKeySub'));
     Html.setStatus(els.status, 'status screen-status', 'none', '');
   }

@@ -1,9 +1,12 @@
 'use strict';
-// Traffic (TomTom Routing API, tested on the documented batch shapes in tests/fixtures/tomtom). One batch request for
-// the ten routes, summaries only, levels, partial failures — and WHEN a refresh is sent (the judges' COMMON DECISION,
-// fix batch 5c, with the owner's explicit-open rule): one gate (Traffic.decide) for every path — at most one attempt per
-// 25 min while the screen is on view (rotation arrivals, staying open, wake), at any hour; an explicit ◀ ▶ open sends
-// every time; a verified localStorage reservation before every POST, no refunds, 580 items per UTC date.
+// Traffic (Mapbox Directions API, profile driving-traffic; tested on the documented answer shape in
+// tests/fixtures/mapbox/routes.json — built from Mapbox's Directions reference with the coordinator's live figures of
+// 2026-10-30 16:28 for Tel Aviv, Jerusalem, Haifa, the airport and Holon; the suite never reaches the network). One GET
+// per route, the ten in parallel, levels, partial failures — and WHEN a round is sent (the judges' COMMON DECISION, fix
+// batch 5c, with the owner's explicit-open rule; batch 6: Mapbox's numbers): one gate (Traffic.decide) for every path —
+// at most one attempt per 10 min while the screen is on view (rotation arrivals, staying open, wake), at any hour; an
+// explicit ◀ ▶ open sends every time; a verified localStorage reservation before every round, no refunds, 3,000
+// requests per UTC date.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -15,12 +18,14 @@ const T0 = Date.parse('2026-10-29T18:34:00Z');     // 20:34 in Israel (winter ti
 const NOON = Date.parse('2026-10-30T12:00:00Z');
 const FUTURE = Date.parse('2099-01-01T12:00:00Z');
 const MIN = 60000, DAY = 86400000;
-const batch = () => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'tomtom', 'batch.json'), 'utf8'));
+const TOKEN = 'pk.eyJ1IjoiZml4dHVyZSJ9.fixture_token-1';
+// The ten answers of one round, in route order: a Directions answer (JSON) or a transport error ('timeout', 'http 503').
+const ok = () => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'mapbox', 'routes.json'), 'utf8'));
 const plain = (v) => JSON.parse(JSON.stringify(v));
-const withKey = (ctx) => { ctx.Config.traffic.key = 'FIXTUREKEY123'; return ctx.Config.traffic; };
-const NO_ROUTE = { statusCode: 400, response: { error: { description: 'Engine error while executing route request: NO_ROUTE_FOUND' } } };
-const failing = (code, description) => ({ statusCode: code, response: { error: { description: description || 'Server error ' + code } } });
-const withItems = (map) => { const b = batch(); for (const k of Object.keys(map)) b.batchItems[k] = map[k]; return b; };
+const withToken = (ctx) => { ctx.Config.traffic.token = TOKEN; return ctx.Config.traffic; };
+const NO_ROUTE = { code: 'NoRoute', message: 'No route found', routes: [] };
+const MALFORMED = Array.from({ length: 10 }, () => ({ message: 'Not Found' }));
+const withItems = (map) => { const b = ok(); for (const k of Object.keys(map)) b[k] = map[k]; return b; };
 
 // localStorage stand-in with an operation log. mode: 'throw' (every call throws: private mode, a TV without storage),
 // 'throw-set' (writes throw), 'readback' (writes land but read back as something else).
@@ -33,74 +38,84 @@ function memoryStorage(mode) {
 }
 const rec = (storage) => JSON.parse(storage.map.get('tt-quota'));
 
-// opts: start, storage (null: none), preset (the stored record text), documentVisible, onPost(storage) at POST time.
+// opts: start, storage (null: none), preset (the stored record text), documentVisible, onPost(storage) when a round starts.
+// calls: one entry per ROUND (the ten GETs the store starts together): { urls, dones, timeoutMs }.
 function makeStore(ctx, opts) {
   opts = opts || {};
   const clock = fakeTimers(opts.start || T0);
   const calls = [], storage = opts.storage === undefined ? memoryStorage() : opts.storage;
   if (opts.preset) storage.map.set('tt-quota', opts.preset);
-  const store = ctx.Traffic.createStore(withKey(ctx), {
-    postJson: (url, body, timeoutMs, done) => { if (storage) storage.log.push('post'); if (opts.onPost) opts.onPost(storage); calls.push({ url, body, timeoutMs, done }); },
+  const store = ctx.Traffic.createStore(withToken(ctx), {
+    getJson: (url, timeoutMs, done) => {
+      let round = calls[calls.length - 1];
+      if (!round || round.urls.length === 10) {
+        if (storage) storage.log.push('post');
+        if (opts.onPost) opts.onPost(storage);
+        calls.push(round = { urls: [], dones: [], timeoutMs });
+      }
+      round.urls.push(url); round.dones.push(done);
+    },
     now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, documentVisible: opts.documentVisible,
     storage, onChange: () => {} });
   return { store, clock, calls, storage };
 }
-const answer = (s, x) => s.calls[s.calls.length - 1].done(typeof x === 'string' ? x : null, typeof x === 'string' ? undefined : x);
+// Answers the last round: x a transport error for all ten ('timeout', 'http 429') or the ten answers (ok(), withItems()).
+const answer = (s, x) => {
+  const r = s.calls[s.calls.length - 1];
+  r.dones.forEach((done, i) => { const v = typeof x === 'string' ? x : x[i]; if (typeof v === 'string') done(v); else done(null, v); });
+};
 
-test('no key until the build injects one: the committed placeholder and anything but letters and digits are refused', () => {
+test('no token until the build injects one: the committed placeholder and anything but a public token are refused', () => {
   const ctx = load(FILES);
-  assert.equal(ctx.Traffic.hasKey(ctx.Config.traffic), false, 'the placeholder');
-  for (const k of ['', 'abc def', 'abc&x=1', undefined]) assert.equal(ctx.Traffic.hasKey({ key: k }), false, String(k));
-  assert.equal(ctx.Traffic.hasKey({ key: 'Ab12Cd34' }), true);
+  assert.equal(ctx.Traffic.hasToken(ctx.Config.traffic), false, 'the placeholder');
+  for (const k of ['', 'pk.', 'sk.eyJabc.def', 'pk.abc def', 'pk.abc&x=1', 'abc', undefined]) assert.equal(ctx.Traffic.hasToken({ token: k }), false, String(k));
+  assert.equal(ctx.Traffic.hasToken({ token: TOKEN }), true);
 });
 
-test('FB5B-T1: ONE batch request carries the ten routes (no roads), summaries only (no geometry), with live traffic', () => {
+test('Mapbox: one GET per route, the ten routes (no roads), driving-traffic, no geometry, lon,lat order, the token encoded', () => {
   const ctx = load(FILES);
-  const cfg = withKey(ctx);
-  assert.equal(cfg.roads, undefined, 'the road widgets are gone: highways are watched on the map screen');
-  const r = ctx.Traffic.request(cfg);
-  const u = new URL(r.url);
-  assert.equal(u.origin + u.pathname, 'https://api.tomtom.com/routing/1/batch/sync/json');
-  assert.equal(u.searchParams.get('key'), 'FIXTUREKEY123');
-  assert.equal(r.body.batchItems.length, 10);
-  assert.equal(r.body.batchItems[0].query, '/calculateRoute/31.8928,34.8113:32.0853,34.7818/json?travelMode=car&routeType=fastest&traffic=true&computeTravelTimeFor=all&routeRepresentation=summaryOnly');
-  for (const it of r.body.batchItems) assert.match(it.query, /routeRepresentation=summaryOnly/);
+  const cfg = withToken(ctx);
+  assert.equal(cfg.roads, undefined, 'the road widgets are gone: the live picture is on the map screen');
+  const u = ctx.Traffic.urls(cfg);
+  assert.equal(u.length, 10);
+  assert.equal(u[0], 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/34.8113,31.8928;34.7818,32.0853?overview=false&access_token=' + encodeURIComponent(TOKEN));
+  for (const x of u) assert.match(x, /^https:\/\/api\.mapbox\.com\/directions\/v5\/mapbox\/driving-traffic\/34\.8113,31\.8928;[\d.]+,[\d.]+\?overview=false&access_token=/);
 });
 
-test('the batch answer: travel time, time without traffic, delay and length per item; a failed item is null', () => {
+test('an answer: travel time now, the usual time at this hour, the delay over it and the length; anything but a route is null', () => {
   const ctx = load(FILES);
-  const list = plain(ctx.Traffic.parse(batch(), 10));
-  assert.deepEqual(list[0], { travel: 2310, free: 1490, delay: 820, length: 27412 });
-  assert.equal(plain(ctx.Traffic.parse(withItems({ 3: NO_ROUTE }), 10))[3], null, 'NO_ROUTE_FOUND');
-  assert.throws(() => ctx.Traffic.parse({ error: 'Unauthorized' }, 10), /not a batch answer/);
-  const noFree = { batchItems: [{ statusCode: 200, response: { routes: [{ summary: { travelTimeInSeconds: 600, trafficDelayInSeconds: 120 } }] } }] };
-  assert.deepEqual(plain(ctx.Traffic.parse(noFree, 1))[0], { travel: 600, free: 480, delay: 120, length: null }, 'free flow from the delay when absent');
+  assert.deepEqual(plain(ctx.Traffic.summary(ok()[0])), { travel: 1920.4, free: 2358.1, delay: 0, length: 27412.3 }, 'faster than usual: no delay');
+  const r = plain(ctx.Traffic.summary(ok()[6]));
+  assert.deepEqual([r.travel, r.free, r.delay.toFixed(1), r.length], [1262.9, 781.5, '481.4', 11804.1]);
+  for (const bad of [NO_ROUTE, { message: 'Not Found' }, null, { code: 'Ok', routes: [] }, { code: 'Ok', routes: [{ duration: -1 }] }]) assert.equal(ctx.Traffic.summary(bad), null, JSON.stringify(bad));
+  const noTypical = { code: 'Ok', routes: [{ duration: 600, distance: 5000 }] };
+  assert.deepEqual(plain(ctx.Traffic.summary(noTypical)), { travel: 600, free: 600, delay: 0, length: 5000 }, 'no typical time: no delay claimed');
 });
 
-test('levels: green below ×1.15 of free flow, amber below ×1.5, red from ×1.5', () => {
+test('levels: green below ×1.15 of the usual time, amber below ×1.5, red from ×1.5', () => {
   const ctx = load(FILES);
   const cfg = ctx.Config.traffic;
   const lv = (travel, free) => ctx.Traffic.level({ travel, free }, cfg);
   assert.deepEqual([lv(1000, 1000), lv(1149, 1000), lv(1150, 1000), lv(1499, 1000), lv(1500, 1000), lv(60, 0)], ['ok', 'ok', 'slow', 'slow', 'jam', 'ok']);
-  assert.deepEqual(plain(ctx.Traffic.parse(batch(), 10).slice(0, 6).map((s) => ctx.Traffic.level(s, cfg))), ['jam', 'ok', 'slow', 'ok', 'ok', 'slow']);
+  assert.deepEqual(plain(ok().map((a) => ctx.Traffic.level(ctx.Traffic.summary(a), cfg))), ['ok', 'ok', 'ok', 'slow', 'ok', 'ok', 'jam', 'ok', 'ok', 'ok']);
 });
 
 // FB5C (judges' COMMON DECISION 2026-10-30 + the owner's explicit-open rule): the schedule is configuration.
-test('FB5C-1: the schedule config — 25-min gate at any hour, an explicit open always, 580 items per UTC date; no window, no month cap', () => {
+test('FB5C-1: the schedule config — 10-min gate at any hour, an explicit open always, 3,000 requests per UTC date; no window, no month cap', () => {
   const ctx = load(FILES);
   const t = ctx.Config.traffic;
-  assert.deepEqual(plain(t.schedule), { minIntervalMs: 25 * MIN, openMinIntervalMs: 0, dailyItemCap: 580 });
-  for (const k of ['monthlyCap', 'refreshMs', 'visibleRefreshMs', 'retryMs']) assert.equal(t[k], undefined, k + ' is gone');
+  assert.deepEqual(plain(t.schedule), { minIntervalMs: 10 * MIN, openMinIntervalMs: 0, dailyRequestCap: 3000 });
+  for (const k of ['monthlyCap', 'refreshMs', 'visibleRefreshMs', 'retryMs', 'key']) assert.equal(t[k], undefined, k + ' is gone');
   assert.equal(t.timeoutMs, 20000);
   assert.equal(t.staleAfterMs, 30 * MIN);
 });
 
 // THE gate: one function, every path asks it. A table of facts → verdict.
-test('FB5C-1: Traffic.decide — the table (any hour, 24:59.999 blocked, 25:00 allowed, explicit open, the UTC-date cap, storage)', () => {
+test('FB5C-1: Traffic.decide — the table (any hour, 9:59.999 blocked, 10:00 allowed, explicit open, the UTC-date cap, storage)', () => {
   const ctx = load(FILES);
   const cfg = plain(ctx.Config.traffic);
   const base = { selected: true, visible: true, explicitOpen: false, busy: false, storage: true, now: NOON, utcDate: '2026-10-30', used: 0,
-    lastAttemptAt: 0, retryNotBefore: 0, items: 10 };
+    lastAttemptAt: 0, retryNotBefore: 0, requests: 10 };
   const rows = [
     ['first install: no record, no cooldown', {}, 'due'],
     ['not the screen on view', { selected: false }, 'hidden'],
@@ -108,18 +123,18 @@ test('FB5C-1: Traffic.decide — the table (any hour, 24:59.999 blocked, 25:00 a
     ['a batch in flight', { busy: true }, 'busy'],
     ['a batch in flight, explicit open', { busy: true, explicitOpen: true }, 'busy'],
     ['storage unusable', { storage: false }, 'storage'],
-    ['last attempt 24:59.999 ago', { lastAttemptAt: NOON - 25 * MIN + 1 }, 'floor'],
-    ['last attempt 25:00 ago', { lastAttemptAt: NOON - 25 * MIN }, 'due'],
+    ['last attempt 9:59.999 ago', { lastAttemptAt: NOON - 10 * MIN + 1 }, 'floor'],
+    ['last attempt 10:00 ago', { lastAttemptAt: NOON - 10 * MIN }, 'due'],
     ['03:00 at home (any hour)', { now: Date.parse('2026-10-30T01:00:00Z'), lastAttemptAt: 0 }, 'due'],
     ['explicit open 5 s after the last attempt', { lastAttemptAt: NOON - 5000, explicitOpen: true }, 'due'],
     ['explicit open right at the last attempt', { lastAttemptAt: NOON, explicitOpen: true }, 'due'],
-    ['TomTom deadline ahead', { retryNotBefore: NOON + 1 }, 'floor'],
-    ['TomTom deadline reached', { retryNotBefore: NOON }, 'due'],
-    ['570 used + 10 = 580', { used: 570 }, 'due'],
-    ['571 used + 10 > 580', { used: 571 }, 'cap'],
-    ['571 used, explicit open: the cap binds', { used: 571, explicitOpen: true }, 'cap'],
-    ['580 used on yesterday\'s UTC date', { used: 580, utcDate: '2026-10-29' }, 'due'],
-    ['capped and inside the floor: the cap is said', { used: 580, lastAttemptAt: NOON - MIN }, 'cap']
+    ['refusal deadline ahead', { retryNotBefore: NOON + 1 }, 'floor'],
+    ['refusal deadline reached', { retryNotBefore: NOON }, 'due'],
+    ['2,990 used + 10 = 3,000', { used: 2990 }, 'due'],
+    ['2,991 used + 10 > 3,000', { used: 2991 }, 'cap'],
+    ['2,991 used, explicit open: the cap binds', { used: 2991, explicitOpen: true }, 'cap'],
+    ['3,000 used on yesterday\'s UTC date', { used: 3000, utcDate: '2026-10-29' }, 'due'],
+    ['capped and inside the floor: the cap is said', { used: 3000, lastAttemptAt: NOON - MIN }, 'cap']
   ];
   for (const [name, facts, want] of rows) assert.equal(ctx.Traffic.decide(cfg, Object.assign({}, base, facts)), want, name);
 });
@@ -130,7 +145,7 @@ test('FB5C-4: Traffic.correct — a future attempt time is rebased to now, a fut
   assert.equal(ctx.Traffic.correct(rec({}), NOON), null, 'a sane record');
   assert.deepEqual(plain(ctx.Traffic.correct(rec({ lastAttemptAt: NOON + 1 }), NOON)), rec({ lastAttemptAt: NOON }));
   assert.deepEqual(plain(ctx.Traffic.correct(rec({ utcDate: '2099-01-01', lastAttemptAt: FUTURE, retryNotBefore: NOON + DAY }), NOON)),
-    rec({ utcDate: '2026-10-30', lastAttemptAt: NOON, retryNotBefore: NOON + DAY }), 'both: used and the TomTom deadline kept, no fresh budget');
+    rec({ utcDate: '2026-10-30', lastAttemptAt: NOON, retryNotBefore: NOON + DAY }), 'both: used and the refusal deadline kept, no fresh budget');
   assert.deepEqual(plain(ctx.Traffic.correct(rec({ utcDate: '2026-10-31' }), NOON)), rec({}), 'a date ahead, the attempt not');
 });
 
@@ -146,18 +161,18 @@ test('FB5C-1: hidden = 0 requests: a whole day with the screen never on view, or
   assert.equal(off.calls.length, 0, 'document hidden');
 });
 
-test('FB5C-1: rotation arrivals, the tick on view and wake share the 25-min gate, at any hour; no catch-up', () => {
+test('FB5C-1: rotation arrivals, the tick on view and wake share the 10-min gate, at any hour; no catch-up', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx, { start: Date.parse('2026-10-30T01:00:00Z') });   // 03:00 at home
   s.store.setVisible(true);
   assert.equal(s.calls.length, 1, '03:00: sent');
   assert.equal(s.calls[0].timeoutMs, 20000);
-  s.clock.advance(400); answer(s, batch());
-  for (let i = 0; i < 24; i++) { s.store.setVisible(false); s.clock.advance(30000); s.store.setVisible(true); s.store.wake(); s.clock.advance(30000); }
-  assert.equal(s.calls.length, 1, '24 min of rotation arrivals and wakes: nothing');
+  s.clock.advance(400); answer(s, ok());
+  for (let i = 0; i < 9; i++) { s.store.setVisible(false); s.clock.advance(30000); s.store.setVisible(true); s.store.wake(); s.clock.advance(30000); }
+  assert.equal(s.calls.length, 1, '9 min of rotation arrivals and wakes: nothing');
   s.clock.advance(MIN);
-  assert.equal(s.calls.length, 2, 'on view at 25:00: the timer');
-  answer(s, batch());
+  assert.equal(s.calls.length, 2, 'on view at 10:00: the timer');
+  answer(s, ok());
   s.store.setVisible(false);
   s.clock.advance(3 * 60 * MIN);
   assert.equal(s.calls.length, 2, 'hidden: nothing');
@@ -172,7 +187,7 @@ test('FB5C-1: an explicit ◀ ▶ open sends every time — 5 s after the last a
   const ctx = load(FILES);
   const s = makeStore(ctx);
   s.store.setVisible(true);
-  s.clock.advance(400); answer(s, batch());
+  s.clock.advance(400); answer(s, ok());
   s.clock.advance(5000);
   s.store.setVisible(false);
   s.store.setVisible(true, true);
@@ -180,10 +195,10 @@ test('FB5C-1: an explicit ◀ ▶ open sends every time — 5 s after the last a
   s.store.setVisible(false);
   s.store.setVisible(true, true);
   assert.equal(s.calls.length, 2, 'open while that batch is in flight: nothing');
-  answer(s, batch());
+  answer(s, ok());
   s.store.setVisible(false); s.clock.advance(1000);
   s.store.setVisible(true);
-  assert.equal(s.calls.length, 2, 'a rotation arrival 1 s later: the 25-min gate');
+  assert.equal(s.calls.length, 2, 'a rotation arrival 1 s later: the 10-min gate');
   assert.equal(rec(s.storage).used, 20);
 });
 
@@ -195,21 +210,21 @@ test('FB5C-2: the reservation {utcDate, used + 10, lastAttemptAt} is written and
   assert.deepEqual(seen[0], { v: 1, utcDate: '2026-10-29', used: 10, lastAttemptAt: T0, retryNotBefore: 0 }, 'stored before the POST');
   const log = s.storage.log, post = log.indexOf('post');
   assert.deepEqual(log.slice(post - 2, post + 1), ['set tt-quota', 'get tt-quota', 'post'], 'written, read back, then sent: ' + log);
-  s.clock.advance(19000); answer(s, batch());
+  s.clock.advance(19000); answer(s, ok());
   assert.equal(rec(s.storage).lastAttemptAt, T0, 'the answer does not move lastAttemptAt');
 });
 
-test('FB5C-2: no refunds, no separate retry path — failure, timeout, malformed batch or refusal waits the same 25 min', () => {
+test('FB5C-2: no refunds, no separate retry path — failure, timeout, malformed answer or refusal waits the same 10 min', () => {
   const ctx = load(FILES);
-  for (const x of ['timeout', 'http 503', 'http 429', 'http 403', { batchItems: [] }, withItems({ 2: failing(503) })]) {
+  for (const x of ['timeout', 'http 503', 'http 429', 'http 403', MALFORMED, withItems({ 2: 'http 503' })]) {
     const s = makeStore(ctx);
     s.store.setVisible(true);
     answer(s, x);
     assert.equal(rec(s.storage).used, 10, JSON.stringify(x).slice(0, 24) + ': no refund');
-    s.clock.advance(25 * MIN - 1);
+    s.clock.advance(10 * MIN - 1);
     assert.equal(s.calls.length, 1, JSON.stringify(x).slice(0, 24) + ': nothing sooner');
     s.clock.advance(1);
-    assert.equal(s.calls.length, 2, JSON.stringify(x).slice(0, 24) + ': at 25:00');
+    assert.equal(s.calls.length, 2, JSON.stringify(x).slice(0, 24) + ': at 10:00');
   }
 });
 
@@ -233,43 +248,43 @@ test('FB5C-5: storage unusable, missing, corrupt, non-finite, or a failed read-b
   }
 });
 
-test('FB5C-3: 580 items per UTC date — the cap stops at 580 with no refund; the next UTC date starts again; the resume time', () => {
+test('FB5C-3: 3,000 requests per UTC date — the cap stops at 3,000 with no refund; the next UTC date starts again; the resume time', () => {
   const ctx = load(FILES);
   const storage = memoryStorage();
-  storage.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-30', used: 570, lastAttemptAt: 0, retryNotBefore: 0 }));
+  storage.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-30', used: 2990, lastAttemptAt: 0, retryNotBefore: 0 }));
   const s = makeStore(ctx, { start: Date.parse('2026-10-30T23:00:00Z'), storage });
   s.store.setVisible(true);
   answer(s, 'timeout');
-  assert.equal(rec(storage).used, 580, 'the 58th batch: 580, failed, not refunded');
+  assert.equal(rec(storage).used, 3000, 'the 300th round: 3,000, failed, not refunded');
   s.store.setVisible(false); s.store.setVisible(true, true);
   assert.equal(s.calls.length, 1, 'capped: an explicit open sends nothing');
   const st = s.store.status();
   assert.equal(st.problem, 'cap');
-  assert.equal(st.resumeAt, Date.parse('2026-10-31T00:00:00Z'), 'max(next 00:00 UTC, last + 25 min)');
+  assert.equal(st.resumeAt, Date.parse('2026-10-31T00:00:00Z'), 'max(next 00:00 UTC, last + 10 min)');
   s.clock.advance(60 * MIN);
   assert.equal(s.calls.length, 2, 'the next UTC date');
   assert.deepEqual([rec(storage).utcDate, rec(storage).used], ['2026-10-31', 10]);
   // the resume time is the later of the two when the attempt was close to midnight
   const late = memoryStorage();
-  late.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-30', used: 580, lastAttemptAt: Date.parse('2026-10-30T23:50:00Z'), retryNotBefore: 0 }));
-  assert.equal(makeStore(ctx, { start: Date.parse('2026-10-30T23:55:00Z'), storage: late }).store.status().resumeAt, Date.parse('2026-10-31T00:15:00Z'));
+  late.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-30', used: 3000, lastAttemptAt: Date.parse('2026-10-30T23:55:00Z'), retryNotBefore: 0 }));
+  assert.equal(makeStore(ctx, { start: Date.parse('2026-10-30T23:57:00Z'), storage: late }).store.status().resumeAt, Date.parse('2026-10-31T00:05:00Z'));
 });
 
-test('FB5C-4: a restart at +24:59.999 is blocked, +25:00 allowed; a restart costs 0 extra items', () => {
+test('FB5C-4: a restart at +9:59.999 is blocked, +10:00 allowed; a restart costs 0 extra requests', () => {
   const ctx = load(FILES);
   const storage = memoryStorage();
   const a = makeStore(ctx, { storage });
-  a.store.setVisible(true); answer(a, batch()); a.store.stop();
-  const b = makeStore(ctx, { storage, start: T0 + 25 * MIN - 1 });
+  a.store.setVisible(true); answer(a, ok()); a.store.stop();
+  const b = makeStore(ctx, { storage, start: T0 + 10 * MIN - 1 });
   b.store.setVisible(true); b.store.wake();
-  assert.equal(b.calls.length, 0, '+24:59.999');
-  const c = makeStore(ctx, { storage, start: T0 + 25 * MIN });
+  assert.equal(b.calls.length, 0, '+9:59.999');
+  const c = makeStore(ctx, { storage, start: T0 + 10 * MIN });
   c.store.setVisible(true);
-  assert.equal(c.calls.length, 1, '+25:00');
+  assert.equal(c.calls.length, 1, '+10:00');
   assert.equal(rec(storage).used, 20);
 });
 
-test('FB5C-4: an attempt time in the future is rebased to now: nothing sent then, the next attempt 25 min later', () => {
+test('FB5C-4: an attempt time in the future is rebased to now: nothing sent then, the next attempt 10 min later', () => {
   const ctx = load(FILES);
   const storage = memoryStorage();
   storage.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-29', used: 40, lastAttemptAt: T0 + 3 * DAY, retryNotBefore: 0 }));
@@ -277,23 +292,23 @@ test('FB5C-4: an attempt time in the future is rebased to now: nothing sent then
   s.store.setVisible(true, true);
   assert.equal(s.calls.length, 0, 'the correction sends nothing (an explicit open too)');
   assert.deepEqual(rec(storage), { v: 1, utcDate: '2026-10-29', used: 40, lastAttemptAt: T0, retryNotBefore: 0 });
-  s.clock.advance(25 * MIN - 1);
+  s.clock.advance(10 * MIN - 1);
   assert.equal(s.calls.length, 0);
   s.clock.advance(1);
-  assert.equal(s.calls.length, 1, '25 min after the rebase');
+  assert.equal(s.calls.length, 1, '10 min after the rebase');
   assert.equal(rec(storage).used, 50);
 });
 
 test('FB5C-4: a future accounting date is carried: no immediate POST, used unchanged, no new budget', () => {
   const ctx = load(FILES);
   const storage = memoryStorage();
-  storage.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2099-01-01', used: 580, lastAttemptAt: FUTURE, retryNotBefore: 0 }));
+  storage.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2099-01-01', used: 3000, lastAttemptAt: FUTURE, retryNotBefore: 0 }));
   const s = makeStore(ctx, { storage, start: NOON });
   s.store.setVisible(true);
   assert.equal(s.calls.length, 0);
-  assert.deepEqual([rec(storage).utcDate, rec(storage).used, rec(storage).lastAttemptAt], ['2026-10-30', 580, NOON]);
+  assert.deepEqual([rec(storage).utcDate, rec(storage).used, rec(storage).lastAttemptAt], ['2026-10-30', 3000, NOON]);
   s.clock.advance(11 * 60 * MIN);                 // 23:00 UTC
-  assert.equal(s.calls.length, 0, 'the carried 580 still binds today');
+  assert.equal(s.calls.length, 0, 'the carried 3,000 still binds today');
   assert.equal(s.store.status().problem, 'cap');
   s.clock.advance(60 * MIN + 1000);
   assert.equal(s.calls.length, 1, 'only a strictly later UTC date resets');
@@ -312,18 +327,18 @@ test('FB5C-4: a correction that cannot be written or read back → 0 POSTs and t
   }
 });
 
-test('FB5C-7: 401/403/429 (the batch or an item) → refused, retry not before last + 25 min; the cards stay; gone with a good answer', () => {
+test('FB5C-7: 401/403/429 (every request or one) → refused, retry not before last + 10 min; the cards stay; gone with a good answer', () => {
   const ctx = load(FILES);
-  for (const x of ['http 429', 'http 403', 'http 401', withItems({ 1: failing(429) }), withItems({ 0: failing(403), 1: failing(503) })]) {
+  for (const x of ['http 429', 'http 403', 'http 401', withItems({ 1: 'http 429' }), withItems({ 0: 'http 403', 1: 'http 503' })]) {
     const s = makeStore(ctx);
-    s.store.setVisible(true); answer(s, batch());
-    s.clock.advance(26 * MIN);
+    s.store.setVisible(true); answer(s, ok());
+    s.clock.advance(11 * MIN);
     answer(s, x);
     const st = s.store.status();
     assert.equal(st.problem, 'refused', JSON.stringify(x).slice(0, 40));
     assert.equal(st.kind, 'stale', 'the last good cards stay, marked out of date');
-    assert.equal(st.resumeAt, T0 + 25 * MIN + 25 * MIN, 'the 25-min gate after the attempt at +25 min');
-    s.clock.advance(25 * MIN); answer(s, batch());
+    assert.equal(st.resumeAt, T0 + 10 * MIN + 10 * MIN, 'the 10-min gate after the attempt at +10 min');
+    s.clock.advance(10 * MIN); answer(s, ok());
     assert.equal(s.store.status().problem, null);
   }
 });
@@ -332,16 +347,16 @@ test('FB5C-6: cached rows show at once after a restart — their own times and f
   const ctx = load(FILES);
   const storage = memoryStorage();
   const a = makeStore(ctx, { storage });
-  a.store.setVisible(true); answer(a, batch());
-  a.clock.advance(26 * MIN); answer(a, withItems({ 4: failing(429) }));
+  a.store.setVisible(true); answer(a, ok());
+  a.clock.advance(11 * MIN); answer(a, withItems({ 4: 'http 429' }));
   a.store.stop();
-  const b = makeStore(ctx, { storage, start: T0 + 27 * MIN });
+  const b = makeStore(ctx, { storage, start: T0 + 12 * MIN });
   assert.equal(b.calls.length, 0, 'nothing sent: hidden');
   const st = b.store.status();
   assert.deepEqual([st.kind, st.updatedAt, st.problem], ['stale', T0, 'refused'], 'the refusal and the oldest row kept');
-  assert.equal(b.store.routes()[0].updatedAt, T0 + 26 * MIN, 'answered at +26 min (sent at +25)');
+  assert.equal(b.store.routes()[0].updatedAt, T0 + 11 * MIN, 'answered at +11 min (sent at +10)');
   assert.equal(b.store.routes()[4].updatedAt, T0, 'the refused row keeps its own time');
-  assert.equal(b.store.routes()[2].data.travel, 5520);
+  assert.equal(b.store.routes()[2].data.travel, 5922.3);
 });
 
 // FB5D-CE-V1: an attempt with no recorded answer (a crash mid-flight) is a failed attempt — pinned where nothing else
@@ -350,11 +365,11 @@ test('FB5D-CE-V1: good answer at T0, an explicit open at +5 min that crashes bef
   const ctx = load(FILES);
   const storage = memoryStorage();
   const a = makeStore(ctx, { storage });
-  a.store.setVisible(true); answer(a, batch()); a.store.stop();
+  a.store.setVisible(true); answer(a, ok()); a.store.stop();
   const b = makeStore(ctx, { storage, start: T0 + 5 * MIN });
   b.store.setVisible(true, true);
   assert.equal(b.calls.length, 1, 'the explicit open sent');
-  b.store.stop();                                   // the app dies with the batch in flight: no answer is ever recorded
+  b.store.stop();                                   // the app dies with the round in flight: no answer is ever recorded
   const c = makeStore(ctx, { storage, start: T0 + 6 * MIN });
   const st = c.store.status();
   assert.deepEqual([st.kind, st.updatedAt], ['stale', T0], 'rows 6 min old, otherwise fresh: stale only because the last attempt failed');
@@ -366,7 +381,7 @@ test('FB5C-6: a future-dated row is stale, its time never rewritten, never a neg
   const ctx = load(FILES);
   const storage = memoryStorage();
   const a = makeStore(ctx, { storage, start: T0 + 60 * MIN });
-  a.store.setVisible(true); answer(a, batch()); a.store.stop();
+  a.store.setVisible(true); answer(a, ok()); a.store.stop();
   const b = makeStore(ctx, { storage, start: T0 });            // the clock went back an hour
   const st = b.store.status();
   assert.deepEqual([st.kind, st.future, st.updatedAt], ['stale', true, T0 + 60 * MIN]);
@@ -376,7 +391,7 @@ test('FB5C-6: a future-dated row is stale, its time never rewritten, never a neg
 test('FB5C-6: stale after 30 min (30:00 fresh, 30:00.001 stale) or when the last attempt failed; with no cache a failure says failed', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  s.store.setVisible(true); answer(s, batch());
+  s.store.setVisible(true); answer(s, ok());
   s.store.setVisible(false);
   s.clock.advance(30 * MIN);
   assert.equal(s.store.status().kind, 'fresh', '30:00');
@@ -393,7 +408,7 @@ test('FB5C-6: stale after 30 min (30:00 fresh, 30:00.001 stale) or when the last
 // any answer every row has data or a failure.
 test('C5: no row is ever "loading" once any answer arrived (the whole screen shows loading before that)', () => {
   const ctx = load(FILES);
-  for (const x of ['timeout', 'http 429', { batchItems: [] }, withItems({ 0: failing(503) }), withItems({ 0: NO_ROUTE }), batch()]) {
+  for (const x of ['timeout', 'http 429', MALFORMED, withItems({ 0: 'http 503' }), withItems({ 0: NO_ROUTE }), ok()]) {
     const s = makeStore(ctx);
     assert.ok(s.store.routes().every((v) => v.kind === 'loading'), 'before: all rows loading together');
     s.store.setVisible(true);
@@ -404,15 +419,15 @@ test('C5: no row is ever "loading" once any answer arrived (the whole screen sho
   }
 });
 
-test('C1 / FB4-C7: a wrong-sized batch, any item 5xx or 400 INVALID_REQUEST is a failed round: the last good rows and times kept', () => {
+test('C1 / FB4-C7: a malformed answer, any request 5xx or 422 InvalidInput is a failed round: the last good rows and times kept', () => {
   const ctx = load(FILES);
-  for (const x of [{ batchItems: [] }, { batchItems: batch().batchItems.slice(0, 9) }, withItems({ 2: failing(400, 'INVALID_REQUEST: bad query') }), withItems({ 2: failing(502) })]) {
+  for (const x of [MALFORMED, withItems({ 2: { code: 'Ok', routes: [] } }), withItems({ 2: 'http 422' }), withItems({ 2: 'http 502' })]) {
     const s = makeStore(ctx);
-    s.store.setVisible(true); answer(s, batch());
-    s.clock.advance(26 * MIN);
+    s.store.setVisible(true); answer(s, ok());
+    s.clock.advance(11 * MIN);
     answer(s, x);
     assert.equal(s.store.status().kind, 'stale', JSON.stringify(x).slice(0, 30));
-    assert.equal(s.store.routes()[2].data.travel, 5520, 'last good value kept');
+    assert.equal(s.store.routes()[2].data.travel, 5922.3, 'last good value kept');
     assert.equal(s.store.routes()[2].updatedAt, T0, 'with its time');
   }
 });
@@ -420,27 +435,27 @@ test('C1 / FB4-C7: a wrong-sized batch, any item 5xx or 400 INVALID_REQUEST is a
 test('FB5-N1: the header time is the oldest row with data', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  s.store.setVisible(true); answer(s, batch());
-  s.clock.advance(25 * MIN); answer(s, batch());
-  assert.deepEqual([s.store.status().kind, s.store.status().updatedAt], ['fresh', T0 + 25 * MIN], 'fresh: the round on screen');
-  s.clock.advance(25 * MIN);
-  answer(s, withItems({ 6: failing(400, 'INVALID_REQUEST: bad query') }));
-  assert.equal(s.store.routes()[0].updatedAt, T0 + 50 * MIN, 'the good rows are current');
-  assert.deepEqual([s.store.status().kind, s.store.status().updatedAt], ['stale', T0 + 25 * MIN], 'stale: the oldest row on screen');
+  s.store.setVisible(true); answer(s, ok());
+  s.clock.advance(10 * MIN); answer(s, ok());
+  assert.deepEqual([s.store.status().kind, s.store.status().updatedAt], ['fresh', T0 + 10 * MIN], 'fresh: the round on screen');
+  s.clock.advance(10 * MIN);
+  answer(s, withItems({ 6: 'http 422' }));
+  assert.equal(s.store.routes()[0].updatedAt, T0 + 20 * MIN, 'the good rows are current');
+  assert.deepEqual([s.store.status().kind, s.store.status().updatedAt], ['stale', T0 + 10 * MIN], 'stale: the oldest row on screen');
 });
 
 test('FB5-N3: NO_ROUTE after good data shows that row as no data and leaves the screen fresh; the next good answer restores it', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  s.store.setVisible(true); answer(s, batch());
-  s.clock.advance(25 * MIN);
+  s.store.setVisible(true); answer(s, ok());
+  s.clock.advance(10 * MIN);
   answer(s, withItems({ 3: NO_ROUTE }));
   assert.deepEqual(plain(s.store.routes()[3]), { kind: 'failed', data: null }, 'the unroutable row: no data, not its old value');
   assert.equal(s.store.status().kind, 'fresh', 'the screen stays fresh');
-  assert.equal(s.store.status().updatedAt, T0 + 25 * MIN);
-  s.clock.advance(25 * MIN);
-  assert.equal(s.calls.length, 3, 'a successful round: the regular 25 min');
-  answer(s, batch());
+  assert.equal(s.store.status().updatedAt, T0 + 10 * MIN);
+  s.clock.advance(10 * MIN);
+  assert.equal(s.calls.length, 3, 'a successful round: the regular 10 min');
+  answer(s, ok());
   assert.equal(s.store.routes()[3].kind, 'fresh', 'routable again: back with data');
 });
 
@@ -473,20 +488,24 @@ test('FB5D-V2: impossible accounting dates (2026-00-00, 2026-02-31, 0000-00-00) 
   assert.equal(ctx.Traffic.validDate('2026-02-29'), false);
 });
 
-// FB5D-V1 (Codex V1): TomTom's Retry-After on 429 / 403 / 503 (seconds or an HTTP date) is read through Net, recorded
-// in the accounting record (written and read back), and enforced through the one gate — explicit opens included, and
-// across a restart. The refusal copy shows max(last attempt + 25 min, that deadline).
+// FB5D-V1 (Codex V1), batch 6 (Mapbox): a Retry-After on 429 / 403 / 503 (seconds or an HTTP date) is read through Net,
+// recorded in the accounting record (written and read back), and enforced through the one gate — explicit opens
+// included, and across a restart. The refusal copy shows max(last attempt + 10 min, that deadline).
+// answers: one per ROUND, given to all ten GETs of that round ({ status, retryAfter, body }); posts: one XHR per round
+// (its first), so posts.length counts rounds.
 function retryAfterStore(ctx, storage, start, answers) {
-  const clock = fakeTimers(start), posts = [];
+  const clock = fakeTimers(start), posts = [], routes = ok();
+  let sent = 0;
   function XMLHttpRequest() {
     const x = this; x.readyState = 0; x.status = 0; x.responseText = ''; x.reads = [];
     x.open = () => {}; x.setRequestHeader = () => {};
     x.getResponseHeader = (h) => { x.reads.push(h); return /^retry-after$/i.test(h) ? x.retryAfter : null; };
-    x.send = (body) => { const a = answers[posts.length] || { status: 200, body: JSON.stringify(batch()) }; posts.push(x);
-      x.readyState = 4; x.status = a.status; x.responseText = a.body || ''; x.retryAfter = a.retryAfter === undefined ? null : a.retryAfter; x.onreadystatechange(); };
+    x.send = () => { const i = sent++, a = answers[Math.floor(i / 10)] || { status: 200 }; if (i % 10 === 0) posts.push(x);
+      x.readyState = 4; x.status = a.status; x.responseText = a.body || (a.status === 200 ? JSON.stringify(routes[i % 10]) : '');
+      x.retryAfter = a.retryAfter === undefined ? null : a.retryAfter; x.onreadystatechange(); };
   }
   const net = load(['js/net.js'], { XMLHttpRequest });
-  const store = ctx.Traffic.createStore(withKey(ctx), { postJson: net.Net.postJson, now: clock.now, setTimeout: clock.setTimeout,
+  const store = ctx.Traffic.createStore(withToken(ctx), { getJson: net.Net.getJson, now: clock.now, setTimeout: clock.setTimeout,
     clearTimeout: clock.clearTimeout, storage, onChange: () => {} });
   return { store, clock, posts };
 }
@@ -502,7 +521,7 @@ test('FB5D-V1: Retry-After 7200 on a 429 → recorded and read back; no POST bef
   assert.equal(rec(storage).retryNotBefore, T0 + 2 * 60 * MIN, 'persisted');
   assert.equal(JSON.parse(storage.getItem('tt-quota')).retryNotBefore, T0 + 2 * 60 * MIN, 'read back');
   assert.equal(s.store.status().problem, 'refused');
-  assert.equal(s.store.status().resumeAt, T0 + 2 * 60 * MIN, 'the copy shows TomTom\'s deadline, later than +25 min');
+  assert.equal(s.store.status().resumeAt, T0 + 2 * 60 * MIN, 'the copy shows Mapbox\'s deadline, later than +10 min');
   for (let t = 0; t < 119; t++) { s.clock.advance(MIN); reopen(s); }
   assert.equal(s.posts.length, 1, 'no explicit open passes the deadline');
   s.store.stop();
@@ -513,27 +532,27 @@ test('FB5D-V1: Retry-After 7200 on a 429 → recorded and read back; no POST bef
   assert.equal(again.posts.length, 1, 'at +2 h the gate opens (the screen stayed on view)');
 });
 
-test('FB5D-V1: Retry-After as an HTTP date on 403 and as seconds on 503; a short one never shortens the 25-min gate; none = 25 min; 200 ignores it', () => {
+test('FB5D-V1: Retry-After as an HTTP date on 403 and as seconds on 503; a short one never shortens the 10-min gate; none = 10 min; 200 ignores it', () => {
   const ctx = load(FILES);
   const date = new Date(T0 + 3 * 60 * MIN).toUTCString();
   const st = memoryStorage(), a = retryAfterStore(ctx, st, T0, [{ status: 403, retryAfter: date }]);
   a.store.setVisible(true, true);
   assert.equal(rec(st).retryNotBefore, T0 + 3 * 60 * MIN, 'an HTTP date');
-  const s5 = memoryStorage(), b = retryAfterStore(ctx, s5, T0, [{ status: 503, retryAfter: '600' }]);
+  const s5 = memoryStorage(), b = retryAfterStore(ctx, s5, T0, [{ status: 503, retryAfter: '300' }]);
   b.store.setVisible(true, true);
-  assert.equal(rec(s5).retryNotBefore, T0 + 10 * MIN, '503 seconds');
+  assert.equal(rec(s5).retryNotBefore, T0 + 5 * MIN, '503 seconds');
   assert.equal(b.store.status().resumeAt, 0, 'a 503 is not a refusal: no refusal copy');
-  b.clock.advance(10 * MIN);
-  assert.equal(b.posts.length, 1, 'automatic: still the 25-min gate');
-  b.clock.advance(15 * MIN);
-  assert.equal(b.posts.length, 2, 'at 25:00');
+  b.clock.advance(5 * MIN);
+  assert.equal(b.posts.length, 1, 'automatic: still the 10-min gate');
+  b.clock.advance(5 * MIN);
+  assert.equal(b.posts.length, 2, 'at 10:00');
   for (const [name, h] of [['none', null], ['garbage', 'soon'], ['negative', '-5'], ['past date', new Date(T0 - MIN).toUTCString()]]) {
     const m = memoryStorage(), c = retryAfterStore(ctx, m, T0, [{ status: 429, retryAfter: h }]);
     c.store.setVisible(true, true);
     assert.equal(rec(m).retryNotBefore, 0, name + ': nothing recorded');
-    assert.equal(c.store.status().resumeAt, T0 + 25 * MIN, name);
+    assert.equal(c.store.status().resumeAt, T0 + 10 * MIN, name);
   }
-  const m = memoryStorage(), ok = retryAfterStore(ctx, m, T0, [{ status: 200, body: JSON.stringify(batch()), retryAfter: '7200' }]);
-  ok.store.setVisible(true, true);
+  const m = memoryStorage(), good = retryAfterStore(ctx, m, T0, [{ status: 200, retryAfter: '7200' }]);
+  good.store.setVisible(true, true);
   assert.equal(rec(m).retryNotBefore, 0, 'a good answer sets no deadline');
 });

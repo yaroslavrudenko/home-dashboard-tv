@@ -1,7 +1,10 @@
 /* Home Dashboard: every setting the owner may want to change lives here. ES5 (Tizen 3.0 / Chromium 47). */
 var Config = {
-  // Interface language: 'ru' (default) or 'en'. Hebrew / Ukrainian slots are ready in js/i18n.js.
+  // Interface language at the first start: 'ru', 'he' (the whole layout right to left) or 'uk'. The remote's yellow key
+  // switches to the next one in `languages` (ru → he → uk → ru); the choice is remembered on the TV (localStorage) and
+  // wins over `lang` from then on. The language also picks the news sources (news.columns below).
   lang: 'ru',
+  languages: ['ru', 'he', 'uk'],
 
   // World clocks, left to right. `zones` lists IANA names in order of preference: the first one the TV's
   // time-zone database accepts is used (Chromium 47 ships tzdata from 2015 and knows Kyiv only as
@@ -53,17 +56,27 @@ var Config = {
   screens: ['main', 'israel', 'news', 'traffic', 'map'],
   rotation: { enabled: true, intervalMs: 45 * 1000, pauseAfterKeyMs: 2 * 60 * 1000 },
 
-  // News: two columns of Israeli news from the top outlets, in Hebrew, each one feed's top stories, newest first. All
-  // feeds come in ONE parallel round every refreshMs. Left «Израиль»: Ynet's main feed; right «Экономика»: Globes' home
-  // page feed (Calcalist answers 403 and TheMarker's feed stopped in May 2026; checked 2026-10-30). `id` names the source
-  // in js/i18n.js ('n.src.<id>'), a column's `id` its title ('n.col.<id>'); `feed` is the feed it shows and `dir` the
-  // direction its headlines are read in.
+  // News: two columns, each one feed's top stories, newest first; the interface language picks the feeds (only the
+  // active language's feeds are fetched, all in ONE parallel round every refreshMs):
+  //   ru  Russian-language Israeli news: NEWSru.co.il's «Израиль» section and its «Экономика» section
+  //   he  the top Hebrew outlets: Ynet's main feed and Globes' home page feed (Calcalist answers 403, TheMarker's feed
+  //       stopped in May 2026)
+  //   uk  news about Ukraine in Ukrainian: Ukrainska Pravda's main feed and Ekonomichna Pravda's feed
+  // (every feed checked live with curl on 2026-10-30). `id` names the source in js/i18n.js ('n.src.<id>'), a column's
+  // `id` its title ('n.col.<id>'); `feeds` is the feed it shows in each language.
   news: {
     feeds: [
+      { id: 'newsru', url: 'https://www.newsru.co.il/il/www/section/israel' },
+      { id: 'newsrufin', url: 'https://www.newsru.co.il/il/www/section/finance' },
       { id: 'ynet', url: 'https://www.ynet.co.il/Integration/StoryRss2.xml' },
-      { id: 'globes', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' }
+      { id: 'globes', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' },
+      { id: 'pravda', url: 'https://www.pravda.com.ua/rss/' },
+      { id: 'epravda', url: 'https://epravda.com.ua/rss/' }
     ],
-    columns: [{ id: 'il', feed: 'ynet', dir: 'rtl' }, { id: 'econ', feed: 'globes', dir: 'rtl' }],
+    columns: [
+      { id: 'il', feeds: { ru: 'newsru', he: 'ynet', uk: 'pravda' } },
+      { id: 'econ', feeds: { ru: 'newsrufin', he: 'globes', uk: 'epravda' } }
+    ],
     perFeed: 15,                        // items read from each feed (newest first)
     perColumn: 5,                       // stories in each column; a headline takes at most two lines
     refreshMs: 10 * 60 * 1000,
@@ -73,12 +86,13 @@ var Config = {
     staleAfterMs: 35 * 60 * 1000
   },
 
-  // Traffic from TomTom (Routing API, one batch request for the ten routes). The key is NOT kept here: the build
-  // replaces the placeholder with TOMTOM_KEY from the git-ignored build.local.env. Without a key the screen shows how to
-  // connect one and sends nothing. Coordinates are lat,lon; edit freely. The main roads are watched on the map screen.
+  // Traffic from Mapbox (Directions API, profile driving-traffic: live traffic for Israel; one GET per route, the ten in
+  // parallel). The token is NOT kept here: the build replaces the placeholder with MAPBOX_TOKEN from the git-ignored
+  // build.local.env. Without a token the screen shows how to connect one and sends nothing. Coordinates are lat,lon; edit
+  // freely. The live traffic picture is on the map screen (Waze).
   traffic: {
-    key: '__TOMTOM_KEY__',
-    base: 'https://api.tomtom.com/routing/1/batch/sync/json',
+    token: '__MAPBOX_TOKEN__',
+    base: 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/',
     // Routes, all from Rehovot (the screen's grouping is `columns` below).
     routes: [
       { id: 'tlv', from: [31.8928, 34.8113], to: [32.0853, 34.7818] },          // Tel Aviv, city centre (Dizengoff Square)
@@ -97,51 +111,45 @@ var Config = {
       { id: 'cities', legs: ['tlv', 'jlm', 'haifa', 'beersheva', 'ashkelon'] },
       { id: 'near', legs: ['modiin', 'rishon', 'airport', 'holon', 'glilot'] }
     ],
-    // When a batch is sent (js/traffic.js, Traffic.decide: one gate for every path), at any hour, only while the screen
+    // When a round is sent (js/traffic.js, Traffic.decide: one gate for every path), at any hour, only while the screen
     // is on view: an explicit ◀ ▶ open sends at once; a rotation arrival, the screen staying open and wake wait
-    // minIntervalMs since the last ATTEMPT (failures and refusals included). Quota: TomTom's free routing tier is 20,000
-    // items a MONTH for the whole account (docs.tomtom.com/pricing, read 2026-10-30); a batch costs one item per route
-    // (10). dailyItemCap is a hard guard per UTC date, reserved in localStorage before every POST and never refunded:
-    // any 31 days (32 UTC dates) stay ≤ 32 × 580 = 18,560; parked on the screen, 58 batches a UTC date (17,860 in 31 days).
-    // tests/build-config.test.js simulates every pattern. Re-check it when adding a route or changing these values.
+    // minIntervalMs since the last ATTEMPT (failures and refusals included). Quota: Mapbox's free tier is 100,000
+    // Directions requests a MONTH; a round costs one request per route (10). dailyRequestCap is a hard guard per UTC
+    // date, reserved in localStorage before every round and never refunded: any 31 days touch at most 32 UTC dates, so
+    // they stay ≤ 32 × 3,000 = 96,000 (< 100,000);
+    // parked on the screen, 144 rounds a UTC date (1,440 requests). tests/build-config.test.js simulates every pattern.
+    // Re-check it when adding a route or changing these values.
     schedule: {
-      minIntervalMs: 25 * 60 * 1000,    // rotation arrivals, staying open, wake: at most one attempt per 25 min
-      openMinIntervalMs: 0,             // an explicit ◀ ▶ open: every time (still one batch in flight, still the cap)
-      dailyItemCap: 580                 // items per UTC date
+      minIntervalMs: 10 * 60 * 1000,    // rotation arrivals, staying open, wake: at most one attempt per 10 min
+      openMinIntervalMs: 0,             // an explicit ◀ ▶ open: every time (still one round in flight, still the cap)
+      dailyRequestCap: 3000             // requests per UTC date
     },
     timeoutMs: 20 * 1000,
     staleAfterMs: 30 * 60 * 1000,
-    // Delay chip colour: travel time against free flow
+    // Delay chip colour: travel time now against the usual time at this hour (Mapbox's duration_typical)
     amberRatio: 1.15,
     redRatio: 1.5
   },
 
-  // The traffic map: TomTom raster tiles (Map Display API base map + Traffic Flow overlay) with the traffic key above,
-  // centred on Rehovot, Tel Aviv to Ashdod in view. 512-px tiles at zoom 10 look like zoom 11 at 256 px and need a
-  // quarter of the requests. Tiles load only while the map is on view (js/trafficmap.js: the daily tile budget).
+  // The traffic map: Waze's live map (embed.waze.com: free, no key), centred on Rehovot (TomTom, used before, has no live
+  // traffic for Israel: blank flow tiles, measured 2026-10-30). The page is loaded the first
+  // time the map is shown and again on every ◀ ▶ open; in between it stays loaded (idle, it asks the network nothing).
   map: {
-    base: 'https://api.tomtom.com/map/1/tile/basic/night/',
-    // relative0-dark: TomTom's flow colours for a dark map; it takes no `thickness` (that pair is an HTTP 400).
-    flow: 'https://api.tomtom.com/traffic/map/4/tile/flow/relative0-dark/',
-    center: [31.8928, 34.8113],
-    zoom: 10,
-    tileSize: 512,
-    language: 'ru-RU',
-    refreshMs: 5 * 60 * 1000,           // the traffic overlay while on view; a failed layer is tried again after as long
-    timeoutMs: 20 * 1000,               // one tile: a round with a tile not loaded by then has failed
-    staleAfterMs: 15 * 60 * 1000
+    url: 'https://embed.waze.com/iframe?zoom=11&lat=31.8928&lon=34.8113&ct=livemap'
   },
 
   // Pikud HaOref alerts. `areas` are the alert area names (Hebrew, exactly as Pikud HaOref's area list writes them —
-  // tests/fixtures/oref/districts_heb.json; a test checks every name) that raise the full-screen alert; `nearby` only shows a quiet notice. `name` is how the screen calls the area in Russian.
+  // tests/fixtures/oref/districts_heb.json; a test checks every name) that raise the full-screen alert; `nearby` only
+  // shows a quiet notice. The screen calls an area by its name in the interface language: `he` itself, `ru`, `uk`.
   alerts: {
     url: 'https://www.oref.org.il/WarningMessages/alert/alerts.json',
-    areas: [{ he: 'רחובות', name: 'Реховот' }],
+    areas: [{ he: 'רחובות', ru: 'Реховот', uk: 'Реховот' }],
     nearby: [
-      { he: 'נס ציונה', name: 'Нес-Циона' }, { he: 'ראשון לציון', name: 'Ришон-ле-Цион' }, { he: 'יבנה', name: 'Явне' },
-      { he: 'גדרה', name: 'Гедера' }, { he: 'מזכרת בתיה', name: 'Мазкерет-Батья' }, { he: 'קריית עקרון', name: 'Кирьят-Экрон' },
-      { he: 'באר יעקב', name: 'Беэр-Яаков' }, { he: 'רמלה', name: 'Рамла' }, { he: 'לוד', name: 'Лод' },
-      { he: 'אשדוד', name: 'Ашдод' }, { he: 'תל אביב', name: 'Тель-Авив' }
+      { he: 'נס ציונה', ru: 'Нес-Циона', uk: 'Нес-Ціона' }, { he: 'ראשון לציון', ru: 'Ришон-ле-Цион', uk: 'Рішон-ле-Ціон' },
+      { he: 'יבנה', ru: 'Явне', uk: 'Явне' }, { he: 'גדרה', ru: 'Гедера', uk: 'Гедера' },
+      { he: 'מזכרת בתיה', ru: 'Мазкерет-Батья', uk: 'Мазкерет-Батья' }, { he: 'קריית עקרון', ru: 'Кирьят-Экрон', uk: 'Кір’ят-Екрон' },
+      { he: 'באר יעקב', ru: 'Беэр-Яаков', uk: 'Беер-Яаков' }, { he: 'רמלה', ru: 'Рамла', uk: 'Рамла' }, { he: 'לוד', ru: 'Лод', uk: 'Лод' },
+      { he: 'אשדוד', ru: 'Ашдод', uk: 'Ашдод' }, { he: 'תל אביב', ru: 'Тель-Авив', uk: 'Тель-Авів' }
     ],
     pollMs: 5 * 1000,                   // the next poll starts this long after the previous one ENDED
     timeoutMs: 4 * 1000,

@@ -47,16 +47,20 @@ test('1920×1080, Russian: clocks, current weather, 12-hour strip, 7 days; every
   } finally { await app.close(); }
 });
 
-test('English renders with the same layout, nothing cut', async () => {
-  const app = await openApp({ weather: 'ok', lang: 'en' });
-  try {
-    await ready(app);
-    assert.deepEqual(app.errors, []);
-    assert.equal(await app.page.$eval('html', (e) => e.lang), 'en');
-    assert.equal(await app.page.$eval('#clock-ukraine .clock-city', (e) => e.textContent), 'Ukraine');
-    const boxes = await app.page.evaluate(measure);
-    assert.deepEqual(boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.r > 1920 || b.b > 1080), []);
-  } finally { await app.close(); }
+// Batch 6: the interface languages are Russian, Hebrew and Ukrainian (English stays only as the strings' fallback, no
+// longer a language to start in); each renders the main screen with the same layout, nothing cut.
+test('L3: Hebrew and Ukrainian render the main screen with the same layout, nothing cut', async () => {
+  for (const [lang, ukraine, dir] of [['he', 'אוקראינה', 'rtl'], ['uk', 'Україна', 'ltr']]) {
+    const app = await openApp({ weather: 'ok', lang });
+    try {
+      await ready(app);
+      assert.deepEqual(app.errors, []);
+      assert.deepEqual(await app.page.$eval('html', (e) => [e.lang, e.dir]), [lang, dir]);
+      assert.equal(await app.page.$eval('#clock-ukraine .clock-city', (e) => e.textContent), ukraine);
+      const boxes = await app.page.evaluate(measure);
+      assert.deepEqual(boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.r > 1920 || b.b > 1080), [], lang);
+    } finally { await app.close(); }
+  }
 });
 
 // Decision 16 (D10): one centred message, placeholder rows, the message is not repeated in the status line.
