@@ -50,10 +50,11 @@ var Config = {
   },
 
   // Screens, switched with the remote's ◀ ▶: 'main' (clocks + weather), 'israel' (the weather across Israel), 'news',
-  // 'traffic' (ten routes), 'map' (the traffic map with the highways). Auto-rotation shows the
+  // 'traffic' (ten routes), 'map' (the traffic map with the highways), 'alerts' (Pikud HaOref: home, nearby and the
+  // recent alerts in Israel). Auto-rotation shows the
   // next one every intervalMs (enabled: false turns it off); any key press pauses it for pauseAfterKeyMs, and an
   // Israel alert on screen pauses it until the alert is gone.
-  screens: ['main', 'israel', 'news', 'traffic', 'map'],
+  screens: ['main', 'israel', 'news', 'traffic', 'map', 'alerts'],
   rotation: { enabled: true, intervalMs: 45 * 1000, pauseAfterKeyMs: 2 * 60 * 1000 },
 
   // News: two columns, each one feed's top stories, newest first; the interface language picks the feeds (only the
@@ -169,7 +170,19 @@ var Config = {
     // until the feed has answered without the area for graceMs. An end message never clears or shortens it.
     graceMs: 60 * 1000,
     defaultHoldMs: 10 * 60 * 1000,
-    failAfter: 3                        // consecutive failed polls before "no connection" is shown
+    failAfter: 3,                       // consecutive failed polls before "no connection" is shown
+    previewMs: 10 * 1000,               // the blue key's alert preview stays this long (any key ends it sooner)
+    // The Alerts screen's list of recent alerts in Israel (js/alerts-history.js): asked only while that screen is on
+    // view. mode=2 is the last 7 days (`days`, said on screen when the list is empty); mode=3 (a month) can run to
+    // megabytes in a busy month, too much for the TV.
+    history: {
+      url: 'https://alerts-history.oref.org.il/Shared/Ajax/GetAlarmsHistory.aspx?lang=he&mode=2',
+      days: 7,
+      max: 7,                           // rows on screen
+      refreshMs: 2 * 60 * 1000,         // the feed itself is cached for 2 minutes (Cache-Control: max-age=120)
+      timeoutMs: 15 * 1000,
+      staleAfterMs: 10 * 60 * 1000
+    }
   },
 
   // Burn-in care: the whole layout moves by a few pixels every `shiftMs`, slowly.

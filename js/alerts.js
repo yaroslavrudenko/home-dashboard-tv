@@ -5,10 +5,15 @@
  *                                 an area that is not a non-empty string) throws, and the caller counts that as a
  *                                 failed poll, never as "no alert".
  *   Alerts.covers(area, name)     does the feed's area name `area` belong to the configured area `name`?
+ *   Alerts.isEnd(title)           is it one of the feed's end messages (exact, trimmed)?
+ *   Alerts.text(v)                is v a string with something other than white space in it?
  *   Alerts.kind(title)            the alert's category key from its Hebrew title ('missiles', …) or null
  *   Alerts.instruction(desc)      { minutes (or null) } for the usual "enter the protected space" instruction, or null
  *   Alerts.createMonitor(cfg, deps)  polls every cfg.pollMs (one request in flight) and keeps each listed place up by
  *                                 one lifetime rule (below); a failed poll never clears anything.
+ *   Alerts.preview(st, cfg, now)  what the screen shows for the owner's alert preview: a NEW state with a sample alert
+ *                                 for the first configured area and preview: true — or `st` itself while a real alert is
+ *                                 up (a real alert always wins). `st` is never changed.
  * The feed answers an empty body (often just a byte-order mark and CRLF) when there is no alert, and one object
  * { id, cat, title, data: [area, …], desc } (or a list of them) while there is one. The category is never read:
  * the recorded active and "ended" answers share cat "1". */
@@ -70,6 +75,15 @@ var Alerts = (function () {
     if (!SHELTER.test(desc)) return null;
     var m = desc.match(MINUTES);
     return { minutes: m ? +m[1] : null };
+  }
+
+  // The preview's sample: the most common alert, in the feed's own words, for the first configured area.
+  var SAMPLE_TITLE = 'ירי רקטות וטילים', SAMPLE_DESC = 'היכנסו למרחב המוגן ושהו בו 10 דקות';
+  function preview(st, cfg, now) {
+    if (st.active) return st;
+    var home = cfg.areas[0];
+    return { active: { title: SAMPLE_TITLE, desc: SAMPLE_DESC, kind: kind(SAMPLE_TITLE), instruction: instruction(SAMPLE_DESC), places: [home],
+      ids: home.he, startedAt: now }, nearby: st.nearby, around: st.around, offline: st.offline, checkedAt: st.checkedAt, preview: true };
   }
 
   /* The one lifetime rule, per configured place (`places`: { he, ru, uk }):
@@ -140,7 +154,7 @@ var Alerts = (function () {
 
     function visible() {
       var st = api.state();
-      return [st.active, st.nearby, st.offline, st.offline ? st.checkedAt : 0];
+      return [st.active, st.around, st.offline, st.offline ? st.checkedAt : 0];
     }
     // Returns whether anything on screen changes.
     function accept(err, body) {
@@ -179,10 +193,11 @@ var Alerts = (function () {
     var api = {
       poll: poll,
       // What the screen shows: the alert over every screen, a quiet nearby notice (only without an alert of our
-      // own), whether the feed is unreachable (never shown as "all clear") and when it last answered well.
+      // own; `around` is the nearby view whatever happens at home, for the Alerts screen), whether the feed is
+      // unreachable (never shown as "all clear") and when it last answered well.
       state: function () {
-        var active = own.view();
-        return { active: active, nearby: active ? null : near.view(), offline: failures >= cfg.failAfter, checkedAt: checkedAt };
+        var active = own.view(), around = near.view();
+        return { active: active, nearby: active ? null : around, around: around, offline: failures >= cfg.failAfter, checkedAt: checkedAt };
       },
       stop: function () {
         generation++;
@@ -194,5 +209,5 @@ var Alerts = (function () {
     return api;
   }
 
-  return { parse: parse, covers: covers, kind: kind, instruction: instruction, createMonitor: createMonitor };
+  return { parse: parse, covers: covers, kind: kind, instruction: instruction, isEnd: isEnd, text: text, createMonitor: createMonitor, preview: preview };
 })();

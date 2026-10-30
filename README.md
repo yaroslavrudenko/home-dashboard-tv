@@ -5,49 +5,99 @@
 <h1 align="center">Home Dashboard</h1>
 
 <p align="center">
-  <b>Your family's morning glance, on the TV you already own.</b><br>
-  A calm, always-on dashboard for Samsung Smart TVs — even a 2017 one.<br>
-  Clocks for Israel, Ukraine and Sydney · weather at home and across Israel · news · live traffic times and a live traffic map · Home Front Command alerts.<br>
-  In Russian, Hebrew or Ukrainian — one key on the remote.
+  <b>Your family's morning glance, on the TV you already own — the companion to <a href="https://github.com/yaroslavrudenko/nastin-kinozal">«Настин кинозал»</a>.</b><br>
+  A calm, always-on dashboard for Samsung Smart TVs — even a 2017 one — that sits on top while the player's music plays on.<br>
+  Clocks for Israel, Ukraine and Sydney · weather at home and across Israel · news · live traffic times and a live traffic map · Pikud HaOref alerts on every screen.<br>
+  In Russian, Hebrew or Ukrainian — ▲ / ▼ on the remote.
 </p>
 
 <p align="center">
+  <img alt="Plays under «Настин кинозал»'s music" src="https://img.shields.io/badge/plays%20under-«Настин%20кинозал»%20music-e84393?style=for-the-badge">
+  <img alt="Companion apps: Home Dashboard + Настин кинозал" src="https://img.shields.io/badge/companion%20apps-dashboard%20%2B%20player-6c5ce7?style=for-the-badge"><br>
   <img alt="Samsung Tizen 3.0+ (2017)" src="https://img.shields.io/badge/Samsung%20Tizen-3.0%2B%20·%202017%20TVs-1428A0?style=for-the-badge">
   <img alt="Chromium 47 engine, plain ES5" src="https://img.shields.io/badge/Chromium%2047-plain%20ES5-2f7ee8?style=for-the-badge">
   <img alt="A real installed app, not a web page" src="https://img.shields.io/badge/installed%20Tizen%20app-.wgt-34a853?style=for-the-badge"><br>
-  <img alt="Five screens with auto-rotation" src="https://img.shields.io/badge/screens-5%20·%20auto--rotation-8e44ad?style=for-the-badge">
-  <img alt="Israel alerts checked every 5 seconds" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s-c0392b?style=for-the-badge">
-  <img alt="Live traffic: Mapbox routes and map, inside the free tier" src="https://img.shields.io/badge/live%20traffic-Mapbox%20routes%20·%20map-f39c12?style=for-the-badge">
+  <img alt="Six screens with auto-rotation" src="https://img.shields.io/badge/screens-6%20·%20auto--rotation-8e44ad?style=for-the-badge">
+  <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
+  <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="216 automated tests" src="https://img.shields.io/badge/tests-216%20passing-brightgreen?style=for-the-badge">
+  <img alt="233 automated tests" src="https://img.shields.io/badge/tests-233%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/main.png" width="900" alt="Home screen at 1920×1080 in Russian: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with a 12-hour strip, and a 7-day forecast">
+  <img src="docs/screenshots/hero.png" width="1000" alt="All six screens in Hebrew: clocks and weather at home, weather across Israel, news, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen">
 </p>
 
-## See it in action
+## Why it's special
+
+| | |
+|---|---|
+| 🎵 **Plays under «Настин кинозал»'s music** | Open the player, start a channel, open the dashboard: the music keeps playing under the dashboard ([below](#plays-under-настин-кинозал)). Two apps, one family. |
+| 📺 **An installed app on a 2017 TV** | A signed Tizen `.wgt` for Tizen 3.0 / Chromium 47 (the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
+| 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources. |
+| 🚗 **Live Israeli traffic** | Ten routes from Rehovot with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map of the centre of Israel. |
+| 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; a full-screen alert over every screen, a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
+| 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
+| 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
+| ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
+| 🔒 **No tracking, no keys in the repo** | No backend, no sign-up, no analytics. The Mapbox token goes into the packaged copy only; a test pins the placeholder. |
+| ✅ **Tested and reviewed** | 233 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+
+## Plays under «Настин кинозал»
+
+Home Dashboard is the companion app to **[«Настин кинозал»](https://github.com/yaroslavrudenko/nastin-kinozal)**, the IPTV player for
+the same TVs: the player brings the channels, the dashboard sits on top with the time, weather, news, traffic and alerts —
+while the music plays on.
+
+1. Open «Настин кинозал» and start a channel.
+2. Open Home Dashboard.
+3. The music keeps playing under the dashboard. Leave the dashboard for YouTube or any other app and the player stops,
+   as it always does.
+
+How: on start and on every return to the front, the dashboard sends `play-behind` to the player's Tizen message port
+`kinozal.control` (twice, 1.5 s apart, in case the player has not yet handled its own "hidden" event); when the dashboard
+leaves the front it sends `stop-behind`. If the player is not installed or not running, nothing happens
+([`js/player-behind.js`](js/player-behind.js)). Verified by the owner on his UE50MU7000 on 2026-10-30.
+
+## See every screen
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/israel-weather.png" alt="Weather in Israel: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with the weather now and a 5-day forecast"></td>
-    <td><img src="docs/screenshots/news.png" alt="News in Russian: two columns, Israel and Economy from NEWSru, five headlines each, newest first"></td>
+    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with a 12-hour strip, and a 7-day forecast, mirrored right to left"></td>
+    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with the weather now and a 5-day forecast"></td>
   </tr>
-  <tr><td align="center"><b>Weather in Israel</b> — North, Centre, South, five days ahead</td><td align="center"><b>News</b> — the sources follow the interface language</td></tr>
+  <tr><td align="center"><b>1 · Home</b> — clocks and the weather at home</td><td align="center"><b>2 · Weather in Israel</b> — North, Centre, South</td></tr>
   <tr>
-    <td><img src="docs/screenshots/traffic.png" alt="Traffic: ten routes from Rehovot in two columns, each with the live travel time from Mapbox, the delay against a typical day in colour, and the distance"></td>
-    <td><img src="docs/screenshots/traffic-map.png" alt="Traffic map: a Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot"></td>
+    <td><img src="docs/screenshots/he-3-news.png" alt="News in Hebrew: Ynet and Globes columns, five headlines each, newest first"></td>
+    <td><img src="docs/screenshots/he-4-traffic.png" alt="Traffic in Hebrew: ten routes from Rehovot in two columns, each with the travel time, the delay against a typical day in colour, and the distance"></td>
   </tr>
-  <tr><td align="center"><b>Traffic</b> — ten routes, live, refreshed the moment you open the screen</td><td align="center"><b>Traffic map</b> — live road colours around home</td></tr>
+  <tr><td align="center"><b>3 · News</b> — the sources follow the language</td><td align="center"><b>4 · Traffic</b> — ten routes, live</td></tr>
   <tr>
-    <td><img src="docs/screenshots/main-hebrew.png" alt="The home screen in Hebrew, mirrored right to left"></td>
-    <td><img src="docs/screenshots/news-ukrainian.png" alt="News in Ukrainian: Ukraine and Economy columns from Ukrainska Pravda and Ekonomichna Pravda"></td>
+    <td><img src="docs/screenshots/he-5-map.png" alt="Traffic map in Hebrew: a real Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot"></td>
+    <td><img src="docs/screenshots/he-6-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot with the time of the last check, nearby towns, and the recent Pikud HaOref alerts in Israel"></td>
   </tr>
-  <tr><td align="center"><b>עברית</b> — the whole layout mirrors</td><td align="center"><b>Українська</b> — news about Ukraine</td></tr>
+  <tr><td align="center"><b>5 · Traffic map</b> — a real Mapbox picture</td><td align="center"><b>6 · Alerts</b> — home, nearby, recent alerts in Israel</td></tr>
+  <tr>
+    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 20:32, enter the protected space and stay 10 minutes"></td>
+    <td><img src="docs/screenshots/he-alert-preview.png" alt="The alert preview in Hebrew: the same overlay under a white band saying this is an alert test, not a real alert"></td>
+  </tr>
+  <tr><td align="center"><b>The alert</b> — over every screen</td><td align="center"><b>The alert preview</b> — the blue key, clearly not real</td></tr>
 </table>
 
-<sub>Screenshots at 1920×1080 in desktop Chrome. The traffic map is a real Mapbox image (Friday afternoon); the other screens use the test fixtures, so the headlines, temperatures and travel times are sample data.</sub>
+**Languages** — the same app in Russian and Ukrainian:
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/ru-1-main.png" width="420" alt="The home screen in Russian"></td>
+    <td><img src="docs/screenshots/uk-3-news.png" width="420" alt="News in Ukrainian: Ukraine and Economy columns from Ukrainska Pravda and Ekonomichna Pravda"></td>
+  </tr>
+  <tr><td align="center">Русский</td><td align="center">Українська</td></tr>
+</table>
+
+<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs</code>). The traffic map is a real Mapbox image captured on 2026-10-30;
+the other screens use the test fixtures, so the headlines, temperatures and travel times are sample data. The recent alerts on
+the Alerts screen are Pikud HaOref's real answer recorded on 2026-10-30.</sub>
 
 It is a real installed **Tizen web app** (a signed `.wgt` package), not a web page: the TV's browser is
 slow and limited, while an installed app starts instantly, keeps the screen on and exits with Back.
@@ -59,12 +109,13 @@ screenshot instead of whatever system font it has.
 
 ## What it shows
 
-Five screens, switched with the remote's ◀ ▶ and shown in turn every 45 seconds (page dots at the bottom
+Six screens, switched with the remote's ◀ ▶ and shown in turn every 45 seconds (page dots at the bottom
 mark the current one). Any key pauses the rotation for two minutes; `rotation.enabled: false` in the config
 turns it off. A screen that is not on view keeps its content and costs nothing: it is redrawn when it comes in.
-A screen opened with ◀ ▶ refreshes its data at once (the owner's rule, 2026-10-30): the weather for the home and Israel
-screens, both news feeds, the traffic round (within its daily cap), a new map image (within its own). A request already running is
-never started twice, and a rotation arrival keeps each screen's own schedule.
+A screen opened with ◀ ▶ — or on view when you change the language — refreshes its data at once (the owner's rule,
+2026-10-30): the weather for the home and Israel screens, both news feeds, the traffic round (within its daily cap), a new
+map image (within its own), the recent alerts. A request already running is never started twice, a held ▲ / ▼ refreshes
+once (0.6 s after the last press), and a rotation arrival keeps each screen's own schedule.
 
 **1 · Home**
 
@@ -98,7 +149,7 @@ never started twice, and a rotation arrival keeps each screen's own schedule.
   The TV's own **Eco "Auto Power Off"** is separate and an app cannot override it: it switches the TV off
   after about 4 hours without a remote key press. For an always-on dashboard turn it off in
   *Settings → General → Eco Solution → Auto Power Off*. Not yet verified on the TV for a run longer than 4 hours.
-- **Languages**: Russian, Hebrew and Ukrainian, switched with one key (see Languages below).
+- **Languages**: Russian, Hebrew and Ukrainian, switched with ▲ / ▼ (see Languages below).
 
 **2 · Weather in Israel**: three cards side by side — North (Haifa), Centre (Tel Aviv), South (Beer Sheva) — each
 with the temperature now, its condition, feels-like and wind, and a 5-day list with the same range bars as the
@@ -126,8 +177,7 @@ City). Each widget: the name and a soft green / amber / red chip with the delay,
 time bar (bars compare within a column). The times are LIVE traffic from the
 [Mapbox Directions API](https://docs.mapbox.com/api/navigation/directions/) (profile `driving-traffic`): one GET per route,
 the ten started together, no geometry. The delay is the time now over the usual time at this hour (`duration_typical`);
-a trip faster than usual says «Свободно». TomTom, used before, has no live traffic for Israel (its flow tiles are blank
-there and its routing answered live == historic, measured 2026-10-30), so it is gone. Mapbox's free tier is 100,000
+a trip faster than usual says «Свободно». Mapbox's free tier is 100,000
 Directions requests a **month**, so one rule decides when a round is sent (`Config.traffic.schedule`; one function,
 `Traffic.decide`, for every path), at any hour of the day:
 
@@ -172,42 +222,69 @@ It is refreshed while it is shown (the same one-gate rule as the routes, `Config
 the image in flight), one image at a time with a 20-second deadline. A failed image keeps the last one on screen and the
 header says «Карта недоступна · данные от HH:MM». Each image is reserved in the TV's localStorage (`map-quota`) before it is
 asked for and never refunded, at most 600 a UTC date: Static Images' free tier is 50,000 a month, and any 31 days touch at
-most 32 UTC dates, so ≤ 32 × 600 = 19,200. (Batch 6 embedded Waze's live map instead; on the TV that frame opened the TV's
-browser, so it is gone. The map's place names come from Mapbox, in English.)
+most 32 UTC dates, so ≤ 32 × 600 = 19,200. The map's place names come from Mapbox, in English.
 
-**Israel alerts (all screens)**: the [Home Front Command](https://www.oref.org.il/) alert feed is read every
-5 seconds (one request at a time, 4-second timeout). When an alert covers Rehovot, a deep-red full-screen
-notice appears over everything: the kind of alert, the area, the time it started and the instruction. It
-never ends on a guess: it stays for the instruction's minutes after the area was last listed (10 minutes when
-the instruction names none) and until the feed has answered without the area for a full minute; a failed or
-malformed answer never counts as "not listed". An end message ("the event has ended") never clears or shortens
-it: end messages are recognised by exact title only so that they never raise one. The remote cannot dismiss it (Back still
-closes the app) and the rotation waits. An alert in a nearby town shows a quiet line in the bottom-right
-corner (bottom-left in Hebrew; three names at most, "и ещё N" for the rest). If the feed cannot be reached three times in a row, the
-corner says "Тревоги: нет связи" — and during an alert the alert itself says so, with the time of the last good
-answer; the app never claims "all clear". The feed answers only inside Israel. Areas are configured by their
-Hebrew names in `js/config.js` (`alerts.areas`, `alerts.nearby`), spelled as in Pikud HaOref's area list (a
-test checks every name against a copy of it in `tests/fixtures/oref/`), each with its Russian and Ukrainian name.
+**6 · Alerts**: the [Home Front Command](https://www.oref.org.il/) (Pikud HaOref) on one calm screen. At the start, home:
+a green shield and «Тревог нет · Реховот» with the time the feed last answered («Проверено в 20:32»); while an alert is up, its
+kind, areas and start time; while the feed is lost, «Тревоги: нет связи · последний ответ HH:MM» in amber — never "no
+alerts". Under it, the nearby towns («Рядом тревог нет», or the towns with an alert now). At the end, the **recent alerts in
+Israel**, newest first: the time (with the date when it is not today), the kind in the interface language and the areas
+(configured towns in the language, others as Pikud HaOref writes them, in Hebrew), up to seven rows, with «За последние 7
+дней тревог не было» on a quiet week. That list comes from Pikud HaOref's history feed
+(`alerts-history.oref.org.il/Shared/Ajax/GetAlarmsHistory.aspx?lang=he&mode=2`, the last 7 days, checked 2026-10-30: a
+plain GET answers 200 with one JSON record per area; `www.oref.org.il/…/AlertsHistory.json` answers 403). Records of one
+siren are one row; "the event has ended" and "the threat has been removed" are not rows. It is asked for only while this
+screen is on view and the TV shows it: at once on a ◀ ▶ open or a language change, then every 2 minutes (the feed itself is
+cached for 2), never while hidden; a failed answer keeps the last list and the header turns amber.
+
+**Israel alerts (all screens)**: the live alert feed is read every 5 seconds (one request at a time, 4-second timeout).
+When an alert covers Rehovot, a deep-red full-screen notice appears over everything — this screen included: the kind of
+alert, the area, the time it started and the instruction. It never ends on a guess: it stays for the instruction's minutes
+after the area was last listed (10 minutes when the instruction names none) and until the feed has answered without the area
+for a full minute; a failed or malformed answer never counts as "not listed". An end message ("the event has ended") never
+clears or shortens it: end messages are recognised by exact title only so that they never raise one. The remote cannot
+dismiss it (Back still closes the app) and the rotation waits.
+
+- **Hebrew original.** In Russian and Ukrainian the kind is in the interface language; when the screen has no word for
+  the kind, Pikud HaOref's Hebrew title is shown under it as its own right-to-left line (figures stay where Hebrew puts
+  them, e.g. «… מספר 12»), and an instruction the screen cannot translate is shown the same way. In Hebrew the alert's own
+  words are the main line (nothing translated twice).
+- **Area names in three languages.** Areas are configured by their Hebrew names in `js/config.js` (`alerts.areas`,
+  `alerts.nearby`), spelled as in Pikud HaOref's area list (a test checks every name against a copy of it in
+  `tests/fixtures/oref/`), each with its Russian and Ukrainian name; a name never breaks at its hyphen.
+- **Nearby.** An alert in a nearby town shows a quiet line in the bottom-right corner (bottom-left in Hebrew; three names
+  at most, «и ещё N» for the rest).
+- **No connection.** If the feed cannot be reached three times in a row, the corner says «Тревоги: нет связи · последний
+  ответ 20:32» (the time of the last good answer; just «Тревоги: нет связи» before the first one, or when the line would
+  not fit next to nearby towns — their names come first), and during an alert the alert itself says so. The app never
+  claims "all clear". The feed answers only inside Israel.
+- **Alert preview (the blue key).** Press the remote's **blue** key to see how an alert looks without a siren: the
+  overlay comes up for 10 seconds (`alerts.previewMs`) with a sample record for Rehovot (rocket and missile fire, stay 10
+  minutes) under a white band «Проверка тревоги — это не настоящая тревога» (in Hebrew «בדיקת התרעה — זו אינה התרעה
+  אמיתית», in Ukrainian «Перевірка тривоги — це не справжня тривога»). Back or any other key ends it (and does nothing
+  else). The preview never touches the real alert state, and a real alert always wins: it replaces the preview at once,
+  and the blue key does nothing while one is up.
 
 ## Languages
 
 Русский · עברית · Українська. On the remote, **▼** switches to the next language and **▲** to the previous one
 (ru → he → uk → ru); the **yellow** key (the red one if the TV refuses yellow) works like ▼. A short toast names the language
 in its own words and every screen changes at once, with no reload; holding ▲ / ▼ never sends a burst of requests — only the
-language you land on fetches its news, 0.6 s after the last press. The choice is remembered on the TV (localStorage); `lang`
+language you land on fetches its news, 0.6 s after the last press, and the screen on view refreshes once as if you had just
+opened it. The choice is remembered on the TV (localStorage); `lang`
 in the config is only the first start's language, `languages` the order of the switch.
 
 - **News follows the language**: Russian — Israeli news in Russian (NEWSru.co.il); Hebrew — the top Hebrew outlets (Ynet,
   Globes); Ukrainian — news about Ukraine in Ukrainian (Українська правда, Економічна правда). Only the active language's
-  two feeds are fetched; a switch fetches the new ones at once (the columns say «Загружаем новости…» until they answer) and
-  asks the network for nothing else.
+  two feeds are fetched; a switch fetches the new ones at once (the columns say «Загружаем новости…» until they answer),
+  plus the refresh of the screen on view.
 - **Everything else is translated and laid out for the language**: clocks, dates and weekdays, weather words, the Israel
   regions, routes, statuses, the map, the alerts. Hebrew mirrors the whole layout right to left (Israel's clock on the
   right, the forecast bars filling from the right), while times, temperatures and signed figures («+9 שע׳», «−4°») stay
   left to right; the page dots and ◀ ▶ stay physical (◀ is the previous screen, on the left).
 - **Alerts**: in Hebrew the alert's own Hebrew words from Pikud HaOref are the main line (nothing translated twice); in
-  Russian and Ukrainian the screen's own words, with the Hebrew original under them when the kind is unknown. Areas are
-  named in the language.
+  Russian and Ukrainian the screen's own words, with the Hebrew original under them, right to left, when the kind is
+  unknown. Areas are named in the language.
 - Hebrew uses the bundled Noto Sans Hebrew (every Hebrew character in the strings is in it); Ukrainian letters (і, ї, є, ґ,
   ’) are in the bundled Inter.
 
@@ -239,10 +316,6 @@ the repository keeps the `__MAPBOX_TOKEN__` placeholder and a test pins it. Mapb
 requests a month; the traffic screen reserves every round before it sends it and stops at 3,000 requests a UTC date
 (`Config.traffic.schedule.dailyRequestCap`), so any 31 days stay under 96,000 — see screen 4.
 
-**Owner note (TomTom account; TomTom is no longer used since batch 6, the note is kept for the record).** The routing allowance is shared by every key on the account: another key or app on the
-same account spends the same 20,000 items. Do not add prepaid credit or top-ups to the account. The terms behind the
-account's "Evaluation" label have not been verified.
-
 ## Develop and test
 
 Open `index.html` in desktop Chrome at 1920×1080 for development. Tests use Node 22's built-in runner and
@@ -253,10 +326,11 @@ tests/run.sh                         # unit tests: time zones, weather, news, tr
 PUPPETEER_CORE_DIR=<dir with puppeteer-core> tests/run.sh --browser   # + every screen in every language and the alert in headless Chrome at 1920×1080
 ACORN=<path to acorn> tools/es5-gate.sh                               # every script must parse as ES5
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
+PUPPETEER_CORE_DIR=... node tools/readme-shots.mjs [--map <png>]      # the README gallery and hero (docs/screenshots/)
 PUPPETEER_CORE_DIR=... node tools/make-icon.mjs                       # img/icon.svg → img/icon.png (512×423)
 ```
 
-The browser tests answer Open-Meteo, the news feeds, the alert feed and Mapbox from `tests/fixtures/` (the
+The browser tests answer Open-Meteo, the news feeds, the alert feed, its history and Mapbox from `tests/fixtures/` (the
 recorded or documented shape of each source; the batch-2 news stories in them are invented, the batch-6 ones recorded, the
 map image a real traffic-night-v2 picture made smaller); they fail (never skip) without puppeteer-core.
 

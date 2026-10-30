@@ -8,7 +8,7 @@ import { openApp, measure, newsSource } from './page.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); return e.defaultPrevented; }, code);
 const YELLOW = 405, RIGHT = 39, LEFT = 37;
-const SCREENS = ['main', 'israel', 'news', 'traffic', 'map'];
+const SCREENS = ['main', 'israel', 'news', 'traffic', 'map', 'alerts'];
 const TOKEN = (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; };
 const QUIET = { news: 'ok', alerts: 'empty-bom.txt', traffic: 'ok', map: 'ok', configure: TOKEN };
 async function ready(app) { await app.page.waitForSelector('.day', { timeout: 10000 }); await wait(300); }
@@ -25,15 +25,15 @@ test('L1: the yellow key cycles Русский → עברית → Українс
     await ready(app);
     const p = app.page;
     let s = await state(p);
-    assert.deepEqual([s.lang, s.dir, s.stored, s.titles, s.israel], ['ru', 'ltr', null, ['Погода в Израиле', 'Новости', 'Пробки', 'Карта пробок'], 'Израиль']);
+    assert.deepEqual([s.lang, s.dir, s.stored, s.titles, s.israel], ['ru', 'ltr', null, ['Погода в Израиле', 'Новости', 'Пробки', 'Карта пробок', 'Тревоги'], 'Израиль']);
     assert.equal(await press(p, YELLOW), true, 'the key is the app\'s');
     s = await state(p);
     assert.deepEqual([s.lang, s.dir, s.stored, s.toast, s.titles, s.israel],
-      ['he', 'rtl', 'he', ['toast is-on', 'עברית'], ['מזג האוויר בישראל', 'חדשות', 'תנועה', 'מפת תנועה'], 'ישראל']);
+      ['he', 'rtl', 'he', ['toast is-on', 'עברית'], ['מזג האוויר בישראל', 'חדשות', 'תנועה', 'מפת תנועה', 'התרעות'], 'ישראל']);
     await press(p, YELLOW);
     s = await state(p);
     assert.deepEqual([s.lang, s.dir, s.stored, s.toast, s.titles, s.israel],
-      ['uk', 'ltr', 'uk', ['toast is-on', 'Українська'], ['Погода в Ізраїлі', 'Новини', 'Затори', 'Карта заторів'], 'Ізраїль']);
+      ['uk', 'ltr', 'uk', ['toast is-on', 'Українська'], ['Погода в Ізраїлі', 'Новини', 'Затори', 'Карта заторів', 'Тривоги'], 'Ізраїль']);
     await press(p, YELLOW);
     s = await state(p);
     assert.deepEqual([s.lang, s.stored, s.toast[1], s.israel], ['ru', 'ru', 'Русский', 'Израиль']);
@@ -56,11 +56,11 @@ test('L1: ▼ switches to the next language and ▲ to the previous (ru → he �
   } finally { await app.close(); }
 });
 
-test('L1: a held ▼ (seven presses) redraws at once but fetches ONE news round, of the language it lands on, 600 ms after the last press', async () => {
+test('L1/B2: a held ▼ (seven presses) redraws at once but fetches ONE news round, of the language it lands on, and ONE weather round for the screen on view, 600 ms after the last press', async () => {
   const app = await openApp(QUIET);
   try {
     await ready(app);
-    const p = app.page, before = app.requests.news.length;
+    const p = app.page, before = app.requests.news.length, weather = app.weatherRequests.length;
     for (let i = 0; i < 7; i++) await press(p, DOWN);             // ru → he → uk → ru → he → uk → ru → he
     assert.deepEqual([(await state(p)).lang, (await state(p)).dir], ['he', 'rtl'], 'drawn at once');
     await wait(300);
@@ -69,14 +69,17 @@ test('L1: a held ▼ (seven presses) redraws at once but fetches ONE news round,
     assert.deepEqual(feedsOf(app).slice(before), ['ynet', 'globes'], 'one round, the landing language only');
     await wait(1000);
     assert.equal(app.requests.news.length, before + 2, 'and nothing more');
+    assert.equal(app.weatherRequests.length, weather + 1, 'B2: the main screen on view refreshes its weather once, not per press');
   } finally { await app.close(); }
 });
 
-test('L1/L2: a switch asks the network for the new language\'s two feeds and nothing else — no weather, traffic or map request', async () => {
+// B2 (the owner, 2026-10-30: «также когда я меняю локализацию»): the screen on view refreshes as if just opened.
+test('L1/L2/B2: a switch asks for the new language\'s two feeds and refreshes the screen on view (traffic: one batch) — no weather or map request', async () => {
   const app = await openApp(QUIET);
   try {
     await ready(app);
     const p = app.page;
+    await press(p, LEFT); await wait(500);         // ◀ the Alerts screen
     await press(p, LEFT); await wait(500);         // ◀ the map
     await press(p, LEFT); await wait(800);         // ◀ traffic: the map and the routes loaded once
     assert.deepEqual(feedsOf(app), ['newsru', 'newsrufin'], 'Russian at boot: NEWSru only');
@@ -85,11 +88,11 @@ test('L1/L2: a switch asks the network for the new language\'s two feeds and not
     await press(p, YELLOW);
     await wait(1500);
     const after = counts(app);
-    assert.deepEqual([after.weather, after.traffic, after.map], [before.weather, before.traffic, before.map], 'no other request');
+    assert.deepEqual([after.weather, after.traffic, after.map], [before.weather, before.traffic + 10, before.map], 'the traffic on view: one batch; nothing else');
     assert.deepEqual(feedsOf(app).slice(before.news), ['ynet', 'globes'], 'Hebrew: Ynet and Globes, at once');
     await press(p, YELLOW); await wait(1500);
     assert.deepEqual(feedsOf(app).slice(before.news + 2), ['pravda', 'epravda'], 'Ukrainian: Ukrainska Pravda and Ekonomichna Pravda');
-    assert.deepEqual([counts(app).weather, counts(app).traffic, counts(app).map], [before.weather, before.traffic, before.map]);
+    assert.deepEqual([counts(app).weather, counts(app).traffic, counts(app).map], [before.weather, before.traffic + 20, before.map]);
   } finally { await app.close(); }
 });
 
@@ -163,12 +166,12 @@ test('L3: Hebrew mirrors the layout — Israel\'s clock on the right, the status
     assert.match(v.date, /^יום [א-ת]+, \d+ ב[א-ת]+$/);
     assert.equal(v.dayName, 'היום');
     assert.equal(v.timeDir, 'ltr', '"≈" stays before the time');
-    // ◀ is still the previous screen on the left: from the main screen ◀ opens the map (the last), ▶ the Israel weather
+    // ◀ is still the previous screen on the left: from the main screen ◀ opens the Alerts screen (the last), ▶ the Israel weather
     await press(p, LEFT); await wait(400);
-    assert.equal(await p.evaluate(() => document.querySelector('.screen.is-active').id), 'screen-map');
+    assert.equal(await p.evaluate(() => document.querySelector('.screen.is-active').id), 'screen-alerts');
     await press(p, RIGHT); await press(p, RIGHT); await wait(400);
     assert.equal(await p.evaluate(() => document.querySelector('.screen.is-active').id), 'screen-israel');
-    assert.deepEqual(await p.$$eval('.dot', (d) => d.map((e) => e.className)), ['dot', 'dot is-on', 'dot', 'dot', 'dot'], 'the second dot from the left');
+    assert.deepEqual(await p.$$eval('.dot', (d) => d.map((e) => e.className)), ['dot', 'dot is-on', 'dot', 'dot', 'dot', 'dot'], 'the second dot from the left');
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
 });

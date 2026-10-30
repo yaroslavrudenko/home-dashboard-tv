@@ -195,7 +195,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 
 /* ---- News, Traffic and the alert are mostly words: proportional figures (tabular ones space out hyphens, as in
    "Тель-Авив"); only the figures that change in place stay tabular. */
-#screen-news, #screen-traffic, #screen-map, .corner, .alert { -webkit-font-feature-settings: normal; font-feature-settings: normal; }
+#screen-news, #screen-traffic, #screen-map, #screen-alerts, .corner, .alert { -webkit-font-feature-settings: normal; font-feature-settings: normal; }
 .screen-status, .news-time, .tw-time, .tw-km, .chip, .alert-since { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
 
 /* ---- Israel weather: three region cards on the clocks' grid; the day rows are the main 7-day list's (.day) ---- */
@@ -318,7 +318,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .alert-body .icon { width: 128px; height: 128px; stroke-width: 2.6; }
 .alert-body .ic-warning { stroke: #ffd9d5; }
 .alert-kind { margin-top: 32px; font-size: 104px; font-weight: 500; line-height: 1.1; letter-spacing: -0.015em; color: #fff; }
-.alert-orig { margin-top: 16px; font-size: 40px; color: rgba(255, 255, 255, 0.8); }   /* a sub-line of the title: the 16 px of .alert-since under .alert-areas */
+.alert-orig { margin-top: 16px; font-size: 40px; line-height: 48px; color: rgba(255, 255, 255, 0.8); }   /* a sub-line of the title: the 16 px of .alert-since under .alert-areas; its own right-to-left block (js/view-alert.js) */
 .alert-areas { margin-top: 32px; font-size: 64px; color: #ffe6e3; line-height: 1.2; }
 .alert-areas.is-many { font-size: 48px; }
 .alert-area { display: inline-block; white-space: nowrap; }   /* a name never breaks at its hyphen; lines break between names */
@@ -326,7 +326,42 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* The feed lost while the alert is up: said inside the overlay, in warm amber (about 8:1 on the deep red). */
 .alert-offline { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 32px; color: #ffd59a; }
 .alert-offline .offline-dot { width: 14px; height: 14px; border-radius: 7px; -webkit-margin-end: 12px; border: 2px solid #ffd59a; }
-.alert-instr { margin-top: 48px; padding: 16px 40px; border-radius: 40px; font-size: 40px; color: #fff; background: rgba(255, 255, 255, 0.1); }
+.alert-instr { margin-top: 48px; padding: 16px 40px; border-radius: 40px; font-size: 40px; line-height: 48px; color: #fff; background: rgba(255, 255, 255, 0.1); }
+/* The owner's preview (the blue key): the same overlay under a white band that cannot be mistaken for the alert. */
+.alert-preview { position: absolute; left: 0; right: 0; top: 0; height: 104px; z-index: 1; display: flex; align-items: center; justify-content: center;
+  font-size: 44px; font-weight: 500; color: #5a111b; background: #fff; }
+.alert.is-preview .alert-body { top: 104px; }
+
+/* ---- The Alerts screen: home and nearby at the start, the recent alerts in Israel at the end ---------------- */
+.al-body { -webkit-align-items: stretch; align-items: stretch; }
+.al-side { display: flex; flex-direction: column; width: 720px; flex: 0 0 720px; }
+.al-home { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px 40px; }
+.al-home .icon { width: 112px; height: 112px; stroke-width: 2.6; }
+.ic-shield { stroke: #8ce6b4; }
+.al-home .ic-warning { stroke: #ffb4ab; }
+.al-home.is-offline .ic-warning { stroke: #ffcf8a; }
+.al-home.is-alert { background: linear-gradient(180deg, rgba(200, 40, 52, 0.42) 0%, rgba(120, 20, 30, 0.32) 100%); }
+.al-home-main { margin-top: 24px; font-size: 64px; font-weight: 500; line-height: 1.15; color: #fff; }
+.al-home.is-offline .al-home-main { font-size: 40px; color: #ffd59a; }
+.al-home-place { margin-top: 16px; font-size: 40px; color: rgba(255, 255, 255, 0.85); }
+.al-home-sub { margin-top: 16px; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
+.al-near { flex: 0 0 auto; margin-top: 28px; padding: 28px 40px 32px; }
+.al-near-text { margin-top: 12px; font-size: 34px; line-height: 1.25; color: rgba(255, 255, 255, 0.92); }
+.al-near.is-alert .al-near-text { color: #ffc9c2; }
+.al-near-places { margin-top: 12px; font-size: 24px; line-height: 1.35; color: rgba(255, 255, 255, 0.62); }
+.al-recent { flex: 1 1 auto; min-width: 0; -webkit-margin-start: 28px; padding: 28px 40px 16px; display: flex; flex-direction: column; }
+.al-rows { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin-top: 8px; }
+.al-row { flex: 0 0 104px; display: flex; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.al-row:first-child { border-top: 0; }
+.al-time { flex: 0 0 200px; font-size: 28px; color: rgba(255, 255, 255, 0.62); white-space: nowrap;
+  -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
+.al-kind { flex: 0 0 360px; -webkit-padding-end: 24px; font-size: 30px; font-weight: 500; line-height: 38px; color: rgba(255, 255, 255, 0.92); }
+.al-areas { flex: 1 1 auto; min-width: 0; font-size: 28px; line-height: 38px; color: rgba(255, 255, 255, 0.8); }
+/* Untranslated Hebrew in a left-to-right row: read right to left, but lined up with its column's left edge. */
+html[dir="ltr"] .al-kind[dir="rtl"], html[dir="ltr"] .al-areas[dir="rtl"] { text-align: left; }
+.al-name { white-space: nowrap; }   /* a place name never breaks at its hyphen */
+.al-recent-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 32px; color: rgba(255, 255, 255, 0.62); }
+.al-recent-empty.is-failed { color: rgba(255, 214, 150, 0.85); }
 
 /* ---- The language toast: the new language's name in its own words, a moment in the lower middle, then gone ---- */
 .toast { position: fixed; left: 50%; bottom: 120px; z-index: 20; width: 480px; margin-left: -240px; padding: 20px 0; border-radius: 40px;

@@ -290,7 +290,7 @@ test('FB4-A7: an end-only answer raises nothing, for our area or a nearby one', 
   for (const end of [oref('ended.json'), nearEnd]) {
     const s = monitor(ctx, () => [null, end]);
     s.at(3 * MIN);
-    assert.deepEqual(plain(s.m.state()), { active: null, nearby: null, offline: false, checkedAt: T0 + 3 * MIN }, end.slice(0, 50));
+    assert.deepEqual(plain(s.m.state()), { active: null, nearby: null, around: null, offline: false, checkedAt: T0 + 3 * MIN }, end.slice(0, 50));
   }
 });
 
@@ -316,7 +316,7 @@ test('FB4-A7b: an end-only answer "you may leave the protected space but stay ne
   const ctx = load(FILES);
   const s = monitor(ctx, () => [null, body({ id: '134062731190000000', cat: '13', title: ' ניתן לצאת מהמרחב המוגן אך יש להישאר בקרבתו ', data: ['רחובות'], desc: '' })]);
   s.at(3 * MIN);
-  assert.deepEqual(plain(s.m.state()), { active: null, nearby: null, offline: false, checkedAt: T0 + 3 * MIN });
+  assert.deepEqual(plain(s.m.state()), { active: null, nearby: null, around: null, offline: false, checkedAt: T0 + 3 * MIN });
 });
 
 // FB4-A8 (Codex #3): one answer listing our area twice; the hold is the MAXIMUM over every matching record.
@@ -394,7 +394,7 @@ test('an alert elsewhere raises nothing; nearby areas give the quiet notice only
   const ctx = load(FILES);
   const q = [oref('elsewhere.json'), oref('nearby.json'), REHOVOT()];
   const s = monitor(ctx, () => [null, q.shift() || REHOVOT()]);
-  assert.deepEqual(plain(s.m.state()), { active: null, nearby: null, offline: false, checkedAt: T0 }, 'Ashkelon: nothing');
+  assert.deepEqual(plain(s.m.state()), { active: null, nearby: null, around: null, offline: false, checkedAt: T0 }, 'Ashkelon: nothing');
   s.at(5000);
   const st = s.m.state();
   assert.equal(st.active, null);

@@ -83,7 +83,11 @@ var I18n = (function () {
         'a.kind.radiological': 'Радиационная угроза', 'a.kind.prealert': 'Скоро возможна тревога', 'a.generic': 'Тревога',
         'a.since': 'С {time}', 'a.shelter': 'Войдите в защищённое помещение', 'a.shelterFor': 'Войдите в защищённое помещение и оставайтесь там {n} мин',
         'a.nearby': 'Тревога рядом: {areas}', 'a.nearbyMore': '{areas} и ещё {n}', 'a.offline': 'Тревоги: нет связи',
-        'a.offlineSince': 'Тревоги: нет связи · данные от {time}'
+        'a.offlineSince': 'Тревоги: нет связи · последний ответ {time}',
+        'a.preview': 'Проверка тревоги — это не настоящая тревога',
+        'screen.alerts': 'Тревоги', 'a.home.quiet': 'Тревог нет', 'a.checked': 'Проверено в {time}', 'a.checking': 'Проверяем…',
+        'a.near.title': 'Рядом', 'a.near.quiet': 'Рядом тревог нет', 'a.recent': 'Последние тревоги в Израиле',
+        'a.recent.none': 'За последние {n} дней тревог не было', 'a.recent.loading': 'Загружаем…', 'a.recent.failed': 'Список тревог недоступен'
       }
     },
     he: {
@@ -130,7 +134,11 @@ var I18n = (function () {
         'a.kind.radiological': 'אירוע רדיולוגי', 'a.kind.prealert': 'בדקות הקרובות צפויות להתקבל התרעות', 'a.generic': 'התרעה',
         'a.since': 'מ־{time}', 'a.shelter': 'היכנסו למרחב המוגן', 'a.shelterFor': 'היכנסו למרחב המוגן ושהו בו {n} דקות',
         'a.nearby': 'התרעה בסביבה: {areas}', 'a.nearbyMore': '{areas} ועוד {n}', 'a.offline': 'התרעות: אין חיבור',
-        'a.offlineSince': 'התרעות: אין חיבור · נתונים מ־{time}'
+        'a.offlineSince': 'התרעות: אין חיבור · תשובה אחרונה ב־{time}',
+        'a.preview': 'בדיקת התרעה — זו אינה התרעה אמיתית',
+        'screen.alerts': 'התרעות', 'a.home.quiet': 'אין התרעות', 'a.checked': 'נבדק ב־{time}', 'a.checking': 'בודקים…',
+        'a.near.title': 'בסביבה', 'a.near.quiet': 'אין התרעות בסביבה', 'a.recent': 'התרעות אחרונות בישראל',
+        'a.recent.none': 'לא היו התרעות ב־{n} הימים האחרונים', 'a.recent.loading': 'טוענים…', 'a.recent.failed': 'רשימת ההתרעות אינה זמינה'
       }
     },
     uk: {
@@ -177,7 +185,11 @@ var I18n = (function () {
         'a.kind.radiological': 'Радіаційна загроза', 'a.kind.prealert': 'Незабаром можлива тривога', 'a.generic': 'Тривога',
         'a.since': 'З {time}', 'a.shelter': 'Увійдіть до захищеного приміщення', 'a.shelterFor': 'Увійдіть до захищеного приміщення й залишайтеся там {n} хв',
         'a.nearby': 'Тривога поруч: {areas}', 'a.nearbyMore': '{areas} та ще {n}', 'a.offline': 'Тривоги: немає зв’язку',
-        'a.offlineSince': 'Тривоги: немає зв’язку · дані від {time}'
+        'a.offlineSince': 'Тривоги: немає зв’язку · остання відповідь {time}',
+        'a.preview': 'Перевірка тривоги — це не справжня тривога',
+        'screen.alerts': 'Тривоги', 'a.home.quiet': 'Тривог немає', 'a.checked': 'Перевірено о {time}', 'a.checking': 'Перевіряємо…',
+        'a.near.title': 'Поруч', 'a.near.quiet': 'Поруч тривог немає', 'a.recent': 'Останні тривоги в Ізраїлі',
+        'a.recent.none': 'За останні {n} днів тривог не було', 'a.recent.loading': 'Завантажуємо…', 'a.recent.failed': 'Список тривог недоступний'
       }
     },
     en: {
@@ -224,7 +236,11 @@ var I18n = (function () {
         'a.kind.radiological': 'Radiological event', 'a.kind.prealert': 'Alerts expected shortly', 'a.generic': 'Alert',
         'a.since': 'Since {time}', 'a.shelter': 'Enter the protected space', 'a.shelterFor': 'Enter the protected space and stay {n} min',
         'a.nearby': 'Alert nearby: {areas}', 'a.nearbyMore': '{areas} and {n} more', 'a.offline': 'Alerts: no connection',
-        'a.offlineSince': 'Alerts: no connection · data from {time}'
+        'a.offlineSince': 'Alerts: no connection · last answer {time}',
+        'a.preview': 'Alert test — this is not a real alert',
+        'screen.alerts': 'Alerts', 'a.home.quiet': 'No alerts', 'a.checked': 'Checked at {time}', 'a.checking': 'Checking…',
+        'a.near.title': 'Nearby', 'a.near.quiet': 'No alerts nearby', 'a.recent': 'Recent alerts in Israel',
+        'a.recent.none': 'No alerts in the last {n} days', 'a.recent.loading': 'Loading…', 'a.recent.failed': 'The alert list is unavailable'
       }
     }
   };

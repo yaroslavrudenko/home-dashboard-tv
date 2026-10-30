@@ -53,7 +53,10 @@ test('batch 2: every screen, source, traffic and alert string exists in both lan
   const keys = ['screen.main', 'screen.news', 'screen.traffic', 'screen.map', 'n.justNow', 'n.minAgo', 'n.hAgo', 'n.dAgo', 'n.loading', 'n.failed', 'n.colFailed', 'n.colFailedRetry', 'n.failedRetry',
     't.min', 't.hmin', 't.delay', 't.km', 't.noData', 't.noKey', 't.noKeySub', 't.failed',
     't.updated', 't.updating', 't.updatingFrom', 't.future', 't.stale', 't.cap', 't.refused', 't.storage', 'm.loading', 'm.unavailable', 'm.staleFrom',
-    'a.generic', 'a.since', 'a.shelter', 'a.shelterFor', 'a.nearby', 'a.offline']
+    'a.generic', 'a.since', 'a.shelter', 'a.shelterFor', 'a.nearby', 'a.offline',
+    // batch 8: the "no connection · last answer" line, the alert preview and the Alerts screen
+    'a.offlineSince', 'a.preview', 'screen.alerts', 'a.home.quiet', 'a.checked', 'a.checking', 'a.near.title', 'a.near.quiet',
+    'a.recent', 'a.recent.none', 'a.recent.loading', 'a.recent.failed']
     .concat(ctx.Config.news.feeds.map((f) => 'n.src.' + f.id), ctx.Config.news.columns.map((c) => 'n.col.' + c.id))
     .concat(ctx.Config.traffic.columns.map((c) => 't.col.' + c.id))
     .concat(ctx.Config.traffic.routes.map((r) => 't.route.' + r.id))

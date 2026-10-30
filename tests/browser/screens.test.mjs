@@ -20,7 +20,7 @@ const active = (p) => p.evaluate(() => [...document.querySelectorAll('.screen')]
 const dots = (p) => p.$$eval('.dot', (d) => d.map((e) => e.className));
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
 // FB5: the screens in Config.screens order; a screen is reached with ▶ pressed its index times.
-const SCREENS = ['main', 'israel', 'news', 'traffic', 'map'];
+const SCREENS = ['main', 'israel', 'news', 'traffic', 'map', 'alerts'];
 const dotsAt = (i) => SCREENS.map((_, k) => (k === i ? 'dot is-on' : 'dot'));
 const toScreen = async (p, id) => { for (let i = 0; i < SCREENS.indexOf(id); i++) await press(p, RIGHT); };
 
@@ -29,7 +29,7 @@ test('◀ ▶ switch screens with page dots; the hidden screens keep their DOM a
   try {
     await ready(app);
     const p = app.page;
-    assert.deepEqual(await dots(p), dotsAt(0), 'FB5: five page dots');
+    assert.deepEqual(await dots(p), dotsAt(0), 'six page dots');
     // Ynet's times carry seconds: put the clock at :20 past 18:40, so no "… ago" text changes for the next 19 s (boundaries at :40).
     await p.evaluate(() => { window.__offsetMs += Date.parse('2026-10-29T18:40:20Z') - Date.now(); });
     assert.equal(await p.$('.news-col'), null, 'a screen never shown is not even drawn');
@@ -39,10 +39,10 @@ test('◀ ▶ switch screens with page dots; the hidden screens keep their DOM a
     const col = await p.$('.news-col');
     assert.deepEqual(await active(p), SCREENS.map((id, k) => ['screen-' + id, k === 2 ? 'screen is-active' : 'screen', k === 2 ? 'visible' : 'hidden']));
     assert.deepEqual(await dots(p), dotsAt(2));
-    for (const k of [3, 4]) { await press(p, RIGHT); await wait(800); assert.deepEqual(await dots(p), dotsAt(k)); }
+    for (const k of [3, 4, 5]) { await press(p, RIGHT); await wait(800); assert.deepEqual(await dots(p), dotsAt(k)); }
     await press(p, RIGHT); await wait(800);
     assert.deepEqual(await dots(p), dotsAt(0), 'wraps to the first screen');
-    await press(p, LEFT); await press(p, LEFT); await press(p, LEFT); await wait(800);
+    await press(p, LEFT); await press(p, LEFT); await press(p, LEFT); await press(p, LEFT); await wait(800);
     assert.deepEqual(await dots(p), dotsAt(2));
     assert.equal(await col.evaluate((e) => e.isConnected), true, 'the news DOM survived the switches (no rebuild on switch)');
     const rest = await p.$$eval('.screen', (s) => s.map((e) => getComputedStyle(e).transform));
@@ -560,7 +560,7 @@ test('A3: the alert feed is polled with plain GETs — no preflight, no custom h
 });
 
 // A2: the overlay covers the corner, so the lost connection is said inside the overlay.
-test('A2: an alert, then the feed lost: the overlay stays and says "no connection · data from HH:MM" on screen', async () => {
+test('A2: an alert, then the feed lost: the overlay stays and says "no connection · last answer HH:MM" on screen', async () => {
   const app = await openApp({ news: 'ok', configure: (c) => { c.alerts.pollMs = 100; },
     alerts: (n) => (n <= 2 ? { status: 200, body: orefFixture('rehovot.json') } : { status: 503, body: '' }) });
   try {
@@ -573,7 +573,7 @@ test('A2: an alert, then the feed lost: the overlay stays and says "no connectio
         visible: cs.visibility, top: document.getElementById('alert').contains(document.elementFromPoint((r.left + r.right) / 2, (r.top + r.bottom) / 2)) };
     });
     assert.equal(v.cls, 'alert is-on', 'the alert stays');
-    assert.equal(v.text, 'Тревоги: нет связи · данные от 20:32');
+    assert.equal(v.text, 'Тревоги: нет связи · последний ответ 20:32');
     assert.ok(v.box[0] >= 0 && v.box[1] <= 1080 && v.box[2] >= 0 && v.box[3] <= 1920, 'inside the screen: ' + v.box);
     assert.ok(v.top && v.visible === 'visible', 'seen on top, not under anything');
     assert.deepEqual([v.size, v.color], ['32px', 'rgb(255, 213, 154)']);
@@ -601,6 +601,7 @@ test('A5: nine places nearby: three names and «и ещё 6» in the right half,
     assert.equal(first.text, 'Тревога рядом: Нес-Циона, Ришон-ле-Цион, Явне и ещё 6');
     await p.waitForSelector('.alerts-offline', { timeout: 5000 });
     const both = await cornerBoxes(p);
+    // too long for the corner with the time of the last answer: the time goes, the names nearby stay
     assert.match(both.text, /^Тревога рядом: .+ и ещё \d+Тревоги: нет связи$/, both.text);
     for (const v of [first, both]) {
       assert.ok(v.line.l >= v.corner.l - 0.5 && v.line.r <= v.corner.r + 0.5, 'the line fits its region: ' + JSON.stringify(v.line) + ' in ' + JSON.stringify(v.corner));
@@ -685,14 +686,14 @@ test('an alert nearby (not in Rehovot): only a quiet notice in the corner, no ov
 // once at once (weather for the main and Israel screens, both news feeds, the traffic batch, a new map overlay round);
 // a rotation arrival does not; an open while that source's request is in flight starts nothing.
 test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotation arrival does not; in flight, nothing', async () => {
-  const app = await openApp({ ...QUIET, configure: KEY, traffic: 'ok', map: 'ok' });
+  const app = await openApp({ ...QUIET, history: 'history.json', configure: KEY, traffic: 'ok', map: 'ok' });
   try {
     await ready(app);
     const p = app.page;
     await wait(500);
     const count = () => ({ weather: app.weatherRequests.length, news: app.requests.news.filter((r) => r.method === 'GET').length,
       traffic: app.requests.traffic.filter((r) => r.method === 'GET').length / 10,
-      map: app.requests.map.length });
+      map: app.requests.map.length, history: app.requests.history.filter((r) => r.method === 'GET').length });
     const boot = count();
     assert.deepEqual([boot.weather, boot.news, boot.traffic, boot.map], [1, 2, 0, 0], 'boot: the map page is not loaded');
     const step = async (code) => { await press(p, code); await wait(800); return count(); };
@@ -708,8 +709,10 @@ test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotat
     assert.equal(c.traffic, 2, '◀ ▶ back to traffic: one more batch, whatever its age');
     c = await step(RIGHT);                                             // map again
     assert.equal(c.map, 2, '◀ ▶ back to the map: one new image');
+    c = await step(RIGHT);                                             // alerts
+    assert.equal(c.history, 1, '◀ ▶ to the Alerts screen: one request for the recent alerts');
     c = await step(RIGHT);                                             // main
-    assert.deepEqual([c.weather, c.news, c.traffic, c.map], [3, 4, 2, 2], '◀ ▶ to the main screen: one weather request; the map left loaded, not reloaded');
+    assert.deepEqual([c.weather, c.news, c.traffic, c.map, c.history], [3, 4, 2, 2, 1], '◀ ▶ to the main screen: one weather request; the map left loaded, not reloaded');
   } finally { await app.close(); }
   // the rotation moves on by itself: no refresh on arrival
   const rot = await openApp({ ...QUIET, configure: (c) => { c.rotation.intervalMs = 700; } });

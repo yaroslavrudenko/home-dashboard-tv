@@ -1,11 +1,13 @@
-/* Boot and timers: five screens (clocks + weather, the weather across Israel, news, traffic, traffic map) switched with ◀ ▶ and rotated every
- * Config.rotation.intervalMs, the Israel alert over all of them, burn-in shift, keep the screen on, Back exits, ▼ / ▲
- * (and the yellow key) switch the interface language (Config.languages; remembered on the TV).
+/* Boot and timers: six screens (clocks + weather, the weather across Israel, news, traffic, traffic map, alerts) switched
+ * with ◀ ▶ and rotated every Config.rotation.intervalMs, the Israel alert over all of them, burn-in shift, keep the screen
+ * on, Back exits, ▼ / ▲ (and the yellow key) switch the interface language (Config.languages; remembered on the TV), the
+ * blue key previews the alert overlay (Config.alerts.previewMs; any key ends it; a real alert always wins).
+ * A screen opened with ◀ ▶ — or on view when the language changes — refreshes its data at once.
  * Only the screen on view is redrawn per minute; a hidden screen is redrawn when it comes into view.
  * Everything platform-specific is guarded so the same files run in desktop Chrome. ES5. */
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
-  var store = null, news = null, traffic = null, map = null, alerts = null, screens = null;
+  var store = null, news = null, traffic = null, map = null, alerts = null, history = null, screens = null;
   var screenEls = [], dotEls = [];
   var clockTimer = null, shiftIndex = 0, weatherDrawn = '', toastTimer = null;
   var KEY_BACK = 10009, KEY_LEFT = 37, KEY_RIGHT = 39, SLIDE_PX = 48, FADE_MS = 700, TOAST_MS = 1600;
@@ -13,6 +15,8 @@ var App = (function () {
   var LANG_KEYS = [{ name: 'ColorF2Yellow', code: 405 }, { name: 'ColorF0Red', code: 403 }], langKey = LANG_KEYS[0].code;
   var LANG_STORE = 'homedash.lang';
   var KEY_UP = 38, KEY_DOWN = 40, NEWS_SETTLE_MS = 600, newsTimer = null;   // ▲ ▼ switch the language too
+  // The alert preview: the blue key (Samsung 'ColorF3Blue' = 406); previewAt is when it started (0: off).
+  var PREVIEW_KEY = { name: 'ColorF3Blue', code: 406 }, previewAt = 0, previewTimer = null;
 
   function mainPlace() { return Config.places[0]; }
   function wallNow(i) { return Tz.wallTime(resolved[i], Date.now()); }
@@ -131,7 +135,15 @@ var App = (function () {
       onChange: onData('map') }));
   }
 
-  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, traffic: renderTraffic, map: renderMap };
+  // The Alerts screen: the monitor's real state (never the preview), the recent alerts, today's date at home.
+  function renderAlertsScreen() {
+    var st = alerts.state(), h = history.state(), w = wallNow(0);
+    AlertsScreenView.render(st, h, { homes: Config.alerts.areas, nearby: Config.alerts.nearby, since: st.active ? homeHhmm(st.active.startedAt) : '',
+      checked: homeHhmm(st.checkedAt), today: w.ok ? Tz.pad2(w.day) + '.' + Tz.pad2(w.month + 1) + '.' + w.year : '',
+      updated: homeHhmm(h.updatedAt), days: Config.alerts.history.days });
+  }
+
+  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, traffic: renderTraffic, map: renderMap, alerts: renderAlertsScreen };
   function currentId() { return Config.screens[screens ? screens.current() : 0]; }
   function renderCurrent() { RENDER[currentId()](); }
   // A data set changed: redraw it only if one of its screens (the ids given) is on view.
@@ -140,26 +152,49 @@ var App = (function () {
     return function () { var id = currentId(); if (ids.indexOf(id) >= 0) RENDER[id](); };
   }
 
+  // The overlay draws the real state, or the preview's over a quiet one; a real alert ends the preview for good.
   function renderAlerts() {
     var st = alerts.state();
-    AlertView.render(st, st.active ? homeHhmm(st.active.startedAt) : '', homeHhmm(st.checkedAt));
+    if (st.active && previewAt) endPreview(false);
+    var shown = previewAt ? Alerts.preview(st, Config.alerts, previewAt) : st;
+    AlertView.render(shown, shown.active ? homeHhmm(shown.active.startedAt) : '', homeHhmm(st.checkedAt));
     screens.hold(!!st.active);
+    if (currentId() === 'alerts') renderAlertsScreen();
+  }
+  function startPreview() {
+    if (alerts.state().active) return;
+    previewAt = Date.now();
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(function () { endPreview(true); }, Config.alerts.previewMs);
+    renderAlerts();
+  }
+  function endPreview(redraw) {
+    clearTimeout(previewTimer);
+    previewTimer = null;
+    previewAt = 0;
+    if (redraw) renderAlerts();
   }
 
-  // The owner's rule: a screen opened with ◀ ▶ (not a rotation arrival) refreshes its data at once — through each
-  // source's own refresh, which starts nothing while a request is in flight (traffic and the map: their setVisible).
+  // Which screen the on-view-only sources (traffic, the map, the recent alerts) serve; explicit: the remote opened it,
+  // or the language changed on it — each then refreshes through its own gate (cadence skipped, caps kept).
+  function select(id, explicit) {
+    if (traffic) traffic.setVisible(id === 'traffic', explicit);
+    if (map) map.setVisible(id === 'map', explicit);
+    history.setVisible(id === 'alerts', explicit);
+  }
+  // The owner's rule: a screen opened with ◀ ▶ (not a rotation arrival) — or on view when the language changes —
+  // refreshes its data at once; each refresh starts nothing while a request is in flight.
   function refreshOnOpen(id) {
     if (id === 'main' || id === 'israel') store.refresh();
     else if (id === 'news') news.refresh();
   }
 
   // Cross-fade with a short slide (opacity and transform only). The incoming screen is drawn before it fades in, after
-  // its data was told it is on view (any visit, the rotation's included: traffic and the map load only then) and, when
-  // the remote opened it (auto false), asked to refresh.
+  // its data was told it is on view (any visit, the rotation's included: traffic, the map and the recent alerts load
+  // only then) and, when the remote opened it (auto false), asked to refresh.
   function showScreen(index, from, dir, auto) {
     var id = Config.screens[index], incoming = screenEls[index], outgoing = screenEls[from];
-    if (traffic) traffic.setVisible(id === 'traffic', !auto);
-    if (map) map.setVisible(id === 'map', !auto);
+    select(id, !auto);
     if (!auto) refreshOnOpen(id);
     RENDER[id]();
     incoming.style.transition = 'none';
@@ -203,9 +238,15 @@ var App = (function () {
     } catch (e) { console.error('screensaver: ' + e.message); }
   }
 
-  // Back exits; ◀ ▶ switch screens; the language key switches the language; every key pauses the rotation. Nothing
-  // dismisses an alert.
+  // Back exits; ◀ ▶ switch screens; the language key switches the language; the blue key previews the alert; every key
+  // pauses the rotation. While the preview is up any key only ends it. Nothing dismisses a real alert.
   function onKey(e) {
+    if (previewAt || e.keyCode === PREVIEW_KEY.code) {
+      e.preventDefault();
+      if (previewAt) endPreview(true); else startPreview();
+      screens.touch();
+      return;
+    }
     if (e.keyCode === KEY_BACK) {
       e.preventDefault();
       try { tizen.application.getCurrentApplication().exit(); } catch (err) { /* desktop preview */ }
@@ -219,8 +260,9 @@ var App = (function () {
 
   // ---- language -----------------------------------------------------------------------------------------------
   // The TV delivers a colour key only after the app registers it; the first key it accepts is the language key.
-  function registerLangKey() {
+  function registerKeys() {
     if (!window.tizen || !tizen.tvinputdevice) return;
+    try { tizen.tvinputdevice.registerKey(PREVIEW_KEY.name); } catch (e) { console.error('alert preview button: ' + e.message); }
     for (var i = 0; i < LANG_KEYS.length; i++) {
       try { tizen.tvinputdevice.registerKey(LANG_KEYS[i].name); langKey = LANG_KEYS[i].code; return; }
       catch (e) { console.error('language key ' + LANG_KEYS[i].name + ': ' + e.message); }
@@ -251,16 +293,16 @@ var App = (function () {
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { el.className = 'toast'; }, TOAST_MS);
   }
-  // The next (step 1: ▼ or the colour key) or previous (step −1: ▲) language, at once on every screen: no reload. The
-  // only requests are the news feeds of the language the remote settles on: fetched NEWS_SETTLE_MS after the last
-  // press, so a held key never sends a burst.
+  // The next (step 1: ▼ or the colour key) or previous (step −1: ▲) language, at once on every screen: no reload.
+  // NEWS_SETTLE_MS after the last press (a held key never sends a burst) the news feeds of the language the remote
+  // settles on are fetched, and the screen on view refreshes as if it had just been opened (the owner's rule).
   function switchLang(step) {
     var list = Config.languages, lang = list[(list.indexOf(I18n.lang()) + step + list.length) % list.length];
     applyLang(lang);
     saveLang(lang);
     news.use(lang);
     clearTimeout(newsTimer);
-    newsTimer = setTimeout(function () { newsTimer = null; news.refresh(); }, NEWS_SETTLE_MS);
+    newsTimer = setTimeout(function () { newsTimer = null; news.refresh(); select(currentId(), true); refreshOnOpen(currentId()); }, NEWS_SETTLE_MS);
     showToast();
     renderCurrent();
     renderAlerts();
@@ -271,6 +313,7 @@ var App = (function () {
 
   function onVisible() {
     if (map) map.visibilityChanged();              // hidden: no image is loaded; shown: the map asks its gate again
+    history.visibilityChanged();
     if (document.hidden) return;
     keepScreenOn();
     clearTimeout(clockTimer);
@@ -304,6 +347,7 @@ var App = (function () {
     TrafficView.init(document.getElementById('screen-traffic'));
     MapView.init(document.getElementById('screen-map'));
     AlertView.init(document.getElementById('alert'), document.getElementById('corner'));
+    AlertsScreenView.init(document.getElementById('screen-alerts'), Config.alerts);
     buildScreens();
     screens = Screens.create(Config.screens.length, Config.rotation, withTimers({ onShow: showScreen }));
 
@@ -315,6 +359,8 @@ var App = (function () {
       map = createMap();
     }
     alerts = Alerts.createMonitor(Config.alerts, withTimers({ getText: Net.getText, onChange: renderAlerts }));
+    history = AlertsHistory.createController(Config.alerts.history, withTimers({ getJson: Net.getJson,
+      documentVisible: function () { return !document.hidden; }, onChange: onData('alerts') }));
 
     tick();
     // One parallel round at boot: every data set and the alert feed start together (traffic and the map load only while
@@ -326,7 +372,7 @@ var App = (function () {
 
     setInterval(shift, Config.burnIn.shiftMs);
     keepScreenOn();
-    registerLangKey();
+    registerKeys();
     document.addEventListener('keydown', onKey);
     document.addEventListener('visibilitychange', onVisible);
   }

@@ -7,7 +7,7 @@ import { openApp, measure, legibility } from './page.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); }, code);
 const RIGHT = 39, LEFT = 37;
-const SCREENS = ['main', 'israel', 'news', 'traffic', 'map'];
+const SCREENS = ['main', 'israel', 'news', 'traffic', 'map', 'alerts'];
 const toScreen = async (p, id) => { for (let i = 0; i < SCREENS.indexOf(id); i++) await press(p, RIGHT); };
 // configure functions run in the page (their source is sent there): no closure over this file's names.
 async function ready(app) { await app.page.waitForSelector('.day', { timeout: 10000 }); await wait(200); }
@@ -84,9 +84,9 @@ test('MAP-S1: the map is one Mapbox live-traffic image filling the card — not 
   try {
     await ready(app);
     const p = app.page;
-    assert.equal(await p.$$eval('.dot', (d) => d.length), 5);
+    assert.equal(await p.$$eval('.dot', (d) => d.length), 6);
     assert.equal(app.requests.map.length, 0, 'never shown: no image asked for');
-    await press(p, LEFT);                          // ◀ from the main screen: the map
+    await press(p, LEFT); await press(p, LEFT);    // ◀ ◀ from the main screen (past the Alerts screen): the map
     await p.waitForFunction(() => { const i = document.querySelector('.map-img'); return i && i.naturalWidth > 0; }, { timeout: 8000, polling: 50 });
     await wait(800);
     const v = await p.evaluate(MAP_VIEW);
@@ -115,7 +115,7 @@ test('MAP-S2: every 5 min while on view (here 800 ms); a failed image keeps the 
   try {
     await ready(app);
     const p = app.page;
-    await press(p, LEFT);
+    await press(p, LEFT); await press(p, LEFT);
     await p.waitForFunction(() => document.getElementById('map-status').className.indexOf('is-stale') >= 0, { timeout: 8000, polling: 50 });
     const v = await p.evaluate(MAP_VIEW);
     assert.ok(app.requests.map.length >= 2, 'refreshed while on view');
@@ -133,7 +133,7 @@ test('MAP-S3: without a token the map invites like the traffic screen and asks f
   const app = await openApp({ news: 'ok', alerts: 'empty-bom.txt', map: 'ok' });
   try {
     await ready(app);
-    await press(app.page, LEFT); await wait(800);
+    await press(app.page, LEFT); await press(app.page, LEFT); await wait(800);
     assert.deepEqual(await app.page.$eval('#screen-map', (s) => [s.querySelector('.screen-title').textContent, s.querySelector('.empty-text').textContent]),
       ['Карта пробок', 'Подключите токен Mapbox, чтобы видеть пробки']);
     assert.equal(app.requests.map.length, 0);
@@ -142,7 +142,7 @@ test('MAP-S3: without a token the map invites like the traffic screen and asks f
     const l = await openApp({ lang, news: 'ok', alerts: 'empty-bom.txt', configure: (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; c.map.refreshMs = 800; }, map: (n) => (n === 1 ? null : { status: 503, body: '' }) });
     try {
       await ready(l);
-      await press(l.page, LEFT);
+      await press(l.page, LEFT); await press(l.page, LEFT);
       await l.page.waitForFunction(() => document.getElementById('map-status').className.indexOf('is-stale') >= 0, { timeout: 8000, polling: 50 });
       const v = await l.page.evaluate(MAP_VIEW);
       assert.equal(v.title, title, lang);
