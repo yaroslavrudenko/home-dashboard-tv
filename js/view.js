@@ -11,7 +11,6 @@ var View = (function () {
   }
   function byId(id) { return doc.getElementById(id); }
   function repeat(html, n) { var out = ''; for (var i = 0; i < n; i++) out += html; return out; }
-  var STALE_MARK = '<span class="stale-mark"></span>';
 
   // size: { hours, days } — the strip and list lengths, so the empty states keep the same rows.
   function init(document, clocks, size) {
@@ -42,7 +41,7 @@ var View = (function () {
     var time = !w.ok ? '<div class="clock-time is-unknown">' + esc(I18n.t('clock.unknown')) + '</div>'
       : '<div class="clock-time">' + (w.approx ? '<span class="approx">≈</span>' : '') + Tz.hhmm(w) + '</div>';
     var weather = cw ? '<span class="clock-weather' + (cw.stale ? ' is-stale' : '') + '">' + Icons.weather(cw.code, cw.isDay) +
-      '<span class="clock-temp">' + temp(cw.temp) + '</span>' + (cw.stale ? STALE_MARK : '') + '</span>' : '';
+      '<span class="clock-temp">' + temp(cw.temp) + '</span></span>' : '';
     return '<div class="clock-head"><span class="clock-city">' + esc(I18n.t('city.' + c.id)) + '</span></div>' + time +
       '<div class="clock-date">' + (w.ok ? esc(I18n.dateLong(w.weekday, w.day, w.month)) : '&nbsp;') + '</div>' +
       '<div class="clock-meta"><span class="clock-diff">' + esc(diffText(w.offset, c.homeOffset)) + '</span>' + weather + '</div>';
@@ -74,11 +73,11 @@ var View = (function () {
   var EMPTY_HOUR = '<div class="hour is-empty"><div class="hour-label">&nbsp;</div><div class="skeleton"></div></div>';
   var EMPTY_DAY = '<div class="day is-empty"><div class="skeleton"></div></div>';
 
-  function nowHtml(v, placeName, stale) {
+  function nowHtml(v, placeName) {
     var c = v.current, t = v.today || { min: null, max: null, pop: null, sunrise: null, sunset: null };
     return '<div class="now-top"><div class="now-main">' +
         '<div class="now-place">' + esc(placeName) + '</div>' +
-        '<div class="now-temp">' + temp(c.temp) + (stale ? STALE_MARK : '') + '</div>' +
+        '<div class="now-temp">' + temp(c.temp) + '</div>' +
         '<div class="now-cond">' + esc(I18n.condition(c.code)) + '</div>' +
         '<div class="now-sub">' + (c.feels === null ? '' : '<span>' + esc(I18n.t('w.feels', { t: temp(c.feels) })) + '</span>') +
           '<span>' + esc(I18n.t('w.high')) + ' ' + temp(t.max) + '</span><span>' + esc(I18n.t('w.low')) + ' ' + temp(t.min) + '</span></div>' +
@@ -99,7 +98,7 @@ var View = (function () {
       '<div class="hour-pop">' + (popText(hr.pop) || '&nbsp;') + '</div><div class="hour-temp">' + temp(hr.temp) + '</div></div>';
   }
 
-  // 7-day list with Apple-style range bars: every bar is a window onto ONE cold→warm gradient spanning the
+  // The day list (7 days on the main card, 5 on the Israel weather screen) with Apple-style range bars: every bar is a window onto ONE cold→warm gradient spanning the
   // week's min…max, so a bar's colour means its temperature. Today carries a dot at the current temperature.
   function dailyHtml(v) {
     var lo = Infinity, hi = -Infinity, k, day;
@@ -136,14 +135,13 @@ var View = (function () {
     if (!v) {
       var failed = s.kind === 'failed';
       els.now.className = 'card now is-empty';
-      els.now.innerHTML = '<div class="now-place">' + esc(placeName) + '</div><div class="empty-state">' + Icons.weather(3, true) +
-        '<div class="empty-text">' + esc(I18n.t(failed ? 'w.failed' : 'w.loading')) + '</div>' +
-        (failed ? '<div class="empty-sub">' + esc(s.retryAt ? I18n.t('w.retry', { time: s.retryAt }) : I18n.t('w.retrySoon')) + '</div>' : '') + '</div>';
+      els.now.innerHTML = '<div class="now-place">' + esc(placeName) + '</div>' + Html.emptyState(Icons.weather(3, true),
+        I18n.t(failed ? 'w.failed' : 'w.loading'), failed ? Html.retryText(s.retryAt) : '');
       hours = repeat(EMPTY_HOUR, sizes.hours);
       days = repeat(EMPTY_DAY, sizes.days);
     } else {
       els.now.className = 'card now' + (s.kind === 'stale' ? ' is-stale' : '');
-      els.now.innerHTML = nowHtml(v, placeName, s.kind === 'stale');
+      els.now.innerHTML = nowHtml(v, placeName);
       for (i = 0; i < v.hourly.length; i++) hours += hourHtml(v.hourly[i], i === 0 && v.nowShown);
       days = dailyHtml(v);
     }
@@ -161,5 +159,6 @@ var View = (function () {
     return kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
   }
 
-  return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, statusText: statusText, temp: temp, diffText: diffText };
+  return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, statusText: statusText, temp: temp, diffText: diffText,
+    dailyHtml: dailyHtml };
 })();

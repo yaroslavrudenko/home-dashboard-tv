@@ -1,10 +1,10 @@
-/* Boot and timers: three screens (clocks + weather, news, traffic) switched with ◀ ▶ and rotated every
+/* Boot and timers: five screens (clocks + weather, the weather across Israel, news, traffic, traffic map) switched with ◀ ▶ and rotated every
  * Config.rotation.intervalMs, the Israel alert over all of them, burn-in shift, keep the screen on, Back exits.
  * Only the screen on view is redrawn per minute; a hidden screen is redrawn when it comes into view.
  * Everything platform-specific is guarded so the same files run in desktop Chrome. ES5. */
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
-  var store = null, news = null, traffic = null, alerts = null, screens = null;
+  var store = null, news = null, traffic = null, map = null, mapGrid = null, alerts = null, screens = null;
   var screenEls = [], dotEls = [];
   var clockTimer = null, shiftIndex = 0, weatherDrawn = '';
   var KEY_BACK = 10009, KEY_LEFT = 37, KEY_RIGHT = 39, SLIDE_PX = 48, FADE_MS = 700;
@@ -15,6 +15,13 @@ var App = (function () {
   function homeHhmm(ms) { return ms ? Tz.hhmm(Tz.wallTime(resolved[0], ms)) : ''; }
   // When the next attempt runs, rounded up: never "retry at" the minute already shown.
   function retryAt(next) { return next ? homeHhmm(Math.ceil(next / 60000) * 60000) : ''; }
+  // "HH:MM" at home, with "DD.MM " before it when that moment is not today at home; '' for none.
+  function homeStamp(ms) {
+    if (!ms) return '';
+    var w = Tz.wallTime(resolved[0], ms), today = wallNow(0);
+    var other = w.ok && today.ok && (w.year !== today.year || w.month !== today.month || w.day !== today.day);
+    return (other ? Tz.pad2(w.day) + '.' + Tz.pad2(w.month + 1) + ' ' : '') + Tz.hhmm(w);
+  }
   function timers() {
     return { now: function () { return Date.now(); }, setTimeout: function (f, ms) { return setTimeout(f, ms); },
       clearTimeout: function (t) { clearTimeout(t); } };
@@ -54,25 +61,84 @@ var App = (function () {
     renderClocks();
   }
 
+  // The Israel weather screen: each region's card from the main weather's data at Israel's wall-clock hour; the header
+  // speaks once for the data on screen (stale if any card is, with the oldest time).
+  function renderIsrael() {
+    var cfg = Config.israel, hour = Tz.hourKey(wallNow(0)), next = store.nextAt(), cards = [], kind = '', oldest = 0, i;
+    for (i = 0; i < cfg.regions.length; i++) {
+      var r = cfg.regions[i], s = store.status(r.place), data = store.get(r.place), v = null;
+      if (data) {
+        v = Weather.forHour(data, hour, Config.weather);
+        v.daily = v.daily.slice(0, cfg.days);
+        kind = kind === 'stale' || s.kind === 'stale' ? 'stale' : 'fresh';
+        oldest = oldest ? Math.min(oldest, s.updatedAt) : s.updatedAt;
+      }
+      cards.push({ region: r, view: v, kind: s.kind, retryAt: retryAt(next), key: [hour, s.kind, s.updatedAt, next].join('|') });
+    }
+    IsraelView.render(cards, cfg.days, { kind: kind || 'none', updated: homeHhmm(oldest) });
+  }
+
+  // The header speaks for the columns that are current (fresh: the newest answer); a failed feed says so in its own
+  // column only. Nothing current at all: "loading" says nothing, "failed" says when it is tried again.
   function renderNews() {
-    var st = news.status(), names = [];
-    for (var i = 0; i < st.failed.length; i++) names.push(I18n.t('n.src.' + st.failed[i]));
-    NewsView.render(news.items(), { kind: st.kind, failedNames: names, feedCount: Config.news.feeds.length,
-      updated: homeHhmm(st.updatedAt), retryAt: retryAt(news.nextAt()) }, Date.now(), Config.news.listSize);
+    var st = news.status(), cols = [], i;
+    for (i = 0; i < Config.news.columns.length; i++) {
+      var c = Config.news.columns[i], v = news.column(c.feed);
+      cols.push({ id: c.id, source: c.feed, dir: c.dir, items: v.items, kind: v.kind, updated: homeHhmm(v.updatedAt) });
+    }
+    NewsView.render(cols, { kind: st.kind, updated: homeHhmm(st.updatedAt), retryAt: retryAt(news.nextAt()) }, Date.now(), Config.news.perColumn);
+  }
+
+  // The traffic screen's columns (Config.traffic.columns) filled with each route's current view.
+  function trafficColumns() {
+    var t = Config.traffic, legs = {}, routes = traffic.routes(), cols = [], i, j;
+    for (i = 0; i < t.routes.length; i++) legs[t.routes[i].id] = { id: t.routes[i].id, view: routes[i] };
+    for (i = 0; i < t.columns.length; i++) {
+      var items = [];
+      for (j = 0; j < t.columns[i].legs.length; j++) items.push(legs[t.columns[i].legs[j]]);
+      cols.push({ id: t.columns[i].id, items: items });
+    }
+    return cols;
   }
 
   function renderTraffic() {
     if (!traffic) { TrafficView.renderNoKey(); return; }
     var st = traffic.status();
-    TrafficView.render({ routes: Config.traffic.routes, roads: Config.traffic.roads, routeViews: traffic.routes(), roadViews: traffic.roads(),
-      kind: st.kind, problem: st.problem, updated: homeHhmm(st.updatedAt), retryAt: retryAt(traffic.nextAt()) });
+    TrafficView.render({ columns: trafficColumns(), kind: st.kind, updating: st.updating, future: st.future, problem: st.problem,
+      updated: homeStamp(st.updatedAt), ago: Math.floor((Date.now() - st.updatedAt) / 60000),
+      resumeAt: homeStamp(st.resumeAt ? Math.ceil(st.resumeAt / 60000) * 60000 : 0) });
   }
 
-  var RENDER = { main: renderMain, news: renderNews, traffic: renderTraffic };
+  function renderMap() {
+    if (!map) { MapView.renderNoKey(); return; }
+    var st = map.state();
+    MapView.render(st, homeHhmm(st.updatedAt));
+  }
+  // The map's tiles as { url, left, top } for one layer; the grid is computed once, from the card's size.
+  function mapTiles(url) {
+    if (!mapGrid) { var box = MapView.size(); mapGrid = TrafficMap.grid(Config.map, box.width, box.height); }
+    var out = [];
+    for (var i = 0; i < mapGrid.length; i++) out.push({ url: url(mapGrid[i]), left: mapGrid[i].left, top: mapGrid[i].top });
+    return out;
+  }
+  function createMap() {
+    var m = Config.map, key = Config.traffic.key;
+    return TrafficMap.createController(m, withTimers({
+      loadBase: function (done) { return MapView.loadBase(mapTiles(function (t) { return TrafficMap.baseUrl(m, key, t); }), m.tileSize, m.timeoutMs, done); },
+      loadFlow: function (stamp, done) { return MapView.loadFlow(mapTiles(function (t) { return TrafficMap.flowUrl(m, key, t, stamp); }), m.tileSize, m.timeoutMs, done); },
+      onChange: onData('map') }));
+  }
+  // localStorage, or null where the TV refuses it (traffic then pauses: its request counter cannot be kept).
+  function storage() { try { return window.localStorage || null; } catch (e) { return null; } }
+
+  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, traffic: renderTraffic, map: renderMap };
   function currentId() { return Config.screens[screens ? screens.current() : 0]; }
   function renderCurrent() { RENDER[currentId()](); }
-  // A data set changed: redraw it only if its screen is on view.
-  function onData(id) { return function () { if (currentId() === id) RENDER[id](); }; }
+  // A data set changed: redraw it only if one of its screens (the ids given) is on view.
+  function onData() {
+    var ids = Array.prototype.slice.call(arguments);
+    return function () { var id = currentId(); if (ids.indexOf(id) >= 0) RENDER[id](); };
+  }
 
   function renderAlerts() {
     var st = alerts.state();
@@ -80,12 +146,22 @@ var App = (function () {
     screens.hold(!!st.active);
   }
 
-  // Cross-fade with a short slide (opacity and transform only). The incoming screen is drawn before it fades in.
-  // auto: the rotation moved on (a rotation visit never triggers a traffic request).
+  // The owner's rule: a screen opened with ◀ ▶ (not a rotation arrival) refreshes its data at once — through each
+  // source's own refresh, which starts nothing while a request is in flight (traffic and the map: their setVisible).
+  function refreshOnOpen(id) {
+    if (id === 'main' || id === 'israel') store.refresh();
+    else if (id === 'news') news.refresh();
+  }
+
+  // Cross-fade with a short slide (opacity and transform only). The incoming screen is drawn before it fades in, after
+  // its data was told it is on view (any visit, the rotation's included: traffic and the map load only then) and, when
+  // the remote opened it (auto false), asked to refresh.
   function showScreen(index, from, dir, auto) {
     var id = Config.screens[index], incoming = screenEls[index], outgoing = screenEls[from];
+    if (traffic) traffic.setVisible(id === 'traffic', !auto);
+    if (map) map.setVisible(id === 'map', !auto);
+    if (!auto) refreshOnOpen(id);
     RENDER[id]();
-    if (traffic) traffic.setVisible(id === 'traffic', auto);
     incoming.style.transition = 'none';
     incoming.style.transform = 'translateX(' + SLIDE_PX * dir + 'px)';
     void incoming.offsetWidth;                     // commit the start position before the transition
@@ -172,22 +248,28 @@ var App = (function () {
     var now = Date.now();
     for (var i = 0; i < Config.clocks.length; i++) resolved.push(Tz.resolve(Config.clocks[i], now));
     View.init(document, Config.clocks, { hours: Config.weather.hours, days: Config.weather.days });
+    IsraelView.init(document.getElementById('screen-israel'), Config.israel.regions);
     NewsView.init(document.getElementById('screen-news'));
     TrafficView.init(document.getElementById('screen-traffic'));
+    MapView.init(document.getElementById('screen-map'));
     AlertView.init(document.getElementById('alert'), document.getElementById('corner'));
     buildScreens();
     screens = Screens.create(Config.screens.length, Config.rotation, withTimers({ onShow: showScreen }));
 
-    store = Weather.createStore(Config.places, Config.weather, withTimers({ getJson: Net.getJson, onChange: onData('main') }));
+    store = Weather.createStore(Config.places, Config.weather, withTimers({ getJson: Net.getJson, onChange: onData('main', 'israel') }));
     news = News.createStore(Config.news, withTimers({ getText: Net.getText, onChange: onData('news') }));
-    if (Traffic.hasKey(Config.traffic)) traffic = Traffic.createStore(Config.traffic, withTimers({ postJson: Net.postJson, onChange: onData('traffic') }));
+    if (Traffic.hasKey(Config.traffic)) {
+      traffic = Traffic.createStore(Config.traffic, withTimers({ postJson: Net.postJson, storage: storage(),
+        documentVisible: function () { return !document.hidden; }, onChange: onData('traffic') }));
+      map = createMap();
+    }
     alerts = Alerts.createMonitor(Config.alerts, withTimers({ getText: Net.getText, onChange: renderAlerts }));
 
     tick();
-    // One parallel round at boot: every data set and the alert feed start together.
+    // One parallel round at boot: every data set and the alert feed start together (traffic and the map load only while
+    // their screen is on view).
     store.refresh();
     news.refresh();
-    if (traffic) traffic.refresh();
     alerts.poll();
     renderAlerts();
 

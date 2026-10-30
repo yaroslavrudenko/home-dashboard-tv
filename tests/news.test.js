@@ -80,49 +80,77 @@ function makeStore(ctx, random) {
   return { store, clock, calls, answer, changes: () => changes };
 }
 
+// FB5-NS: two feeds (Ynet, Globes), one per column; was three merged feeds.
 test('one refresh = ONE parallel round: every feed requested at once, with a timeout; nothing more while it is in flight', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
   assert.equal(s.store.refresh(), true);
-  assert.deepEqual(s.calls.map((c) => c.url), plain(ctx.Config.news.feeds.map((f) => f.url)), 'all three before any answer');
+  assert.deepEqual(s.calls.map((c) => c.url), plain(ctx.Config.news.feeds.map((f) => f.url)), 'both before any answer');
   assert.ok(s.calls.every((c) => c.timeoutMs === 20000));
   assert.equal(s.store.refresh(), false);
-  assert.equal(s.calls.length, 3);
+  assert.equal(s.calls.length, 2);
   assert.equal(s.store.status().kind, 'loading');
-  assert.equal(s.answer(), 3);
+  assert.equal(s.answer(), 2);
   assert.equal(s.changes(), 1, 'one render when the whole round is in');
   assert.equal(s.store.status().kind, 'fresh');
-  assert.equal(s.store.items().length, 14);
+  assert.deepEqual([s.store.column('ynet').items.length, s.store.column('globes').items.length], [5, 5]);
   assert.deepEqual(s.clock.pending(), [10 * 60000], 'next round in 10 min');
 });
 
-test('one feed failing: its last good stories stay, the screen is stale and names the source; others keep updating', () => {
+test('FB5-NS: config — two columns (Израиль: Ynet, Экономика: Globes), Hebrew right to left, five stories each, every column on a feed', () => {
+  const ctx = load(FILES);
+  const n = ctx.Config.news;
+  assert.deepEqual(plain(n.columns), [{ id: 'il', feed: 'ynet', dir: 'rtl' }, { id: 'econ', feed: 'globes', dir: 'rtl' }]);
+  assert.equal(n.perColumn, 5);
+  assert.deepEqual(plain(n.feeds.map((f) => f.id)), ['ynet', 'globes'], 'pravda and bbc are gone: 2 requests per refresh (was 3)');
+  for (const c of n.columns) assert.ok(n.feeds.some((f) => f.id === c.feed), c.id);
+});
+
+test('FB5-NS: a column is its own feed\'s top five, newest first, each story once', () => {
+  const ctx = load(FILES);
+  const s = makeStore(ctx);
+  s.store.refresh(); s.answer();
+  const il = s.store.column('ynet'), econ = s.store.column('globes');
+  assert.equal(il.kind, 'fresh');
+  assert.deepEqual(plain(il.items.map((i) => i.key.slice(-6))), ['s1aa01', 's1aa02', 's1aa03', 's1aa04', 's1aa05'], 'Ynet: newest first; the repeated story once');
+  assert.ok(il.items.every((i) => i.source === 'ynet') && econ.items.every((i) => i.source === 'globes'), 'no story crosses columns');
+  const at = plain(econ.items.map((i) => i.at));
+  assert.deepEqual(at, [...at].sort((a, b) => b - a), 'Globes lists its top stories out of time order; the column is newest first');
+  assert.equal(econ.items[0].at, Date.parse('2026-10-29T18:31:00Z'));
+  assert.equal(econ.updatedAt, T0);
+});
+
+test('FB5-NS: one feed failing: only its column is stale and keeps its five stories; the other column updates', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx, () => 0.5);
   s.store.refresh(); s.answer();
   s.clock.advance(10 * 60000);
-  s.answer({ bbc: 'http 503' });
+  s.answer({ globes: 'http 503' });
   const st = s.store.status();
   assert.equal(st.kind, 'stale');
-  assert.deepEqual([...st.failed], ['bbc']);
-  assert.equal(s.store.items().filter((i) => i.source === 'bbc').length, 3, 'the BBC stories are still shown');
-  assert.equal(st.updatedAt, T0 + 10 * 60000, 'the other feeds did update');
+  assert.deepEqual([...st.failed], ['globes']);
+  assert.equal(st.updatedAt, T0 + 10 * 60000, 'Ynet did update');
+  const econ = s.store.column('globes'), il = s.store.column('ynet');
+  assert.deepEqual([econ.kind, econ.items.length, econ.updatedAt], ['stale', 5, T0], 'Globes keeps its last stories and their time');
+  assert.deepEqual([il.kind, il.updatedAt], ['fresh', T0 + 10 * 60000], 'Ynet unaffected');
   s.clock.advance(60000);                          // back-off: at most one minute
-  assert.equal(s.answer(), 3);
+  assert.equal(s.answer(), 2);
   assert.equal(s.store.status().kind, 'fresh');
 });
 
 test('an answer with no stories (an error page served as 200) is a failure, not an empty feed', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  s.store.refresh(); s.answer({ newsru: '<html><body>Service unavailable</body></html>' });
-  assert.deepEqual([...s.store.status().failed], ['newsru']);
+  s.store.refresh(); s.answer({ ynet: '<html><body>Service unavailable</body></html>' });
+  assert.deepEqual([...s.store.status().failed], ['ynet']);
+  assert.deepEqual(plain(s.store.column('ynet')), { items: [], kind: 'failed', updatedAt: 0 }, 'FB5-NS: «Нет данных» in that column only');
+  assert.equal(s.store.column('globes').kind, 'fresh');
 });
 
 test('nothing yet and every feed failed: "failed" with a known retry time; stories older than 35 min are stale', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  s.store.refresh(); s.answer({ newsru: 'timeout', pravda: 'network', bbc: 'http 404' });
+  s.store.refresh(); s.answer({ ynet: 'timeout', globes: 'http 404' });
   assert.equal(s.store.status().kind, 'failed');
   assert.ok(s.store.nextAt() > T0);
   const t = makeStore(ctx);
@@ -130,11 +158,12 @@ test('nothing yet and every feed failed: "failed" with a known retry time; stori
   t.store.stop();
   t.clock.advance(35 * 60000);
   assert.equal(t.store.status().kind, 'fresh', 'exactly at the limit');
+  assert.equal(t.store.column('ynet').kind, 'fresh');
   t.clock.advance(1);
   assert.equal(t.store.status().kind, 'stale');
+  assert.equal(t.store.column('ynet').kind, 'stale', 'FB5-NS: the column too');
 });
 
-// B2 (Codex #4, CE F8): de-duplication never merges two different stories.
 test('B2: distinct stories stay distinct — identity query, path case, signed numbers, Hebrew and punctuation-only headlines', () => {
   const ctx = load(FILES);
   const it = (key, title, at) => ({ key, title, at: at || 1, source: 's' });

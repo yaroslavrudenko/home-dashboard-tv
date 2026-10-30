@@ -2,7 +2,7 @@
 // Net.getJson against a scripted XMLHttpRequest: the error label names the real cause, and done() runs once.
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { load } = require('./harness');
+const { load, fakeTimers } = require('./harness');
 
 // Plays the browser's event order for one outcome, synchronously on send().
 function fakeXhr(play) {
@@ -53,4 +53,50 @@ test('postJson sends the body as JSON with its content type and parses the JSON 
   ctx.Net.postJson('https://x.test/b', { batchItems: [1] }, 20000, (err, json) => calls.push([err, JSON.stringify(json)]));
   assert.deepEqual(calls, [[null, '{"ok":true}']]);
   assert.deepEqual([seen.method, seen.headers['Content-Type'], seen.body, seen.timeout], ['POST', 'application/json', '{"batchItems":[1]}', 20000]);
+});
+
+// FB5B-M1: an image (a map tile) has a deadline and can be stopped. A fake Image records what the app does to it; the
+// test fires its events by hand on a fake clock.
+function imageNet() {
+  const clock = fakeTimers(0), made = [];
+  function Image() { this.src = ''; made.push(this); }
+  const ctx = load(['js/net.js'], { Image, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout });
+  return { Net: ctx.Net, clock, made };
+}
+
+test('FB5B-M1: Net.getImage — loaded, failed, or "timeout" after timeoutMs; done exactly once; a late event changes nothing', () => {
+  const ok = imageNet(), calls = [];
+  const h = ok.Net.getImage('https://t.test/1.png', 20000, (err, img) => calls.push([err, img && img.src]));
+  assert.equal(h.img.src, 'https://t.test/1.png');
+  h.img.onload();
+  assert.deepEqual(calls, [[null, 'https://t.test/1.png']]);
+  assert.deepEqual(ok.clock.pending(), [], 'no deadline left behind');
+
+  const bad = imageNet(), c2 = [];
+  bad.Net.getImage('https://t.test/2.png', 20000, (err) => c2.push(err)).img.onerror();
+  assert.deepEqual(c2, ['error']);
+
+  const hang = imageNet(), c3 = [];
+  const hh = hang.Net.getImage('https://t.test/3.png', 20000, (err, img) => c3.push([err, img]));
+  hang.clock.advance(19999);
+  assert.deepEqual(c3, [], 'still waiting');
+  hang.clock.advance(1);
+  assert.deepEqual(c3, [['timeout', null]]);
+  assert.equal(hh.img.src, '', 'the download is stopped');
+  assert.equal(hh.img.onload, null, 'handlers removed');
+  assert.equal(hh.img.onerror, null);
+});
+
+test('FB5B-M1: Net.getImage — cancel() stops the download and reports "cancelled" once; cancel after the end is a no-op', () => {
+  const n = imageNet(), calls = [];
+  const h = n.Net.getImage('https://t.test/4.png', 20000, (err) => calls.push(err));
+  h.cancel(); h.cancel();
+  assert.deepEqual(calls, ['cancelled']);
+  assert.equal(h.img.src, '');
+  assert.deepEqual(n.clock.pending(), [], 'its deadline cleared');
+  const done = imageNet(), c2 = [];
+  const d = done.Net.getImage('https://t.test/5.png', 20000, (err) => c2.push(err));
+  d.img.onload(); d.cancel();
+  assert.deepEqual(c2, [null]);
+  assert.equal(d.img.src, 'https://t.test/5.png', 'a loaded tile is left alone');
 });

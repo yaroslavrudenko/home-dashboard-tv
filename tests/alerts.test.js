@@ -20,15 +20,15 @@ const ROCKETS = 'ירי רקטות וטילים', SHELTER10 = 'היכנסו למ
 test('no alert: an empty body, the recorded BOM + CRLF, whitespace and [] all mean "no alert now"', () => {
   const ctx = load(FILES);
   assert.equal(Buffer.from(oref('empty-bom.txt'), 'utf8').length, 5, 'the 5-byte answer recorded live on 2026-10-29');
-  for (const b of ['', oref('empty-bom.txt'), '\r\n', '  ', '[]', '﻿[]']) assert.deepEqual(plain(ctx.Alerts.parse(b)), { alerts: [], ended: [] }, JSON.stringify(b));
+  for (const b of ['', oref('empty-bom.txt'), '\r\n', '  ', '[]', '﻿[]']) assert.deepEqual(plain(ctx.Alerts.parse(b)), { alerts: [] }, JSON.stringify(b));   // FB5-N4: no `ended` list
 });
 
-test('an alert: id, title, instruction and every area, in the feed\'s order', () => {
+// FB5-N4: the record carries only what the monitor reads (title, desc, areas); the feed's id is never read.
+test('an alert: title, instruction and every area, in the feed\'s order; nothing else is kept', () => {
   const ctx = load(FILES);
-  const { alerts, ended } = ctx.Alerts.parse(oref('rehovot.json'));
+  const { alerts } = ctx.Alerts.parse(oref('rehovot.json'));
   assert.equal(alerts.length, 1);
-  assert.equal(ended.length, 0);
-  assert.equal(alerts[0].id, '134062731180000000');
+  assert.deepEqual(Object.keys(alerts[0]).sort(), ['areas', 'desc', 'title'], 'FB5-N4');
   assert.equal(alerts[0].title, ROCKETS);
   assert.equal(alerts[0].desc, SHELTER10);
   assert.deepEqual([...alerts[0].areas], ['רחובות', 'נס ציונה', 'ראשון לציון - מזרח']);
@@ -56,21 +56,22 @@ test('a malformed member fails the whole poll: non-string or empty area, no area
     'one bad record among good ones fails the whole answer');
 });
 
-test('end messages ("the event has ended", "you may leave the protected space") come back separately, never as alerts', () => {
+// FB5-N4: end messages are dropped by parse() (nothing read them); each expectation below was [alerts, ended] and is now
+// the alerts count alone: an end title gives 0, any other wording gives 1.
+test('end messages ("the event has ended", "you may leave the protected space") are dropped, never returned as alerts', () => {
   const ctx = load(FILES);
   const r = ctx.Alerts.parse(oref('ended.json'));
   assert.equal(r.alerts.length, 0);
-  assert.deepEqual([...r.ended[0].areas], ['רחובות']);
   const leave = ctx.Alerts.parse(body({ id: '9', cat: '13', title: ' ניתן לצאת מהמרחב המוגן ', data: ['רחובות'], desc: '' }));
-  assert.deepEqual([leave.alerts.length, leave.ended.length], [0, 1], 'the exact title, trimmed');
+  assert.equal(leave.alerts.length, 0, 'the exact title, trimmed');
   // FB4-A7: an end is recognised only by an EXACT (trimmed) title; other extra words make the record ACTIVE.
   // FB4-A7b: Oref's real post-event wording "… but stay near it" is one of the exact end titles ([0, 1], as before FB4-A7).
   const near = ctx.Alerts.parse(body({ id: '9', cat: '13', title: 'ניתן לצאת מהמרחב המוגן אך יש להישאר בקרבתו', data: ['רחובות'], desc: '' }));
-  assert.deepEqual([near.alerts.length, near.ended.length], [0, 1], 'FB4-A7b: the exact "but stay near it" title is an end');
+  assert.equal(near.alerts.length, 0, 'FB4-A7b: the exact "but stay near it" title is an end');
   const more = ctx.Alerts.parse(body({ id: '9', cat: '13', title: 'ניתן לצאת מהמרחב המוגן אך יש להישאר בקרבתו עד להודעה חדשה', data: ['רחובות'], desc: '' }));
-  assert.deepEqual([more.alerts.length, more.ended.length], [1, 0], 'FB4-A7: further extra words are not an exact end title');
+  assert.equal(more.alerts.length, 1, 'FB4-A7: further extra words are not an exact end title');
   const mixed = ctx.Alerts.parse(body([JSON.parse(oref('rehovot.json').replace(/^﻿/, '')), JSON.parse(oref('ended.json').replace(/^﻿/, ''))]));
-  assert.deepEqual([mixed.alerts.length, mixed.ended.length], [1, 1], 'an active record and an end record in one answer: both kept');
+  assert.deepEqual(plain(mixed.alerts.map((a) => a.title)), [ROCKETS], 'an active record and an end record in one answer: the active one kept');
   // the category is never read: the recorded active and ended fixtures share cat "1"
   assert.equal(ctx.Alerts.parse(body({ id: '9', cat: '13', title: ROCKETS, data: ['רחובות'] })).alerts.length, 1, 'cat 13 with an alert title is an alert');
 });
@@ -230,8 +231,8 @@ test('A1: data:[null] and data:[1] keep the alert up AND count as failed polls (
   }
 });
 
-// FB4-A7 (renamed from "an end message for another area, or an end older than the event, never clears our alert")
-test('FB4-A7: an end message for another area, or for ours with any event id, never clears our alert before the hold', () => {
+// FB4-A7; CE-N2 renamed from "…, or for ours with any event id, never clears our alert before the hold" (the id era)
+test('FB4-A7: an end message, for another area or for ours, never clears our alert before the hold', () => {
   const ctx = load(FILES);
   const elsewhere = body({ id: '134062731180000000', cat: '1', title: 'האירוע הסתיים', data: ['אשקלון - דרום'], desc: '' });
   const stale = body({ id: '134062731170000000', cat: '1', title: 'האירוע הסתיים', data: ['רחובות'], desc: '' });
@@ -261,7 +262,7 @@ test('FB4-A7: an end message for our area (even a newer event id) does not clear
 test('FB4-A7: negated or extended end wording ("you may NOT leave the protected space") is an ACTIVE alert', () => {
   const ctx = load(FILES);
   const negated = body({ id: '101', cat: '1', title: 'לא ניתן לצאת מהמרחב המוגן', data: ['רחובות'], desc: '' });
-  assert.deepEqual([ctx.Alerts.parse(negated).alerts.length, ctx.Alerts.parse(negated).ended.length], [1, 0]);
+  assert.equal(ctx.Alerts.parse(negated).alerts.length, 1);   // FB5-N4: was [alerts, ended] = [1, 0]
   const s = monitor(ctx, (t) => [null, t < 5000 ? REHOVOT() : t <= 10000 ? negated : EMPTY]);
   s.at(10000);
   assert.ok(s.m.state().active, 'the negated message keeps the alert');

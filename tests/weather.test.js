@@ -13,8 +13,8 @@ test('one URL carries every place (comma-separated coordinates), current, hourly
   const ctx = load(FILES);
   const u = new URL(ctx.Weather.url(ctx.Config.places, ctx.Config.weather));
   assert.equal(u.origin + u.pathname, 'https://api.open-meteo.com/v1/forecast');
-  assert.equal(u.searchParams.get('latitude'), '31.8928,50.4501,-33.8688');
-  assert.equal(u.searchParams.get('longitude'), '34.8113,30.5234,151.2093');
+  assert.equal(u.searchParams.get('latitude'), '31.8928,50.4501,-33.8688,32.794,32.0853,31.2518');   // FB5-WX: + Haifa, Tel Aviv, Beer Sheva
+  assert.equal(u.searchParams.get('longitude'), '34.8113,30.5234,151.2093,34.9896,34.7818,34.7913');
   assert.equal(u.searchParams.get('timezone'), 'auto');
   assert.equal(u.searchParams.get('forecast_days'), '7');
   assert.equal(u.searchParams.get('forecast_hours'), '24', 'only the hourly rows the strip can use');
@@ -127,7 +127,7 @@ function makeStore(ctx, random) {
     now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, random,
     onChange: () => { changes++; }
   });
-  const byLat = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney' };
+  const byLat = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney', '32.794': 'haifa', '32.0853': 'telaviv', '31.2518': 'beersheva' };
   // Answers the last request: 'ok' = every place's recorded answer, or an error label for a transport failure;
   // `patch(list)` may edit the answer list first.
   const answer = (mode, patch) => {
@@ -145,7 +145,7 @@ test('a refresh is ONE request for every place, with a timeout; a second refresh
   const s = makeStore(ctx);
   assert.equal(s.store.refresh(), true);
   assert.equal(s.calls.length, 1, 'one request per refresh, whatever the number of places');
-  assert.deepEqual(s.calls[0].lats, ['31.8928', '50.4501', '-33.8688']);
+  assert.deepEqual(s.calls[0].lats, ['31.8928', '50.4501', '-33.8688', '32.794', '32.0853', '31.2518'], 'FB5-WX: the Israel regions ride the same request');
   assert.equal(s.calls[0].timeoutMs, 15000, 'the request has a timeout');
   assert.equal(s.store.refresh(), false);
   assert.equal(s.calls.length, 1);
@@ -270,4 +270,26 @@ test('stop() wins over a request already in flight: its late answer neither rend
   assert.deepEqual(s.clock.pending(), [], 'no timer');
   assert.equal(s.store.get('rehovot'), null, 'nothing stored');
   assert.equal(s.store.refresh(), true, 'a new refresh can start after stop');
+});
+
+// FB5-WX: the Israel weather screen reads the main weather's store: no request of its own, three regions, 5 days each.
+test('FB5-WX: the Israel regions (Haifa, Tel Aviv, Beer Sheva) come in the ONE weather request; each has current weather and 5 days', () => {
+  const ctx = load(FILES);
+  const isr = ctx.Config.israel;
+  assert.deepEqual(JSON.parse(JSON.stringify(isr)), { regions: [{ id: 'north', place: 'haifa' }, { id: 'center', place: 'telaviv' }, { id: 'south', place: 'beersheva' }], days: 5 });
+  const s = makeStore(ctx);
+  s.store.refresh();
+  assert.equal(s.calls.length, 1, 'one request for six places');
+  s.answer('ok');
+  for (const r of isr.regions) {
+    const data = s.store.get(r.place);
+    assert.ok(data && typeof data.current.temp === 'number', r.place);
+    const v = ctx.Weather.forHour(data, '2026-10-29T20', ctx.Config.weather);
+    assert.equal(v.daily.slice(0, isr.days).filter(Boolean).length, 5, r.place + ': five forecast days');
+    assert.equal(s.store.status(r.place).kind, 'fresh');
+  }
+  s.clock.advance(15 * 60000);
+  s.answer('timeout');
+  for (const r of isr.regions) assert.equal(s.store.status(r.place).kind, 'stale', 'a failed answer keeps the last data: ' + r.place);
+  assert.ok(s.store.get('haifa'), 'kept');
 });

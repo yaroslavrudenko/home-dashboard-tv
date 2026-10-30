@@ -12,11 +12,22 @@ var Html = (function () {
     if (el.innerHTML !== html) el.innerHTML = html;
   }
 
-  // A screen's header: its title on the left, its status line on the right.
-  function screenHead(title, statusId) {
+  // A screen's header: its title on the left, its status line on the right (and under it, with noteId, a second line
+  // that says why the data cannot be updated, never in place of the status line).
+  function screenHead(title, statusId, noteId) {
+    var status = '<div class="status screen-status" id="' + statusId + '"></div>';
     return '<header class="screen-head"><h1 class="screen-title">' + esc(title) + '</h1>' +
-      '<div class="status screen-status" id="' + statusId + '"></div></header>';
+      (noteId ? '<div class="head-side">' + status + '<div class="status-note" id="' + noteId + '"></div></div>' : status) + '</header>';
   }
 
-  return { esc: esc, setStatus: setStatus, screenHead: screenHead };
+  // Nothing to show: a glyph, what is wrong, and (optionally) what happens next, calm in the middle of its box.
+  function emptyState(glyph, text, sub) {
+    return '<div class="empty-state">' + glyph + '<div class="empty-text">' + esc(text) + '</div>' + (sub ? '<div class="empty-sub">' + esc(sub) + '</div>' : '') + '</div>';
+  }
+  // A screen's one calm card when it has nothing to show.
+  function emptyCard(cls, glyph, text, sub) { return '<div class="card ' + cls + '">' + emptyState(glyph, text, sub) + '</div>'; }
+  // "Повторим в 20:33" / "Повторим позже": when a failed source is tried again.
+  function retryText(retryAt) { return retryAt ? I18n.t('w.retry', { time: retryAt }) : I18n.t('w.retrySoon'); }
+
+  return { esc: esc, setStatus: setStatus, screenHead: screenHead, emptyState: emptyState, emptyCard: emptyCard, retryText: retryText };
 })();

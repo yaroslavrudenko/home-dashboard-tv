@@ -18,8 +18,9 @@ export const FIXED_NOW = Date.parse(REHOVOT.current.time + ':00Z') - REHOVOT.utc
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET, POST' };
 // oref.org.il answers a CORS preflight without Access-Control-Allow-Origin / -Allow-Headers (measured 2026-10-29), so a
 // poll that needs a preflight never reaches the GET: the harness answers OPTIONS the same way.
-const BY_LAT = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney' };
-const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2' };
+// FB5-WX: the Israel regions (haifa, telaviv, beersheva) are derived from the Rehovot recording (tests/fixtures).
+const BY_LAT = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney', '32.794': 'haifa', '32.0853': 'telaviv', '31.2518': 'beersheva' };
+const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff' };
 
 // The answer to one multi-location request: one recorded fixture per requested latitude, in order.
 export function weatherAnswer(url) {
@@ -37,14 +38,18 @@ function loadPuppeteer() {
 
 // News feeds, the alert feed and TomTom: `opts.news` 'ok' (tests/fixtures/news) | 'fail' | 'live' (fetched from the real
 // feeds by Node at that moment) | (url) => { status, body }; `opts.alerts` a file in tests/fixtures/oref | 'fail' |
-// (n) => { status, body }; `opts.traffic` 'ok' (tests/fixtures/tomtom/batch.json) | 'fail'. Left out: the request is
-// aborted (a network failure), as before these screens existed.
-const NEWS_HOSTS = { 'https://www.newsru.co.il/': 'newsru', 'https://www.pravda.com.ua/': 'pravda', 'https://feeds.bbci.co.uk/': 'bbc' };
+// (n) => { status, body }; `opts.traffic` 'ok' (tests/fixtures/tomtom/batch.json) | 'fail'; `opts.tiles` (TomTom map and
+// traffic-flow tiles) 'ok' (stub tiles: tests/fixtures/tomtom/tile-*.png — no real tile can be fetched without a key) |
+// 'fail' | (url, n) => { status, body } | { hang: true } (never answered). Tiles carry TomTom's live cache header (no-store,
+// measured 2026-10-30). Left out: the request is aborted (a network failure), as before these screens existed.
+const NEWS_HOSTS = { 'https://www.ynet.co.il/': 'ynet', 'https://www.globes.co.il/': 'globes' };
+const TILE = /^https:\/\/api\.tomtom\.com\/(map|traffic\/map)\//;
+const NO_STORE = { 'Cache-Control': 'private, no-cache, no-store, max-age=0, must-revalidate' };
 const fixtureText = (rel) => fs.readFileSync(path.join(FIXTURES, rel));
 function newsSource(url) { for (const h of Object.keys(NEWS_HOSTS)) if (url.startsWith(h)) return NEWS_HOSTS[h]; return null; }
 async function answerFor(kind, opts, url, n) {
   const o = opts[kind];
-  const custom = typeof o === 'function' ? o(kind === 'news' ? url : n, url) : null;
+  const custom = typeof o === 'function' ? o(kind === 'news' || kind === 'tiles' ? url : n, kind === 'tiles' ? n : url) : null;
   if (custom) return custom;
   if (o === 'fail') return { status: 503, body: '' };
   if (kind === 'news') {
@@ -52,6 +57,7 @@ async function answerFor(kind, opts, url, n) {
     return { status: 200, body: fixtureText('news/' + newsSource(url) + '.xml') };   // 'ok', or a function that answered null
   }
   if (kind === 'alerts') return { status: 200, body: fixtureText('oref/' + o) };
+  if (kind === 'tiles') return { status: 200, contentType: 'image/png', headers: NO_STORE, body: fixtureText('tomtom/tile-' + (url.indexOf('/traffic/map/') >= 0 ? 'flow' : 'base') + '.png') };
   return { status: 200, body: fixtureText('tomtom/batch.json') };
 }
 
@@ -68,7 +74,7 @@ export async function openApp(opts = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080 });
   const weatherRequests = [];
-  const requests = { news: [], alerts: [], traffic: [] };
+  const requests = { news: [], alerts: [], traffic: [], tiles: [] };
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.evaluateOnNewDocument((fixed, lang, configure, init) => {
@@ -101,11 +107,13 @@ export async function openApp(opts = {}) {
         : fail ? { status: 503, body: '' } : { status: 200, body: weatherAnswer(url) };
       done = req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
     } else {
-      const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : url.startsWith('https://api.tomtom.com/') ? 'traffic' : null;
+      const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : TILE.test(url) ? 'tiles'
+        : url.startsWith('https://api.tomtom.com/') ? 'traffic' : null;
       if (kind) requests[kind].push({ url, method: req.method(), headers: req.headers(), body: req.postData() });
       if (!kind || opts[kind] === undefined) done = req.abort();
       else if (req.method() === 'OPTIONS') done = req.respond(kind === 'alerts' ? { status: 200, headers: { Allow: 'GET, HEAD' }, body: '' } : { status: 204, headers: CORS });
-      else done = answerFor(kind, opts, url, requests[kind].length).then((a) => req.respond({ status: a.status, headers: CORS, body: a.body }));
+      else done = answerFor(kind, opts, url, requests[kind].length).then((a) => (a.hang ? null
+        : req.respond({ status: a.status, headers: Object.assign({}, CORS, a.headers), contentType: a.contentType, body: a.body })));
     }
     Promise.resolve(done).catch(() => {});
   });
@@ -153,7 +161,11 @@ export async function legibility(selector = '#stage *') {
     const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
     if (!own) continue;
     const cs = getComputedStyle(el), m = cs.color.match(/[\d.]+/g).map(Number);
-    const fg = over(m.slice(0, 3), m.length > 3 ? m[3] : 1, bg);
+    // the colour's own alpha times every ancestor's opacity (FB5B-T5: an opacity on a parent dims the text as much)
+    let alpha = m.length > 3 ? m[3] : 1;
+    for (let a = el; a && a !== document.documentElement; a = a.parentElement) alpha *= parseFloat(getComputedStyle(a).opacity);
+    if (!alpha || cs.visibility === 'hidden') continue;          // not drawn at all (a hidden screen): nothing to read
+    const fg = over(m.slice(0, 3), alpha, bg);
     const contrast = (lum(fg) + 0.05) / (lum(bg) + 0.05);
     if (parseFloat(cs.fontSize) < 24 || contrast < 4.5) bad.push(el.className + ' "' + el.textContent.trim().slice(0, 20) + '" ' + cs.fontSize + ' ' + contrast.toFixed(2));
   }

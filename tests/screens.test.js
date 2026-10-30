@@ -16,9 +16,10 @@ function make(cfgPatch) {
   return { s, clock, shown, ctx };
 }
 
-test('defaults: three screens (main, news, traffic), rotation on, every 45 s, paused 2 min after a key', () => {
+// FB5-WX / FB5-MAP: the Israel weather is the second screen, the traffic map the fifth.
+test('defaults: five screens (main, israel, news, traffic, map), rotation on, every 45 s, paused 2 min after a key', () => {
   const { ctx } = make();
-  assert.deepEqual(JSON.parse(JSON.stringify(ctx.Config.screens)), ['main', 'news', 'traffic']);
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.Config.screens)), ['main', 'israel', 'news', 'traffic', 'map']);
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.Config.rotation)), { enabled: true, intervalMs: 45000, pauseAfterKeyMs: 120000 });
 });
 

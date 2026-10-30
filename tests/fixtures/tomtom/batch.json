@@ -10,13 +10,118 @@
       "summary": {
        "lengthInMeters": 27412,
        "travelTimeInSeconds": 2310,
-       "trafficDelayInSeconds": 780,
+       "trafficDelayInSeconds": 820,
        "trafficLengthInMeters": 4200,
        "departureTime": "2026-10-29T20:34:00+02:00",
        "arrivalTime": "2026-10-29T21:10:00+02:00",
        "noTrafficTravelTimeInSeconds": 1490,
        "historicTrafficTravelTimeInSeconds": 1790,
        "liveTrafficIncidentsTravelTimeInSeconds": 2310
+      }
+     }
+    ]
+   }
+  },
+  {
+   "statusCode": 200,
+   "response": {
+    "formatVersion": "0.0.12",
+    "routes": [
+     {
+      "summary": {
+       "lengthInMeters": 57100,
+       "travelTimeInSeconds": 3010,
+       "trafficDelayInSeconds": 110,
+       "trafficLengthInMeters": 4200,
+       "departureTime": "2026-10-29T20:34:00+02:00",
+       "arrivalTime": "2026-10-29T21:10:00+02:00",
+       "noTrafficTravelTimeInSeconds": 2900,
+       "historicTrafficTravelTimeInSeconds": 3200,
+       "liveTrafficIncidentsTravelTimeInSeconds": 3010
+      }
+     }
+    ]
+   }
+  },
+  {
+   "statusCode": 200,
+   "response": {
+    "formatVersion": "0.0.12",
+    "routes": [
+     {
+      "summary": {
+       "lengthInMeters": 118400,
+       "travelTimeInSeconds": 5520,
+       "trafficDelayInSeconds": 880,
+       "trafficLengthInMeters": 4200,
+       "departureTime": "2026-10-29T20:34:00+02:00",
+       "arrivalTime": "2026-10-29T21:10:00+02:00",
+       "noTrafficTravelTimeInSeconds": 4640,
+       "historicTrafficTravelTimeInSeconds": 4940,
+       "liveTrafficIncidentsTravelTimeInSeconds": 5520
+      }
+     }
+    ]
+   }
+  },
+  {
+   "statusCode": 200,
+   "response": {
+    "formatVersion": "0.0.12",
+    "routes": [
+     {
+      "summary": {
+       "lengthInMeters": 101300,
+       "travelTimeInSeconds": 3930,
+       "trafficDelayInSeconds": 120,
+       "trafficLengthInMeters": 4200,
+       "departureTime": "2026-10-29T20:34:00+02:00",
+       "arrivalTime": "2026-10-29T21:10:00+02:00",
+       "noTrafficTravelTimeInSeconds": 3810,
+       "historicTrafficTravelTimeInSeconds": 4110,
+       "liveTrafficIncidentsTravelTimeInSeconds": 3930
+      }
+     }
+    ]
+   }
+  },
+  {
+   "statusCode": 200,
+   "response": {
+    "formatVersion": "0.0.12",
+    "routes": [
+     {
+      "summary": {
+       "lengthInMeters": 41900,
+       "travelTimeInSeconds": 2040,
+       "trafficDelayInSeconds": 80,
+       "trafficLengthInMeters": 4200,
+       "departureTime": "2026-10-29T20:34:00+02:00",
+       "arrivalTime": "2026-10-29T21:10:00+02:00",
+       "noTrafficTravelTimeInSeconds": 1960,
+       "historicTrafficTravelTimeInSeconds": 2260,
+       "liveTrafficIncidentsTravelTimeInSeconds": 2040
+      }
+     }
+    ]
+   }
+  },
+  {
+   "statusCode": 200,
+   "response": {
+    "formatVersion": "0.0.12",
+    "routes": [
+     {
+      "summary": {
+       "lengthInMeters": 23600,
+       "travelTimeInSeconds": 1500,
+       "trafficDelayInSeconds": 240,
+       "trafficLengthInMeters": 4200,
+       "departureTime": "2026-10-29T20:34:00+02:00",
+       "arrivalTime": "2026-10-29T21:10:00+02:00",
+       "noTrafficTravelTimeInSeconds": 1260,
+       "historicTrafficTravelTimeInSeconds": 1560,
+       "liveTrafficIncidentsTravelTimeInSeconds": 1500
       }
      }
     ]
@@ -50,15 +155,15 @@
     "routes": [
      {
       "summary": {
-       "lengthInMeters": 56240,
-       "travelTimeInSeconds": 2950,
-       "trafficDelayInSeconds": 95,
+       "lengthInMeters": 29800,
+       "travelTimeInSeconds": 1460,
+       "trafficDelayInSeconds": 70,
        "trafficLengthInMeters": 4200,
        "departureTime": "2026-10-29T20:34:00+02:00",
        "arrivalTime": "2026-10-29T21:10:00+02:00",
-       "noTrafficTravelTimeInSeconds": 2840,
-       "historicTrafficTravelTimeInSeconds": 3140,
-       "liveTrafficIncidentsTravelTimeInSeconds": 2950
+       "noTrafficTravelTimeInSeconds": 1390,
+       "historicTrafficTravelTimeInSeconds": 1690,
+       "liveTrafficIncidentsTravelTimeInSeconds": 1460
       }
      }
     ]
@@ -71,15 +176,15 @@
     "routes": [
      {
       "summary": {
-       "lengthInMeters": 9870,
-       "travelTimeInSeconds": 1260,
-       "trafficDelayInSeconds": 640,
+       "lengthInMeters": 21700,
+       "travelTimeInSeconds": 1980,
+       "trafficDelayInSeconds": 730,
        "trafficLengthInMeters": 4200,
        "departureTime": "2026-10-29T20:34:00+02:00",
        "arrivalTime": "2026-10-29T21:10:00+02:00",
-       "noTrafficTravelTimeInSeconds": 600,
-       "historicTrafficTravelTimeInSeconds": 900,
-       "liveTrafficIncidentsTravelTimeInSeconds": 1260
+       "noTrafficTravelTimeInSeconds": 1250,
+       "historicTrafficTravelTimeInSeconds": 1550,
+       "liveTrafficIncidentsTravelTimeInSeconds": 1980
       }
      }
     ]
@@ -92,52 +197,23 @@
     "routes": [
      {
       "summary": {
-       "lengthInMeters": 16420,
-       "travelTimeInSeconds": 880,
-       "trafficDelayInSeconds": 160,
+       "lengthInMeters": 44300,
+       "travelTimeInSeconds": 2520,
+       "trafficDelayInSeconds": 400,
        "trafficLengthInMeters": 4200,
        "departureTime": "2026-10-29T20:34:00+02:00",
        "arrivalTime": "2026-10-29T21:10:00+02:00",
-       "noTrafficTravelTimeInSeconds": 720,
-       "historicTrafficTravelTimeInSeconds": 1020,
-       "liveTrafficIncidentsTravelTimeInSeconds": 880
+       "noTrafficTravelTimeInSeconds": 2120,
+       "historicTrafficTravelTimeInSeconds": 2420,
+       "liveTrafficIncidentsTravelTimeInSeconds": 2520
       }
      }
     ]
-   }
-  },
-  {
-   "statusCode": 200,
-   "response": {
-    "formatVersion": "0.0.12",
-    "routes": [
-     {
-      "summary": {
-       "lengthInMeters": 29630,
-       "travelTimeInSeconds": 1500,
-       "trafficDelayInSeconds": 20,
-       "trafficLengthInMeters": 4200,
-       "departureTime": "2026-10-29T20:34:00+02:00",
-       "arrivalTime": "2026-10-29T21:10:00+02:00",
-       "noTrafficTravelTimeInSeconds": 1480,
-       "historicTrafficTravelTimeInSeconds": 1780,
-       "liveTrafficIncidentsTravelTimeInSeconds": 1500
-      }
-     }
-    ]
-   }
-  },
-  {
-   "statusCode": 400,
-   "response": {
-    "error": {
-     "description": "Engine error while executing route request: NO_ROUTE_FOUND"
-    }
    }
   }
  ],
  "summary": {
-  "successfulRequests": 6,
-  "totalRequests": 7
+  "successfulRequests": 10,
+  "totalRequests": 10
  }
 }

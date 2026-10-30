@@ -17,7 +17,7 @@ test('1920×1080, Russian: clocks, current weather, 12-hour strip, 7 days; every
     const p = app.page;
     assert.deepEqual(app.errors, []);
     assert.equal(app.weatherRequests.length, 1, 'one request for every place');
-    assert.equal(new URL(app.weatherRequests[0]).searchParams.get('latitude'), '31.8928,50.4501,-33.8688');
+    assert.equal(new URL(app.weatherRequests[0]).searchParams.get('latitude'), '31.8928,50.4501,-33.8688,32.794,32.0853,31.2518');   // FB5-WX: + the Israel regions
     assert.equal(new URL(app.weatherRequests[0]).searchParams.get('forecast_hours'), '24');
 
     const clocks = await p.$$eval('.clock', (els) => els.map((e) => [e.id, e.querySelector('.clock-city').textContent, e.querySelector('.clock-time').textContent]));
@@ -166,8 +166,11 @@ test('a failed refresh marks the temperature stale on every clock card and on th
     await p.waitForSelector('#status.is-stale', { timeout: 10000 });
     await new Promise((r) => setTimeout(r, 200));
     assert.equal(app.weatherRequests.length, 2);
-    assert.equal(await p.$$eval('.clock-weather.is-stale .stale-mark', (e) => e.length), 3, 'marked on all three clock cards');
-    assert.equal(await p.$$eval('.now.is-stale .now-temp .stale-mark', (e) => e.length), 1, 'marked on the main card');
+    // FB5-N6: dimmed and said once by the amber status line; no unexplained amber dot next to the temperatures.
+    assert.equal(await p.$$eval('.clock-weather.is-stale', (e) => e.length), 3, 'marked on all three clock cards');
+    assert.equal(await p.$$eval('.now.is-stale', (e) => e.length), 1, 'marked on the main card');
+    assert.equal(await p.$$eval('.stale-mark', (e) => e.length), 0, 'FB5-N6: no amber dot');
+    assert.equal(await p.$eval('.now.is-stale .now-temp', (e) => getComputedStyle(e).color), 'rgba(255, 255, 255, 0.62)', 'the main temperature is dimmed');
     assert.match(await p.$eval('#status', (e) => e.textContent), /^Не обновляется · данные от 20:3\d$/);
     const dim = await p.$eval('.clock-weather.is-stale .clock-temp', (e) => getComputedStyle(e).color);
     assert.equal(dim, 'rgba(255, 255, 255, 0.62)', 'the stale temperature is dimmed');

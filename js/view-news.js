@@ -1,7 +1,9 @@
-/* The News screen: one lead story across the top, the next headlines below in rows of two (read left to right, newest
- * first). Headlines are never cut or ellipsised: a long lead steps its size down (at most twice) and drops its
- * summary; headlines that do not fit leave whole rows out (the count gives way, not the words). One story: the lead
- * alone; two: the second across the full width. Feed text reaches the page only through Html.esc. */
+/* The News screen: two columns side by side («Израиль», «Экономика»), each one feed's top stories, newest first:
+ * the time and the headline. Both columns have the same five row slots, so row n on the left and row n on the right
+ * share one line. A headline takes at most two lines (a fixed two-line box, clamped with an ellipsis: nothing is
+ * measured). Both configured columns are always drawn, and each carries its own state: loading or "no data" inside it,
+ * a feed that fails keeps its last stories and says so in its own column only. Feed text reaches the page only through
+ * Html.esc. */
 var NewsView = (function () {
   var esc = Html.esc;
   var els = {}, drawn = '';
@@ -12,75 +14,52 @@ var NewsView = (function () {
     drawn = '';
   }
 
-  function meta(item, now) {
-    return '<div class="news-meta"><span class="src-dot src-' + esc(item.source) + '"></span><span class="src-name">' +
-      esc(I18n.t('n.src.' + item.source)) + '</span><span class="news-time">' + esc(I18n.ago(now - item.at)) + '</span></div>';
+  // The time (and a column's own state line) is in the interface language: it keeps its own direction inside a
+  // right-to-left column ("1 мин назад", "Загружаем новости…" with its ellipsis at the end).
+  function rowHtml(item, now) {
+    return '<div class="news-row"><div class="news-time" dir="' + I18n.dir() + '">' + esc(I18n.ago(now - item.at)) + '</div><div class="news-title">' + esc(item.title) + '</div></div>';
   }
 
-  function leadHtml(item, now, alone) {
-    return '<article class="card lead src-' + esc(item.source) + (alone ? ' is-alone' : '') + '"><div class="lead-glow"></div>' + meta(item, now) +
-      '<div class="lead-title">' + esc(item.title) + '</div>' +
-      (item.summary ? '<div class="lead-summary">' + esc(item.summary) + '</div>' : '') + '</article>';
+  // c: { id, source, dir ('rtl' for Hebrew headlines), items, kind, updated ("HH:MM") }; rows: the slot count, so a
+  // short column keeps the grid. The column's head stays in the interface language; only its headlines take `dir`.
+  function columnHtml(c, now, rows) {
+    var body = '', i;
+    if (!c.items.length) body = '<div class="news-col-empty" dir="' + I18n.dir() + '">' + esc(I18n.t(c.kind === 'failed' ? 'n.noData' : 'n.loading')) + '</div>';
+    else for (i = 0; i < rows; i++) body += c.items[i] ? rowHtml(c.items[i], now) : '<div class="news-row"></div>';
+    return '<section class="card news-col"><div class="news-col-head"><span class="src-dot src-' + esc(c.source) + '"></span>' +
+      '<span class="news-col-title">' + esc(I18n.t('n.col.' + c.id)) + '</span><span class="src-name">' + esc(I18n.t('n.src.' + c.source)) + '</span>' +
+      (c.kind === 'stale' ? '<span class="news-col-state">' + esc(I18n.t('w.stale', { time: c.updated })) + '</span>' : '') + '</div>' +
+      '<div class="news-rows"' + (c.dir ? ' dir="' + esc(c.dir) + '"' : '') + '>' + body + '</div></section>';
   }
 
-  function itemHtml(item, now) { return '<div class="news-item">' + meta(item, now) + '<div class="news-title">' + esc(item.title) + '</div></div>'; }
-
-  // Rows of two in reading order, a rule over each row; `fitting` packs the rows to the top while they are measured.
-  function listHtml(items, now, fitting) {
-    var rows = '';
-    for (var i = 0; i < items.length; i += 2) rows += '<div class="news-row">' + itemHtml(items[i], now) + (items[i + 1] ? itemHtml(items[i + 1], now) : '') + '</div>';
-    return '<section class="card news-list' + (items.length === 1 ? ' is-single' : '') + (fitting ? ' is-fitting' : '') + '">' + rows + '</section>';
+  // The header speaks once for the screen: fresh while any column is current (a failed column says so itself), stale
+  // when none is, and when nothing came at all: nothing while loading, "unavailable · retrying at" when failed.
+  function statusOf(columns, s) {
+    var fresh = false, any = false;
+    for (var i = 0; i < columns.length; i++) { fresh = fresh || columns[i].kind === 'fresh'; any = any || columns[i].items.length > 0; }
+    if (!any) return { kind: s.kind, text: s.kind === 'failed' ? (s.retryAt ? I18n.t('n.failedRetry', { time: s.retryAt }) : I18n.t('n.failed')) : '' };
+    var kind = fresh ? 'fresh' : 'stale';
+    return { kind: kind, text: View.statusText(kind, s.updated) };
   }
 
-  function emptyHtml(kind, retryAt) {
-    var failed = kind === 'failed';
-    return '<div class="card news-empty"><div class="empty-state">' + Icons.glyph('news') +
-      '<div class="empty-text">' + esc(I18n.t(failed ? 'n.failed' : 'n.loading')) + '</div>' +
-      (failed ? '<div class="empty-sub">' + esc(retryAt ? I18n.t('w.retry', { time: retryAt }) : I18n.t('w.retrySoon')) + '</div>' : '') + '</div></div>';
-  }
-
-  function overflows(el) { return el.scrollHeight > el.clientHeight + 1; }
-
-  // A lead headline longer than three lines steps down to 48 px, then 40 px, and gives its summary's room to the
-  // title (css/app.css holds the three-line limits). Two steps at most, one height read per step.
-  function fitLead(lead) {
-    var title = lead.querySelector('.lead-title');
-    if (!overflows(title)) return;
-    lead.className += ' is-long';
-    if (overflows(title)) lead.className += ' is-xlong';
-  }
-  // Drops the oldest whole row until the list fits (one row always stays), then lets the rows spread out.
-  function fitList(shown, now) {
-    var n = shown.length, list = els.body.querySelector('.news-list');
-    while (n > 2 && overflows(list)) {
-      n -= n % 2 ? 1 : 2;
-      list.outerHTML = listHtml(shown.slice(0, n), now, true);
-      list = els.body.querySelector('.news-list');
+  // columns: [{ id, source, dir, items (newest first, at most `rows`), kind, updated }].
+  // s: { kind, updated ("HH:MM", the newest answer), retryAt ("HH:MM"|'') }.
+  // Redrawn only when the stories, their "… ago" texts or a state changed.
+  function render(columns, s, now, rows) {
+    var key = [s.kind, s.retryAt, I18n.lang()], i, j;
+    for (i = 0; i < columns.length; i++) {
+      key.push(columns[i].kind, columns[i].updated);
+      for (j = 0; j < columns[i].items.length; j++) key.push(columns[i].items[j].key + columns[i].items[j].title + I18n.ago(now - columns[i].items[j].at));
     }
-    list.className = list.className.replace(' is-fitting', '');
-  }
-
-  // items: merged stories, newest first.
-  // s: { kind, failedNames: [names of sources not current], feedCount, updated ("HH:MM"), retryAt ("HH:MM"|'') }.
-  // Redrawn (and measured) only when the stories, their "… ago" texts or the state changed.
-  function render(items, s, now, listSize) {
-    var shown = items.slice(0, 1 + listSize), key = [s.kind, s.retryAt];
-    for (var i = 0; i < shown.length; i++) key.push(shown[i].key + shown[i].title + I18n.ago(now - shown[i].at));
     key = key.join('|');
     if (key !== drawn) {
       drawn = key;
-      if (!shown.length) els.body.innerHTML = emptyHtml(s.kind, s.retryAt);
-      else {
-        var rest = shown.slice(1);
-        els.body.innerHTML = leadHtml(shown[0], now, !rest.length) + (rest.length ? listHtml(rest, now, true) : '');
-        fitLead(els.body.querySelector('.lead'));
-        if (rest.length) fitList(rest, now);
-      }
+      var html = '';
+      for (i = 0; i < columns.length; i++) html += columnHtml(columns[i], now, rows);
+      els.body.innerHTML = html;
     }
-    // Some sources failing while others are current: say which; otherwise the same words as the weather.
-    var partial = s.kind === 'stale' && s.failedNames.length && s.failedNames.length < s.feedCount;
-    Html.setStatus(els.status, 'status screen-status', s.kind,
-      partial ? I18n.t('n.partial', { time: s.updated, sources: s.failedNames.join(', ') }) : View.statusText(s.kind, s.updated));
+    var st = statusOf(columns, s);
+    Html.setStatus(els.status, 'status screen-status', st.kind, st.text);
   }
 
   return { init: init, render: render };

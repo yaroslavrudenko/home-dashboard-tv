@@ -14,13 +14,23 @@ var Config = {
     { id: 'sydney', zones: ['Australia/Sydney'], rule: 'AU_SYD', place: 'sydney' }
   ],
 
-  // Weather places. The first one is the main card (current weather, hourly strip, 7-day forecast).
-  // Every place comes in ONE Open-Meteo request per refresh (comma-separated coordinates).
+  // Weather places. The first one is the main card (current weather, hourly strip, 7-day forecast); the last three are
+  // the regions of the Israel weather screen. Every place comes in ONE Open-Meteo request per refresh
+  // (comma-separated coordinates), so a screen more costs no request more.
   places: [
     { id: 'rehovot', lat: 31.8928, lon: 34.8113 },
     { id: 'kyiv', lat: 50.4501, lon: 30.5234 },
-    { id: 'sydney', lat: -33.8688, lon: 151.2093 }
+    { id: 'sydney', lat: -33.8688, lon: 151.2093 },
+    { id: 'haifa', lat: 32.794, lon: 34.9896 },
+    { id: 'telaviv', lat: 32.0853, lon: 34.7818 },
+    { id: 'beersheva', lat: 31.2518, lon: 34.7913 }
   ],
+
+  // The Israel weather screen: one card per region (left to right), each a place above, with a `days`-day forecast.
+  israel: {
+    regions: [{ id: 'north', place: 'haifa' }, { id: 'center', place: 'telaviv' }, { id: 'south', place: 'beersheva' }],
+    days: 5
+  },
 
   weather: {
     base: 'https://api.open-meteo.com/v1/forecast',
@@ -36,23 +46,26 @@ var Config = {
     days: 7                             // daily list length
   },
 
-  // Screens, switched with the remote's ◀ ▶: 'main' (clocks + weather), 'news', 'traffic'. Auto-rotation shows the
+  // Screens, switched with the remote's ◀ ▶: 'main' (clocks + weather), 'israel' (the weather across Israel), 'news',
+  // 'traffic' (ten routes), 'map' (the traffic map with the highways). Auto-rotation shows the
   // next one every intervalMs (enabled: false turns it off); any key press pauses it for pauseAfterKeyMs, and an
   // Israel alert on screen pauses it until the alert is gone.
-  screens: ['main', 'news', 'traffic'],
+  screens: ['main', 'israel', 'news', 'traffic', 'map'],
   rotation: { enabled: true, intervalMs: 45 * 1000, pauseAfterKeyMs: 2 * 60 * 1000 },
 
-  // News: Russian-language feeds, merged, de-duplicated and sorted newest first. All feeds come in ONE parallel
-  // round every refreshMs. vesty.co.il publishes no live feed (every /Integration/StoryRss*.xml is weeks old), so
-  // NEWSru.co.il "Важные новости" stands for Israel. `id` names the source in js/i18n.js ('news.src.<id>').
+  // News: two columns of Israeli news from the top outlets, in Hebrew, each one feed's top stories, newest first. All
+  // feeds come in ONE parallel round every refreshMs. Left «Израиль»: Ynet's main feed; right «Экономика»: Globes' home
+  // page feed (Calcalist answers 403 and TheMarker's feed stopped in May 2026; checked 2026-10-30). `id` names the source
+  // in js/i18n.js ('n.src.<id>'), a column's `id` its title ('n.col.<id>'); `feed` is the feed it shows and `dir` the
+  // direction its headlines are read in.
   news: {
     feeds: [
-      { id: 'newsru', url: 'https://www.newsru.co.il/il/www/news/main' },
-      { id: 'pravda', url: 'https://www.pravda.com.ua/rus/rss/' },
-      { id: 'bbc', url: 'https://feeds.bbci.co.uk/russian/rss.xml' }
+      { id: 'ynet', url: 'https://www.ynet.co.il/Integration/StoryRss2.xml' },
+      { id: 'globes', url: 'https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2' }
     ],
-    perFeed: 15,                        // items kept from each feed (newest first)
-    listSize: 6,                        // headlines under the lead story; fewer are shown when they do not fit
+    columns: [{ id: 'il', feed: 'ynet', dir: 'rtl' }, { id: 'econ', feed: 'globes', dir: 'rtl' }],
+    perFeed: 15,                        // items read from each feed (newest first)
+    perColumn: 5,                       // stories in each column; a headline takes at most two lines
     refreshMs: 10 * 60 * 1000,
     timeoutMs: 20 * 1000,
     retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
@@ -60,37 +73,63 @@ var Config = {
     staleAfterMs: 35 * 60 * 1000
   },
 
-  // Traffic from TomTom (Routing API, one batch request for every route and road). The key is NOT kept here: the
-  // build replaces the placeholder with TOMTOM_KEY from the git-ignored build.local.env. Without a key the screen
-  // shows how to connect one and sends nothing. Coordinates are lat,lon; edit freely.
+  // Traffic from TomTom (Routing API, one batch request for the ten routes). The key is NOT kept here: the build
+  // replaces the placeholder with TOMTOM_KEY from the git-ignored build.local.env. Without a key the screen shows how to
+  // connect one and sends nothing. Coordinates are lat,lon; edit freely. The main roads are watched on the map screen.
   traffic: {
     key: '__TOMTOM_KEY__',
     base: 'https://api.tomtom.com/routing/1/batch/sync/json',
+    // Routes, all from Rehovot (the screen's grouping is `columns` below).
     routes: [
-      { id: 'telaviv', from: [31.8928, 34.8113], to: [32.0741, 34.7922] },      // Rehovot → Tel Aviv, Azrieli
-      { id: 'rishon', from: [31.8928, 34.8113], to: [31.9640, 34.8044] },       // Rehovot → Rishon LeZion
-      { id: 'jerusalem', from: [31.8928, 34.8113], to: [31.7890, 35.2030] }     // Rehovot → Jerusalem, entrance
+      { id: 'tlv', from: [31.8928, 34.8113], to: [32.0853, 34.7818] },          // Tel Aviv, city centre (Dizengoff Square)
+      { id: 'jlm', from: [31.8928, 34.8113], to: [31.7816, 35.2186] },          // Jerusalem, city centre (Zion Square)
+      { id: 'haifa', from: [31.8928, 34.8113], to: [32.8185, 34.9988] },        // Haifa, city centre (Paris Square)
+      { id: 'beersheva', from: [31.8928, 34.8113], to: [31.2518, 34.7913] },    // Beer Sheva, city centre
+      { id: 'ashkelon', from: [31.8928, 34.8113], to: [31.6688, 34.5743] },     // Ashkelon, city centre
+      { id: 'modiin', from: [31.8928, 34.8113], to: [31.8986, 35.0076] },       // Modi'in, city centre
+      { id: 'rishon', from: [31.8928, 34.8113], to: [31.9640, 34.8044] },       // Rishon LeZion
+      { id: 'airport', from: [31.8928, 34.8113], to: [32.0004, 34.8706] },      // Ben Gurion Airport, Terminal 3
+      { id: 'holon', from: [31.8928, 34.8113], to: [32.0158, 34.7874] },        // Holon, city centre
+      { id: 'glilot', from: [31.8928, 34.8113], to: [32.1449, 34.8073] }        // Glilot, Cinema City
     ],
-    // Main roads: a stretch of each, measured as a route (same request): delay against free flow.
-    roads: [
-      { id: 'ayalon', from: [32.0405, 34.7905], to: [32.1050, 34.8040] },       // Ayalon (20), Holon → Rokach, northbound
-      { id: 'road4', from: [31.8640, 34.8170], to: [31.9990, 34.8330] },        // Route 4, Bilu → Beit Dagan
-      { id: 'road1', from: [31.9550, 34.9120], to: [31.7960, 35.1480] },        // Route 1, Ben Shemen → Motza
-      { id: 'road6', from: [31.8790, 34.9230], to: [32.0820, 34.9520] }         // Route 6, Nahshon → Kesem
+    // The screen: two columns of five widgets, left to right (`legs`: route ids, top to bottom).
+    columns: [
+      { id: 'cities', legs: ['tlv', 'jlm', 'haifa', 'beersheva', 'ashkelon'] },
+      { id: 'near', legs: ['modiin', 'rishon', 'airport', 'holon', 'glilot'] }
     ],
-    // Quota: TomTom's free tier allows ~2,500 items (route requests) a day and every refresh costs one per route and
-    // road (7 now). A test pins the worst day, retries included, under that limit — re-check it when adding a leg.
-    visibleRefreshMs: 5 * 60 * 1000,    // while the traffic screen is on after a ◀ ▶ visit (a rotation visit keeps the hidden interval)
-    refreshMs: 15 * 60 * 1000,          // otherwise
+    // When a batch is sent (js/traffic.js, Traffic.decide: one gate for every path), at any hour, only while the screen
+    // is on view: an explicit ◀ ▶ open sends at once; a rotation arrival, the screen staying open and wake wait
+    // minIntervalMs since the last ATTEMPT (failures and refusals included). Quota: TomTom's free routing tier is 20,000
+    // items a MONTH for the whole account (docs.tomtom.com/pricing, read 2026-10-30); a batch costs one item per route
+    // (10). dailyItemCap is a hard guard per UTC date, reserved in localStorage before every POST and never refunded:
+    // any 31 days stay ≤ 31 × 580 = 17,980; parked on the screen, 58 batches a UTC date (17,860 in 31 days).
+    // tests/build-config.test.js simulates every pattern. Re-check it when adding a route or changing these values.
+    schedule: {
+      minIntervalMs: 25 * 60 * 1000,    // rotation arrivals, staying open, wake: at most one attempt per 25 min
+      openMinIntervalMs: 0,             // an explicit ◀ ▶ open: every time (still one batch in flight, still the cap)
+      dailyItemCap: 580                 // items per UTC date
+    },
     timeoutMs: 20 * 1000,
-    // Back-off after a failed round: never sooner than 4.5 min (a faster retry would spend the quota, not help);
-    // a refusal (403 key, 429 daily limit) waits the regular interval or longer.
-    retryMs: [5 * 60 * 1000, 10 * 60 * 1000],
-    retryFloorMs: 270 * 1000,
     staleAfterMs: 30 * 60 * 1000,
     // Delay chip colour: travel time against free flow
     amberRatio: 1.15,
     redRatio: 1.5
+  },
+
+  // The traffic map: TomTom raster tiles (Map Display API base map + Traffic Flow overlay) with the traffic key above,
+  // centred on Rehovot, Tel Aviv to Ashdod in view. 512-px tiles at zoom 10 look like zoom 11 at 256 px and need a
+  // quarter of the requests. Tiles load only while the map is on view (js/trafficmap.js: the daily tile budget).
+  map: {
+    base: 'https://api.tomtom.com/map/1/tile/basic/night/',
+    // relative0-dark: TomTom's flow colours for a dark map; it takes no `thickness` (that pair is an HTTP 400).
+    flow: 'https://api.tomtom.com/traffic/map/4/tile/flow/relative0-dark/',
+    center: [31.8928, 34.8113],
+    zoom: 10,
+    tileSize: 512,
+    language: 'ru-RU',
+    refreshMs: 5 * 60 * 1000,           // the traffic overlay while on view; a failed layer is tried again after as long
+    timeoutMs: 20 * 1000,               // one tile: a round with a tile not loaded by then has failed
+    staleAfterMs: 15 * 60 * 1000
   },
 
   // Pikud HaOref alerts. `areas` are the alert area names (Hebrew, exactly as Pikud HaOref's area list writes them —

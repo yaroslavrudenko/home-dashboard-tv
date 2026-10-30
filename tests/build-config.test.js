@@ -14,7 +14,8 @@ const { ROOT } = require('./harness');
 const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 
 // Decision 21 (F13): least privilege — the app's own files plus exactly the hosts it reads (batch 2: news, alerts, TomTom).
-const ORIGINS = ['https://api.open-meteo.com', 'https://www.newsru.co.il', 'https://www.pravda.com.ua', 'https://feeds.bbci.co.uk',
+// FB5-NS: the news feeds are Ynet and Globes (newsru, pravda and bbc removed).
+const ORIGINS = ['https://api.open-meteo.com', 'https://www.ynet.co.il', 'https://www.globes.co.il',
   'https://www.oref.org.il', 'https://api.tomtom.com'];
 test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV profile, internet, exactly the hosts the app reads', () => {
   const x = read('config.xml');
@@ -28,6 +29,7 @@ test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV pr
   assert.match(csp, /default-src 'self'/);
   assert.equal(csp.match(/connect-src ([^;]+)/)[1].trim(), ORIGINS.join(' '));
   assert.ok(!/\*/.test(csp), 'no wildcard: ' + csp);
+  assert.equal(csp.match(/img-src ([^;]+)/)[1].trim(), "'self' data: https://api.tomtom.com", 'FB5-MAP: map tiles from TomTom only');
   assert.match(x, /<icon src="img\/icon\.png"\/>/);
   assert.match(x, /<content src="index\.html"\/>/);
 });
@@ -35,7 +37,7 @@ test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV pr
 // Every host the code reads is in the policy, and nothing else: the feeds, the alert feed, TomTom and Open-Meteo.
 test('every URL in js/config.js is on an origin config.xml allows', () => {
   const urls = [...read('js/config.js').matchAll(/'(https:\/\/[^']+)'/g)].map((m) => new URL(m[1]).origin);
-  assert.ok(urls.length >= 6, urls.join(' '));
+  assert.ok(urls.length >= 5, urls.join(' '));   // FB5-NS: two feeds instead of three
   for (const o of urls) assert.ok(ORIGINS.includes(o), o);
   for (const o of ORIGINS) assert.ok(urls.includes(o), 'unused origin ' + o);
 });
@@ -90,7 +92,7 @@ test('index.html loads every app script, config first and app last', () => {
 // Decision 1 (D1): Inter is bundled, licensed and packaged; every @font-face file exists.
 test('the Inter font files referenced by the CSS exist, carry the OFL licence and are packaged by build.sh', () => {
   const css = read('css/app.css');
-  const urls = [...css.matchAll(/url\(\.\.\/(fonts\/[^)]+)\)/g)].map((m) => m[1]);
+  const urls = [...css.matchAll(/url\(\.\.\/(fonts\/Inter-[^)]+)\)/g)].map((m) => m[1]);
   assert.equal(urls.length, 7, 'Light/Regular/Medium × Latin/Cyrillic + "≈"');
   let bytes = 0;
   for (const u of urls) {
@@ -101,6 +103,20 @@ test('the Inter font files referenced by the CSS exist, carry the OFL licence an
   assert.ok(bytes < 1024 * 1024, 'fonts stay under 1 MB: ' + bytes);
   assert.match(read('fonts/OFL.txt'), /SIL Open Font License, Version 1\.1/);
   assert.match(read('build.sh'), /cp -R config\.xml index\.html css js img fonts \.buildResult\//);
+});
+
+// FB5B-H1: Hebrew (news, the alert's original title) has its own bundled face: Noto Sans Hebrew Regular, the Hebrew
+// block only, WOFF (Chromium 47), licensed under the OFL; the shared font stack names it after Inter.
+test('FB5B-H1: the Noto Sans Hebrew subset is bundled as WOFF for the Hebrew block only, with its OFL licence, in the shared font stack', () => {
+  const css = read('css/app.css');
+  const face = /@font-face \{ font-family: "Noto Sans Hebrew"; font-weight: 400; src: url\(\.\.\/(fonts\/[^)]+)\) format\("woff"\);\s*unicode-range: ([^;]+); \}/.exec(css);
+  assert.ok(face, 'one @font-face for Noto Sans Hebrew');
+  assert.equal(face[2], 'U+0590-05FF, U+FB1D-FB4F');
+  const b = fs.readFileSync(path.join(ROOT, face[1]));
+  assert.equal(b.toString('latin1', 0, 4), 'wOFF', 'WOFF, not WOFF2');
+  assert.ok(b.length < 16 * 1024, 'a subset: ' + b.length + ' bytes');
+  assert.match(read('fonts/OFL-NotoSansHebrew.txt'), /Copyright 2022 The Noto Project Authors[\s\S]*SIL Open Font License, Version 1\.1/);
+  assert.match(css, /font-family: "Inter", "Noto Sans Hebrew", "SamsungOne", "TizenSans", sans-serif;/);
 });
 
 // A temp copy of the app with stub `tizen` / `sdb` that log every call. Returns { dir, log(), run(args) }.
@@ -222,33 +238,54 @@ test('build.sh refuses a TOMTOM_KEY with anything but letters and digits, before
   } finally { sb.close(); }
 });
 
-// C3 (quota): TomTom's free tier allows ~2,500 billable items a day; every refresh costs one item per route and road.
-// The worst day the app can produce, retries INCLUDED (every request counted, the shortest jittered waits), must stay
-// under it — this fails the moment a leg or a shorter interval would break the budget. A 429 all day stays at or
-// below the 188 batches/day measured before batch 3.
-test('TomTom quota: the worst simulated day, retries included, stays under 2,500 items; 429 all day ≤ 188 batches', () => {
-  const { trafficDay } = require('./traffic-day');
-  const LIMIT = 2500;
-  const flip = (n) => (n % 2 ? 'ok' : 'http 503');
-  const days = {
+// FB5C (quota; the judges' COMMON DECISION 2026-10-30 + the owner's explicit-open rule): TomTom's free routing tier is
+// 20,000 items a MONTH (docs.tomtom.com/pricing, read 2026-10-30), shared by every key on the account; every refresh costs
+// one item per route (10). The app sends at any hour while the screen is on view, at most every 25 min (rotation, staying
+// open, wake), on every explicit ◀ ▶ open, and never past 580 items per UTC date (a verified localStorage reservation
+// before every POST, no refunds). Simulated from the app's own code for every pattern, failures and restarts included.
+const { trafficDays } = require('./traffic-day');
+const ALL = (o) => Object.values(o.perUtcDate);
+
+test('TomTom quota (FB5C-10): every pattern ≤ 580 items per UTC date — failures, refusals, restarts and ◀ ▶ every minute included', () => {
+  const patterns = {
     'rotation on, all answers good': {},
     'rotation on, every round 503': { answer: () => 'http 503' },
-    'rotation on, 429 all day': { answer: () => 'http 429' },
     'parked on traffic (▶), all answers good': { park: true },
     'parked on traffic, every round times out': { park: true, answer: () => 'timeout' },
-    'parked on traffic, every other round 503': { park: true, answer: flip },
     'parked on traffic, 429 all day': { park: true, answer: () => 'http 429' },
-    'parked on traffic, 403 all day': { park: true, answer: () => 'http 403' }
+    'parked on traffic, 403 all day': { park: true, answer: () => 'http 403' },
+    'parked, every attempt fails and the app restarts after each': { park: true, restart: true, answer: () => 'timeout' },
+    '◀ ▶ to traffic and back every minute': { visits: 60000 },
+    '◀ ▶ every minute, every attempt fails, restart after each': { visits: 60000, restart: true, answer: () => 'http 503' }
   };
-  const seen = {};
-  for (const [name, o] of Object.entries(days)) {
-    for (const random of [() => 0, () => 0.999999]) {
-      const r = trafficDay(Object.assign({ random }, o));
-      assert.equal(r.legs, 7);
-      assert.ok(r.items <= LIMIT, name + ': ' + r.items + ' items/day');
-      seen[name] = Math.max(seen[name] || 0, r.batches);
-    }
+  const days = {};
+  for (const [name, o] of Object.entries(patterns)) {
+    const d = trafficDays(Object.assign({ days: 2 }, o));
+    assert.equal(d.legs, 10);
+    assert.equal(d.hidden, 0, name + ': a request while another screen was on view');
+    for (const [date, n] of Object.entries(d.perUtcDate)) assert.ok(n <= 580, name + ': ' + n + ' items on ' + date);
+    days[name] = d.perUtcDate;
   }
-  assert.ok(seen['rotation on, 429 all day'] <= 188 && seen['parked on traffic, 429 all day'] <= 188, JSON.stringify(seen));
-  assert.ok(seen['rotation on, all answers good'] <= 100, 'a rotation visit never refreshes: ' + seen['rotation on, all answers good']);
+  console.log('# routing items per UTC date', JSON.stringify(days));
+  const clicks = trafficDays({ visits: 60000, days: 2 });
+  assert.equal(clicks.perUtcDate['2026-10-01'], 580, '◀ ▶ every minute: the cap binds, exactly at 580');
+  const m = trafficDays({ visits: 60000, days: 31 });
+  assert.ok(m.items <= 32 * 580 && ALL(m).every((n) => n <= 580), '31 days of ◀ ▶ every minute: ' + m.items);
+});
+
+test('TomTom quota (FB5C-10): parked on traffic — 58 batches per UTC date, requests at every hour, 31 days = 17,860 items', () => {
+  const day = trafficDays({ park: true, start: Date.parse('2026-10-30T00:00:00Z') - 1000, hours: 24 });
+  assert.equal(day.perUtcDate['2026-10-30'], 580, '58 batches on the UTC date');
+  assert.deepEqual([...new Set(day.hours)].sort((a, b) => a - b), [...Array(24).keys()], 'any hour: requests at every Israel hour');
+  const failing = trafficDays({ park: true, restart: true, answer: () => 'timeout', start: Date.parse('2026-10-30T00:00:00Z') - 1000, hours: 24 });
+  assert.equal(failing.perUtcDate['2026-10-30'], 580, 'failing + a restart after every dispatch: still 58, 0 extra items per restart');
+  const month = trafficDays({ park: true, days: 31 });
+  assert.equal(month.items, 17860, 'healthy cadence: 10 × ceil(31 × 1440 / 25)');
+});
+
+test('TomTom quota (FB5C-10): Jerusalem DST end 2026-10-25 parked — the 25-hour home date gets 60 batches; UTC never clips', () => {
+  const start = Date.parse('2026-10-24T21:00:00Z');      // 2026-10-25 00:00 in Israel (summer time)
+  const d = trafficDays({ park: true, start: start - 1000, hours: 25 });
+  assert.equal(d.perHomeDate['2026-10-25'], 600, '1,500 min / 25 = 60 batches on the home date');
+  for (const n of ALL(d)) assert.ok(n <= 580);
 });

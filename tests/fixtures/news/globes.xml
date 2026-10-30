@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>עמוד הבית - גלובס</title>
+    <link>https://www.globes.co.il/news/home.aspx#utm_source=RSS</link>
+    <description>recorded shape of https://www.globes.co.il/webservice/rss/rssfeeder.asmx/FeederNode?iID=2 (2026-10-30), in its top-stories order; the stories are invented</description>
+    <language>he</language>
+    <item>
+      <title>בנק ישראל הותיר את הריבית ללא שינוי; הנגיד: האינפלציה מתמתנת</title>
+      <link>https://www.globes.co.il/news/article.aspx?did=1001561001#utm_source=RSS</link>
+      <guid isPermaLink="false">1001561001</guid>
+      <description>תקציר: בנק ישראל הותיר את הריבית ללא שינוי; הנגיד: האינפלציה מתמתנת</description>
+      <author>מערכת גלובס</author>
+      <pubDate>Thu, 29 Oct 2026 17:10:00 GMT</pubDate>
+      <category>שוק ההון</category>
+      <media:content url="https://res.cloudinary.com/globes/image/upload/1001561001.jpg" medium="image" />
+    </item>
+    <item>
+      <title>הבורסה בתל אביב ננעלה בעליות; מדד ת&quot;א 35 עלה ב-1.2%</title>
+      <link>https://www.globes.co.il/news/article.aspx?did=1001561002#utm_source=RSS</link>
+      <guid isPermaLink="false">1001561002</guid>
+      <description>תקציר: הבורסה בתל אביב ננעלה בעליות; מדד ת&quot;א 35 עלה ב-1.2%</description>
+      <author>מערכת גלובס</author>
+      <pubDate>Thu, 29 Oct 2026 18:31:00 GMT</pubDate>
+      <category>שוק ההון</category>
+      <media:content url="https://res.cloudinary.com/globes/image/upload/1001561002.jpg" medium="image" />
+    </item>
+    <item>
+      <title>מחירי הדירות עלו ב-0.4% בספטמבר, כך עולה מנתוני הלמ&quot;ס</title>
+      <link>https://www.globes.co.il/news/article.aspx?did=1001561003#utm_source=RSS</link>
+      <guid isPermaLink="false">1001561003</guid>
+      <description>תקציר: מחירי הדירות עלו ב-0.4% בספטמבר, כך עולה מנתוני הלמ&quot;ס</description>
+      <author>מערכת גלובס</author>
+      <pubDate>Thu, 29 Oct 2026 16:40:00 GMT</pubDate>
+      <category>שוק ההון</category>
+      <media:content url="https://res.cloudinary.com/globes/image/upload/1001561003.jpg" medium="image" />
+    </item>
+    <item>
+      <title>חברת השבבים הישראלית גייסה 120 מיליון דולר לפי שווי של מיליארד</title>
+      <link>https://www.globes.co.il/news/article.aspx?did=1001561004#utm_source=RSS</link>
+      <guid isPermaLink="false">1001561004</guid>
+      <description>תקציר: חברת השבבים הישראלית גייסה 120 מיליון דולר לפי שווי של מיליארד</description>
+      <author>מערכת גלובס</author>
+      <pubDate>Thu, 29 Oct 2026 18:20:00 GMT</pubDate>
+      <category>שוק ההון</category>
+      <media:content url="https://res.cloudinary.com/globes/image/upload/1001561004.jpg" medium="image" />
+    </item>
+    <item>
+      <title>משרד האוצר: הגירעון בתקציב צפוי לרדת ל-4.1% מהתוצר בשנה הבאה</title>
+      <link>https://www.globes.co.il/news/article.aspx?did=1001561005#utm_source=RSS</link>
+      <guid isPermaLink="false">1001561005</guid>
+      <description>תקציר: משרד האוצר: הגירעון בתקציב צפוי לרדת ל-4.1% מהתוצר בשנה הבאה</description>
+      <author>מערכת גלובס</author>
+      <pubDate>Thu, 29 Oct 2026 15:05:00 GMT</pubDate>
+      <category>שוק ההון</category>
+      <media:content url="https://res.cloudinary.com/globes/image/upload/1001561005.jpg" medium="image" />
+    </item>
+    <item>
+      <title>השקל התחזק מול הדולר לשער הנמוך ביותר מאז תחילת השנה</title>
+      <link>https://www.globes.co.il/news/article.aspx?did=1001561006#utm_source=RSS</link>
+      <guid isPermaLink="false">1001561006</guid>
+      <description>תקציר: השקל התחזק מול הדולר לשער הנמוך ביותר מאז תחילת השנה</description>
+      <author>מערכת גלובס</author>
+      <pubDate>Thu, 29 Oct 2026 17:55:00 GMT</pubDate>
+      <category>שוק ההון</category>
+      <media:content url="https://res.cloudinary.com/globes/image/upload/1001561006.jpg" medium="image" />
+    </item>
+  </channel>
+</rss>

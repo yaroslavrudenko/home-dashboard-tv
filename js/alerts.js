@@ -1,6 +1,6 @@
 /* Israel Home Front Command (Pikud HaOref) alerts. ES5.
- *   Alerts.parse(text)            the feed's body → { alerts: [records], ended: [records] }, record { id, title, desc,
- *                                 areas }; both empty = no alert now. The WHOLE answer is validated first: anything
+ *   Alerts.parse(text)            the feed's body → { alerts: [records] }, record { title, desc, areas }; end messages
+ *                                 are dropped; empty = no alert now. The WHOLE answer is validated first: anything
  *                                 that is not the feed's shape (a block page, broken JSON, a record without a title,
  *                                 an area that is not a non-empty string) throws, and the caller counts that as a
  *                                 failed poll, never as "no alert".
@@ -34,17 +34,17 @@ var Alerts = (function () {
     if (!Array.isArray(data) || !data.length) throw shapeError();
     for (var i = 0; i < data.length; i++) if (!text(data[i])) throw shapeError();
     if (o.desc !== undefined && o.desc !== null && typeof o.desc !== 'string') throw shapeError();
-    return { id: typeof o.id === 'string' || typeof o.id === 'number' ? String(o.id) : '', title: o.title, desc: o.desc || '', areas: data };
+    return { title: o.title, desc: o.desc || '', areas: data };
   }
 
   function parse(raw) {
     var body = String(raw === undefined || raw === null ? '' : raw).replace(/^﻿/, '').replace(EDGES, '');
-    var out = { alerts: [], ended: [] };
+    var out = { alerts: [] };
     if (!body) return out;
     var json = JSON.parse(body);                   // throws on a block page or a cut answer
     var list = Array.isArray(json) ? json : [json], records = [], i;
     for (i = 0; i < list.length; i++) records.push(record(list[i]));   // every record valid, or the poll failed
-    for (i = 0; i < records.length; i++) (isEnd(records[i].title) ? out.ended : out.alerts).push(records[i]);
+    for (i = 0; i < records.length; i++) if (!isEnd(records[i].title)) out.alerts.push(records[i]);
     return out;
   }
 

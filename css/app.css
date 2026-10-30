@@ -18,6 +18,10 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Inter"; font-weight: 500; src: url(../fonts/Inter-500-cyrillic.woff2) format("woff2");
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+/* Hebrew (news headlines, the alert's original title): Noto Sans Hebrew Regular (SIL OFL 1.1, fonts/OFL-NotoSansHebrew.txt),
+   the Hebrew block only, WOFF (Chromium 47 has no guaranteed WOFF2 for it), about 7 KB; loaded only when Hebrew is drawn. */
+@font-face { font-family: "Noto Sans Hebrew"; font-weight: 400; src: url(../fonts/NotoSansHebrew-400-hebrew.woff) format("woff");
+  unicode-range: U+0590-05FF, U+FB1D-FB4F; }
 
 html, body {
   margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden;
@@ -26,7 +30,7 @@ html, body {
   background: #121828 linear-gradient(180deg, #1a2340 0%, #121828 100%) no-repeat 0 0;
   background-size: 100% 540px;
   color: #fff;
-  font-family: "Inter", "SamsungOne", "TizenSans", sans-serif;
+  font-family: "Inter", "Noto Sans Hebrew", "SamsungOne", "TizenSans", sans-serif;
   font-weight: 400;
   line-height: 1.2;
   -webkit-font-smoothing: antialiased;
@@ -98,7 +102,6 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .ic-rain, .ic-drizzle { stroke: #8ec5ff; }
 .ic-snow { stroke: #eaf5ff; fill: #eaf5ff; }
 .ic-bolt { stroke: #ffe28f; }
-.stale-mark { display: inline-block; width: 10px; height: 10px; border-radius: 5px; margin-left: 8px; background: #ffcf8a; vertical-align: middle; }
 .skeleton { border-radius: 12px; background: rgba(255, 255, 255, 0.06); }
 
 /* ---- clocks ----------------------------------------------------------------------------------- */
@@ -133,7 +136,6 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .now-place { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
 .now-temp { font-size: 136px; font-weight: 300; line-height: 1; margin-top: 4px; text-indent: -6px; }   /* optical alignment of the big digits */
 .now.is-stale .now-temp { color: rgba(255, 255, 255, 0.62); }
-.now-temp .stale-mark { vertical-align: 0.6em; }
 .now-cond { font-size: 36px; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
 .now-sub { font-size: 28px; color: rgba(255, 255, 255, 0.62); margin-top: 4px; white-space: nowrap; }
 .now-sub span { display: inline-block; }
@@ -150,7 +152,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .detail-label { font-size: 24px; color: rgba(255, 255, 255, 0.62); }
 .detail-value { font-size: 30px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 /* no data yet / unavailable: one calm message in the middle of the card */
-.empty-state { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.empty-state { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .empty-state .icon { width: 120px; height: 120px; stroke-width: 2.4; opacity: 0.4; }
 .empty-text { font-size: 34px; color: rgba(255, 255, 255, 0.85); margin-top: 16px; }
 .empty-sub { font-size: 28px; color: rgba(255, 255, 255, 0.62); margin-top: 8px; }
@@ -191,91 +193,115 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 
 /* ---- News, Traffic and the alert are mostly words: proportional figures (tabular ones space out hyphens, as in
    "Тель-Авив"); only the figures that change in place stay tabular. */
-#screen-news, #screen-traffic, .corner, .alert { -webkit-font-feature-settings: normal; font-feature-settings: normal; }
-.screen-status, .news-time, .troute-time, .troute-usual, .chip, .troad-sub, .alert-since { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
+#screen-news, #screen-traffic, #screen-map, .corner, .alert { -webkit-font-feature-settings: normal; font-feature-settings: normal; }
+.screen-status, .news-time, .tw-time, .tw-km, .chip, .alert-since { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
+
+/* ---- Israel weather: three region cards on the clocks' grid; the day rows are the main 7-day list's (.day) ---- */
+.israel-body { flex-direction: row; }
+.region { flex: 1 1 0; min-width: 0; margin-right: 28px; padding: 28px 40px 24px; display: flex; flex-direction: column; }
+.region:last-child { margin-right: 0; }
+.region-head { display: flex; align-items: baseline; white-space: nowrap; -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: no spaced hyphens */
+.region-name { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
+.region-city { margin-left: 16px; font-size: 26px; color: rgba(255, 255, 255, 0.62); }
+.region-now { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.region-temp { font-size: 136px; font-weight: 300; line-height: 1; margin-top: 8px; text-indent: -6px; }   /* the main card's figure */
+.region.is-stale .region-temp { color: rgba(255, 255, 255, 0.62); }
+.region-cond { margin-top: 8px; font-size: 34px; color: rgba(255, 255, 255, 0.9); white-space: nowrap; }   /* its own line: «Преимущественно ясно» never meets the icon */
+.region-icon .icon { width: 168px; height: 168px; stroke-width: 1.7; }
+.region-icon .ic-cloud { fill: rgba(227, 233, 243, 0.1); }
+.region-icon .ic-sun circle { fill: rgba(255, 213, 143, 0.18); }
+.region-icon .ic-moon path { fill: rgba(216, 220, 255, 0.14); }
+.region-sub { margin-top: 8px; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
+/* the days fill the rest of the card, rows spread evenly: no empty band at the bottom */
+.region-days-title { margin-top: 32px; }
+.region .days { margin-top: 8px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
 
 /* ---- News and Traffic share a header: the screen's name on the left, its status line on the right ------- */
 .screen-head { display: flex; align-items: center; justify-content: space-between; height: 48px; flex: 0 0 48px; padding: 0 41px; }
 .screen-title { margin: 0; font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); letter-spacing: -0.005em; }
 .status.screen-status { position: static; }
+.head-side { display: flex; flex-direction: column; align-items: flex-end; }   /* the status line, and under it the note */
+.status-note { display: none; font-size: 24px; line-height: 30px; color: rgba(255, 214, 150, 0.85); white-space: nowrap; }
+.status-note.is-on { display: block; }
 .screen-body { display: flex; flex: 1 1 auto; min-height: 0; margin-top: 24px; }
 .ic-car, .ic-news, .ic-warning { stroke: rgba(255, 255, 255, 0.85); }
 
-/* ---- News: the lead story across the top, the next headlines below in rows of two -------------------------- */
-.news-body { flex-direction: column; }
-.news-meta { display: flex; align-items: center; font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
-.src-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 12px; flex: 0 0 10px; }
-.src-name { color: rgba(255, 255, 255, 0.85); font-weight: 500; }
-.news-time:before { content: "·"; margin: 0 12px; }
-.src-dot.src-newsru { background: #8ec5ff; }
-.src-dot.src-pravda { background: #ffd58f; }
-.src-dot.src-bbc { background: #ffa3ab; }
-.lead { flex: 0 0 auto; padding: 40px 40px 40px; }
-/* A soft light of the source's colour in the top-right corner: the lead has a mood without needing a photo. */
-.lead-glow { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
-.lead.src-newsru .lead-glow { background: radial-gradient(ellipse 60% 120% at 100% 0%, rgba(142, 197, 255, 0.16) 0%, rgba(142, 197, 255, 0) 70%); }
-.lead.src-pravda .lead-glow { background: radial-gradient(ellipse 60% 120% at 100% 0%, rgba(255, 213, 143, 0.13) 0%, rgba(255, 213, 143, 0) 70%); }
-.lead.src-bbc .lead-glow { background: radial-gradient(ellipse 60% 120% at 100% 0%, rgba(255, 163, 171, 0.14) 0%, rgba(255, 163, 171, 0) 70%); }
-.lead .news-meta { position: relative; font-size: 26px; }
-.lead-title { position: relative; margin-top: 24px; max-width: 1560px; font-size: 60px; font-weight: 500; line-height: 1.15; letter-spacing: -0.01em;
-  max-height: 242px; }   /* 3.5 lines: js/view-news.js reads "taller than this" as "over three lines" and steps the size down */
-.lead-summary { position: relative; margin-top: 16px; max-width: 1480px; font-size: 32px; line-height: 1.35; color: rgba(255, 255, 255, 0.78);
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.lead.is-long .lead-title { font-size: 48px; line-height: 1.17; max-height: 197px; }   /* 3.5 lines at 48 px */
-.lead.is-xlong .lead-title { font-size: 40px; line-height: 1.2; max-height: none; }
-.lead.is-long .lead-summary { display: none; }
-/* One story: the lead alone fills the screen, its words in the middle. */
-.lead.is-alone { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
-.news-list { flex: 1 1 auto; min-height: 0; margin-top: 24px; padding: 8px 40px; display: flex; flex-direction: column; justify-content: space-around; }
-.news-list.is-fitting { justify-content: flex-start; }   /* packed to the top while js/view-news.js measures it */
-.news-row { display: flex; flex: 0 0 auto; padding: 24px 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+/* ---- News: two columns («Израиль», «Экономика Израиля»), five row slots each; the slots of both columns have one
+   height, so row n on the left and on the right start on one line. A headline is a fixed two-line box. ---------- */
+.news-body { flex-direction: row; }
+.news-col { flex: 1 1 0; min-width: 0; padding: 28px 40px 16px; display: flex; flex-direction: column; }
+.news-col + .news-col { margin-left: 28px; }
+.news-col-head { display: flex; align-items: center; height: 48px; flex: 0 0 48px; white-space: nowrap; }
+.src-dot { width: 12px; height: 12px; border-radius: 6px; margin-right: 16px; flex: 0 0 12px; }
+.src-dot.src-ynet { background: #8ec5ff; }
+.src-dot.src-globes { background: #c9b8ff; }   /* a source colour, never the fresh status green */
+.news-col-title { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
+.news-col-head .src-name { margin-left: 16px; font-size: 24px; color: rgba(255, 255, 255, 0.62); }
+.news-col-state { margin-left: auto; padding-left: 16px; font-size: 24px; color: rgba(255, 214, 150, 0.85); }
+.news-rows { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin-top: 8px; }
+.news-row { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; justify-content: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
 .news-row:first-child { border-top: 0; }
-.news-item { flex: 0 0 auto; width: calc((100% - 80px) / 2); min-width: 0; }
-.news-item + .news-item { margin-left: 80px; }
-.news-list.is-single .news-item { width: 100%; }
-.news-title { margin-top: 8px; font-size: 30px; line-height: 1.27; color: rgba(255, 255, 255, 0.92); }
+.news-rows[dir="rtl"] { text-align: right; }   /* Hebrew headlines: read and aligned from the right, the time above on the same side */
+.news-time { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+/* Two lines at most, always two lines tall: no measuring, and row n lines up across the columns; a longer headline ends
+   with an ellipsis (on the left in a right-to-left column). */
+.news-title { margin-top: 6px; height: 80px; overflow: hidden; font-size: 32px; line-height: 40px; color: rgba(255, 255, 255, 0.92);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.news-col-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
 .news-empty, .traffic-empty { flex: 1 1 auto; display: flex; }
 
-/* ---- Traffic: the routes in the two left columns, the main roads in the right one (the clocks' grid) ----- */
-.troutes { flex: 0 0 auto; width: calc((100% - 56px) / 3 * 2 + 28px); margin-right: 28px; display: flex; flex-direction: column; }
-.troute { flex: 1 1 0; padding: 32px 40px; display: flex; flex-direction: column; }
-.troute + .troute { margin-top: 24px; }
-.troute-top { display: flex; justify-content: space-between; align-items: flex-start; }
-.troute-place { min-width: 0; }
-.troute-to { font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
-.troute-from { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-top: 8px; white-space: nowrap; }
-.troute-time { font-size: 88px; font-weight: 300; line-height: 1; white-space: nowrap; letter-spacing: -0.01em; }
-.troute-time .unit { font-size: 48px; color: rgba(255, 255, 255, 0.62); }   /* "38 мин": the figure leads */
-.troute.is-stale .troute-time { color: rgba(255, 255, 255, 0.62); }
-.troute-time.is-none { color: rgba(255, 255, 255, 0.62); }   /* no time: a quiet dash keeps the slot (62 % = the legibility floor) */
-.troute-time .stale-mark { vertical-align: 0.6em; }
-.troute-sub { display: flex; align-items: center; margin-top: auto; }
-.troute-usual { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-left: 16px; white-space: nowrap; }
-.chip { display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 26px; font-weight: 500; white-space: nowrap; }
+/* ---- Traffic: two columns of five widgets (routes «Города», «Рядом»; the main roads are on the map screen), one
+   rhythm: 28 px between widgets and between the columns. Every widget has the same three rows — name + chip, time +
+   length, bar — so rows line up across the screen. ---- */
+.traffic-body { flex-direction: row; }
+.tcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; margin-right: 28px; }
+.tcol:last-child { margin-right: 0; }
+.tcol-title { height: 32px; flex: 0 0 32px; line-height: 32px; padding: 0 24px; white-space: nowrap; }
+.tw { flex: 1 1 0; min-height: 0; margin-top: 28px; padding: 18px 24px 20px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 28px; }
+.tw-top { display: flex; justify-content: space-between; align-items: center; }
+.tw-name { min-width: 0; font-size: 28px; font-weight: 500; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
+.tw-mid { display: flex; justify-content: space-between; align-items: baseline; }
+.tw-time { font-size: 52px; font-weight: 300; line-height: 1; white-space: nowrap; letter-spacing: -0.01em; }
+.tw-time .unit { font-size: 30px; color: rgba(255, 255, 255, 0.62); }   /* "38 мин": the figure leads */
+.tw.is-stale .tw-time { color: rgba(255, 255, 255, 0.62); }
+.tw-time.is-none { color: rgba(255, 255, 255, 0.62); }   /* no time: a quiet dash keeps the slot (62 % = the legibility floor) */
+.tw-km, .tnodata { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.chip { flex: 0 0 auto; margin-left: 12px; padding: 2px 12px; border-radius: 18px; font-size: 24px; font-weight: 500; white-space: nowrap; }
 .chip.lv-ok { color: #a3eac4; background: rgba(140, 230, 180, 0.13); }
 .chip.lv-slow { color: #ffd59a; background: rgba(255, 207, 138, 0.13); }
 .chip.lv-jam { color: #ffaaa1; background: rgba(255, 140, 128, 0.15); }
+.tw.is-stale .chip { color: rgba(255, 255, 255, 0.62); background: rgba(255, 255, 255, 0.08); }   /* quiet, not faded: 62 % white is the legibility floor */
 /* the time bar: the free-flow part quiet, the delay in the level's colour */
-.tbar { position: relative; height: 10px; margin-top: 24px; border-radius: 5px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
-.tbar-free { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: rgba(255, 255, 255, 0.3); }
-.tbar-delay { position: absolute; top: 0; bottom: 0; border-radius: 0 5px 5px 0; }
+.tbar { position: relative; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.tbar-free { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: rgba(255, 255, 255, 0.3); }
+.tbar-delay { position: absolute; top: 0; bottom: 0; border-radius: 0 4px 4px 0; }
 .tbar-delay.lv-ok { background: #8ce6b4; }
 .tbar-delay.lv-slow { background: #ffcf8a; }
 .tbar-delay.lv-jam { background: #ff8f80; }
-.troads { flex: 1 1 auto; min-width: 0; padding: 32px 40px; display: flex; flex-direction: column; }
-.troads-list { flex: 1 1 auto; display: flex; flex-direction: column; margin-top: 8px; }
-.troad { flex: 1 1 0; display: flex; flex-direction: column; justify-content: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
-.troad:first-child { border-top: 0; }
-.troad-top { display: flex; justify-content: space-between; align-items: baseline; }
-.troad-name { font-size: 32px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
-.troad-level { font-size: 26px; font-weight: 500; white-space: nowrap; }
-.troad-level.lv-ok { color: #a3eac4; }
-.troad-level.lv-slow { color: #ffd59a; }
-.troad-level.lv-jam { color: #ffaaa1; }
-.troad-sub { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-top: 4px; white-space: nowrap; }
-.troad .tbar { margin-top: 16px; height: 8px; }
-.troad.is-stale .troad-level { opacity: 0.62; }
-.tnodata { font-size: 26px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+
+/* ---- Traffic map: one glass card, the night base map, the flow overlay, a home dot on Rehovot and a legend ---- */
+.map-card { flex: 1 1 auto; }
+.map-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; }
+#map-base { background: #0e1424; }   /* the night map's own ground under its tiles; the card keeps its glass edge */
+/* the overlay only over its base map; nothing over a note */
+.map-card.no-base #map-flow, .map-card.is-note .map-home, .map-card.is-note .map-legend { visibility: hidden; }
+.map-tile { position: absolute; display: block; }
+/* Rehovot: a small white dot with a soft halo in the middle of the card (the map is centred on it). */
+.map-home { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 8px;
+  background: #fff; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.18); }
+.map-legend { position: absolute; left: 24px; bottom: 24px; display: flex; align-items: center; padding: 10px 24px; border-radius: 28px;
+  background: rgba(14, 20, 36, 0.82); font-size: 24px; color: rgba(255, 255, 255, 0.85); white-space: nowrap; }
+.map-key { display: flex; align-items: center; }
+.map-key + .map-key { margin-left: 28px; }
+.map-swatch { width: 28px; height: 6px; border-radius: 3px; margin-right: 12px; }
+.map-swatch.lv-ok { background: #207721; }      /* TomTom flow style relative0-dark, line main colours: free flow */
+.map-swatch.lv-slow { background: #a9862c; }    /* 0.35–0.75 of free-flow speed */
+.map-swatch.lv-jam { background: #a10402; }     /* below 0.15 of free-flow speed */
+/* Loading, or a map that never loaded: one quiet line in the middle of the card. */
+.map-note { display: none; }
+.map-note.is-on { position: absolute; left: 0; right: 0; top: 50%; margin-top: -32px; display: flex; justify-content: center; }
+.map-note-text { padding: 12px 32px; border-radius: 32px; background: rgba(14, 20, 36, 0.82); font-size: 32px; color: rgba(255, 255, 255, 0.85); }
+.map-empty { flex: 1 1 auto; display: flex; }
 
 /* ---- The Israel alert: over every screen, deep red and calm; a slow pulse of light (opacity only) ------- */
 .alert {
@@ -294,7 +320,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .alert-body .icon { width: 128px; height: 128px; stroke-width: 2.6; }
 .alert-body .ic-warning { stroke: #ffd9d5; }
 .alert-kind { margin-top: 32px; font-size: 104px; font-weight: 500; line-height: 1.1; letter-spacing: -0.015em; color: #fff; }
-.alert-orig { margin-top: 8px; font-size: 40px; color: rgba(255, 255, 255, 0.8); }
+.alert-orig { margin-top: 16px; font-size: 40px; color: rgba(255, 255, 255, 0.8); }   /* a sub-line of the title: the 16 px of .alert-since under .alert-areas */
 .alert-areas { margin-top: 32px; font-size: 64px; color: #ffe6e3; line-height: 1.2; }
 .alert-areas.is-many { font-size: 48px; }
 .alert-area { display: inline-block; white-space: nowrap; }   /* a name never breaks at its hyphen; lines break between names */

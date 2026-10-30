@@ -4,8 +4,9 @@
  *                                    (CDATA sections verbatim, comments dropped, XML entities decoded), then the HTML
  *                                    it carries (scripts and tags dropped, HTML entities decoded), whitespace
  *                                    collapsed. Feed HTML is never rendered: the views escape this text.
- *   News.merge(lists)                every feed's items in one list, newest first, each story once
- *   News.createStore(cfg, deps)      every feed in ONE parallel round per refresh (js/refresher.js)
+ *   News.merge(lists)                the items of the lists in one list, newest first, each story once
+ *   News.createStore(cfg, deps)      every feed in ONE parallel round per refresh (js/refresher.js); column(feedId) gives
+ *                                    one feed's top cfg.perColumn stories and that feed's own state
  * Parsing is a small text scanner (no DOMParser, no XML library), so the same code runs on the TV and in the Node
  * tests; it steps over CDATA sections and comments before it looks for any tag, so "</item>" inside a headline is
  * text, not structure. */
@@ -14,7 +15,7 @@ var News = (function () {
     bdquo: '„', lsquo: '‘', rsquo: '’', mdash: '—', ndash: '–', hellip: '…', minus: '−', shy: '' };
   var XML_NAMED = { amp: '&', lt: '<', gt: '>', quot: '"', apos: '\'' };
   var ENTITY = /&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi;
-  var MAX_SUMMARY = 400;                           // the lead shows two lines; nothing longer is ever kept
+  var MAX_SUMMARY = 400;                           // a summary is never kept longer than this
   var CDATA_OPEN = '<![CDATA[', CDATA_CLOSE = ']]>', COMMENT_OPEN = '<!--', COMMENT_CLOSE = '-->';
 
   function fromCode(c) {
@@ -158,20 +159,26 @@ var News = (function () {
 
   // deps: { getText(url, timeoutMs, done), now(), setTimeout, clearTimeout, random() (optional), onChange(store) }
   function createStore(cfg, deps) {
-    var feeds = cfg.feeds, state = [], merged = [];
-    for (var i = 0; i < feeds.length; i++) state.push({ items: null, updatedAt: 0, error: null });
+    var feeds = cfg.feeds, state = {};
+    for (var i = 0; i < feeds.length; i++) state[feeds[i].id] = { top: [], updatedAt: 0, error: null };
 
+    // Each feed's top stories are cut once per answer (de-duplicated, newest first), not per render.
     function accept(answers) {
-      var failed = false, lists = [];
+      var failed = false;
       for (var i = 0; i < feeds.length; i++) {
-        var s = state[i], a = answers[i], items = null;
+        var s = state[feeds[i].id], a = answers[i], items = null;
         if (!a.err) { try { items = parse(a.text, feeds[i].id, cfg.perFeed); } catch (e) { items = null; } }
         // An answer with no story at all (an error page served as 200) is a failure, not an empty feed.
-        if (items && items.length) { s.items = items; s.updatedAt = deps.now(); s.error = null; } else { s.error = a.err || 'parse'; failed = true; }
-        if (s.items) lists.push(s.items);
+        if (items && items.length) { s.top = merge([items]).slice(0, cfg.perColumn); s.updatedAt = deps.now(); s.error = null; }
+        else { s.error = a.err || 'parse'; failed = true; }
       }
-      merged = merge(lists);
       return failed;
+    }
+    // One feed: 'loading' | 'failed' (nothing yet) | 'fresh' | 'stale' (its last answer failed or is old).
+    function kindOf(s, now) {
+      if (!s.top.length) return s.error ? 'failed' : 'loading';
+      var age = now - s.updatedAt;
+      return s.error || age < 0 || age > cfg.staleAfterMs ? 'stale' : 'fresh';
     }
 
     // Every feed at once; the answers are applied together, so one refresh renders once.
@@ -187,19 +194,22 @@ var News = (function () {
 
     var api = {
       refresh: cycle.refresh,
-      items: function () { return merged; },
+      // One column: { items: the feed's top cfg.perColumn stories (the last good ones while it fails), kind, updatedAt }.
+      column: function (feedId) {
+        var s = state[feedId];
+        return { items: s.top, kind: kindOf(s, deps.now()), updatedAt: s.updatedAt };
+      },
       // kind: 'loading' | 'failed' (nothing yet) | 'fresh' | 'stale' (some feed failed or is old); `failed` lists the
       // sources whose stories are not current; updatedAt is the latest successful answer.
       status: function () {
         var any = false, errors = 0, latest = 0, failed = [], now = deps.now();
         for (var i = 0; i < feeds.length; i++) {
-          var s = state[i];
+          var s = state[feeds[i].id], kind = kindOf(s, now);
           if (s.error) errors++;
-          if (!s.items) { if (s.error) failed.push(feeds[i].id); continue; }
+          if (kind === 'failed' || kind === 'stale') failed.push(feeds[i].id);
+          if (!s.top.length) continue;
           any = true;
           latest = Math.max(latest, s.updatedAt);
-          var age = now - s.updatedAt;
-          if (s.error || age < 0 || age > cfg.staleAfterMs) failed.push(feeds[i].id);
         }
         if (!any) return { kind: errors === feeds.length ? 'failed' : 'loading', failed: failed };
         return { kind: failed.length ? 'stale' : 'fresh', updatedAt: latest, failed: failed };
