@@ -53,9 +53,9 @@ var Config = {
   // 'traffic' (ten routes), 'map' (the traffic map with the highways), 'alerts' (Pikud HaOref: home, nearby and the
   // recent alerts in Israel). Auto-rotation shows the
   // next one every intervalMs (enabled: false turns it off); any key press pauses it for pauseAfterKeyMs, and an
-  // Israel alert on screen pauses it until the alert is gone.
+  // alert at home (alerts.areas) holds it while the alert is up and for afterAlertMs after it clears.
   screens: ['main', 'israel', 'news', 'traffic', 'map', 'alerts'],
-  rotation: { enabled: true, intervalMs: 45 * 1000, pauseAfterKeyMs: 2 * 60 * 1000 },
+  rotation: { enabled: true, intervalMs: 45 * 1000, pauseAfterKeyMs: 2 * 60 * 1000, afterAlertMs: 2 * 60 * 1000 },
 
   // News: two columns, each one feed's top stories, newest first; the interface language picks the feeds (only the
   // active language's feeds are fetched, all in ONE parallel round every refreshMs):
@@ -172,6 +172,9 @@ var Config = {
     defaultHoldMs: 10 * 60 * 1000,
     failAfter: 3,                       // consecutive failed polls before "no connection" is shown
     previewMs: 10 * 1000,               // the blue key's alert preview stays this long (any key ends it sooner)
+    // An alert at home rings a short attention sound (sounds/alert.wav): at its start, then every repeatMs while it is
+    // up, maxPlays times at most. Never for nearby or other alerts; the preview plays it once.
+    sound: { enabled: true, repeatMs: 30 * 1000, maxPlays: 5 },
     // The Alerts screen's list of recent alerts in Israel (js/alerts-history.js): asked only while that screen is on
     // view. mode=2 is the last 7 days (`days`, said on screen when the list is empty); mode=3 (a month) can run to
     // megabytes in a busy month, too much for the TV.

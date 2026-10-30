@@ -113,7 +113,7 @@ test('the Inter font files referenced by the CSS exist, carry the OFL licence an
   }
   assert.ok(bytes < 1024 * 1024, 'fonts stay under 1 MB: ' + bytes);
   assert.match(read('fonts/OFL.txt'), /SIL Open Font License, Version 1\.1/);
-  assert.match(read('build.sh'), /cp -R config\.xml index\.html css js img fonts \.buildResult\//);
+  assert.match(read('build.sh'), /cp -R config\.xml index\.html css js img fonts sounds \.buildResult\//);
 });
 
 // FB5B-H1: Hebrew (news, the alert's original title) has its own bundled face: Noto Sans Hebrew Regular, the Hebrew
@@ -133,7 +133,7 @@ test('FB5B-H1: the Noto Sans Hebrew subset is bundled as WOFF for the Hebrew blo
 // A temp copy of the app with stub `tizen` / `sdb` that log every call. Returns { dir, log(), run(args) }.
 function sandbox(env) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'homedash-build-'));
-  for (const f of ['build.sh', 'config.xml', 'index.html', 'css', 'js', 'img', 'fonts', 'tools']) fs.cpSync(path.join(ROOT, f), path.join(dir, f), { recursive: true });
+  for (const f of ['build.sh', 'config.xml', 'index.html', 'css', 'js', 'img', 'fonts', 'sounds', 'tools']) fs.cpSync(path.join(ROOT, f), path.join(dir, f), { recursive: true });
   const log = path.join(dir, 'calls.log');
   const stub = (name, body) => { const p = path.join(dir, name); fs.writeFileSync(p, '#!/bin/zsh\necho "' + name + ' $*" >> ' + JSON.stringify(log) + '\n' + body); fs.chmodSync(p, 0o755); return p; };
   const tizen = stub('stub-tizen', 'touch "${@: -1}/stub.wgt"\n');
@@ -174,6 +174,7 @@ test('build.sh --package signs with the profile and never calls sdb', () => {
     assert.match(sb.log(), /^stub-tizen package -t wgt -s stub -- \.buildResult\n$/);
     assert.ok(fs.existsSync(path.join(sb.dir, '.buildResult', 'HomeDashboard.wgt')));
     assert.ok(fs.existsSync(path.join(sb.dir, '.buildResult', 'fonts', 'Inter-300-latin.woff2')), 'fonts are packaged');
+    assert.ok(fs.existsSync(path.join(sb.dir, '.buildResult', 'sounds', 'alert.wav')), 'the alert sound is packaged');
   } finally { sb.close(); }
 });
 

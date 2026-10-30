@@ -10,17 +10,17 @@ function make(cfgPatch) {
   const ctx = load(['js/config.js', 'js/screens.js']);
   const cfg = Object.assign({}, JSON.parse(JSON.stringify(ctx.Config.rotation)), cfgPatch || {});
   const clock = fakeTimers(T0);
-  const shown = [];
+  const shown = [], autos = [];
   const s = ctx.Screens.create(3, cfg, { now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
-    onShow: (i, from, dir) => shown.push([i, from, dir]) });
-  return { s, clock, shown, ctx };
+    onShow: (i, from, dir, auto) => { shown.push([i, from, dir]); autos.push(auto); } });
+  return { s, clock, shown, autos, ctx };
 }
 
 // FB5-WX / FB5-MAP: the Israel weather is the second screen, the traffic map the fifth.
 test('defaults: six screens (main, israel, news, traffic, map, alerts), rotation on, every 45 s, paused 2 min after a key', () => {
   const { ctx } = make();
   assert.deepEqual(JSON.parse(JSON.stringify(ctx.Config.screens)), ['main', 'israel', 'news', 'traffic', 'map', 'alerts']);
-  assert.deepEqual(JSON.parse(JSON.stringify(ctx.Config.rotation)), { enabled: true, intervalMs: 45000, pauseAfterKeyMs: 120000 });
+  assert.deepEqual(JSON.parse(JSON.stringify(ctx.Config.rotation)), { enabled: true, intervalMs: 45000, pauseAfterKeyMs: 120000, afterAlertMs: 120000 });
 });
 
 test('◀ ▶ step through the screens and wrap around in both directions', () => {
@@ -56,14 +56,30 @@ test('any key pauses the rotation for 2 min; then it carries on every 45 s', () 
   assert.equal(shown.length, n);
 });
 
-test('held while an alert is up: no rotation at all; it resumes when released', () => {
+test('held while an alert is up: no rotation at all; it resumes 2 min after the release', () => {
   const { s, clock, shown } = make();
-  s.hold(true);
+  assert.equal(s.hold(true), true, 'the hold starts: the caller is told (an alert just came up)');
+  assert.equal(s.hold(true), false, 'already held: nothing starts');
   clock.advance(10 * 60000);
   assert.equal(shown.length, 0);
   assert.equal(s.rotating(), false);
-  s.hold(false);
+  assert.equal(s.hold(false), true);
+  assert.equal(s.hold(false), false);
+  clock.advance(120000 - 1);
+  assert.equal(shown.length, 0, 'nothing moves for two minutes after the alert clears');
+  clock.advance(1);
+  assert.equal(shown.length, 1);
   clock.advance(45000);
+  assert.equal(shown.length, 2, 'then every 45 s');
+});
+
+// Batch 9: a home alert opens the Alerts screen; open(i) shows a given screen as the remote would (auto false).
+test('open(i): shows that screen (as the remote would: auto false) and says so; the screen already on view: nothing', () => {
+  const { s, shown, autos } = make();
+  assert.equal(s.open(2), true);
+  assert.deepEqual([shown, autos], [[[2, 0, 1]], [false]]);
+  assert.equal(s.current(), 2);
+  assert.equal(s.open(2), false, 'already on view');
   assert.equal(shown.length, 1);
 });
 

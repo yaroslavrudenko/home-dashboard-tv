@@ -475,7 +475,8 @@ test('FB5D-R4: the traffic header — the status line on the title line with and
   assert.deepEqual([paused.col[1], paused.title[1]], [fresh.col[1], fresh.title[1]], 'the columns and the title do not move');
 });
 
-test('an alert in Rehovot: full screen over the main screen at once; the remote cannot dismiss it; rotation holds; Back still exits', async () => {
+// Batch 9: the alert is no longer a layer over every screen: it opens the Alerts screen, which it fills (tests/browser/alerts9).
+test('an alert in Rehovot: the Alerts screen at once, filled by the alert; the remote cannot dismiss it; rotation holds; Back still exits', async () => {
   const init = 'window.__calls = []; window.tizen = { application: { getCurrentApplication: () => ({ exit: () => window.__calls.push("exit") }) } };';
   const app = await openApp({ news: 'ok', alerts: 'rehovot.json', init, configure: (c) => { c.rotation.intervalMs = 300; } });
   try {
@@ -486,22 +487,22 @@ test('an alert in Rehovot: full screen over the main screen at once; the remote 
     const v = await p.evaluate(() => {
       const a = document.getElementById('alert'), r = a.getBoundingClientRect(), cs = getComputedStyle(a);
       const top = document.elementFromPoint(960, 540);
-      return { box: [r.left, r.top, r.width, r.height], opacity: cs.opacity, z: cs.zIndex, onTop: a.contains(top),
+      return { box: [r.left, r.top, r.width, r.height], opacity: cs.opacity, z: cs.zIndex, onTop: a.contains(top), screen: a.closest('.screen').id,
         text: ['.alert-kind', '.alert-areas', '.alert-since', '.alert-instr'].map((s) => a.querySelector(s).textContent),
         pulse: getComputedStyle(a.querySelector('.alert-pulse')).animationName };
     });
-    assert.deepEqual(v.box, [0, 0, 1920, 1080]);
+    assert.deepEqual([v.screen, v.box], ['screen-alerts', [64, 48, 1792, 984]], 'the Alerts screen, filled');
     assert.equal(v.opacity, '1');
     assert.ok(v.onTop, 'the alert is what the screen shows');
     assert.deepEqual(v.text, ['Ракетный обстрел', 'Реховот', 'С 20:32', 'Войдите в защищённое помещение и оставайтесь там 10 мин']);
     assert.equal(v.pulse, 'alert-pulse');
-    assert.deepEqual(await dots(p), dotsAt(0), 'rotation held while the alert is up');
+    assert.deepEqual(await dots(p), dotsAt(5), 'rotation held while the alert is up');
+    assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);
     for (const k of [LEFT, RIGHT, ENTER, 13, 27, 8]) await press(p, k);
     await wait(300);
     assert.equal(await p.$eval('#alert', (e) => e.className), 'alert is-on', 'no key dismisses it');
     await press(p, BACK);
     assert.deepEqual(await p.evaluate(() => window.__calls), ['exit'], 'Back still exits the app');
-    assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
 });
@@ -522,12 +523,12 @@ test('FB4-A8: two records for Rehovot (1 min and 10 min), either order: the over
   }
 });
 
-test('the alert stays for its hold after the last listing and a grace of confirmed absence, then fades; rotation resumes', async () => {
+test('the alert stays for its hold after the last listing and a grace of confirmed absence, then fades; rotation resumes afterAlertMs later', async () => {
   const t0 = Date.now();
   let clearAt = 0;
   // no duration in the instruction: the hold is defaultHoldMs (shortened here), absence must last graceMs
   const listing = JSON.stringify({ id: '134062731180000000', cat: '1', title: 'ירי רקטות וטילים', data: ['רחובות'], desc: 'היכנסו למרחב המוגן' });
-  const app = await openApp({ news: 'ok', configure: (c) => { c.alerts.pollMs = 100; c.alerts.graceMs = 500; c.alerts.defaultHoldMs = 1500; c.rotation.intervalMs = 1000; },
+  const app = await openApp({ news: 'ok', configure: (c) => { c.alerts.pollMs = 100; c.alerts.graceMs = 500; c.alerts.defaultHoldMs = 1500; c.rotation.intervalMs = 1000; c.rotation.afterAlertMs = 1000; },
     alerts: () => { const listed = Date.now() - t0 < 4000; if (!listed && !clearAt) clearAt = Date.now(); return { status: 200, body: listed ? listing : '﻿\r\n' }; } });
   try {
     await ready(app);
@@ -538,9 +539,9 @@ test('the alert stays for its hold after the last listing and a grace of confirm
     assert.ok(clearAt > 0, 'the feed stopped listing the area');
     assert.ok(gone - clearAt >= 1300, 'stayed through the hold: ' + (gone - clearAt) + ' ms after the last listing');
     assert.ok(gone - clearAt < 3500, 'then cleared: ' + (gone - clearAt) + ' ms');
-    assert.deepEqual(await dots(p), dotsAt(0), 'still on the first screen: the rotation was held');
+    assert.deepEqual(await dots(p), dotsAt(5), 'still on the Alerts screen: the rotation was held');
     await wait(1400);
-    assert.deepEqual(await dots(p), dotsAt(1), 'rotation resumed one interval after the alert');
+    assert.deepEqual(await dots(p), dotsAt(0), 'rotation resumed afterAlertMs after the alert');
   } finally { await app.close(); }
 });
 
@@ -642,6 +643,8 @@ test('B6: a hostile news headline and alert text are shown as literal text — n
     await ready(app);
     const p = app.page;
     await p.waitForSelector('#alert.is-on .alert-orig');
+    await p.waitForFunction(() => document.querySelector('.screen.is-active').id === 'screen-alerts');   // batch 9: the alert opened it
+    await press(p, RIGHT);                         // from the Alerts screen (the last) to the first, then on to News
     await toScreen(p, 'news');
     await p.waitForSelector('.news-title');
     await wait(300);

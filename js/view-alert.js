@@ -1,9 +1,10 @@
-/* The Israel alert over every screen, the quiet "alert nearby" notice and the "alerts: no connection" marker. ES5.
+/* The alert at home, the quiet "alert nearby" notice and the "alerts: no connection" marker. ES5.
  * Areas are named in the interface language (Config.alerts: he / ru / uk). Texts the screen cannot translate are shown
  * as the feed wrote them (Hebrew, right to left); in Hebrew the feed's own title and instruction are the alert's words.
- * While an alert is up the overlay covers everything, so it carries its own connection line: an alert kept on
- * screen with a lost feed must say so. The owner's preview (st.preview, js/alerts.js preview()) draws the same overlay
- * under a banner that says it is not a real alert. Hebrew shown in another language is its own right-to-left block
+ * The alert is drawn into the Alerts screen's alert layer (js/view-alerts.js makes it): while one is up that screen IS
+ * the alert, red and filling the screen (App opens it when the alert starts). It covers the corner, so it carries its
+ * own connection line: an alert kept on screen with a lost feed must say so. The owner's preview (st.preview,
+ * js/alerts.js preview()) draws the same alert under a banner that says it is not a real alert. Hebrew shown in another language is its own right-to-left block
  * (dir="rtl" lang="he"), never an inline box inside a left-to-right line: figures stay where Hebrew puts them and the
  * Hebrew font's taller boxes never stick out of the line. */
 var AlertView = (function () {

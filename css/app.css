@@ -301,20 +301,21 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .map-note-text { padding: 12px 32px; border-radius: 32px; background: rgba(14, 20, 36, 0.82); font-size: 32px; color: rgba(255, 255, 255, 0.85); }
 .map-empty { flex: 1 1 auto; display: flex; }
 
-/* ---- The Israel alert: over every screen, deep red and calm; a slow pulse of light (opacity only) ------- */
+/* ---- The alert at home: the Alerts screen becomes it, filling the screen, deep red and calm; a slow pulse of light
+   (opacity only). `inherit`, never `visible`: on a hidden screen the layer stays hidden with it. ------------------ */
 .alert {
-  position: fixed; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 10; overflow: hidden;
+  position: absolute; left: 0; top: 0; right: 0; bottom: 0; z-index: 1; overflow: hidden; border-radius: 32px;
   background: #3d0a12 linear-gradient(180deg, #5a111b 0%, #2c070c 100%);
   opacity: 0; visibility: hidden;
   -webkit-transition: opacity 0.5s ease, visibility 0s linear 0.5s; transition: opacity 0.5s ease, visibility 0s linear 0.5s;
 }
-.alert.is-on { opacity: 1; visibility: visible; -webkit-transition: opacity 0.5s ease, visibility 0s; transition: opacity 0.5s ease, visibility 0s; }
+.alert.is-on { opacity: 1; visibility: inherit; -webkit-transition: opacity 0.5s ease, visibility 0s; transition: opacity 0.5s ease, visibility 0s; }
 .alert-pulse { position: absolute; left: 0; top: 0; right: 0; bottom: 0; opacity: 0.35;
   background: radial-gradient(ellipse 60% 55% at 50% 45%, rgba(255, 96, 104, 0.42) 0%, rgba(255, 96, 104, 0) 70%); }
 .alert.is-on .alert-pulse { will-change: opacity; -webkit-animation: alert-pulse 2.6s ease-in-out infinite alternate; animation: alert-pulse 2.6s ease-in-out infinite alternate; }
 @-webkit-keyframes alert-pulse { from { opacity: 0.3; } to { opacity: 1; } }
 @keyframes alert-pulse { from { opacity: 0.3; } to { opacity: 1; } }
-.alert-body { position: absolute; left: 160px; right: 160px; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.alert-body { position: absolute; left: 96px; right: 96px; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .alert-body .icon { width: 128px; height: 128px; stroke-width: 2.6; }
 .alert-body .ic-warning { stroke: #ffd9d5; }
 .alert-kind { margin-top: 32px; font-size: 104px; font-weight: 500; line-height: 1.1; letter-spacing: -0.015em; color: #fff; }
@@ -323,11 +324,11 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .alert-areas.is-many { font-size: 48px; }
 .alert-area { display: inline-block; white-space: nowrap; }   /* a name never breaks at its hyphen; lines break between names */
 .alert-since { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.75); }
-/* The feed lost while the alert is up: said inside the overlay, in warm amber (about 8:1 on the deep red). */
+/* The feed lost while the alert is up: said inside the alert, in warm amber (about 8:1 on the deep red). */
 .alert-offline { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 32px; color: #ffd59a; }
 .alert-offline .offline-dot { width: 14px; height: 14px; border-radius: 7px; -webkit-margin-end: 12px; border: 2px solid #ffd59a; }
 .alert-instr { margin-top: 48px; padding: 16px 40px; border-radius: 40px; font-size: 40px; line-height: 48px; color: #fff; background: rgba(255, 255, 255, 0.1); }
-/* The owner's preview (the blue key): the same overlay under a white band that cannot be mistaken for the alert. */
+/* The owner's preview (the blue key): the same alert under a white band that cannot be mistaken for the alert. */
 .alert-preview { position: absolute; left: 0; right: 0; top: 0; height: 104px; z-index: 1; display: flex; align-items: center; justify-content: center;
   font-size: 44px; font-weight: 500; color: #5a111b; background: #fff; }
 .alert.is-preview .alert-body { top: 104px; }

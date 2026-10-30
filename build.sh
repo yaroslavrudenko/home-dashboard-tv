@@ -37,7 +37,7 @@ MAPBOX_TOKEN=${MAPBOX_TOKEN:-}
 [[ -z "$MAPBOX_TOKEN" || "$MAPBOX_TOKEN" =~ '^pk\.[A-Za-z0-9._-]+$' ]] || { echo "MAPBOX_TOKEN must be a public token (pk. then letters, digits, . _ -); nothing was built" >&2; exit 2; }
 
 rm -rf .buildResult && mkdir .buildResult
-cp -R config.xml index.html css js img fonts .buildResult/
+cp -R config.xml index.html css js img fonts sounds .buildResult/
 rm -f .buildResult/img/icon.svg            # the icon's source; only icon.png is packaged
 if [[ -n "$MAPBOX_TOKEN" ]]; then
   cfg=$(<.buildResult/js/config.js)

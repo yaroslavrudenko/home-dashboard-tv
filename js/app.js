@@ -1,13 +1,16 @@
 /* Boot and timers: six screens (clocks + weather, the weather across Israel, news, traffic, traffic map, alerts) switched
- * with ◀ ▶ and rotated every Config.rotation.intervalMs, the Israel alert over all of them, burn-in shift, keep the screen
- * on, Back exits, ▼ / ▲ (and the yellow key) switch the interface language (Config.languages; remembered on the TV), the
- * blue key previews the alert overlay (Config.alerts.previewMs; any key ends it; a real alert always wins).
+ * with ◀ ▶ and rotated every Config.rotation.intervalMs, burn-in shift, keep the screen on, Back exits, ▼ / ▲ (and the
+ * yellow key) switch the interface language (Config.languages; remembered on the TV), the blue key previews the alert
+ * (Config.alerts.previewMs; any key ends it; a real alert always wins).
+ * An alert at home (Config.alerts.areas) opens the Alerts screen the moment it starts — that screen is then the alert,
+ * red and full — holds the rotation (and Config.rotation.afterAlertMs after it clears) and rings (Config.alerts.sound).
+ * Nearby alerts keep their quiet corner line; alerts elsewhere in Israel are only in the Alerts screen's list.
  * A screen opened with ◀ ▶ — or on view when the language changes — refreshes its data at once.
  * Only the screen on view is redrawn per minute; a hidden screen is redrawn when it comes into view.
  * Everything platform-specific is guarded so the same files run in desktop Chrome. ES5. */
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
-  var store = null, news = null, traffic = null, map = null, alerts = null, history = null, screens = null;
+  var store = null, news = null, traffic = null, map = null, alerts = null, history = null, screens = null, sound = null;
   var screenEls = [], dotEls = [];
   var clockTimer = null, shiftIndex = 0, weatherDrawn = '', toastTimer = null;
   var KEY_BACK = 10009, KEY_LEFT = 37, KEY_RIGHT = 39, SLIDE_PX = 48, FADE_MS = 700, TOAST_MS = 1600;
@@ -17,6 +20,8 @@ var App = (function () {
   var KEY_UP = 38, KEY_DOWN = 40, NEWS_SETTLE_MS = 600, newsTimer = null;   // ▲ ▼ switch the language too
   // The alert preview: the blue key (Samsung 'ColorF3Blue' = 406); previewAt is when it started (0: off).
   var PREVIEW_KEY = { name: 'ColorF3Blue', code: 406 }, previewAt = 0, previewTimer = null;
+  // The attention sound (bundled, PCM WAV: what Chromium 47 on the 2017 TVs plays); one element, loaded at boot.
+  var CHIME_URL = 'sounds/alert.wav', chime = null;
 
   function mainPlace() { return Config.places[0]; }
   function wallNow(i) { return Tz.wallTime(resolved[i], Date.now()); }
@@ -152,14 +157,27 @@ var App = (function () {
     return function () { var id = currentId(); if (ids.indexOf(id) >= 0) RENDER[id](); };
   }
 
-  // The overlay draws the real state, or the preview's over a quiet one; a real alert ends the preview for good.
+  // The alert layer draws the real state, or the preview's over a quiet one; a real alert ends the preview for good.
+  // Only the START of an alert at home opens the Alerts screen and rings: the viewer may then move away with ◀ ▶ and
+  // a new record of the same alert never pulls him back. Its end silences the sound; the rotation stays held for
+  // Config.rotation.afterAlertMs (Screens.hold).
   function renderAlerts() {
     var st = alerts.state();
     if (st.active && previewAt) endPreview(false);
     var shown = previewAt ? Alerts.preview(st, Config.alerts, previewAt) : st;
     AlertView.render(shown, shown.active ? homeHhmm(shown.active.startedAt) : '', homeHhmm(st.checkedAt));
-    screens.hold(!!st.active);
+    if (screens.hold(!!st.active)) {
+      if (st.active) { sound.start(); openAlerts(); return; }
+      sound.stop();
+    }
     if (currentId() === 'alerts') renderAlertsScreen();
+  }
+  // The Alerts screen comes into view as if the remote opened it (its recent alerts refresh at once); when it is on view
+  // already, its recent alerts refresh the same way.
+  function openAlerts() {
+    var i = Config.screens.indexOf('alerts');
+    if (i < 0) return;
+    if (!screens.open(i)) { select('alerts', true); renderAlertsScreen(); }
   }
   function startPreview() {
     if (alerts.state().active) return;
@@ -167,6 +185,17 @@ var App = (function () {
     clearTimeout(previewTimer);
     previewTimer = setTimeout(function () { endPreview(true); }, Config.alerts.previewMs);
     renderAlerts();
+    openAlerts();
+    sound.once();
+  }
+  // play() fails without a sound device or when the TV refuses it (Chromium 50+ answers a rejected promise; 47 throws
+  // or returns nothing): logged, never an error on screen.
+  function playChime() {
+    try {
+      chime.currentTime = 0;
+      var p = chime.play();
+      if (p && typeof p.then === 'function') p.then(null, function (e) { console.error('alert sound: ' + (e && e.message)); });
+    } catch (e) { console.error('alert sound: ' + e.message); }
   }
   function endPreview(redraw) {
     clearTimeout(previewTimer);
@@ -238,8 +267,9 @@ var App = (function () {
     } catch (e) { console.error('screensaver: ' + e.message); }
   }
 
-  // Back exits; ◀ ▶ switch screens; the language key switches the language; the blue key previews the alert; every key
-  // pauses the rotation. While the preview is up any key only ends it. Nothing dismisses a real alert.
+  // Back exits; ◀ ▶ switch screens; the language key switches the language; the blue key previews the alert (on the
+  // Alerts screen); every key pauses the rotation. While the preview is up any key only ends it. Nothing dismisses a real
+  // alert (◀ ▶ may leave its screen; the rotation never does while it is up).
   function onKey(e) {
     if (previewAt || e.keyCode === PREVIEW_KEY.code) {
       e.preventDefault();
@@ -346,8 +376,8 @@ var App = (function () {
     NewsView.init(document.getElementById('screen-news'));
     TrafficView.init(document.getElementById('screen-traffic'));
     MapView.init(document.getElementById('screen-map'));
+    AlertsScreenView.init(document.getElementById('screen-alerts'), Config.alerts);   // makes the alert layer (#alert)
     AlertView.init(document.getElementById('alert'), document.getElementById('corner'));
-    AlertsScreenView.init(document.getElementById('screen-alerts'), Config.alerts);
     buildScreens();
     screens = Screens.create(Config.screens.length, Config.rotation, withTimers({ onShow: showScreen }));
 
@@ -358,6 +388,8 @@ var App = (function () {
         documentVisible: function () { return !document.hidden; }, onChange: onData('traffic') }));
       map = createMap();
     }
+    chime = new Audio(CHIME_URL);
+    sound = AlertSound.create(Config.alerts.sound, withTimers({ play: playChime }));
     alerts = Alerts.createMonitor(Config.alerts, withTimers({ getText: Net.getText, onChange: renderAlerts }));
     history = AlertsHistory.createController(Config.alerts.history, withTimers({ getJson: Net.getJson,
       documentVisible: function () { return !document.hidden; }, onChange: onData('alerts') }));

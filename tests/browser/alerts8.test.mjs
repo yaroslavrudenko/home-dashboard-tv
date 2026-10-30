@@ -60,12 +60,12 @@ test('A2: the blue key previews the alert with a «not a real alert» banner, en
     assert.equal(await press(p, BACK), true);
     await wait(100);
     assert.deepEqual([await p.$eval('#alert', (e) => e.className), await p.evaluate(() => window.__exited)], ['alert', undefined]);
-    // any other key ends it too, and only ends it: ◀ does not switch the screen
+    // any other key ends it too, and only ends it: ◀ does not switch the screen (batch 9: the preview is on the Alerts screen)
     await press(p, BLUE);
     await p.waitForSelector('#alert.is-on .alert-preview');
     await press(p, LEFT);
     await wait(100);
-    assert.deepEqual([await p.$eval('#alert', (e) => e.className), await p.evaluate(() => document.querySelector('.screen.is-active').id)], ['alert', 'screen-main']);
+    assert.deepEqual([await p.$eval('#alert', (e) => e.className), await p.evaluate(() => document.querySelector('.screen.is-active').id)], ['alert', 'screen-alerts']);
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
 });
@@ -170,17 +170,16 @@ test('B1: the Alerts screen in Hebrew and Ukrainian, nothing cut; a quiet week s
   } finally { await none.close(); }
 });
 
-test('B1: with an alert up the screen shows it (and the overlay covers every screen); a lost feed never reads «Тревог нет»', async () => {
+test('B1: with an alert up the Alerts screen opens by itself and the alert fills it; a lost feed never reads «Тревог нет»', async () => {
   const app = await openApp({ news: 'ok', history: 'history.json', alerts: 'rehovot.json' });
   try {
     await ready(app);
     const p = app.page;
     await p.waitForSelector('#alert.is-on');
-    await press(p, LEFT);
     await wait(900);
     assert.equal(await p.evaluate(() => document.querySelector('.screen.is-active').id), 'screen-alerts');
     assert.match((await p.evaluate(ALERTS_VIEW)).home, /^Ракетный обстрелРеховот/);
-    assert.equal(await p.$eval('#alert', (e) => e.className), 'alert is-on', 'the overlay stays over this screen too');
+    assert.equal(await p.$eval('#alert', (e) => e.className), 'alert is-on', 'the alert covers this screen');
   } finally { await app.close(); }
   const lost = await openApp({ news: 'ok', history: 'history.json', alerts: 'fail', configure: (c) => { c.alerts.pollMs = 100; } });
   try {

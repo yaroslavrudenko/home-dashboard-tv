@@ -1,6 +1,6 @@
 // Renders the README gallery into docs/screenshots/ at 1920×1080 in headless Chrome, from the test fixtures:
 //   he-1-main … he-6-alerts   every screen in Hebrew (the README's language for screenshots)
-//   he-alert, he-alert-preview   the full-screen alert and the blue key's preview
+//   he-alert, he-alert-preview   the alert (it opens and fills the Alerts screen) and the blue key's preview
 //   ru-1-main, uk-3-news         the Languages row
 //   hero.png                     a 1600-px collage of the six Hebrew screens
 //   PUPPETEER_CORE_DIR=<dir with puppeteer-core> node tools/readme-shots.mjs [--map <png>]

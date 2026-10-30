@@ -1,7 +1,8 @@
 /* The Alerts screen (Pikud HaOref): at the start, the home areas — a calm «Тревог нет · Реховот» with when the feed last
  * answered, the alert itself while one is up, «нет связи» (never "no alerts") while the feed is lost; under it the
  * nearby areas; at the end, the recent alerts across Israel (js/alerts-history.js), newest first: time, kind, areas.
- * The full-screen overlay (js/view-alert.js) still covers this screen while an alert is up. Areas are named in the
+ * While an alert at home (or the preview) is up, the alert layer made here (#alert, drawn by js/view-alert.js) covers the
+ * whole screen: the screen is the alert. Areas are named in the
  * interface language when they are configured places, otherwise as the feed writes them (Hebrew, right to left).
  * Feed text reaches the page only through Html.esc. ES5. */
 var AlertsScreenView = (function () {
@@ -11,7 +12,8 @@ var AlertsScreenView = (function () {
 
   // cfg: Config.alerts — its configured places name the feed's areas.
   function init(el, cfg) {
-    el.innerHTML = Html.screenHead('screen.alerts', 'alerts-status') + '<div class="screen-body al-body" id="al-body"></div>';
+    el.innerHTML = Html.screenHead('screen.alerts', 'alerts-status') + '<div class="screen-body al-body" id="al-body"></div>' +
+      '<div id="alert" class="alert" role="alert"></div>';
     els = { body: el.querySelector('#al-body'), status: el.querySelector('#alerts-status') };
     var all = cfg.areas.concat(cfg.nearby);
     places = {};

@@ -37,7 +37,7 @@
 | 📺 **An installed app on a 2017 TV** | A signed Tizen `.wgt` for Tizen 3.0 / Chromium 47 (the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
 | 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources. |
 | 🚗 **Live Israeli traffic** | Ten routes from Rehovot with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map of the centre of Israel. |
-| 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; a full-screen alert over every screen, a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
+| 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in Rehovot opens the Alerts screen at once, red and full, with an attention sound; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
 | 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
@@ -82,7 +82,7 @@ leaves the front it sends `stop-behind`. If the player is not installed or not r
     <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 20:32, enter the protected space and stay 10 minutes"></td>
     <td><img src="docs/screenshots/he-alert-preview.png" alt="The alert preview in Hebrew: the same overlay under a white band saying this is an alert test, not a real alert"></td>
   </tr>
-  <tr><td align="center"><b>The alert</b> — over every screen</td><td align="center"><b>The alert preview</b> — the blue key, clearly not real</td></tr>
+  <tr><td align="center"><b>The alert</b> — the Alerts screen opens by itself</td><td align="center"><b>The alert preview</b> — the blue key, clearly not real</td></tr>
 </table>
 
 **Languages** — the same app in Russian and Ukrainian:
@@ -237,13 +237,23 @@ siren are one row; "the event has ended" and "the threat has been removed" are n
 screen is on view and the TV shows it: at once on a ◀ ▶ open or a language change, then every 2 minutes (the feed itself is
 cached for 2), never while hidden; a failed answer keeps the last list and the header turns amber.
 
-**Israel alerts (all screens)**: the live alert feed is read every 5 seconds (one request at a time, 4-second timeout).
-When an alert covers Rehovot, a deep-red full-screen notice appears over everything — this screen included: the kind of
-alert, the area, the time it started and the instruction. It never ends on a guess: it stays for the instruction's minutes
-after the area was last listed (10 minutes when the instruction names none) and until the feed has answered without the area
-for a full minute; a failed or malformed answer never counts as "not listed". An end message ("the event has ended") never
-clears or shortens it: end messages are recognised by exact title only so that they never raise one. The remote cannot
-dismiss it (Back still closes the app) and the rotation waits.
+**Israel alerts**: the live alert feed is read every 5 seconds (one request at a time, 4-second timeout). What happens
+depends on where the alert is:
+
+- **Rehovot (home, `alerts.areas`).** The moment an alert starts, the app switches to this screen from whatever screen is
+  on view, and the screen itself becomes the alert: deep red, filling the screen, with the kind of alert, the area, the
+  time it started and the instruction. The recent alerts refresh at once, as on a ◀ ▶ open. A short attention chime
+  (three soft bell tones, about 2 s, `sounds/alert.wav`, made by `tools/make-chime.mjs`) plays at the start and again every
+  30 seconds while the alert is up, five times at most (`alerts.sound`: `enabled`, `repeatMs`, `maxPlays`). The rotation
+  stops while the alert is up and for 2 minutes after it clears (`rotation.afterAlertMs`), then carries on from this
+  screen. Only the START of an alert switches and rings: if you leave with ◀ ▶, a new record of the same alert does not
+  pull you back. The alert never ends on a guess: it stays for the instruction's minutes after the area was last listed
+  (10 minutes when the instruction names none) and until the feed has answered without the area for a full minute; a
+  failed or malformed answer never counts as "not listed". An end message ("the event has ended") never clears or
+  shortens it: end messages are recognised by exact title only so that they never raise one. The remote cannot dismiss
+  it (Back still closes the app).
+- **Nearby towns (`alerts.nearby`).** A quiet line in the corner and in this screen's «Рядом» card; no switch, no sound.
+- **Anywhere else in Israel.** Only in this screen's list of recent alerts; nothing else on screen, no sound.
 
 - **Hebrew original.** In Russian and Ukrainian the kind is in the interface language; when the screen has no word for
   the kind, Pikud HaOref's Hebrew title is shown under it as its own right-to-left line (figures stay where Hebrew puts
@@ -252,18 +262,17 @@ dismiss it (Back still closes the app) and the rotation waits.
 - **Area names in three languages.** Areas are configured by their Hebrew names in `js/config.js` (`alerts.areas`,
   `alerts.nearby`), spelled as in Pikud HaOref's area list (a test checks every name against a copy of it in
   `tests/fixtures/oref/`), each with its Russian and Ukrainian name; a name never breaks at its hyphen.
-- **Nearby.** An alert in a nearby town shows a quiet line in the bottom-right corner (bottom-left in Hebrew; three names
-  at most, «и ещё N» for the rest).
+- **Nearby corner line.** Bottom-right (bottom-left in Hebrew); three names at most, «и ещё N» for the rest.
 - **No connection.** If the feed cannot be reached three times in a row, the corner says «Тревоги: нет связи · последний
   ответ 20:32» (the time of the last good answer; just «Тревоги: нет связи» before the first one, or when the line would
   not fit next to nearby towns — their names come first), and during an alert the alert itself says so. The app never
   claims "all clear". The feed answers only inside Israel.
-- **Alert preview (the blue key).** Press the remote's **blue** key to see how an alert looks without a siren: the
-  overlay comes up for 10 seconds (`alerts.previewMs`) with a sample record for Rehovot (rocket and missile fire, stay 10
+- **Alert preview (the blue key).** Press the remote's **blue** key to see how an alert looks: the Alerts screen opens
+  and shows the alert for 10 seconds (`alerts.previewMs`) with a sample record for Rehovot (rocket and missile fire, stay 10
   minutes) under a white band «Проверка тревоги — это не настоящая тревога» (in Hebrew «בדיקת התרעה — זו אינה התרעה
   אמיתית», in Ukrainian «Перевірка тривоги — це не справжня тривога»). Back or any other key ends it (and does nothing
-  else). The preview never touches the real alert state, and a real alert always wins: it replaces the preview at once,
-  and the blue key does nothing while one is up.
+  else). The chime plays once so you can hear it. The preview never touches the real alert state, and a real alert
+  always wins: it replaces the preview at once (and rings), and the blue key does nothing while one is up.
 
 ## Languages
 
@@ -328,6 +337,7 @@ ACORN=<path to acorn> tools/es5-gate.sh                               # every sc
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
 PUPPETEER_CORE_DIR=... node tools/readme-shots.mjs [--map <png>]      # the README gallery and hero (docs/screenshots/)
 PUPPETEER_CORE_DIR=... node tools/make-icon.mjs                       # img/icon.svg → img/icon.png (512×423)
+node tools/make-chime.mjs                                             # sounds/alert.wav (the alert's attention sound)
 ```
 
 The browser tests answer Open-Meteo, the news feeds, the alert feed, its history and Mapbox from `tests/fixtures/` (the
