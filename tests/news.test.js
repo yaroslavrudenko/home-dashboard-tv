@@ -55,8 +55,8 @@ test('merge: newest first across feeds; a story carried twice (same headline or 
   for (let i = 1; i < all.length; i++) assert.ok(all[i - 1].at >= all[i].at, 'order at ' + i);
   const alert = all.filter((i) => /Ракетная тревога/.test(i.title));
   assert.deepEqual(plain(alert.map((i) => i.source)), ['newsru'], 'kept the newer copy');
-  const sameLink = ctx.News.merge([[{ key: 'https://x.test/a?utm=1', title: 'One', at: 2, source: 'a' }], [{ key: 'https://x.test/a/', title: 'Other words', at: 1, source: 'b' }]]);
-  assert.deepEqual(plain(sameLink).map((i) => i.source), ['a'], 'same address with a query or a trailing slash');
+  const sameLink = ctx.News.merge([[{ key: 'https://X.test/a?utm_source=rss&at_medium=RSS#top', title: 'One', at: 2, source: 'a' }], [{ key: 'https://x.test/a/', title: 'Other words', at: 1, source: 'b' }]]);
+  assert.deepEqual(plain(sameLink).map((i) => i.source), ['a'], 'same address with tracking parameters, a fragment or a trailing slash');
   const distinct = ctx.News.merge([[{ key: 'https://x.test/1', title: 'Новость один', at: 2 }, { key: 'https://x.test/2', title: 'Новость два', at: 1 }]]);
   assert.equal(distinct.length, 2, 'different stories both stay');
 });
@@ -132,4 +132,45 @@ test('nothing yet and every feed failed: "failed" with a known retry time; stori
   assert.equal(t.store.status().kind, 'fresh', 'exactly at the limit');
   t.clock.advance(1);
   assert.equal(t.store.status().kind, 'stale');
+});
+
+// B2 (Codex #4, CE F8): de-duplication never merges two different stories.
+test('B2: distinct stories stay distinct — identity query, path case, signed numbers, Hebrew and punctuation-only headlines', () => {
+  const ctx = load(FILES);
+  const it = (key, title, at) => ({ key, title, at: at || 1, source: 's' });
+  const n = (...items) => ctx.News.merge([items]).length;
+  assert.equal(n(it('https://x.test/story?id=1', 'A'), it('https://x.test/story?id=2', 'B')), 2, '?id=1 and ?id=2');
+  assert.equal(n(it('https://x.test/News/A1', 'A'), it('https://x.test/news/a1', 'B')), 2, 'paths are case-sensitive');
+  assert.equal(n(it('https://x.test/a', 'Температура -5'), it('https://x.test/b', 'Температура +5')), 2, '−5 is not +5');
+  assert.equal(n(it('https://x.test/a', 'Температура −5'), it('https://x.test/b', 'Температура – 5')), 1, 'the same sign written two ways');
+  assert.equal(n(it('https://x.test/a', 'פיגוע בירושלים'), it('https://x.test/b', 'גשם בתל אביב')), 2, 'two Hebrew headlines');
+  assert.equal(n(it('https://x.test/a', '!!!'), it('https://x.test/b', '???')), 2, 'no usable title key: links decide');
+  assert.equal(n(it('https://x.test/a', '«Тель-Авив»: пробки'), it('https://y.test/b', 'Тель Авив — пробки')), 1, 'the same headline, punctuation aside');
+  assert.equal(n(it('https://x.test/a?id=1&utm_campaign=x', 'A'), it('https://x.test/a?id=1', 'B')), 1, 'tracking parameters only are dropped');
+});
+
+// B1 (CE F6, Codex #6): CDATA and comments are text, never structure; each layer decoded once, at its own level.
+test('B1: CDATA holding "</item>", mixed CDATA, comments and nested markup do not break items; layered decoding', () => {
+  const ctx = load(FILES);
+  const rss = (items) => '<?xml version="1.0"?><rss version="2.0"><channel><title>t</title><!-- <item><title>ghost</title></item> -->' + items + '</channel></rss>';
+  const item = (title, extra) => '<item><title>' + title + '</title><link>https://x.test/1</link>' + (extra || '') + '<pubDate>Thu, 29 Oct 2026 20:30:00 +0200</pubDate></item>';
+  const one = ctx.News.parse(rss(item('<![CDATA[Что означает тег </item> в RSS]]>')), 's', 15);
+  assert.deepEqual(plain(one.map((i) => [i.title, i.at])), [['Что означает тег в RSS', Date.parse('2026-10-29T18:30:00Z')]], 'the headline and its date survive');
+  const mixed = ctx.News.parse(rss(item('<![CDATA[A]]> tail', '<description>x <tags><tag>a</tag></tags> <br> y</description>')), 's', 15);
+  assert.deepEqual(plain(mixed.map((i) => [i.title, i.summary])), [['A tail', 'x a y']]);
+  assert.equal(ctx.News.parse(rss(item('a <!-- hidden --> b')), 's', 15)[0].title, 'a b', 'a comment inside an element is dropped');
+  assert.equal(ctx.News.plain('<![CDATA[A]]> tail'), 'A tail');
+  assert.equal(ctx.News.plain('a &amp;lt;b&amp;gt; c'), 'a <b> c', 'XML-escaped "&lt;b&gt;" is the text "<b>", never a tag');
+  assert.equal(ctx.News.plain('<![CDATA[&amp;amp;]]>'), '&amp;', 'CDATA is not XML-decoded; the HTML inside is decoded once, never twice');
+  assert.equal(ctx.News.plain('&amp;nbsp;x &nbsp;y'), 'x y', 'an HTML entity escaped for XML, and one written raw');
+});
+
+// B3 (CE F7): Dublin Core dates; no zone abbreviation is guessed.
+test('B3: dc:date when there is no pubDate; an unknown zone abbreviation is not guessed (the story is skipped)', () => {
+  const ctx = load(FILES);
+  const rss = (date) => '<rss><channel><item><title>T</title><link>https://x.test/1</link>' + date + '</item></channel></rss>';
+  assert.equal(ctx.News.parse(rss('<dc:date>2026-10-29T20:30:00+02:00</dc:date>'), 's', 15)[0].at, Date.parse('2026-10-29T18:30:00Z'));
+  assert.equal(ctx.News.parse(rss('<pubDate>Thu, 29 Oct 2026 20:30:00 IDT</pubDate>'), 's', 15).length, 0, 'IDT is not guessed');
+  assert.equal(ctx.News.parse(rss('<pubDate>Thu, 29 Oct 2026 20:30:00 IDT</pubDate><dc:date>2026-10-29T20:30:00+03:00</dc:date>'), 's', 15)[0].at,
+    Date.parse('2026-10-29T17:30:00Z'), 'an unreadable pubDate falls back to dc:date');
 });

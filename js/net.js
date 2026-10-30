@@ -1,6 +1,7 @@
 /* HTTP over XMLHttpRequest (Chromium 47 has no fetch), always with a hard timeout. ES5.
  *   Net.request(opts, done)  opts: { url, timeoutMs, method ('GET'), body (string), headers ({}), json (bool) }
- *   Net.getJson(url, timeoutMs, done) / Net.getText(url, timeoutMs, done, headers) / Net.postJson(url, body, timeoutMs, done)
+ *   Net.getJson(url, timeoutMs, done) / Net.getText(url, timeoutMs, done) / Net.postJson(url, body, timeoutMs, done)
+ * GETs carry no custom header: a plain GET needs no CORS preflight (the alert feed never answers one).
  * done(error, result) is called exactly once: error is a short string ('timeout', 'http 503', 'network', 'parse')
  * or null; result is the parsed JSON (json: true) or the response text. */
 var Net = (function () {
@@ -35,7 +36,7 @@ var Net = (function () {
   }
 
   function getJson(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true }, done); }
-  function getText(url, timeoutMs, done, headers) { return request({ url: url, timeoutMs: timeoutMs, headers: headers }, done); }
+  function getText(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs }, done); }
   function postJson(url, body, timeoutMs, done) {
     return request({ url: url, timeoutMs: timeoutMs, method: 'POST', body: JSON.stringify(body), json: true,
       headers: { 'Content-Type': 'application/json' } }, done);

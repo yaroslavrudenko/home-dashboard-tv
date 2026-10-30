@@ -1,7 +1,8 @@
 'use strict';
-// Israel alerts (Pikud HaOref): every shape the feed answers, the area match, and the monitor's promises — the
-// alert stays until the feed stops listing the area plus one minute, a failed poll never clears it or reads as
-// "no alert", and polls never pile up.
+// Israel alerts (Pikud HaOref): every shape the feed answers, the area match, and the monitor's promises. The alert
+// screen never shows a false all-clear: an alert stays for its instruction's minutes (10 min by default) after the
+// last listing and for a grace minute of CONFIRMED absence; a failed or malformed poll never counts as absence and
+// never reads as "no alert"; only a verified end message for our area clears it sooner; polls never pile up.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -10,35 +11,62 @@ const { load, fakeTimers } = require('./harness');
 
 const FILES = ['js/config.js', 'js/alerts.js'];
 const T0 = Date.parse('2026-10-29T18:34:00Z');
+const MIN = 60000;
 const oref = (f) => fs.readFileSync(path.join(__dirname, 'fixtures', 'oref', f), 'utf8');
+const plain = (v) => JSON.parse(JSON.stringify(v));
+const body = (o) => JSON.stringify(o);
+const ROCKETS = 'ירי רקטות וטילים', SHELTER10 = 'היכנסו למרחב המוגן ושהו בו 10 דקות';
 
 test('no alert: an empty body, the recorded BOM + CRLF, whitespace and [] all mean "no alert now"', () => {
   const ctx = load(FILES);
   assert.equal(Buffer.from(oref('empty-bom.txt'), 'utf8').length, 5, 'the 5-byte answer recorded live on 2026-10-29');
-  for (const body of ['', oref('empty-bom.txt'), '\r\n', '  ', '[]', '﻿[]']) assert.deepEqual([...ctx.Alerts.parse(body)], [], JSON.stringify(body));
+  for (const b of ['', oref('empty-bom.txt'), '\r\n', '  ', '[]', '﻿[]']) assert.deepEqual(plain(ctx.Alerts.parse(b)), { alerts: [], ended: [] }, JSON.stringify(b));
 });
 
-test('an alert: title, instruction and every area, in the feed\'s order', () => {
+test('an alert: id, title, instruction and every area, in the feed\'s order', () => {
   const ctx = load(FILES);
-  const list = ctx.Alerts.parse(oref('rehovot.json'));
-  assert.equal(list.length, 1);
-  assert.equal(list[0].title, 'ירי רקטות וטילים');
-  assert.equal(list[0].desc, 'היכנסו למרחב המוגן ושהו בו 10 דקות');
-  assert.deepEqual([...list[0].areas], ['רחובות', 'נס ציונה', 'ראשון לציון - מזרח']);
-  assert.equal(ctx.Alerts.kind(list[0].title), 'missiles');
-  assert.equal(ctx.Alerts.instruction(list[0].desc).minutes, 10);
+  const { alerts, ended } = ctx.Alerts.parse(oref('rehovot.json'));
+  assert.equal(alerts.length, 1);
+  assert.equal(ended.length, 0);
+  assert.equal(alerts[0].id, '134062731180000000');
+  assert.equal(alerts[0].title, ROCKETS);
+  assert.equal(alerts[0].desc, SHELTER10);
+  assert.deepEqual([...alerts[0].areas], ['רחובות', 'נס ציונה', 'ראשון לציון - מזרח']);
+  assert.equal(ctx.Alerts.kind(alerts[0].title), 'missiles');
+  assert.equal(ctx.Alerts.instruction(alerts[0].desc).minutes, 10);
 });
 
 test('a block page, broken JSON or a foreign shape is a failed poll (throws), never "no alert"', () => {
   const ctx = load(FILES);
-  for (const body of [oref('block.html'), '{"id":"1","data":', '{"id":"1","title":"x"}', '"text"', '[1]']) {
-    assert.throws(() => ctx.Alerts.parse(body), undefined, body.slice(0, 30));
+  for (const b of [oref('block.html'), '{"id":"1","data":', '{"id":"1","title":"x"}', '"text"', '[1]']) {
+    assert.throws(() => ctx.Alerts.parse(b), undefined, b.slice(0, 30));
   }
 });
 
-test('"the event has ended" lists the areas but is an all-clear, not an alert', () => {
+// A1: the WHOLE response is validated before any state changes; a bad member is a failed poll, never "no alert".
+test('a malformed member fails the whole poll: non-string or empty area, no areas, missing title, wrong desc', () => {
   const ctx = load(FILES);
-  assert.deepEqual([...ctx.Alerts.parse(oref('ended.json'))], []);
+  const bad = [
+    { title: ROCKETS, data: [null] }, { title: ROCKETS, data: [1] }, { title: ROCKETS, data: [''] }, { title: ROCKETS, data: ['  '] },
+    { title: ROCKETS, data: ['רחובות', null] }, { title: ROCKETS, data: [] }, { title: ROCKETS, data: null }, { data: ['רחובות'] },
+    { title: '', data: ['רחובות'] }, { title: 5, data: ['רחובות'] }, { title: ROCKETS, data: ['רחובות'], desc: 7 }
+  ];
+  for (const o of bad) assert.throws(() => ctx.Alerts.parse(body(o)), /unexpected shape/, body(o));
+  assert.throws(() => ctx.Alerts.parse(body([JSON.parse(oref('rehovot.json').replace(/^﻿/, '')), { title: ROCKETS, data: [null] }])), /unexpected shape/,
+    'one bad record among good ones fails the whole answer');
+});
+
+test('end messages ("the event has ended", "you may leave the protected space") come back separately, never as alerts', () => {
+  const ctx = load(FILES);
+  const r = ctx.Alerts.parse(oref('ended.json'));
+  assert.equal(r.alerts.length, 0);
+  assert.deepEqual([...r.ended[0].areas], ['רחובות']);
+  const leave = ctx.Alerts.parse(body({ id: '9', cat: '13', title: 'ניתן לצאת מהמרחב המוגן אך יש להישאר בקרבתו', data: ['רחובות'], desc: '' }));
+  assert.deepEqual([leave.alerts.length, leave.ended.length], [0, 1]);
+  const mixed = ctx.Alerts.parse(body([JSON.parse(oref('rehovot.json').replace(/^﻿/, '')), JSON.parse(oref('ended.json').replace(/^﻿/, ''))]));
+  assert.deepEqual([mixed.alerts.length, mixed.ended.length], [1, 1], 'an active record and an end record in one answer: both kept');
+  // the category is never read: the recorded active and ended fixtures share cat "1"
+  assert.equal(ctx.Alerts.parse(body({ id: '9', cat: '13', title: ROCKETS, data: ['רחובות'] })).alerts.length, 1, 'cat 13 with an alert title is an alert');
 });
 
 test('area match: the exact name or a district of it ("X - east"); never another name that starts the same', () => {
@@ -56,45 +84,65 @@ test('area match: the exact name or a district of it ("X - east"); never another
   assert.equal(c('קריית עקרון', 'עקרון'), false, 'the name inside a longer one');
 });
 
+// A4: tests/fixtures/oref/districts_heb.json is a copy of Pikud HaOref's area list (districts_heb.json, as fetched by
+// the batch-2 code review on 2026-10-29). It is a TEST fixture only: build.sh never packages tests/.
+test('every configured Hebrew area name matches at least one area on Pikud HaOref\'s official list', () => {
+  const ctx = load(FILES);
+  const official = JSON.parse(oref('districts_heb.json')).map((d) => d.label_he);
+  assert.ok(official.length > 1000, 'the full list: ' + official.length);
+  for (const p of [...ctx.Config.alerts.areas, ...ctx.Config.alerts.nearby]) {
+    assert.ok(official.some((a) => ctx.Alerts.covers(a, p.he)), p.he + ' (' + p.name + ') is not an official area name');
+  }
+  assert.ok(ctx.Config.alerts.nearby.some((p) => p.he === 'קריית עקרון'), 'Kiryat Ekron spelled as Oref spells it');
+});
+
 test('match() names the configured places an alert covers, once each, in config order', () => {
   const ctx = load(FILES);
-  const alerts = ctx.Alerts.parse(oref('nearby.json'));
-  assert.equal(ctx.Alerts.match(alerts, ctx.Config.alerts.areas), null, 'Rehovot is not listed');
-  const near = ctx.Alerts.match(alerts, ctx.Config.alerts.nearby);
-  assert.deepEqual([...near.names], ['Нес-Циона', 'Ришон-ле-Цион']);
-  assert.equal(ctx.Alerts.match(ctx.Alerts.parse(oref('elsewhere.json')), ctx.Config.alerts.nearby), null, 'Ashkelon is not "nearby"');
+  const twice = body({ id: '1', title: ROCKETS, data: ['ראשון לציון - מזרח', 'נס ציונה', 'ראשון לציון - מערב', 'אשקלון - דרום'], desc: '' });
+  const s = monitor(ctx, () => [null, twice]);
+  assert.equal(s.m.state().active, null, 'Rehovot is not listed');
+  assert.deepEqual([...s.m.state().nearby.names], ['Нес-Циона', 'Ришон-ле-Цион'], 'config order, Rishon once for two districts');
+  const e = monitor(ctx, () => [null, oref('elsewhere.json')]);
+  assert.equal(e.m.state().nearby, null, 'Ashkelon is not "nearby"');
 });
 
 test('unknown kinds and instructions are not invented: kind null, instruction null', () => {
   const ctx = load(FILES);
-  const [a] = ctx.Alerts.parse(oref('unknown-kind.json'));
+  const [a] = ctx.Alerts.parse(oref('unknown-kind.json')).alerts;
   assert.equal(ctx.Alerts.kind(a.title), null);
   assert.equal(ctx.Alerts.instruction(a.desc), null);
   assert.equal(ctx.Alerts.instruction('היכנסו למרחב המוגן').minutes, null, 'the instruction without a duration');
 });
 
-// A monitor on fake timers; `answers` is the queue of (err, body) the feed gives, in order.
-function monitor(ctx, answers) {
+// A monitor on fake timers. `feed(t)` answers each poll at time t (ms since T0): [err] or [null, body].
+function monitor(ctx, feed, cfgPatch) {
   const clock = fakeTimers(T0);
   const calls = [];
   let changes = 0;
-  const m = ctx.Alerts.createMonitor(ctx.Config.alerts, {
-    getText: (url, timeoutMs, done, headers) => {
-      calls.push({ url, timeoutMs, headers });
-      const a = answers.length ? answers.shift() : [null, ''];
+  const cfg = Object.assign({}, ctx.Config.alerts, cfgPatch || {});
+  const m = ctx.Alerts.createMonitor(cfg, {
+    getText: function (url, timeoutMs, done) {
+      calls.push({ url, timeoutMs, args: arguments.length });
+      const a = feed(clock.now() - T0);
       done(a[0], a[1]);
     },
     now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, onChange: () => { changes++; }
   });
-  return { m, clock, calls, changes: () => changes };
+  m.poll();
+  // the first moment (ms since T0) the alert is gone, polling until `until`
+  const goneAt = (until) => { while (clock.now() - T0 < until) { clock.advance(1000); if (!m.state().active) return clock.now() - T0; } return null; };
+  return { m, clock, calls, changes: () => changes, goneAt, at: (t) => clock.advance(T0 + t - clock.now()) };
 }
+const REHOVOT = () => oref('rehovot.json');
+const EMPTY = '﻿\r\n';
 
-test('one request per 5 s with a 4 s timeout and X-Requested-With; the next poll is scheduled only after the answer', () => {
+// A3: a plain GET (no custom header): X-Requested-With forced a CORS preflight the feed never answers.
+test('one request per 5 s with a 4 s timeout and NO custom header; the next poll is scheduled only after the answer', () => {
   const ctx = load(FILES);
   const clock = fakeTimers(T0);
   const calls = [];
   const m = ctx.Alerts.createMonitor(ctx.Config.alerts, {
-    getText: (url, ms, done, headers) => calls.push({ url, ms, done, headers }),
+    getText: function (url, ms, done) { calls.push({ url, ms, done, args: [...arguments] }); },
     now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, onChange: () => {} });
   assert.equal(m.poll(), true);
   assert.equal(m.poll(), false, 'one in flight: a second poll sends nothing');
@@ -102,89 +150,168 @@ test('one request per 5 s with a 4 s timeout and X-Requested-With; the next poll
   assert.equal(calls.length, 1, 'a slow answer never piles requests up');
   assert.equal(calls[0].url, 'https://www.oref.org.il/WarningMessages/alert/alerts.json');
   assert.equal(calls[0].ms, 4000);
-  assert.equal(calls[0].headers['X-Requested-With'], 'XMLHttpRequest');
+  assert.equal(calls[0].args.length, 3, 'url, timeout, callback — no headers argument at all');
+  assert.ok(!/X-Requested-With/.test(fs.readFileSync(path.join(__dirname, '..', 'js', 'alerts.js'), 'utf8')), 'the header is gone from the code');
   calls[0].done(null, '');
   assert.deepEqual(clock.pending(), [5000], 'the next poll 5 s after the answer');
   clock.advance(5000);
   assert.equal(calls.length, 2);
 });
 
-test('an alert in Rehovot: up at once, with its start time; it stays while listed and for 1 min after, then clears', () => {
+test('defaults: polls every 5 s, a grace minute of confirmed absence, 10 min hold without an instruction, offline after 3 failures', () => {
   const ctx = load(FILES);
-  const alert = oref('rehovot.json');
-  const q = [[null, alert], [null, alert], [null, alert], [null, ''], [null, ''], [null, '']];
-  const s = monitor(ctx, q);
-  s.m.poll();
-  let st = s.m.state();
+  const a = ctx.Config.alerts;
+  assert.deepEqual([a.pollMs, a.timeoutMs, a.graceMs, a.defaultHoldMs, a.failAfter], [5000, 4000, 60000, 10 * MIN, 3]);
+});
+
+test('an alert in Rehovot: up at once with its start time; an unchanged alert is not redrawn every poll', () => {
+  const ctx = load(FILES);
+  const s = monitor(ctx, () => [null, REHOVOT()]);
+  const st = s.m.state();
   assert.ok(st.active, 'raised');
   assert.equal(st.active.kind, 'missiles');
   assert.deepEqual([...st.active.names], ['Реховот']);
   assert.equal(st.active.startedAt, T0);
+  assert.equal(st.checkedAt, T0, 'the last good answer');
   assert.equal(s.changes(), 1);
-  s.clock.advance(10000);                          // two more polls still list Rehovot
+  s.at(30000);
   assert.equal(s.m.state().active.startedAt, T0, 'the start time does not move while the alert goes on');
   assert.equal(s.changes(), 1, 'an unchanged alert is not redrawn every poll');
-  const lastSeen = T0 + 10000;
-  s.clock.advance(5000);                           // first poll without the area
-  assert.ok(s.m.state().active, 'still up: the grace minute has just started');
-  q.push(...Array(20).fill([null, '']));
-  s.clock.advance(60000 - 5000 - 5000);            // 55 s after lastSeen: still inside the grace minute
-  assert.ok(s.clock.now() - lastSeen < 60000 && s.m.state().active, 'up inside the grace minute');
-  s.clock.advance(5000);                           // the poll at lastSeen + 60 s
-  assert.equal(s.m.state().active, null, 'cleared one minute after the feed stopped listing the area');
+});
+
+// A1 (CE F1): the feed drops the area long before the instruction's 10 minutes are over.
+test('A1: still up at +9 min after the last listing of a 10-minute instruction; gone after 10 min of it', () => {
+  const ctx = load(FILES);
+  const s = monitor(ctx, (t) => [null, t <= 10000 ? REHOVOT() : EMPTY]);   // listed at 0, 5, 10 s
+  s.at(10000 + 9 * MIN);
+  assert.ok(s.m.state().active, 'up 9 min after the last listing');
+  assert.equal(s.goneAt(30 * MIN), 10000 + 10 * MIN, 'the first poll at last listing + 10 min clears it');
+});
+
+test('A1: a renewed listing extends the deadline from the new listing', () => {
+  const ctx = load(FILES);
+  const s = monitor(ctx, (t) => [null, t === 0 || t === 5 * MIN ? REHOVOT() : EMPTY]);
+  s.at(14 * MIN);
+  assert.ok(s.m.state().active, 'up 9 min after the renewed listing');
+  assert.equal(s.m.state().active.startedAt, T0, 'one alert: it started at the first listing');
+  assert.equal(s.goneAt(30 * MIN), 15 * MIN);
+});
+
+// A1 (Codex #2): grace counts from the first SUCCESSFUL poll without the area; an outage is never absence.
+test('A1: an outage then the first empty answer keeps the alert for a full grace minute of confirmed absence', () => {
+  const ctx = load(FILES);
+  const noMinutes = body({ id: '134062731180000000', title: ROCKETS, data: ['רחובות'], desc: 'היכנסו למרחב המוגן' });
+  const feed = (t) => (t === 0 ? [null, noMinutes] : t < 120000 ? ['network'] : t === 130000 ? ['timeout'] : [null, EMPTY]);
+  const s = monitor(ctx, feed, { defaultHoldMs: 60000 });                 // hold = grace: only absence decides
+  s.at(120000);
+  assert.ok(s.m.state().active, 'the first good answer after a 2-minute outage does not clear it');
+  assert.equal(s.m.state().offline, false, 'and the connection is back');
+  s.at(125000);
+  assert.ok(s.m.state().active, 'absence since 120 s, not since the last listing at 0 s');
+  assert.equal(s.goneAt(10 * MIN), 135000 + 60000, 'the failed poll at 130 s restarted the count: gone at 135 s + 1 min');
+});
+
+// A1 (Codex #1): data:[null] / data:[1] used to parse as "no area listed" and cleared the alert with no marker.
+test('A1: data:[null] and data:[1] keep the alert up AND count as failed polls (the offline marker shows)', () => {
+  const ctx = load(FILES);
+  for (const junk of [body({ title: ROCKETS, data: [null] }), body({ title: ROCKETS, data: [1] })]) {
+    const s = monitor(ctx, (t) => [null, t === 0 ? REHOVOT() : junk]);
+    s.at(20 * MIN);
+    const st = s.m.state();
+    assert.ok(st.active, junk + ': still up after 20 min of malformed answers');
+    assert.equal(st.offline, true, junk + ': shown as no connection');
+    assert.equal(st.checkedAt, T0, 'the last good answer is still the first one');
+  }
+});
+
+test('A1: an end message for another area, or an end older than the event, never clears our alert', () => {
+  const ctx = load(FILES);
+  const elsewhere = body({ id: '134062731180000000', cat: '1', title: 'האירוע הסתיים', data: ['אשקלון - דרום'], desc: '' });
+  const stale = body({ id: '134062731170000000', cat: '1', title: 'האירוע הסתיים', data: ['רחובות'], desc: '' });
+  for (const end of [elsewhere, stale]) {
+    const s = monitor(ctx, (t) => [null, t === 0 ? REHOVOT() : end]);
+    s.at(9 * MIN);
+    assert.ok(s.m.state().active, 'still up: ' + end.slice(0, 40));
+    assert.equal(s.goneAt(30 * MIN), 10 * MIN, 'then the ordinary clear');
+  }
+});
+
+test('A1: a verified end message for our area (not older than the event) clears the alert at once', () => {
+  const ctx = load(FILES);
+  for (const end of [oref('ended.json'), body({ id: '134062731190000000', title: 'ניתן לצאת מהמרחב המוגן אך יש להישאר בקרבתו', data: ['רחובות'], desc: '' })]) {
+    const s = monitor(ctx, (t) => [null, t < 10000 ? REHOVOT() : end]);
+    s.at(10000);
+    assert.equal(s.m.state().active, null, 'cleared on the end message: ' + end.slice(0, 50));
+  }
+});
+
+test('A1: an end message without a comparable event id is uncertain: the alert stays (conservative)', () => {
+  const ctx = load(FILES);
+  const s = monitor(ctx, (t) => [null, t === 0 ? REHOVOT() : body({ title: 'האירוע הסתיים', data: ['רחובות'], desc: '' })]);
+  s.at(5 * MIN);
+  assert.ok(s.m.state().active);
+});
+
+test('A1: an active record and an end record for our area in one answer: the alert stays', () => {
+  const ctx = load(FILES);
+  const both = body([JSON.parse(oref('ended.json').replace(/^﻿/, '')), JSON.parse(REHOVOT().replace(/^﻿/, ''))]);
+  const s = monitor(ctx, () => [null, both]);
+  s.at(3 * MIN);
+  assert.ok(s.m.state().active, 'the listing wins');
+  const newer = body({ id: '134062731190000000', cat: '1', title: ROCKETS, data: ['רחובות'], desc: SHELTER10 });
+  const t = monitor(ctx, (x) => [null, x === 0 ? REHOVOT() : x === 5000 ? newer : oref('ended.json')]);
+  t.at(10000);
+  assert.ok(t.m.state().active, 'an end for the older event never clears a newer one');
 });
 
 test('an ongoing alert whose text or areas change keeps its start time', () => {
   const ctx = load(FILES);
-  const first = oref('rehovot.json');
-  const changed = JSON.stringify({ id: '2', cat: '1', title: 'ירי רקטות וטילים', data: ['רחובות', 'גדרה'], desc: 'היכנסו למרחב המוגן ושהו בו 15 דקות' });
-  const s = monitor(ctx, [[null, first], [null, changed]]);
-  s.m.poll();
-  s.clock.advance(5000);
+  const changed = body({ id: '2', cat: '1', title: ROCKETS, data: ['רחובות', 'גדרה'], desc: 'היכנסו למרחב המוגן ושהו בו 15 דקות' });
+  const s = monitor(ctx, (t) => [null, t === 0 ? REHOVOT() : changed]);
+  s.at(5000);
   const st = s.m.state();
   assert.equal(st.active.instruction.minutes, 15, 'the new instruction is shown');
   assert.equal(st.active.startedAt, T0, 'but the alert still started when it first appeared');
   assert.equal(s.changes(), 2, 'redrawn for the new text');
 });
 
-test('a failed or unreadable poll never clears a raised alert, even long after the grace minute', () => {
+test('a failed or unreadable poll never clears a raised alert, even long after the hold', () => {
   const ctx = load(FILES);
-  const q = [[null, oref('rehovot.json')]];
-  for (let i = 0; i < 40; i++) q.push(i % 2 ? ['timeout', undefined] : [null, oref('block.html')]);
-  const s = monitor(ctx, q);
-  s.m.poll();
-  s.clock.advance(40 * 5000);
+  let i = 0;
+  const s = monitor(ctx, (t) => (t === 0 ? [null, REHOVOT()] : i++ % 2 ? ['timeout'] : [null, oref('block.html')]));
+  s.at(40 * MIN);
   const st = s.m.state();
-  assert.ok(st.active, 'still up after 200 s of failures');
+  assert.ok(st.active, 'still up after 40 min of failures');
   assert.equal(st.offline, true, 'and the lost connection is shown');
 });
 
 test('feed failure: no "all clear" — the offline marker after 3 failed polls in a row, gone on the next good answer', () => {
   const ctx = load(FILES);
-  const s = monitor(ctx, [['http 403', undefined], ['network', undefined], [null, oref('block.html')], [null, '']]);
-  s.m.poll();
+  const q = [['http 403'], ['network'], [null, oref('block.html')], [null, '']];
+  const s = monitor(ctx, () => q.shift() || [null, '']);
   assert.equal(s.m.state().offline, false, 'one failure is not shown (a single timeout must not flicker)');
-  s.clock.advance(5000);
+  s.at(5000);
   assert.equal(s.m.state().offline, false);
-  s.clock.advance(5000);
+  s.at(10000);
   assert.equal(s.m.state().offline, true, 'third failure in a row');
   assert.equal(s.m.state().active, null);
+  assert.equal(s.m.state().checkedAt, 0, 'never a good answer yet');
   assert.equal(s.changes(), 1, 'drawn once when the marker appears');
-  s.clock.advance(5000);
+  s.at(15000);
   assert.equal(s.m.state().offline, false, 'a good answer removes it');
   assert.equal(s.changes(), 2);
 });
 
 test('an alert elsewhere raises nothing; nearby areas give the quiet notice only, and only without our own alert', () => {
   const ctx = load(FILES);
-  const s = monitor(ctx, [[null, oref('elsewhere.json')], [null, oref('nearby.json')], [null, oref('rehovot.json')]]);
-  s.m.poll();
-  assert.deepEqual(JSON.parse(JSON.stringify(s.m.state())), { active: null, nearby: null, offline: false }, 'Ashkelon: nothing');
-  s.clock.advance(5000);
+  const q = [oref('elsewhere.json'), oref('nearby.json'), REHOVOT()];
+  const s = monitor(ctx, () => [null, q.shift() || REHOVOT()]);
+  assert.deepEqual(plain(s.m.state()), { active: null, nearby: null, offline: false, checkedAt: T0 }, 'Ashkelon: nothing');
+  s.at(5000);
   const st = s.m.state();
   assert.equal(st.active, null);
   assert.deepEqual([...st.nearby.names], ['Нес-Циона', 'Ришон-ле-Цион']);
-  s.clock.advance(5000);
+  s.at(10000);
   assert.ok(s.m.state().active, 'our own alert');
   assert.equal(s.m.state().nearby, null, 'the quiet notice gives way to the alert');
 });
@@ -199,7 +326,7 @@ test('stop() wins over a poll in flight: its late answer changes nothing and sch
     onChange: () => { changes++; } });
   m.poll();
   m.stop();
-  calls[0](null, oref('rehovot.json'));
+  calls[0](null, REHOVOT());
   assert.equal(m.state().active, null);
   assert.equal(changes, 0);
   assert.deepEqual(clock.pending(), []);

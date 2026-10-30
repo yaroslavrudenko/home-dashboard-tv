@@ -54,31 +54,38 @@ turns it off. A screen that is not on view keeps its content and costs nothing: 
   *Settings → General → Eco Solution → Auto Power Off*. Not yet verified on the TV for a run longer than 4 hours.
 - **Languages**: Russian (default) and English. Hebrew and Ukrainian slots are ready in `js/i18n.js`.
 
-**2 · News**: the latest story large across the top, the next headlines in two columns, from three
+**2 · News**: the latest story large across the top, the next headlines below in rows of two, from three
 Russian-language feeds: [NEWSru.co.il](https://www.newsru.co.il/info/rss) "Важные новости" (Israel),
 [Українська правда, Russian edition](https://www.pravda.com.ua/rus/rss/) and
 [BBC News Русская служба](https://feeds.bbci.co.uk/russian/rss.xml). Vesti (vesty.co.il) publishes no live
 feed: every `/Integration/StoryRss*.xml` there is weeks old, so NEWSru.co.il stands in for Israel. All three
 come in one parallel round every 10 minutes; stories are merged newest first, a story two feeds carry is
 shown once, and feed text is reduced to plain text (no feed HTML ever reaches the screen). Headlines are
-never cut: when they are long, fewer are shown. A feed that fails keeps its last stories and is named in the
-status line.
+never cut: a long lead headline steps down in size and drops its summary, and when the headlines below are
+long, fewer rows are shown. A feed that fails keeps its last stories and is named in the status line.
 
 **3 · Traffic**: travel time now and without traffic from Rehovot to Tel Aviv (Azrieli), Rishon LeZion and
 Jerusalem, with a soft green / amber / red delay chip and a time bar, plus a congestion line for the Ayalon
 and Routes 4, 1 and 6. It comes from the [TomTom Routing API](https://developer.tomtom.com/routing-api) in
-ONE batch request (summaries only), every 5 minutes while the screen is on view and every 15 otherwise. It
+ONE batch request (summaries only), every 15 minutes, and every 5 while you keep the screen on view after
+choosing it with ◀ ▶ (a rotation visit does not refresh it: quota). A failed round retries after 4½–15 minutes;
+a refused key (403) or today's used-up limit (429) is said on the screen and waits the regular 15 minutes. It
 needs a free TomTom key (see Build); without one the screen says how to connect it and sends nothing. The
 client is written against TomTom's documented answers and tested on them; it has not yet run against a live key.
 
 **Israel alerts (all screens)**: the [Home Front Command](https://www.oref.org.il/) alert feed is read every
 5 seconds (one request at a time, 4-second timeout). When an alert covers Rehovot, a deep-red full-screen
 notice appears over everything: the kind of alert, the area, the time it started and the instruction. It
-stays until the feed no longer lists the area plus one minute; the remote cannot dismiss it (Back still
+never ends on a guess: it stays for the instruction's minutes after the area was last listed (10 minutes when
+the instruction names none) and until the feed has answered without the area for a full minute; a failed or
+malformed answer never counts as "not listed". Only Pikud HaOref's own end message for the area ("the event
+has ended", "you may leave the protected space") clears it sooner. The remote cannot dismiss it (Back still
 closes the app) and the rotation waits. An alert in a nearby town shows a quiet line in the bottom-right
-corner. If the feed cannot be reached three times in a row, the corner says "Тревоги: нет связи"; the app
-never claims "all clear". The feed answers only inside Israel. Areas are configured by their Hebrew names in
-`js/config.js` (`alerts.areas`, `alerts.nearby`).
+corner (three names at most, "и ещё N" for the rest). If the feed cannot be reached three times in a row, the
+corner says "Тревоги: нет связи" — and during an alert the alert itself says so, with the time of the last good
+answer; the app never claims "all clear". The feed answers only inside Israel. Areas are configured by their
+Hebrew names in `js/config.js` (`alerts.areas`, `alerts.nearby`), spelled as in Pikud HaOref's area list (a
+test checks every name against a copy of it in `tests/fixtures/oref/`).
 
 ## Configure
 
@@ -105,9 +112,10 @@ only on the device that reports that DUID. `./build.sh` refuses any argument oth
 
 `TOMTOM_KEY` (letters and digits, from developer.tomtom.com) is put into the packaged copy of
 `js/config.js` only; the repository keeps the `__TOMTOM_KEY__` placeholder and a test pins it. The free tier
-allows 2,500 routing requests a day and each refresh counts 7 (3 routes + 4 roads): about 2,000 a day if the
-TV runs 24 hours with the traffic screen in the rotation, fewer otherwise. Remove roads from the config to
-use less.
+allows 2,500 routing requests a day and each refresh counts 7 (3 routes + 4 roads): about 670 a day with the
+rotation on, about 2,000 if the traffic screen stays on view all day, and at most about 2,240 on the worst day
+(retries included) — a test simulates those days and fails if a change would cross 2,500. Remove roads from the
+config to use less.
 
 ## Develop and test
 

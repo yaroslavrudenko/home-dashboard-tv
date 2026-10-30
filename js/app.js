@@ -65,7 +65,7 @@ var App = (function () {
     if (!traffic) { TrafficView.renderNoKey(); return; }
     var st = traffic.status();
     TrafficView.render({ routes: Config.traffic.routes, roads: Config.traffic.roads, routeViews: traffic.routes(), roadViews: traffic.roads(),
-      kind: st.kind, updated: homeHhmm(st.updatedAt), retryAt: retryAt(traffic.nextAt()) });
+      kind: st.kind, problem: st.problem, updated: homeHhmm(st.updatedAt), retryAt: retryAt(traffic.nextAt()) });
   }
 
   var RENDER = { main: renderMain, news: renderNews, traffic: renderTraffic };
@@ -76,15 +76,16 @@ var App = (function () {
 
   function renderAlerts() {
     var st = alerts.state();
-    AlertView.render(st, st.active ? homeHhmm(st.active.startedAt) : '');
+    AlertView.render(st, st.active ? homeHhmm(st.active.startedAt) : '', homeHhmm(st.checkedAt));
     screens.hold(!!st.active);
   }
 
   // Cross-fade with a short slide (opacity and transform only). The incoming screen is drawn before it fades in.
-  function showScreen(index, from, dir) {
+  // auto: the rotation moved on (a rotation visit never triggers a traffic request).
+  function showScreen(index, from, dir, auto) {
     var id = Config.screens[index], incoming = screenEls[index], outgoing = screenEls[from];
     RENDER[id]();
-    if (traffic) traffic.setVisible(id === 'traffic');
+    if (traffic) traffic.setVisible(id === 'traffic', auto);
     incoming.style.transition = 'none';
     incoming.style.transform = 'translateX(' + SLIDE_PX * dir + 'px)';
     void incoming.offsetWidth;                     // commit the start position before the transition

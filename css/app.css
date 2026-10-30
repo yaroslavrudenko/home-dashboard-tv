@@ -45,26 +45,29 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 }
 
 /* ---- screens: one on view; the others keep their DOM, invisible (never painted) and at rest in place ---- */
+/* A staggered cross-fade: the old screen leaves in 0.3 s, the new one appears from 0.2 s and settles by 0.65 s, so
+   the two never stand at half strength together. Total < FADE_MS (700 ms, js/app.js), whose reset runs unseen. */
 .screen {
   position: absolute; left: 64px; top: 48px; right: 64px; bottom: 48px;
   display: flex; flex-direction: column;
   opacity: 0; visibility: hidden;
-  -webkit-transition: opacity 0.6s ease, -webkit-transform 0.6s ease, visibility 0s linear 0.6s;
-  transition: opacity 0.6s ease, transform 0.6s ease, visibility 0s linear 0.6s;
+  -webkit-transition: opacity 0.3s ease, -webkit-transform 0.3s ease, visibility 0s linear 0.3s;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0.3s;
 }
 .screen.is-active {
   opacity: 1; visibility: visible;
-  -webkit-transition: opacity 0.6s ease, -webkit-transform 0.6s ease, visibility 0s;
-  transition: opacity 0.6s ease, transform 0.6s ease, visibility 0s;
+  -webkit-transition: opacity 0.45s ease 0.2s, -webkit-transform 0.45s ease 0.2s, visibility 0s linear 0.2s;
+  transition: opacity 0.45s ease 0.2s, transform 0.45s ease 0.2s, visibility 0s linear 0.2s;
 }
 /* Page dots in the bottom margin, Apple style: the current screen bright, the others quiet. */
 .dots { position: absolute; left: 0; right: 0; bottom: 0; height: 48px; display: flex; align-items: center; justify-content: center; }
-.dot { width: 10px; height: 10px; border-radius: 5px; margin: 0 8px; background: rgba(255, 255, 255, 0.24);
+.dot { width: 12px; height: 12px; border-radius: 6px; margin: 0 8px; background: rgba(255, 255, 255, 0.36);
   -webkit-transition: background-color 0.6s ease; transition: background-color 0.6s ease; }
 .dot.is-on { background: rgba(255, 255, 255, 0.92); }
-/* The status corner (bottom right): a nearby alert, and the alert feed's lost connection. Never an "all clear". */
-.corner { position: absolute; right: 64px; bottom: 0; height: 48px; display: flex; align-items: center; font-size: 24px; white-space: nowrap; }
-.nearby, .alerts-offline { display: flex; align-items: center; }
+/* The status corner: the right half of the bottom margin (the page dots keep the middle) — a nearby alert, and the
+   alert feed's lost connection. Never an "all clear". js/view-alert.js shows fewer names when the line would not fit. */
+.corner { position: absolute; left: 1024px; right: 64px; bottom: 0; height: 48px; display: flex; align-items: center; justify-content: flex-end; font-size: 24px; white-space: nowrap; overflow: hidden; }
+.corner-line, .nearby, .alerts-offline { display: flex; align-items: center; flex: 0 0 auto; }
 .nearby + .alerts-offline { margin-left: 32px; }
 .nearby { color: #ffc9c2; }
 .nearby-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; background: #ff8f85; }
@@ -198,7 +201,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .screen-body { display: flex; flex: 1 1 auto; min-height: 0; margin-top: 24px; }
 .ic-car, .ic-news, .ic-warning { stroke: rgba(255, 255, 255, 0.85); }
 
-/* ---- News: the lead story across the top, the next headlines in two columns ------------------------------ */
+/* ---- News: the lead story across the top, the next headlines below in rows of two -------------------------- */
 .news-body { flex-direction: column; }
 .news-meta { display: flex; align-items: center; font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
 .src-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 12px; flex: 0 0 10px; }
@@ -214,14 +217,22 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .lead.src-pravda .lead-glow { background: radial-gradient(ellipse 60% 120% at 100% 0%, rgba(255, 213, 143, 0.13) 0%, rgba(255, 213, 143, 0) 70%); }
 .lead.src-bbc .lead-glow { background: radial-gradient(ellipse 60% 120% at 100% 0%, rgba(255, 163, 171, 0.14) 0%, rgba(255, 163, 171, 0) 70%); }
 .lead .news-meta { position: relative; font-size: 26px; }
-.lead-title { position: relative; margin-top: 24px; max-width: 1560px; font-size: 60px; font-weight: 500; line-height: 1.15; letter-spacing: -0.01em; }
+.lead-title { position: relative; margin-top: 24px; max-width: 1560px; font-size: 60px; font-weight: 500; line-height: 1.15; letter-spacing: -0.01em;
+  max-height: 242px; }   /* 3.5 lines: js/view-news.js reads "taller than this" as "over three lines" and steps the size down */
 .lead-summary { position: relative; margin-top: 16px; max-width: 1480px; font-size: 32px; line-height: 1.35; color: rgba(255, 255, 255, 0.78);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.news-list { flex: 1 1 auto; min-height: 0; margin-top: 24px; padding: 8px 40px; display: flex; }
-.news-col { flex: 1 1 0; min-width: 0; overflow: hidden; }
-.news-col + .news-col { margin-left: 40px; padding-left: 40px; border-left: 1px solid rgba(255, 255, 255, 0.07); }
-.news-item { padding: 24px 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
-.news-item:first-child { border-top: 0; }
+.lead.is-long .lead-title { font-size: 48px; line-height: 1.17; max-height: 197px; }   /* 3.5 lines at 48 px */
+.lead.is-xlong .lead-title { font-size: 40px; line-height: 1.2; max-height: none; }
+.lead.is-long .lead-summary { display: none; }
+/* One story: the lead alone fills the screen, its words in the middle. */
+.lead.is-alone { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; }
+.news-list { flex: 1 1 auto; min-height: 0; margin-top: 24px; padding: 8px 40px; display: flex; flex-direction: column; justify-content: space-around; }
+.news-list.is-fitting { justify-content: flex-start; }   /* packed to the top while js/view-news.js measures it */
+.news-row { display: flex; flex: 0 0 auto; padding: 24px 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.news-row:first-child { border-top: 0; }
+.news-item { flex: 0 0 auto; width: calc((100% - 80px) / 2); min-width: 0; }
+.news-item + .news-item { margin-left: 80px; }
+.news-list.is-single .news-item { width: 100%; }
 .news-title { margin-top: 8px; font-size: 30px; line-height: 1.27; color: rgba(255, 255, 255, 0.92); }
 .news-empty, .traffic-empty { flex: 1 1 auto; display: flex; }
 
@@ -234,7 +245,9 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .troute-to { font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
 .troute-from { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-top: 8px; white-space: nowrap; }
 .troute-time { font-size: 88px; font-weight: 300; line-height: 1; white-space: nowrap; letter-spacing: -0.01em; }
+.troute-time .unit { font-size: 48px; color: rgba(255, 255, 255, 0.62); }   /* "38 мин": the figure leads */
 .troute.is-stale .troute-time { color: rgba(255, 255, 255, 0.62); }
+.troute-time.is-none { color: rgba(255, 255, 255, 0.62); }   /* no time: a quiet dash keeps the slot (62 % = the legibility floor) */
 .troute-time .stale-mark { vertical-align: 0.6em; }
 .troute-sub { display: flex; align-items: center; margin-top: auto; }
 .troute-usual { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-left: 16px; white-space: nowrap; }
@@ -262,11 +275,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .troad-sub { font-size: 26px; color: rgba(255, 255, 255, 0.62); margin-top: 4px; white-space: nowrap; }
 .troad .tbar { margin-top: 16px; height: 8px; }
 .troad.is-stale .troad-level { opacity: 0.62; }
-.tskel { height: 24px; margin-top: auto; }
-.troad .tskel { margin-top: 16px; }
 .tnodata { font-size: 26px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
-.troute .tnodata { margin-top: auto; }
-.troad .tnodata { margin-top: 4px; }
 
 /* ---- The Israel alert: over every screen, deep red and calm; a slow pulse of light (opacity only) ------- */
 .alert {
@@ -287,5 +296,10 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .alert-kind { margin-top: 32px; font-size: 104px; font-weight: 500; line-height: 1.1; letter-spacing: -0.015em; color: #fff; }
 .alert-orig { margin-top: 8px; font-size: 40px; color: rgba(255, 255, 255, 0.8); }
 .alert-areas { margin-top: 32px; font-size: 64px; color: #ffe6e3; line-height: 1.2; }
+.alert-areas.is-many { font-size: 48px; }
+.alert-area { display: inline-block; white-space: nowrap; }   /* a name never breaks at its hyphen; lines break between names */
 .alert-since { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.75); }
+/* The feed lost while the alert is up: said inside the overlay, in warm amber (about 8:1 on the deep red). */
+.alert-offline { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 32px; color: #ffd59a; }
+.alert-offline .offline-dot { width: 14px; height: 14px; border-radius: 7px; margin-right: 12px; border: 2px solid #ffd59a; }
 .alert-instr { margin-top: 48px; padding: 16px 40px; border-radius: 40px; font-size: 40px; color: #fff; background: rgba(255, 255, 255, 0.1); }

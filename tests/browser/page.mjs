@@ -15,7 +15,9 @@ const ORIGIN = 'http://dashboard.test';
 // 20:32 in Israel), so the hourly strip of the recorded answer starts at the current hour.
 const REHOVOT = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'rehovot.json'), 'utf8'));
 export const FIXED_NOW = Date.parse(REHOVOT.current.time + ':00Z') - REHOVOT.utc_offset_seconds * 1000 + 2 * 60000;
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, X-Requested-With', 'Access-Control-Allow-Methods': 'GET, POST' };
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'GET, POST' };
+// oref.org.il answers a CORS preflight without Access-Control-Allow-Origin / -Allow-Headers (measured 2026-10-29), so a
+// poll that needs a preflight never reaches the GET: the harness answers OPTIONS the same way.
 const BY_LAT = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney' };
 const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2' };
 
@@ -102,7 +104,7 @@ export async function openApp(opts = {}) {
       const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : url.startsWith('https://api.tomtom.com/') ? 'traffic' : null;
       if (kind) requests[kind].push({ url, method: req.method(), headers: req.headers(), body: req.postData() });
       if (!kind || opts[kind] === undefined) done = req.abort();
-      else if (req.method() === 'OPTIONS') done = req.respond({ status: 204, headers: CORS });
+      else if (req.method() === 'OPTIONS') done = req.respond(kind === 'alerts' ? { status: 200, headers: { Allow: 'GET, HEAD' }, body: '' } : { status: 204, headers: CORS });
       else done = answerFor(kind, opts, url, requests[kind].length).then((a) => req.respond({ status: a.status, headers: CORS, body: a.body }));
     }
     Promise.resolve(done).catch(() => {});

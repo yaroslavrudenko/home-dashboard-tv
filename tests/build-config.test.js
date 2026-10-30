@@ -221,3 +221,34 @@ test('build.sh refuses a TOMTOM_KEY with anything but letters and digits, before
     assert.ok(!fs.existsSync(path.join(sb.dir, '.buildResult')), 'nothing built');
   } finally { sb.close(); }
 });
+
+// C3 (quota): TomTom's free tier allows ~2,500 billable items a day; every refresh costs one item per route and road.
+// The worst day the app can produce, retries INCLUDED (every request counted, the shortest jittered waits), must stay
+// under it — this fails the moment a leg or a shorter interval would break the budget. A 429 all day stays at or
+// below the 188 batches/day measured before batch 3.
+test('TomTom quota: the worst simulated day, retries included, stays under 2,500 items; 429 all day ≤ 188 batches', () => {
+  const { trafficDay } = require('./traffic-day');
+  const LIMIT = 2500;
+  const flip = (n) => (n % 2 ? 'ok' : 'http 503');
+  const days = {
+    'rotation on, all answers good': {},
+    'rotation on, every round 503': { answer: () => 'http 503' },
+    'rotation on, 429 all day': { answer: () => 'http 429' },
+    'parked on traffic (▶), all answers good': { park: true },
+    'parked on traffic, every round times out': { park: true, answer: () => 'timeout' },
+    'parked on traffic, every other round 503': { park: true, answer: flip },
+    'parked on traffic, 429 all day': { park: true, answer: () => 'http 429' },
+    'parked on traffic, 403 all day': { park: true, answer: () => 'http 403' }
+  };
+  const seen = {};
+  for (const [name, o] of Object.entries(days)) {
+    for (const random of [() => 0, () => 0.999999]) {
+      const r = trafficDay(Object.assign({ random }, o));
+      assert.equal(r.legs, 7);
+      assert.ok(r.items <= LIMIT, name + ': ' + r.items + ' items/day');
+      seen[name] = Math.max(seen[name] || 0, r.batches);
+    }
+  }
+  assert.ok(seen['rotation on, 429 all day'] <= 188 && seen['parked on traffic, 429 all day'] <= 188, JSON.stringify(seen));
+  assert.ok(seen['rotation on, all answers good'] <= 100, 'a rotation visit never refreshes: ' + seen['rotation on, all answers good']);
+});

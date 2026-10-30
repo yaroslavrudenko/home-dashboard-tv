@@ -37,13 +37,13 @@ test('HTTP errors, network errors and bad JSON have their own labels; a good ans
   assert.deepEqual(JSON.parse(JSON.stringify(get((x) => fire(x, 4, 200, '[{"a":1}]')))), [[null, [{ a: 1 }]]]);
 });
 
-test('getText returns the raw body (a BOM and CRLF included) and sends the given headers; HTTP errors keep their labels', () => {
+test('getText returns the raw body (a BOM and CRLF included) as a plain GET: no custom header, so no CORS preflight', () => {
   let seen;
   const ctx = load(['js/net.js'], { XMLHttpRequest: fakeXhr((x) => { seen = x; fire(x, 4, 200, '\uFEFF\r\n'); }) });
   const calls = [];
   ctx.Net.getText('https://x.test/a', 4000, (err, text) => calls.push([err, text]), { 'X-Requested-With': 'XMLHttpRequest' });
   assert.deepEqual(calls, [[null, '\uFEFF\r\n']]);
-  assert.deepEqual([seen.method, seen.url, seen.timeout, seen.headers['X-Requested-With'], seen.body], ['GET', 'https://x.test/a', 4000, 'XMLHttpRequest', null]);
+  assert.deepEqual([seen.method, seen.url, seen.timeout, seen.headers, seen.body], ['GET', 'https://x.test/a', 4000, {}, null], 'even a fourth argument sets nothing');
 });
 
 test('postJson sends the body as JSON with its content type and parses the JSON answer', () => {

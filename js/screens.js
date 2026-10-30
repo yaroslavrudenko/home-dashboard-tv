@@ -1,6 +1,7 @@
 /* Which screen is on, and when to move on. ES5. No DOM: App draws the transition.
  *   Screens.create(count, cfg, deps)   cfg: { enabled, intervalMs, pauseAfterKeyMs }
- *     deps: { now(), setTimeout, clearTimeout, onShow(index, from, dir) }   dir: +1 forward, −1 back
+ *     deps: { now(), setTimeout, clearTimeout, onShow(index, from, dir, auto) }   dir: +1 forward, −1 back;
+ *           auto: true when the rotation moved on, false for the remote
  *   .step(dir)    the remote's ◀ ▶: show the previous / next screen and pause the rotation
  *   .touch()      any other key: pause the rotation
  *   .hold(on)     an alert is on screen: no rotation until it is gone
@@ -9,10 +10,10 @@ var Screens = (function () {
   function create(count, cfg, deps) {
     var index = 0, pausedUntil = 0, held = false, timer = null;
 
-    function show(dir) {
+    function show(dir, auto) {
       var from = index;
       index = (index + dir + count) % count;
-      deps.onShow(index, from, dir);
+      deps.onShow(index, from, dir, auto);
     }
     function schedule() {
       if (timer !== null) deps.clearTimeout(timer);
@@ -22,7 +23,7 @@ var Screens = (function () {
       timer = deps.setTimeout(function () {
         timer = null;
         if (deps.now() < pausedUntil) { schedule(); return; }
-        show(1);
+        show(1, true);
         schedule();
       }, wait);
     }
@@ -34,7 +35,7 @@ var Screens = (function () {
     schedule();
     return {
       current: function () { return index; },
-      step: function (dir) { touch(); show(dir); },
+      step: function (dir) { touch(); show(dir, false); },
       touch: touch,
       hold: function (on) {
         if (held === on) return;

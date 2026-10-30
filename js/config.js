@@ -78,31 +78,39 @@ var Config = {
       { id: 'road1', from: [31.9550, 34.9120], to: [31.7960, 35.1480] },        // Route 1, Ben Shemen → Motza
       { id: 'road6', from: [31.8790, 34.9230], to: [32.0820, 34.9520] }         // Route 6, Nahshon → Kesem
     ],
-    visibleRefreshMs: 5 * 60 * 1000,    // while the traffic screen is on
+    // Quota: TomTom's free tier allows ~2,500 items (route requests) a day and every refresh costs one per route and
+    // road (7 now). A test pins the worst day, retries included, under that limit — re-check it when adding a leg.
+    visibleRefreshMs: 5 * 60 * 1000,    // while the traffic screen is on after a ◀ ▶ visit (a rotation visit keeps the hidden interval)
     refreshMs: 15 * 60 * 1000,          // otherwise
     timeoutMs: 20 * 1000,
-    retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
-    retryFloorMs: 30 * 1000,
+    // Back-off after a failed round: never sooner than 4.5 min (a faster retry would spend the quota, not help);
+    // a refusal (403 key, 429 daily limit) waits the regular interval or longer.
+    retryMs: [5 * 60 * 1000, 10 * 60 * 1000],
+    retryFloorMs: 270 * 1000,
     staleAfterMs: 30 * 60 * 1000,
     // Delay chip colour: travel time against free flow
     amberRatio: 1.15,
     redRatio: 1.5
   },
 
-  // Pikud HaOref alerts. `areas` are the alert area names (Hebrew, exactly as the feed writes them) that raise the
-  // full-screen alert; `nearby` only shows a quiet notice. `name` is how the screen calls the area in Russian.
+  // Pikud HaOref alerts. `areas` are the alert area names (Hebrew, exactly as Pikud HaOref's area list writes them —
+  // tests/fixtures/oref/districts_heb.json; a test checks every name) that raise the full-screen alert; `nearby` only shows a quiet notice. `name` is how the screen calls the area in Russian.
   alerts: {
     url: 'https://www.oref.org.il/WarningMessages/alert/alerts.json',
     areas: [{ he: 'רחובות', name: 'Реховот' }],
     nearby: [
       { he: 'נס ציונה', name: 'Нес-Циона' }, { he: 'ראשון לציון', name: 'Ришон-ле-Цион' }, { he: 'יבנה', name: 'Явне' },
-      { he: 'גדרה', name: 'Гедера' }, { he: 'מזכרת בתיה', name: 'Мазкерет-Батья' }, { he: 'קרית עקרון', name: 'Кирьят-Экрон' },
+      { he: 'גדרה', name: 'Гедера' }, { he: 'מזכרת בתיה', name: 'Мазкерет-Батья' }, { he: 'קריית עקרון', name: 'Кирьят-Экрон' },
       { he: 'באר יעקב', name: 'Беэр-Яаков' }, { he: 'רמלה', name: 'Рамла' }, { he: 'לוד', name: 'Лод' },
       { he: 'אשדוד', name: 'Ашдод' }, { he: 'תל אביב', name: 'Тель-Авив' }
     ],
     pollMs: 5 * 1000,                   // the next poll starts this long after the previous one ENDED
     timeoutMs: 4 * 1000,
-    graceMs: 60 * 1000,                 // the alert stays this long after the feed stops listing the area
+    // An alert never ends on a guess (js/alerts.js): it stays for the instruction's minutes after the area was last
+    // listed ("stay in the protected space 10 min"), or defaultHoldMs when the instruction names no duration, AND
+    // until the feed has answered without the area for graceMs; a verified end message clears it sooner.
+    graceMs: 60 * 1000,
+    defaultHoldMs: 10 * 60 * 1000,
     failAfter: 3                        // consecutive failed polls before "no connection" is shown
   },
 

@@ -48,11 +48,14 @@ var I18n = (function () {
         't.level.ok': 'Свободно', 't.level.slow': 'Затруднено', 't.level.jam': 'Пробка', 't.noData': 'Нет данных',
         't.noKey': 'Подключите ключ TomTom, чтобы видеть пробки', 't.noKeySub': 'TOMTOM_KEY в build.local.env, затем пересоберите приложение',
         't.loading': 'Загружаем пробки…', 't.failed': 'Пробки временно недоступны',
+        't.badKey': 'Ключ TomTom не принят', 't.badKeySub': 'Проверьте TOMTOM_KEY и пересоберите приложение',
+        't.limit': 'Лимит запросов TomTom на сегодня исчерпан',
         'a.kind.missiles': 'Ракетный обстрел', 'a.kind.aircraft': 'Вражеский беспилотник', 'a.kind.infiltration': 'Проникновение террористов',
         'a.kind.earthquake': 'Землетрясение', 'a.kind.tsunami': 'Угроза цунами', 'a.kind.hazmat': 'Утечка опасных веществ',
         'a.kind.radiological': 'Радиационная угроза', 'a.kind.prealert': 'Скоро возможна тревога', 'a.generic': 'Тревога',
         'a.since': 'С {time}', 'a.shelter': 'Войдите в защищённое помещение', 'a.shelterFor': 'Войдите в защищённое помещение и оставайтесь там {n} мин',
-        'a.nearby': 'Тревога рядом: {areas}', 'a.offline': 'Тревоги: нет связи'
+        'a.nearby': 'Тревога рядом: {areas}', 'a.nearbyMore': '{areas} и ещё {n}', 'a.offline': 'Тревоги: нет связи',
+        'a.offlineSince': 'Тревоги: нет связи · данные от {time}'
       }
     },
     en: {
@@ -84,11 +87,14 @@ var I18n = (function () {
         't.level.ok': 'Clear', 't.level.slow': 'Slow', 't.level.jam': 'Jammed', 't.noData': 'No data',
         't.noKey': 'Connect a TomTom key to see the traffic', 't.noKeySub': 'TOMTOM_KEY in build.local.env, then rebuild the app',
         't.loading': 'Loading the traffic…', 't.failed': 'Traffic is temporarily unavailable',
+        't.badKey': 'The TomTom key was not accepted', 't.badKeySub': 'Check TOMTOM_KEY and rebuild the app',
+        't.limit': 'Today\'s TomTom request limit is used up',
         'a.kind.missiles': 'Rocket and missile fire', 'a.kind.aircraft': 'Hostile aircraft intrusion', 'a.kind.infiltration': 'Terrorist infiltration',
         'a.kind.earthquake': 'Earthquake', 'a.kind.tsunami': 'Tsunami', 'a.kind.hazmat': 'Hazardous materials',
         'a.kind.radiological': 'Radiological event', 'a.kind.prealert': 'Alerts expected shortly', 'a.generic': 'Alert',
         'a.since': 'Since {time}', 'a.shelter': 'Enter the protected space', 'a.shelterFor': 'Enter the protected space and stay {n} min',
-        'a.nearby': 'Alert nearby: {areas}', 'a.offline': 'Alerts: no connection'
+        'a.nearby': 'Alert nearby: {areas}', 'a.nearbyMore': '{areas} and {n} more', 'a.offline': 'Alerts: no connection',
+        'a.offlineSince': 'Alerts: no connection · data from {time}'
       }
     }
   };
