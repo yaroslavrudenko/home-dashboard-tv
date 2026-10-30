@@ -1,6 +1,7 @@
 // Renders the README gallery into docs/screenshots/ at 1920×1080 in headless Chrome, from the test fixtures:
 //   he-1-main … he-6-alerts   every screen in Hebrew (the README's language for screenshots)
 //   he-alert, he-alert-preview   the alert (it opens and fills the Alerts screen) and the blue key's preview
+//   he-banner, he-city           the red home-alert banner on another screen, and the home-city picker (OK)
 //   ru-1-main, uk-3-news         the Languages row
 //   hero.png                     a 1600-px collage of the six Hebrew screens
 //   PUPPETEER_CORE_DIR=<dir with puppeteer-core> node tools/readme-shots.mjs [--map <png>]
@@ -16,7 +17,7 @@ const mapAt = process.argv.indexOf('--map');
 const realMap = mapAt > 0 ? fs.readFileSync(process.argv[mapAt + 1]) : null;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); }, code);
-const RIGHT = 39, BLUE = 406;
+const RIGHT = 39, BLUE = 406, OK = 13;
 const SCREENS = ['main', 'israel', 'news', 'traffic', 'map', 'alerts'];
 
 async function shot(file, { lang, alerts = 'empty-bom.txt', screen = 'main', act }) {
@@ -41,6 +42,9 @@ const HE = ['he-1-main.png', 'he-2-israel.png', 'he-3-news.png', 'he-4-traffic.p
 for (let i = 0; i < SCREENS.length; i++) await shot(HE[i], { lang: 'he', screen: SCREENS[i] });
 await shot('he-alert.png', { lang: 'he', alerts: 'rehovot.json' });
 await shot('he-alert-preview.png', { lang: 'he', act: (p) => press(p, BLUE) });
+// The home alert opens the Alerts screen; one step right is the home screen, where the red banner stays on top.
+await shot('he-banner.png', { lang: 'he', alerts: 'rehovot.json', act: async (p) => { await wait(800); await press(p, RIGHT); } });
+await shot('he-city.png', { lang: 'he', act: (p) => press(p, OK) });
 await shot('ru-1-main.png', { lang: 'ru' });
 await shot('uk-3-news.png', { lang: 'uk', screen: 'news' });
 
