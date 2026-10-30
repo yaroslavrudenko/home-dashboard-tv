@@ -126,7 +126,7 @@ var App = (function () {
     return TrafficMap.createController(m, withTimers({
       loadBase: function (done) { return MapView.loadBase(mapTiles(function (t) { return TrafficMap.baseUrl(m, key, t); }), m.tileSize, m.timeoutMs, done); },
       loadFlow: function (stamp, done) { return MapView.loadFlow(mapTiles(function (t) { return TrafficMap.flowUrl(m, key, t, stamp); }), m.tileSize, m.timeoutMs, done); },
-      onChange: onData('map') }));
+      documentVisible: function () { return !document.hidden; }, onChange: onData('map') }));
   }
   // localStorage, or null where the TV refuses it (traffic then pauses: its request counter cannot be kept).
   function storage() { try { return window.localStorage || null; } catch (e) { return null; } }
@@ -218,6 +218,7 @@ var App = (function () {
   function refreshIfOld(s, refreshMs, refresh) { if (s.kind !== 'fresh' || Date.now() - s.updatedAt >= refreshMs) refresh(); }
 
   function onVisible() {
+    if (map) map.visibilityChanged();              // hidden: the map stops loading tiles; shown: it resumes (on view only)
     if (document.hidden) return;
     keepScreenOn();
     clearTimeout(clockTimer);

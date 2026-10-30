@@ -171,6 +171,8 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .status-dot { width: 10px; height: 10px; border-radius: 5px; margin-right: 8px; background: rgba(140, 230, 180, 0.7); }
 .status.is-stale { color: rgba(255, 214, 150, 0.85); }
 .status.is-stale .status-dot { background: #ffcf8a; }
+.status.is-failed { color: rgba(255, 214, 150, 0.85); }        /* a failure the header says (e.g. both news feeds down): amber like stale */
+.status.is-failed .status-dot { background: #ffcf8a; }
 
 /* 7-day list */
 .days { margin-top: 8px; }
@@ -217,13 +219,15 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .region .days { margin-top: 8px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
 
 /* ---- News and Traffic share a header: the screen's name on the left, its status line on the right ------- */
-.screen-head { display: flex; align-items: center; justify-content: space-between; height: 48px; flex: 0 0 48px; padding: 0 41px; }
-.screen-title { margin: 0; font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); letter-spacing: -0.005em; }
-.status.screen-status { position: static; }
+/* The header reserves two lines (72 px): the title and the status line share the first 48 px, the traffic note has the
+   24 px under them, so a note never moves the status line or anything below (the body starts at the same y). */
+.screen-head { display: flex; align-items: flex-start; justify-content: space-between; height: 72px; flex: 0 0 72px; padding: 0 41px; }
+.screen-title { margin: 0; height: 48px; line-height: 48px; font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); letter-spacing: -0.005em; }
+.status.screen-status { position: static; height: 48px; }
 .head-side { display: flex; flex-direction: column; align-items: flex-end; }   /* the status line, and under it the note */
-.status-note { display: none; font-size: 24px; line-height: 30px; color: rgba(255, 214, 150, 0.85); white-space: nowrap; }
+.status-note { display: none; font-size: 24px; line-height: 24px; color: rgba(255, 214, 150, 0.85); white-space: nowrap; }
 .status-note.is-on { display: block; }
-.screen-body { display: flex; flex: 1 1 auto; min-height: 0; margin-top: 24px; }
+.screen-body { display: flex; flex: 1 1 auto; min-height: 0; }
 .ic-car, .ic-news, .ic-warning { stroke: rgba(255, 255, 255, 0.85); }
 
 /* ---- News: two columns («Израиль», «Экономика Израиля»), five row slots each; the slots of both columns have one
@@ -248,6 +252,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .news-title { margin-top: 6px; height: 80px; overflow: hidden; font-size: 32px; line-height: 40px; color: rgba(255, 255, 255, 0.92);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .news-col-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
+.news-col-empty.is-failed { color: rgba(255, 214, 150, 0.85); }   /* a failure, amber like .news-col-state — never a neutral "no data" */
 .news-empty, .traffic-empty { flex: 1 1 auto; display: flex; }
 
 /* ---- Traffic: two columns of five widgets (routes «Города», «Рядом»; the main roads are on the map screen), one

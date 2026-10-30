@@ -12,6 +12,7 @@ function fakeXhr(play) {
     x.headers = {};
     x.open = (method, url) => { x.method = method; x.url = url; };
     x.setRequestHeader = (k, v) => { x.headers[k] = v; };
+    x.getResponseHeader = () => null;              // a real XHR always has it (FB5D-V1 reads Retry-After)
     x.send = (body) => { x.body = body; play(x); };
   };
 }
@@ -53,6 +54,16 @@ test('postJson sends the body as JSON with its content type and parses the JSON 
   ctx.Net.postJson('https://x.test/b', { batchItems: [1] }, 20000, (err, json) => calls.push([err, JSON.stringify(json)]));
   assert.deepEqual(calls, [[null, '{"ok":true}']]);
   assert.deepEqual([seen.method, seen.headers['Content-Type'], seen.body, seen.timeout], ['POST', 'application/json', '{"batchItems":[1]}', 20000]);
+});
+
+// FB5D-V1: an HTTP refusal carries the response's Retry-After (as the server sent it) to the caller.
+test('FB5D-V1: a non-200 answer passes its Retry-After header as the third argument; 200 and a network error pass none', () => {
+  const run = (play) => { const ctx = load(['js/net.js'], { XMLHttpRequest: fakeXhr((x) => { x.getResponseHeader = (h) => (/^retry-after$/i.test(h) ? x.ra : null); play(x); }) });
+    const calls = []; ctx.Net.postJson('https://x.test/b', {}, 1000, (err, json, meta) => calls.push([err, meta === undefined ? 'none' : JSON.stringify(meta)])); return calls; };
+  assert.deepEqual(run((x) => { x.ra = '7200'; fire(x, 4, 429); }), [['http 429', '{"retryAfter":"7200"}']]);
+  assert.deepEqual(run((x) => { x.ra = null; fire(x, 4, 403); }), [['http 403', '{"retryAfter":""}']]);
+  assert.deepEqual(run((x) => { x.ra = '9'; fire(x, 4, 200, '{}'); }), [[null, 'none']]);
+  assert.deepEqual(run((x) => { fire(x, 4, 0); x.onerror(); }), [['network', 'none']]);
 });
 
 // FB5B-M1: an image (a map tile) has a deadline and can be stopped. A fake Image records what the app does to it; the

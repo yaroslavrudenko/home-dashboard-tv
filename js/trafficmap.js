@@ -8,11 +8,11 @@
  *                                         URL without asking the network (measured in Chrome, fix batch 5b), so without it
  *                                         the overlay would never change
  *   TrafficMap.createController(cfg, deps)  when tiles are loaded: ONLY while the map screen is on view (any visit,
- *                                         rotation included). The base map is loaded until one whole round succeeds,
+ *                                         rotation included) AND the TV shows the page (document visible). The base map is loaded until one whole round succeeds,
  *                                         then kept; the flow overlay is reloaded on arrival when its next attempt is due
  *                                         and every cfg.refreshMs while on view. A failed layer waits cfg.refreshMs too,
- *                                         across leaving and coming back. Leaving cancels the rounds in flight. Nothing
- *                                         runs while the screen is hidden.
+ *                                         across leaving and coming back. Leaving (or the TV hiding the page) cancels the
+ *                                         rounds in flight. Nothing runs while the screen or the page is hidden.
  * Budget (tiles count like requests; TomTom's free tier: 200,000 raster map tiles and 200,000 raster traffic tiles a month,
  * docs.tomtom.com/pricing, 2026-10-30, i.e. about 6,600 a day each): 12 tiles per layer (4 × 3 tiles of 512 px at zoom 10
  * over the 1792 × 912 card); parked on the map all day 288 overlays × 12 = 3,456 flow tiles; with the rotation (five
@@ -38,17 +38,21 @@ var TrafficMap = (function () {
   function baseUrl(cfg, key, tile) { return cfg.base + path(cfg, key, tile) + '&language=' + cfg.language; }
   function flowUrl(cfg, key, tile, stamp) { return cfg.flow + path(cfg, key, tile) + '&refresh=' + stamp; }
 
-  // deps: { now(), setTimeout, clearTimeout, loadBase(done(ok)) → cancel(), loadFlow(stamp, done(ok)) → cancel(), onChange() }
+  // deps: { now(), setTimeout, clearTimeout, loadBase(done(ok)) → cancel(), loadFlow(stamp, done(ok)) → cancel(), onChange(),
+  //         documentVisible() (optional: the TV shows the page; default true) }
   //   A loader calls done exactly once unless cancelled (js/view-map.js); after cancel() it calls nothing.
-  // state(): { kind: 'loading' | 'fresh' | 'stale' (a layer failed or the overlay is old: what loaded stays) | 'failed'
-  //            (no overlay yet and the last try failed), updatedAt (the overlay on screen), base (the base map is in) }
+  // state(): { kind: 'loading' (the overlay, or the base map under it, not in yet and nothing failed) | 'fresh' |
+  //            'stale' (a layer failed or the overlay is old: what loaded stays) | 'failed' (no overlay yet and the last
+  //            try failed), updatedAt (the overlay on screen), base (the base map is in) }
   function createController(cfg, deps) {
-    var visible = false, timer = null, baseOk = false, base = null, flow = null, flowAt = 0, flowNext = 0, failed = false;
+    var selected = false, visible = false, timer = null, baseOk = false, baseFailed = false, base = null, flow = null,
+      flowAt = 0, flowNext = 0, failed = false;
+    var docVisible = deps.documentVisible || function () { return true; };
 
-    // The next tick `ms` from now while on view; none while hidden.
+    // The next tick `ms` from now while on view; none while hidden. A tick that finds the page hidden stops instead.
     function due(ms) {
       if (timer !== null) deps.clearTimeout(timer);
-      timer = visible ? deps.setTimeout(function () { timer = null; loadBase(); refreshFlow(); }, ms) : null;
+      timer = visible ? deps.setTimeout(function () { timer = null; if (!docVisible()) { update(false); return; } loadBase(); refreshFlow(); }, ms) : null;
     }
     // One round of a layer: `round` is the one in flight until it ends; a cancelled round's late answer is ignored.
     function refreshFlow() {
@@ -72,33 +76,41 @@ var TrafficMap = (function () {
         if (base !== round) return;
         base = null;
         baseOk = ok;
+        baseFailed = !ok;                            // stays true through the retry, until a round succeeds
         deps.onChange();
       });
     }
     function cancel(round) { if (round && round.cancel) round.cancel(); }
 
+    // On view = the map screen selected AND the page shown. Arriving: the base map if it is not there yet, and the
+    // overlay when its next attempt is due (else a tick then) — at once when the remote opened it (explicit), unless a
+    // round is already in flight. Leaving: no timer, and the rounds in flight are stopped.
+    function update(explicit) {
+      var v = selected && docVisible();
+      if (v && explicit) { visible = true; loadBase(); refreshFlow(); return; }
+      if (visible === v) return;
+      visible = v;
+      if (!v) {
+        var b = base, f = flow;
+        base = flow = null;
+        cancel(b);
+        cancel(f);
+        due(0);
+        return;
+      }
+      loadBase();
+      var wait = flowNext - deps.now();
+      if (wait <= 0) refreshFlow(); else due(wait);
+    }
+
     return {
-      // The map screen came into view (any visit) or left it. Arriving: the base map if it is not there yet, and the
-      // overlay when its next attempt is due (else a tick then) — at once when the remote opened it (explicit), unless a
-      // round is already in flight. Leaving: no timer, and the rounds in flight are stopped.
-      setVisible: function (v, explicit) {
-        if (v && explicit) { visible = true; loadBase(); refreshFlow(); return; }
-        if (visible === v) return;
-        visible = v;
-        if (!v) {
-          var b = base, f = flow;
-          base = flow = null;
-          cancel(b);
-          cancel(f);
-          due(0);
-          return;
-        }
-        loadBase();
-        var wait = flowNext - deps.now();
-        if (wait <= 0) refreshFlow(); else due(wait);
-      },
+      // The map screen came into view (any visit; explicit: the remote opened it) or left it.
+      setVisible: function (v, explicit) { selected = v; update(explicit); },
+      // The TV showed or hid the page (visibilitychange): the same rule, never an explicit open.
+      visibilityChanged: function () { update(false); },
       state: function () {
         if (!flowAt) return { kind: failed ? 'failed' : 'loading', updatedAt: 0, base: baseOk };
+        if (!baseOk && !baseFailed) return { kind: 'loading', updatedAt: flowAt, base: false };   // the base round still pending
         return { kind: failed || deps.now() - flowAt > cfg.staleAfterMs || !baseOk ? 'stale' : 'fresh', updatedAt: flowAt, base: baseOk };
       }
     };

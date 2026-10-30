@@ -17,7 +17,7 @@
   <img alt="Five screens with auto-rotation" src="https://img.shields.io/badge/screens-5%20·%20auto--rotation-8e44ad?style=for-the-badge">
   <img alt="Israel alerts checked every 5 seconds" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s-c0392b?style=for-the-badge">
   <img alt="Traffic inside TomTom's free tier" src="https://img.shields.io/badge/TomTom-inside%20the%20free%20tier-f39c12?style=for-the-badge"><br>
-  <img alt="197 automated tests" src="https://img.shields.io/badge/tests-197%20passing-brightgreen?style=for-the-badge">
+  <img alt="205 automated tests" src="https://img.shields.io/badge/tests-205%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -125,9 +125,12 @@ function, `Traffic.decide`, for every path), at any hour of the day:
   (`minIntervalMs`), failures and refusals included (no separate retry path, no catch-up);
 - never past 580 items (58 batches) on a UTC date (`dailyItemCap`): before every request the app writes
   `{utcDate, used + 10, lastAttemptAt}` to the TV's localStorage (`tt-quota`), reads it back, and sends only if it was
-  stored; nothing is refunded (a failure, a timeout, a refusal, a restart). Any 31 days stay ≤ 31 × 580 = 17,980 items;
-  parked on the screen it is 58 batches a UTC date (17,860 in 31 days), and pressing ◀ ▶ every minute all month at most
-  32 × 580 = 18,560 (`tests/build-config.test.js` simulates these, restarts and the 25-hour DST date included).
+  stored; nothing is refunded (a failure, a timeout, a refusal, a restart). Any 31 days (with arbitrary alignment they
+  touch 32 UTC dates) stay ≤ 32 × 580 = 18,560 items; parked on the screen at the healthy cadence it is 58 batches a UTC
+  date, 17,860 in 31 days (`tests/build-config.test.js` simulates these, restarts and the 25-hour DST date included).
+- A deadline TomTom gives (`Retry-After` on a 403, 429 or 503, in seconds or as a date) is written into the same record
+  (`retryNotBefore`, read back) and holds for every path, ◀ ▶ opens and restarts included; the refusal line shows the
+  later of "last attempt + 25 min" and that deadline («автоматический повтор не раньше HH:MM»).
 - A clock that went back is corrected without sending: a last attempt in the future becomes "now" (the next batch 25
   minutes later), a counter date in the future becomes today's UTC date with its count kept. If localStorage fails or the
   counter is corrupt, nothing is sent and the screen says «Обновления пробок приостановлены: не удалось проверить или
@@ -199,8 +202,12 @@ only on the device that reports that DUID. `./build.sh` refuses any argument oth
 `js/config.js` only; the repository keeps the `__TOMTOM_KEY__` placeholder and a test pins it. TomTom's free tier
 (docs.tomtom.com/pricing, read 2026-10-30) is 20,000 routing items a month and 200,000 map and 200,000 traffic tiles a
 month. The traffic screen reserves every routing item before it sends it and stops at 580 items a UTC date
-(`Config.traffic.schedule.dailyItemCap`), so any 31 days stay under 18,600 — see screen 4. A refused key (401/403) is
+(`Config.traffic.schedule.dailyItemCap`), so any 31 days stay ≤ 18,560 — see screen 4. A refused key (401/403) is
 also what TomTom answers when the account's own monthly limit is used up.
+
+**Owner note (TomTom account).** The routing allowance is shared by every key on the account: another key or app on the
+same account spends the same 20,000 items. Do not add prepaid credit or top-ups to the account. The terms behind the
+account's "Evaluation" label have not been verified.
 
 ## Develop and test
 

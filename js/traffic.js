@@ -13,15 +13,18 @@
  * only while the traffic screen is the one on view AND the TV shows it (document visible), one batch at a time, with a
  * valid accounting record, and never past dailyItemCap (580) items on the UTC date. On top of that: an explicit ◀ ▶
  * open sends at once (openMinIntervalMs: 0); every other path — a rotation arrival, the screen staying open, wake —
- * waits minIntervalMs (25 min) since the last ATTEMPT, at any hour, and a deadline TomTom gave (retryNotBefore).
- * TomTom's free routing tier is 20,000 items a MONTH for the whole account; 580 a UTC date keeps any 31 days ≤ 17,980.
+ * waits minIntervalMs (25 min) since the last ATTEMPT, at any hour. A deadline TomTom gave (Retry-After on 403 / 429 /
+ * 503, kept as retryNotBefore) holds for every path, explicit opens included.
+ * TomTom's free routing tier is 20,000 items a MONTH for the whole account; 580 a UTC date: any 31 days touch at most
+ * 32 UTC dates, so ≤ 18,560 items (17,860 parked on the screen).
  * The accounting record (localStorage `tt-quota`, { v: 1, utcDate, used, lastAttemptAt, retryNotBefore }) is written
  * and read back BEFORE every POST: used += 10, lastAttemptAt = now; nothing is ever refunded (failure, timeout,
- * refusal, crash) and the answer does not move lastAttemptAt. Storage that fails, or a record that is corrupt, pauses
- * sending. A clock that went back is corrected without sending (Traffic.correct). Any failure — transport, a malformed
- * batch, any item error other than "cannot be routed", a refusal (401/403/429) — keeps the last good values and their
- * times; the rows and their failure state are kept in `tt-cache` and shown at once after a restart. An item TomTom
- * cannot route (NO_ROUTE_FOUND-type) and nothing else is "no data" on its row and a good round. */
+ * refusal, crash) and the answer does not move lastAttemptAt. Storage that fails, or a record that is corrupt (an
+ * impossible date included), pauses sending. A clock that went back is corrected without sending (Traffic.correct).
+ * Any failure — transport, a malformed batch, any item error other than "cannot be routed", a refusal (401/403/429)
+ * — keeps the last good values and their times; the rows and their failure state are kept in `tt-cache` and shown
+ * at once after a restart. An item TomTom cannot route (NO_ROUTE_FOUND-type) and nothing else is "no data" on its row
+ * and a good round. */
 var Traffic = (function () {
   var QUERY = '/json?travelMode=car&routeType=fastest&traffic=true&computeTravelTimeFor=all&routeRepresentation=summaryOnly';
   var PERMANENT = /NO_ROUTE_FOUND|MAP_MATCHING_FAILURE/;   // routing answers that a retry cannot change
@@ -72,10 +75,21 @@ var Traffic = (function () {
   function utcDate(ms) { return new Date(ms).toISOString().slice(0, 10); }
   function nextUtcMidnight(ms) { return (Math.floor(ms / DAY_MS) + 1) * DAY_MS; }
   function count(v) { return typeof v === 'number' && isFinite(v) && v >= 0 && Math.floor(v) === v; }
-  function validRecord(r) {
-    return !!r && r.v === VERSION && typeof r.utcDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.utcDate) &&
-      count(r.used) && count(r.lastAttemptAt) && count(r.retryNotBefore);
+  // A real calendar date "YYYY-MM-DD": it survives the round trip through Date.UTC (2026-02-31 and 0000-00-00 do not).
+  function validDate(d) {
+    if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+    var t = Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10));
+    return t >= 0 && utcDate(t) === d;
   }
+  function validRecord(r) {
+    return !!r && r.v === VERSION && validDate(r.utcDate) && count(r.used) && count(r.lastAttemptAt) && count(r.retryNotBefore);
+  }
+  // TomTom's Retry-After (delta seconds or an HTTP date) as a moment, or 0 when absent, malformed or already past.
+  function retryAfterAt(value, now) {
+    var t = /^\s*\d+\s*$/.test(value) ? now + 1000 * +value : value ? Date.parse(value) : NaN;
+    return isFinite(t) && t > now ? Math.ceil(t) : 0;
+  }
+  var DEADLINE_STATUS = { 'http 403': 1, 'http 429': 1, 'http 503': 1 };   // the answers whose Retry-After is recorded
   // Items already used on now's UTC date: a strictly later date starts again at 0.
   function usedOn(r, now) { return r.utcDate < utcDate(now) ? 0 : r.used; }
 
@@ -203,17 +217,28 @@ var Traffic = (function () {
       failed = refused || !list || bad === n || broken;
     }
 
+    // A deadline TomTom gave (Retry-After on 403 / 429 / 503) joins the accounting record, written and read back, so
+    // the one gate enforces it for every path, explicit opens and restarts included; it never moves a deadline earlier.
+    function recordDeadline(err, meta, now) {
+      var at = DEADLINE_STATUS[err] && meta ? retryAfterAt(meta.retryAfter, now) : 0, r = at && account(now);
+      if (!r || at <= r.retryNotBefore) return;
+      var next = copyRecord(r);
+      next.retryNotBefore = at;
+      persist(next);
+    }
+
     var req = request(cfg);                        // the same request every time: built once
     function send(at) {
       inFlight = true;
       var mine = generation;
-      deps.postJson(req.url, req.body, cfg.timeoutMs, function (err, json) {
+      deps.postJson(req.url, req.body, cfg.timeoutMs, function (err, json, meta) {
         if (mine !== generation) return;           // stopped meanwhile: a late answer changes nothing
         inFlight = false;
         answeredFor = at;
         accept(err, json);
         saveCache();
         var now = deps.now();
+        recordDeadline(err, meta, now);
         plan(now, account(now), false);
         deps.onChange(api);
       });
@@ -241,7 +266,7 @@ var Traffic = (function () {
           timer = null;
           return;
         }
-        if (selected && !explicit) return;
+        if (selected && !explicit) return;         // a guard: app.js only calls again with explicit (◀ ▶ onto this screen)
         selected = true;
         check(explicit);
       },
@@ -280,5 +305,5 @@ var Traffic = (function () {
     return api;
   }
 
-  return { hasKey: hasKey, request: request, parse: parse, level: level, decide: decide, correct: correct, createStore: createStore };
+  return { hasKey: hasKey, request: request, parse: parse, level: level, decide: decide, correct: correct, validDate: validDate, createStore: createStore };
 })();

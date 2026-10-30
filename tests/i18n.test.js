@@ -49,7 +49,7 @@ test('batch 2: every screen, source, traffic and alert string exists in both lan
   // FB5B: the road widgets (t.road.*, t.col.roads), n.partial and the "today" limit (t.limit) are gone; the month cap,
   // 429, the night window and the news column/header states added.
   // FB5C: the night window, the month cap and the per-status refusal copy are gone; the judges' exact copy added.
-  const keys = ['screen.main', 'screen.news', 'screen.traffic', 'screen.map', 'n.justNow', 'n.minAgo', 'n.hAgo', 'n.dAgo', 'n.loading', 'n.failed', 'n.noData', 'n.failedRetry',
+  const keys = ['screen.main', 'screen.news', 'screen.traffic', 'screen.map', 'n.justNow', 'n.minAgo', 'n.hAgo', 'n.dAgo', 'n.loading', 'n.failed', 'n.colFailed', 'n.colFailedRetry', 'n.failedRetry',
     't.min', 't.hmin', 't.delay', 't.km', 't.noData', 't.noKey', 't.noKeySub', 't.failed',
     't.updated', 't.updating', 't.updatingFrom', 't.future', 't.stale', 't.cap', 't.refused', 't.storage', 't.dataFrom', 'm.loading', 'm.unavailable',
     'a.generic', 'a.since', 'a.shelter', 'a.shelterFor', 'a.nearby', 'a.offline']
@@ -89,9 +89,13 @@ test('FB5C-7: the traffic copy — updated, updating, failed, future-dated, stal
   assert.equal(t('t.future'), 'Данные устарели · время данных требует проверки');
   assert.equal(t('t.stale', { time: '29.10 20:32', n: 41 }), 'Данные устарели · обновлено 29.10 20:32 · 41 мин назад');
   assert.equal(t('t.cap', { time: '02:15' }), 'Дневной лимит запросов пробок исчерпан · обновление после 02:15');
-  assert.equal(t('t.refused', { time: '20:57' }), 'TomTom отклонил запрос (доступ или лимит) · повтор не раньше 20:57');
+  assert.equal(t('t.refused', { time: '20:57' }), 'TomTom отклонил запрос (доступ или лимит) · автоматический повтор не раньше 20:57');
   assert.equal(t('t.storage'), 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов');
   assert.equal(t('t.noData'), 'Нет данных');
+  // FB5D-R1: a news column that failed says so (never the neutral «Нет данных», now gone)
+  assert.equal(t('n.colFailedRetry', { time: '20:34' }), 'Не удалось загрузить · повторим в 20:34');
+  assert.equal(t('n.colFailed'), 'Не удалось загрузить');
+  assert.equal(t('n.noData'), 'n.noData', 'n.noData is gone');
   for (const k of ['t.night', 't.nightFrom', 't.badKey', 't.busy', 't.loading', 't.retryAfter']) assert.equal(t(k), k, k + ' is gone');
   for (const k of ['t.updated', 't.updating', 't.updatingFrom', 't.failed', 't.future', 't.stale', 't.cap', 't.refused', 't.storage'])
     assert.ok(!/1-го|05:30|06:00|месяц/.test(t(k, { time: 'X', n: 1 })), k + ': no monthly or window promise');

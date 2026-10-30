@@ -213,7 +213,16 @@ test('FB5B-N9: one feed down — only its column says so and keeps its stories, 
     await never.page.waitForSelector('.news-col-empty');
     await wait(300);
     const cols = await never.page.evaluate(NEWS_COLS);
-    assert.deepEqual(cols.map((c) => [c.title, c.empty, c.rows.length]), [['Израиль', '', 5], ['Экономика', 'Нет данных', 0]]);
+    // FB5D-R1: a feed that failed from the first load says so in its own column, amber, with when it is tried again —
+    // never the neutral «Нет данных»
+    assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 5], ['Экономика', '', 0]]);
+    assert.equal(cols[0].empty, '');
+    assert.match(cols[1].empty, /^Не удалось загрузить · повторим в 20:3\d$/);
+    assert.equal(await never.page.$eval('.news-col-empty', (e) => getComputedStyle(e).color), 'rgba(255, 214, 150, 0.85)', 'amber like .news-col-state');
+    assert.match(await never.page.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), /is-fresh \| Обновлено в 20:3\d$/, 'the header stays fresh');
+    await wait(700);                               // the screen's fade-in is over: legibility is measured on the final opacity
+    assert.deepEqual(clean(await never.page.evaluate(measure, '#screen-news *')), []);
+    assert.deepEqual((await never.page.evaluate(legibility, '#screen-news *')).bad, []);
   } finally { await never.close(); }
 });
 
@@ -234,10 +243,15 @@ test('FB5B-N7: both feeds pending, then both failed: both configured columns sta
   try {
     await ready(failed);
     await toScreen(failed.page, 'news');
-    await failed.page.waitForSelector('.news-col-empty');
+    await failed.page.waitForSelector('.news-col-empty.is-failed');
     await wait(700);
     const cols = await failed.page.evaluate(NEWS_COLS);
-    assert.deepEqual(cols.map((c) => [c.title, c.empty, c.rows.length]), [['Израиль', 'Нет данных', 0], ['Экономика', 'Нет данных', 0]]);
+    // FB5D-R2: failure wording in both columns (not «Нет данных») and an amber header (not the fresh green dot)
+    assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 0], ['Экономика', '', 0]]);
+    for (const c of cols) assert.match(c.empty, /^Не удалось загрузить · повторим в 20:3[3-5]$/, c.title);
+    assert.deepEqual(await failed.page.$$eval('.news-col-empty', (els) => els.map((e) => getComputedStyle(e).color)), ['rgba(255, 214, 150, 0.85)', 'rgba(255, 214, 150, 0.85)']);
+    assert.deepEqual(await failed.page.$eval('#news-status', (e) => [getComputedStyle(e).color, getComputedStyle(e.querySelector('.status-dot')).backgroundColor]),
+      ['rgba(255, 214, 150, 0.85)', 'rgb(255, 207, 138)'], 'the failed header is amber like stale');
     // FB5C-OPEN: the ◀ ▶ open adds a second failed round, so the jittered back-off is drawn up to the 2-min ceiling
     assert.match(await failed.page.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), /is-failed \| Новости временно недоступны · повторим в 20:3[3-5]$/, 'said once, in the header, with when it is tried again');
     assert.deepEqual(clean(await failed.page.evaluate(measure, '#screen-news *')), []);
@@ -364,7 +378,7 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
           title: document.querySelector('.tcol-title').getBoundingClientRect().top };
       });
       assert.equal(v.text, 'Данные устарели · обновлено 20:32 · 0 мин назад', status + ': the data-time line');
-      assert.match(v.note, /^TomTom отклонил запрос \(доступ или лимит\) · повтор не раньше 20:3\d$/, status + ': ' + v.note);
+      assert.match(v.note, /^TomTom отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:3\d$/, status + ': ' + v.note);
       assert.equal(v.color, 'rgba(255, 214, 150, 0.85)', status + ': amber');
       assert.equal(v.noteColor, 'rgba(255, 214, 150, 0.85)');
       for (const bx of [v.box, v.noteBox]) assert.ok(bx[0] >= 0 && bx[1] <= 1920 && bx[2] >= 0 && bx[3] <= 1080, status + ': inside the screen ' + bx);
@@ -385,7 +399,7 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
       await p.waitForSelector('#screen-traffic .empty-text');
       await wait(700);
       const v = await p.$eval('#screen-traffic', (e) => [e.querySelector('.empty-text').textContent, !!e.querySelector('.empty-sub'), e.querySelector('#traffic-note').textContent]);
-      assert.match(v[0], /^TomTom отклонил запрос \(доступ или лимит\) · повтор не раньше 20:5\d$/, status + ': ' + v[0]);
+      assert.match(v[0], /^TomTom отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:5\d$/, status + ': ' + v[0]);
       assert.deepEqual(v.slice(1), [false, ''], 'one message, in the card');
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     } finally { await app.close(); }
@@ -432,6 +446,35 @@ test('FB5C-7: the header copy — updating, stale with its age, future-dated dat
       assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, [], name);
     } finally { await app.close(); }
   }
+});
+
+// FB5D-R4: the header reserves its two lines — the status line stays on the title's line whether or not a note is
+// under it (no jump), and the status line and its note stay inside the header's own box (no overflow).
+test('FB5D-R4: the traffic header — the status line on the title line with and without the note, both inside the header', async () => {
+  const geo = (p) => p.evaluate(() => { const b = (s) => { const r = document.querySelector('#screen-traffic ' + s).getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
+    return { head: b('.screen-head'), title: b('.screen-title'), side: b('.head-side'), status: b('.screen-status'), note: b('.status-note'),
+      noteText: document.getElementById('traffic-note').textContent, col: b('.tcol-title') }; });
+  const seen = {};
+  for (const [name, init] of [['fresh', ''], ['paused', 'localStorage.setItem("tt-quota", "{used:");localStorage.setItem("tt-cache", ' + JSON.stringify(cache(FIXED_NOW - 41 * 60000)) + ');']]) {
+    const app = await openApp({ ...QUIET, configure: KEY, traffic: 'ok', init });
+    try {
+      await ready(app);
+      await toTraffic(app.page);
+      await wait(900);
+      seen[name] = await geo(app.page);
+      assert.deepEqual(clean(await app.page.evaluate(measure, '#screen-traffic *')), [], name);
+    } finally { await app.close(); }
+  }
+  const { fresh, paused } = seen;
+  assert.equal(fresh.noteText, '');
+  assert.ok(paused.noteText.length > 0, 'the pause note is on');
+  assert.deepEqual([paused.status[1], paused.status[3]], [fresh.status[1], fresh.status[3]], 'no jump when the note appears');
+  const mid = (b) => (b[1] + b[3]) / 2;
+  assert.ok(Math.abs(mid(fresh.status) - mid(fresh.title)) <= 1, 'the status line centred on the title line: ' + fresh.status + ' / ' + fresh.title);
+  for (const [n, box] of [['side', paused.side], ['status', paused.status], ['note', paused.note]])
+    assert.ok(box[1] >= paused.head[1] - 0.5 && box[3] <= paused.head[3] + 0.5, n + ' inside the header ' + box + ' / ' + paused.head);
+  assert.ok(paused.note[1] >= paused.status[3] - 0.5 && paused.note[3] <= paused.col[1] + 0.5, 'the note under the status line, above the columns');
+  assert.deepEqual([paused.col[1], paused.title[1]], [fresh.col[1], fresh.title[1]], 'the columns and the title do not move');
 });
 
 test('an alert in Rehovot: full screen over the main screen at once; the remote cannot dismiss it; rotation holds; Back still exits', async () => {

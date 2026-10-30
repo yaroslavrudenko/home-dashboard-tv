@@ -54,7 +54,7 @@ function controller(ctx, opts) {
     return () => { calls.cancelled++; if (id !== null) clock.clearTimeout(id); };
   };
   const c = ctx.TrafficMap.createController(ctx.Config.map, { now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
-    loadBase: loader('base'), loadFlow: loader('flow'), onChange: () => changes.push(c.state().kind) });
+    loadBase: loader('base'), loadFlow: loader('flow'), documentVisible: opts.documentVisible, onChange: () => changes.push(c.state().kind) });
   return { c, clock, calls, changes };
 }
 
@@ -156,6 +156,45 @@ test('FB5B-M5: an overlay with no newer one ages into stale after 15 min', () =>
   assert.equal(s.c.state().kind, 'fresh');
   s.clock.advance(2000);
   assert.equal(s.c.state().kind, 'stale', 'older than staleAfterMs');
+});
+
+// FB5D-R3: an overlay that arrives before the base map is still loading the map — never "unavailable"; only a base
+// round that FAILED makes it stale.
+test('FB5D-R3: overlay in, base map still loading → loading (not stale); a failed base round → stale', () => {
+  const ctx = load(FILES);
+  const slow = controller(ctx, { base: () => 'hang' });
+  slow.c.setVisible(true); slow.clock.advance(1000);
+  assert.deepEqual(plain(slow.c.state()), { kind: 'loading', updatedAt: T0, base: false }, 'the base round is still pending');
+  const bad = controller(ctx, { base: (n) => (n === 1 ? false : 'hang') });
+  bad.c.setVisible(true); bad.clock.advance(1000);
+  assert.equal(bad.c.state().kind, 'stale', 'the base round failed: the map is unavailable');
+  bad.clock.advance(5 * MIN);
+  assert.equal(bad.calls.base, 2, 'retried on the visible cadence');
+  assert.equal(bad.c.state().kind, 'stale', 'still stale while the retry is pending: a failure was seen');
+});
+
+// FB5D-N1 (CE-N1): the map, like traffic, loads nothing while the TV does not show the page (document hidden), even
+// with the map screen selected; leaving the TV cancels the rounds in flight; showing it again resumes.
+test('FB5D-N1: document hidden → 0 tiles, even on the map screen; hidden mid-round cancels it; visible again resumes', () => {
+  const ctx = load(FILES);
+  let shown = false;
+  const s = controller(ctx, { documentVisible: () => shown, base: (n) => (n === 1 ? 'hang' : true), flow: (n) => (n === 1 ? 'hang' : true) });
+  s.c.setVisible(true, true);
+  s.clock.advance(60 * MIN);
+  assert.deepEqual([s.calls.base, s.calls.flow], [0, 0], 'selected, but the TV is off: no tile');
+  shown = true; s.c.visibilityChanged();
+  assert.deepEqual([s.calls.base, s.calls.flow], [1, 1], 'the TV shows the page: both layers');
+  shown = false; s.c.visibilityChanged();
+  assert.equal(s.calls.cancelled, 2, 'the rounds in flight stopped');
+  s.clock.advance(3 * 60 * MIN);
+  assert.deepEqual([s.calls.base, s.calls.flow], [1, 1], 'hidden: no timer runs');
+  shown = true; s.c.visibilityChanged();
+  assert.deepEqual([s.calls.base, s.calls.flow], [2, 2], 'back: loads again');
+  s.clock.advance(1000);
+  assert.equal(s.c.state().kind, 'fresh');
+  shown = false;                                   // hidden without the event: the next tick finds it and loads nothing
+  s.clock.advance(60 * MIN);
+  assert.deepEqual([s.calls.base, s.calls.flow], [2, 2], 'a tick while hidden loads nothing');
 });
 
 // The worst days for TomTom's free tile budget (docs.tomtom.com/pricing, 2026-10-30: 200,000 raster map tiles and

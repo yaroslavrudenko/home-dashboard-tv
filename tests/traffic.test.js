@@ -37,13 +37,12 @@ const rec = (storage) => JSON.parse(storage.map.get('tt-quota'));
 function makeStore(ctx, opts) {
   opts = opts || {};
   const clock = fakeTimers(opts.start || T0);
-  const israel = ctx.Tz.resolve({ zones: ['Asia/Jerusalem'], rule: 'IL' }, clock.now());
   const calls = [], storage = opts.storage === undefined ? memoryStorage() : opts.storage;
   if (opts.preset) storage.map.set('tt-quota', opts.preset);
   const store = ctx.Traffic.createStore(withKey(ctx), {
     postJson: (url, body, timeoutMs, done) => { if (storage) storage.log.push('post'); if (opts.onPost) opts.onPost(storage); calls.push({ url, body, timeoutMs, done }); },
     now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, documentVisible: opts.documentVisible,
-    wall: (ms) => ctx.Tz.wallTime(israel, ms), storage, onChange: () => {} });
+    storage, onChange: () => {} });
   return { store, clock, calls, storage };
 }
 const answer = (s, x) => s.calls[s.calls.length - 1].done(typeof x === 'string' ? x : null, typeof x === 'string' ? undefined : x);
@@ -343,11 +342,24 @@ test('FB5C-6: cached rows show at once after a restart — their own times and f
   assert.equal(b.store.routes()[0].updatedAt, T0 + 26 * MIN, 'answered at +26 min (sent at +25)');
   assert.equal(b.store.routes()[4].updatedAt, T0, 'the refused row keeps its own time');
   assert.equal(b.store.routes()[2].data.travel, 5520);
-  // an attempt with no recorded answer (a crash mid-flight) is a failed attempt: the cache shows stale
-  const c = makeStore(ctx, { storage, start: T0 + 51 * MIN });
-  c.store.setVisible(true); c.store.stop();
-  const d = makeStore(ctx, { storage, start: T0 + 52 * MIN });
-  assert.equal(d.store.status().kind, 'stale');
+});
+
+// FB5D-CE-V1: an attempt with no recorded answer (a crash mid-flight) is a failed attempt — pinned where nothing else
+// would make the screen stale: every row is minutes old and was answered well.
+test('FB5D-CE-V1: good answer at T0, an explicit open at +5 min that crashes before its answer, restart at +6 min → stale', () => {
+  const ctx = load(FILES);
+  const storage = memoryStorage();
+  const a = makeStore(ctx, { storage });
+  a.store.setVisible(true); answer(a, batch()); a.store.stop();
+  const b = makeStore(ctx, { storage, start: T0 + 5 * MIN });
+  b.store.setVisible(true, true);
+  assert.equal(b.calls.length, 1, 'the explicit open sent');
+  b.store.stop();                                   // the app dies with the batch in flight: no answer is ever recorded
+  const c = makeStore(ctx, { storage, start: T0 + 6 * MIN });
+  const st = c.store.status();
+  assert.deepEqual([st.kind, st.updatedAt], ['stale', T0], 'rows 6 min old, otherwise fresh: stale only because the last attempt failed');
+  const control = makeStore(ctx, { storage: (() => { const m = memoryStorage(); m.map.set('tt-cache', storage.map.get('tt-cache')); m.map.set('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-29', used: 10, lastAttemptAt: T0, retryNotBefore: 0 })); return m; })(), start: T0 + 6 * MIN });
+  assert.equal(control.store.status().kind, 'fresh', 'control: the same rows with an answered last attempt are fresh');
 });
 
 test('FB5C-6: a future-dated row is stale, its time never rewritten, never a negative age', () => {
@@ -441,4 +453,87 @@ test('FB5B-T1: columns «Города» and «Рядом» — five routes each,
   const all = plain(t.columns.reduce((a, c) => a.concat(c.legs), [])).sort();
   assert.deepEqual(all, plain(t.routes.map((l) => l.id)).sort(), 'each route once, none missing');
   for (const r of t.routes) assert.deepEqual(plain(r.from), [31.8928, 34.8113], r.id + ' starts in Rehovot');
+});
+
+// FB5D-V2 (Codex V2): an impossible accounting date is a corrupt record — no POST and the pause, never a fresh budget.
+test('FB5D-V2: impossible accounting dates (2026-00-00, 2026-02-31, 0000-00-00) → no POST, the pause; a real date still works', () => {
+  const ctx = load(FILES);
+  for (const date of ['2026-00-00', '2026-02-31', '0000-00-00', '2026-13-01', '2026-10-32']) {
+    const s = makeStore(ctx, { preset: JSON.stringify({ v: 1, utcDate: date, used: 580, lastAttemptAt: 0, retryNotBefore: 0 }) });
+    s.store.setVisible(true, true);
+    s.clock.advance(2 * 60 * MIN);
+    assert.equal(s.calls.length, 0, date + ': no POST');
+    assert.equal(s.store.status().problem, 'storage', date + ': the pause');
+    assert.equal(rec(s.storage).used, 580, date + ': nothing rewritten');
+  }
+  const ok = makeStore(ctx, { preset: JSON.stringify({ v: 1, utcDate: '2026-10-28', used: 580, lastAttemptAt: 0, retryNotBefore: 0 }) });
+  ok.store.setVisible(true, true);
+  assert.equal(ok.calls.length, 1, 'a real earlier date: a new UTC date, sent');
+  assert.equal(ctx.Traffic.validDate('2028-02-29'), true, 'a leap day is real');
+  assert.equal(ctx.Traffic.validDate('2026-02-29'), false);
+});
+
+// FB5D-V1 (Codex V1): TomTom's Retry-After on 429 / 403 / 503 (seconds or an HTTP date) is read through Net, recorded
+// in the accounting record (written and read back), and enforced through the one gate — explicit opens included, and
+// across a restart. The refusal copy shows max(last attempt + 25 min, that deadline).
+function retryAfterStore(ctx, storage, start, answers) {
+  const clock = fakeTimers(start), posts = [];
+  function XMLHttpRequest() {
+    const x = this; x.readyState = 0; x.status = 0; x.responseText = ''; x.reads = [];
+    x.open = () => {}; x.setRequestHeader = () => {};
+    x.getResponseHeader = (h) => { x.reads.push(h); return /^retry-after$/i.test(h) ? x.retryAfter : null; };
+    x.send = (body) => { const a = answers[posts.length] || { status: 200, body: JSON.stringify(batch()) }; posts.push(x);
+      x.readyState = 4; x.status = a.status; x.responseText = a.body || ''; x.retryAfter = a.retryAfter === undefined ? null : a.retryAfter; x.onreadystatechange(); };
+  }
+  const net = load(['js/net.js'], { XMLHttpRequest });
+  const store = ctx.Traffic.createStore(withKey(ctx), { postJson: net.Net.postJson, now: clock.now, setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout, storage, onChange: () => {} });
+  return { store, clock, posts };
+}
+const reopen = (s) => { s.store.setVisible(false); s.store.setVisible(true, true); };
+
+test('FB5D-V1: Retry-After 7200 on a 429 → recorded and read back; no POST before +2 h, explicit opens and a restart included', () => {
+  const ctx = load(FILES);
+  const storage = memoryStorage();
+  const s = retryAfterStore(ctx, storage, T0, [{ status: 429, retryAfter: '7200' }]);
+  s.store.setVisible(true, true);
+  assert.equal(s.posts.length, 1);
+  assert.ok(s.posts[0].reads.some((h) => /^retry-after$/i.test(h)), 'the header was read');
+  assert.equal(rec(storage).retryNotBefore, T0 + 2 * 60 * MIN, 'persisted');
+  assert.equal(JSON.parse(storage.getItem('tt-quota')).retryNotBefore, T0 + 2 * 60 * MIN, 'read back');
+  assert.equal(s.store.status().problem, 'refused');
+  assert.equal(s.store.status().resumeAt, T0 + 2 * 60 * MIN, 'the copy shows TomTom\'s deadline, later than +25 min');
+  for (let t = 0; t < 119; t++) { s.clock.advance(MIN); reopen(s); }
+  assert.equal(s.posts.length, 1, 'no explicit open passes the deadline');
+  s.store.stop();
+  const again = retryAfterStore(ctx, storage, T0 + 119 * MIN, []);
+  again.store.setVisible(true, true);
+  assert.equal(again.posts.length, 0, 'a restart still honours it');
+  again.clock.advance(MIN);
+  assert.equal(again.posts.length, 1, 'at +2 h the gate opens (the screen stayed on view)');
+});
+
+test('FB5D-V1: Retry-After as an HTTP date on 403 and as seconds on 503; a short one never shortens the 25-min gate; none = 25 min; 200 ignores it', () => {
+  const ctx = load(FILES);
+  const date = new Date(T0 + 3 * 60 * MIN).toUTCString();
+  const st = memoryStorage(), a = retryAfterStore(ctx, st, T0, [{ status: 403, retryAfter: date }]);
+  a.store.setVisible(true, true);
+  assert.equal(rec(st).retryNotBefore, T0 + 3 * 60 * MIN, 'an HTTP date');
+  const s5 = memoryStorage(), b = retryAfterStore(ctx, s5, T0, [{ status: 503, retryAfter: '600' }]);
+  b.store.setVisible(true, true);
+  assert.equal(rec(s5).retryNotBefore, T0 + 10 * MIN, '503 seconds');
+  assert.equal(b.store.status().resumeAt, 0, 'a 503 is not a refusal: no refusal copy');
+  b.clock.advance(10 * MIN);
+  assert.equal(b.posts.length, 1, 'automatic: still the 25-min gate');
+  b.clock.advance(15 * MIN);
+  assert.equal(b.posts.length, 2, 'at 25:00');
+  for (const [name, h] of [['none', null], ['garbage', 'soon'], ['negative', '-5'], ['past date', new Date(T0 - MIN).toUTCString()]]) {
+    const m = memoryStorage(), c = retryAfterStore(ctx, m, T0, [{ status: 429, retryAfter: h }]);
+    c.store.setVisible(true, true);
+    assert.equal(rec(m).retryNotBefore, 0, name + ': nothing recorded');
+    assert.equal(c.store.status().resumeAt, T0 + 25 * MIN, name);
+  }
+  const m = memoryStorage(), ok = retryAfterStore(ctx, m, T0, [{ status: 200, body: JSON.stringify(batch()), retryAfter: '7200' }]);
+  ok.store.setVisible(true, true);
+  assert.equal(rec(m).retryNotBefore, 0, 'a good answer sets no deadline');
 });

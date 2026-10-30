@@ -102,7 +102,7 @@ var Config = {
     // minIntervalMs since the last ATTEMPT (failures and refusals included). Quota: TomTom's free routing tier is 20,000
     // items a MONTH for the whole account (docs.tomtom.com/pricing, read 2026-10-30); a batch costs one item per route
     // (10). dailyItemCap is a hard guard per UTC date, reserved in localStorage before every POST and never refunded:
-    // any 31 days stay ≤ 31 × 580 = 17,980; parked on the screen, 58 batches a UTC date (17,860 in 31 days).
+    // any 31 days (32 UTC dates) stay ≤ 32 × 580 = 18,560; parked on the screen, 58 batches a UTC date (17,860 in 31 days).
     // tests/build-config.test.js simulates every pattern. Re-check it when adding a route or changing these values.
     schedule: {
       minIntervalMs: 25 * 60 * 1000,    // rotation arrivals, staying open, wake: at most one attempt per 25 min

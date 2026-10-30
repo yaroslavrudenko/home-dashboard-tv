@@ -6,21 +6,22 @@
  *                                       removes the handlers and clears src, which stops the download.
  * GETs carry no custom header: a plain GET needs no CORS preflight (the alert feed never answers one).
  * done(error, result) is called exactly once: error is a short string ('timeout', 'http 503', 'network', 'parse')
- * or null; result is the parsed JSON (json: true) or the response text. */
+ * or null; result is the parsed JSON (json: true) or the response text. An HTTP error also passes a third argument,
+ * { retryAfter }: the response's Retry-After header as sent ('' when absent), for callers that must honour it. */
 var Net = (function () {
   function request(opts, done) {
     var finished = false;
     var xhr = new XMLHttpRequest();
-    function finish(err, result) {
+    function finish(err, result, meta) {
       if (finished) return;
       finished = true;
-      done(err, result);
+      done(err, result, meta);
     }
     xhr.onreadystatechange = function () {
       // Status 0 = no HTTP answer: a timeout, abort or network error fires its own event right after
       // this one, so that event names the cause.
       if (xhr.readyState !== 4 || !xhr.status) return;
-      if (xhr.status !== 200) { finish('http ' + xhr.status); return; }
+      if (xhr.status !== 200) { finish('http ' + xhr.status, undefined, { retryAfter: xhr.getResponseHeader('Retry-After') || '' }); return; }
       if (!opts.json) { finish(null, xhr.responseText); return; }
       var json;
       try { json = JSON.parse(xhr.responseText); } catch (e) { finish('parse'); return; }
