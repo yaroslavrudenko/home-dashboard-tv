@@ -150,8 +150,9 @@ leaves the front it sends `stop-behind`. If the player is not installed or not r
 </table>
 
 <sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs</code>). The traffic map is a real Mapbox image captured on 2026-10-30;
-the other screens use the test fixtures, so the headlines, temperatures, prices and travel times are sample data. The recent alerts on
-the Alerts screen are Pikud HaOref's real answer recorded on 2026-10-30. The Markets and Shabbat screens and the air quality show
+the home and Israel weather screens show the real Open-Meteo forecast and air quality at 15:39 on 2026-11-02 (<code>--live</code>);
+the news and traffic screens use the test fixtures, so their headlines and travel times are sample data. The recent alerts on
+the Alerts screen are Pikud HaOref's real answer recorded on 2026-10-30. The Markets and Shabbat screens show
 real answers recorded on 2026-11-02 (Yahoo Finance and open.er-api at 08:57 UTC; Hebcal's calendar for Rehovot), drawn at
 09:31 that morning.</sub>
 
