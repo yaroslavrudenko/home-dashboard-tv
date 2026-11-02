@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load, fixture, fakeTimers } = require('./harness');
 
-const FILES = ['js/config.js', 'js/refresher.js', 'js/weather.js'];
+const FILES = ['js/config.js', 'js/tz.js', 'js/refresher.js', 'js/placestore.js', 'js/openmeteo.js', 'js/weather.js'];   // batch 12: the store body lives in PlaceStore
 const T0 = Date.parse('2026-10-29T18:32:00Z');
 
 test('one URL carries every place (comma-separated coordinates), current, hourly and daily data, with no key', () => {
@@ -293,4 +293,44 @@ test('FB5-WX: the Israel regions (Haifa, Tel Aviv, Beer Sheva) come in the ONE w
   s.answer('timeout');
   for (const r of isr.regions) assert.equal(s.store.status(r.place).kind, 'stale', 'a failed answer keeps the last data: ' + r.place);
   assert.ok(s.store.get('haifa'), 'kept');
+});
+
+// Batch 12: today's UV maximum rides the SAME forecast request (one more daily field, no request more).
+test('UV: uv_index_max is in the daily list of the one forecast URL, which still carries every place', () => {
+  const ctx = load(FILES);
+  const u = new URL(ctx.Weather.url(ctx.Config.places, ctx.Config.weather));
+  assert.equal(u.searchParams.get('daily'), 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max');
+  assert.equal(u.searchParams.get('latitude').split(',').length, 6);
+});
+
+test('UV: each day carries its maximum from the recorded 2026-11-02 answer (Rehovot 4.9); an older answer without it gives null', () => {
+  const ctx = load(FILES), cfg = ctx.Config.weather;
+  const list = fixture('weather-uv-2026-11-02');
+  assert.equal(list.length, 6, 'the answer of the six-place request');
+  const home = ctx.Weather.parse(list[0], cfg);
+  assert.deepEqual(JSON.parse(JSON.stringify(home.daily.map((d) => d.uvMax))), [4.9, 4.9, 4.7, 4.1, 4.65, 3.3, 3.75]);
+  assert.equal(ctx.Weather.parse(list[2], cfg).daily[0].uvMax, 8.55, 'Sydney');
+  assert.ok(ctx.Weather.parse(fixture('rehovot'), cfg).daily.every((d) => d.uvMax === null), 'the 2026-10-29 recording predates the field');
+  const gap = fixture('weather-uv-2026-11-02')[0]; gap.daily.uv_index_max[1] = null;
+  assert.equal(ctx.Weather.parse(gap, cfg).daily[1].uvMax, null);
+});
+
+test('UV: the level on the ROUNDED index — ≤2 low, ≤5 moderate, ≤7 high, ≤10 very high, above extreme; no value, no level', () => {
+  const ctx = load(FILES);
+  const vectors = [[0, 0, 'low'], [2.49, 2, 'low'], [2.5, 3, 'moderate'], [5, 5, 'moderate'], [5.5, 6, 'high'], [7, 7, 'high'],
+    [7.5, 8, 'veryHigh'], [10, 10, 'veryHigh'], [10.5, 11, 'extreme']];
+  for (const [raw, index, level] of vectors) assert.deepEqual(JSON.parse(JSON.stringify(ctx.Weather.uv(raw))), { index, level }, String(raw));
+  for (const none of [null, undefined, NaN]) assert.equal(ctx.Weather.uv(none), null, String(none));
+});
+
+test('S4: a value that is not a finite number is no value — Infinity in a forecast cell is a placeholder, never a UV level or a temperature', () => {
+  const ctx = load(FILES), cfg = ctx.Config.weather;
+  assert.equal(ctx.Weather.uv(Infinity), null);
+  assert.equal(ctx.Weather.uv(-Infinity), null);
+  const j = fixture('weather-uv-2026-11-02')[0];
+  j.daily.uv_index_max[0] = Infinity; j.daily.temperature_2m_max[1] = -Infinity;
+  const m = ctx.Weather.parse(j, cfg);
+  assert.deepEqual([m.daily[0].uvMax, m.daily[1].max, m.daily[2].uvMax], [null, null, 4.7]);
+  const bad = fixture('rehovot'); bad.current.temperature_2m = Infinity;
+  assert.throws(() => ctx.Weather.parse(bad, cfg), /temperature_2m/, 'a required value must be a real number');
 });

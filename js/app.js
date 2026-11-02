@@ -1,4 +1,5 @@
-/* Boot and timers: seven screens (clocks + weather, the weather across Israel, news, markets, traffic, traffic map, alerts) switched
+/* Boot and timers: eight screens (clocks + weather, the weather across Israel, news, markets, Shabbat & holidays, traffic,
+ * traffic map, alerts) switched
  * with ◀ ▶ and rotated every Config.rotation.intervalMs, burn-in shift, keep the screen on, Back exits, ▼ / ▲ (and the
  * yellow key) switch the interface language (Config.languages; remembered on the TV), the blue key previews the alert
  * (Config.alerts.previewMs; any key ends it; a real alert always wins).
@@ -9,6 +10,9 @@
  * A screen opened with ◀ ▶ — or on view when the language changes — refreshes its data at once.
  * The markets (js/markets.js) are asked only while their screen is on view (js/onview.js): at once on a ◀ ▶ open,
  * on a rotation arrival when the last attempt is Config.markets.refreshMs old, then every refreshMs while it stays.
+ * The air quality (js/air.js, the home city and the Israel regions in one request) and the Shabbat calendar (js/shabbat.js,
+ * the home city) refresh on their own cadence like the weather, start in the boot round and refresh when their screen is
+ * opened; the Shabbat screen is recomputed from the held calendar on every draw (the time of day moves its state).
  * Only the screen on view is redrawn per minute; a hidden screen is redrawn when it comes into view.
  * The home city (Config.homeCity, or the one chosen on the TV: OK opens the picker, js/view-city.js) is resolved and its
  * routes, map, weather place and alert areas written into Config before anything is made (js/homecity.js); a new choice
@@ -17,6 +21,7 @@
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
   var store = null, news = null, traffic = null, map = null, alerts = null, history = null, screens = null, sound = null, markets = null;
+  var air = null, shabbat = null;
   var screenEls = [], dotEls = [];
   var clockTimer = null, shiftIndex = 0, weatherDrawn = '', toastTimer = null;
   var KEY_BACK = 10009, KEY_LEFT = 37, KEY_RIGHT = 39, SLIDE_PX = 48, FADE_MS = 700, TOAST_MS = 1600;
@@ -35,6 +40,16 @@ var App = (function () {
   function wallNow(i) { return Tz.wallTime(resolved[i], Date.now()); }
   // "HH:MM" at home (the first clock) for a moment; '' for none.
   function homeHhmm(ms) { return ms ? Tz.hhmm(Tz.wallTime(resolved[0], ms)) : ''; }
+  // The home date 'YYYY-MM-DD' now (the first clock's wall time): what the Shabbat calendar is asked for and viewed at.
+  function homeDate() { var w = wallNow(0); return w.year + '-' + Tz.pad2(w.month + 1) + '-' + Tz.pad2(w.day); }
+  // The air quality's places: the home city's and the Israel regions', in one request.
+  function airPlaces() {
+    var out = [mainPlace()], regions = Config.israel.regions, i, j;
+    for (i = 0; i < regions.length; i++) for (j = 0; j < Config.places.length; j++) if (Config.places[j].id === regions[i].place) out.push(Config.places[j]);
+    return out;
+  }
+  // What a place's air shows (Air.summary) and the state of its data.
+  function airOf(placeId) { return { air: Air.summary(air.get(placeId), Config.air), airKind: air.status(placeId).kind }; }
   // When the next attempt runs, rounded up: never "retry at" the minute already shown.
   function retryAt(next) { return next ? homeHhmm(Math.ceil(next / 60000) * 60000) : ''; }
   // "HH:MM" at home, with "DD.MM " before it when that moment is not today at home; '' for none.
@@ -72,13 +87,13 @@ var App = (function () {
 
   // The main screen: the weather card (only when its hour or state changed), the status line and the clocks.
   function renderMain() {
-    var id = mainPlace().id, s = store.status(id), hour = placeHourKey(id);
-    var drawn = [hour, s.kind, s.updatedAt, store.nextAt(), I18n.lang()].join('|');
+    var id = mainPlace().id, s = store.status(id), hour = placeHourKey(id), a = airOf(id);
+    var drawn = [hour, s.kind, s.updatedAt, store.nextAt(), I18n.lang(), JSON.stringify(a)].join('|');
     if (drawn !== weatherDrawn) {
       weatherDrawn = drawn;
-      var data = store.get(id);
-      View.renderWeather(data ? Weather.forHour(data, hour, Config.weather) : null, { name: HomeCity.name(Config.home.city, I18n.lang()), kind: s.kind,
-        retryAt: retryAt(store.nextAt()) });
+      var data = store.get(id), v = data ? Weather.forHour(data, hour, Config.weather) : null;
+      View.renderWeather(v, { name: HomeCity.name(Config.home.city, I18n.lang()), kind: s.kind, retryAt: retryAt(store.nextAt()),
+        uv: v && v.today ? Weather.uv(v.today.uvMax) : null, air: a.air, airKind: a.airKind });
     }
     View.renderStatus(s.kind, homeHhmm(s.updatedAt));
     renderClocks();
@@ -96,7 +111,8 @@ var App = (function () {
         kind = kind === 'stale' || s.kind === 'stale' ? 'stale' : 'fresh';
         oldest = oldest ? Math.min(oldest, s.updatedAt) : s.updatedAt;
       }
-      cards.push({ region: r, view: v, kind: s.kind, retryAt: retryAt(next), key: [hour, s.kind, s.updatedAt, next].join('|') });
+      var ra = airOf(r.place);   // the view keys the card on the air chip it draws (FIX-12B V13), never on the raw numbers
+      cards.push({ region: r, view: v, kind: s.kind, retryAt: retryAt(next), key: [hour, s.kind, s.updatedAt, next].join('|'), air: ra.air, airKind: ra.airKind });
     }
     IsraelView.render(cards, cfg.days, { kind: kind || 'none', updated: homeHhmm(oldest) });
   }
@@ -173,8 +189,16 @@ var App = (function () {
     return out;
   }
 
-  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, markets: renderMarkets, traffic: renderTraffic, map: renderMap,
-    alerts: renderAlertsScreen };
+  // The Shabbat & holidays screen: the calendar held (null before it came) viewed at this moment on the home date, the
+  // time it arrived at home («обновлено 09:31», a date before it when not today), the home city's name.
+  function renderShabbat() {
+    var st = shabbat.status(), data = shabbat.data();
+    ShabbatView.render(data ? Shabbat.view(data, Date.now(), homeDate(), Config.shabbat) : null, { kind: st.kind, updated: homeStamp(st.updatedAt),
+      retryAt: retryAt(shabbat.nextAt()), place: HomeCity.name(Config.home.city, I18n.lang()) });
+  }
+
+  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, markets: renderMarkets, shabbat: renderShabbat, traffic: renderTraffic,
+    map: renderMap, alerts: renderAlertsScreen };
   function currentId() { return Config.screens[screens ? screens.current() : 0]; }
   function renderCurrent() { RENDER[currentId()](); }
   // A data set changed: redraw it only if one of its screens (the ids given) is on view.
@@ -239,8 +263,9 @@ var App = (function () {
   // The owner's rule: a screen opened with ◀ ▶ (not a rotation arrival) — or on view when the language changes —
   // refreshes its data at once; each refresh starts nothing while a request is in flight.
   function refreshOnOpen(id) {
-    if (id === 'main' || id === 'israel') store.refresh();
+    if (id === 'main' || id === 'israel') { store.refresh(); air.refresh(); }
     else if (id === 'news') news.refresh();
+    else if (id === 'shabbat') shabbat.refresh();
   }
 
   // Cross-fade with a short slide (opacity and transform only). The incoming screen is drawn before it fades in, after
@@ -405,6 +430,8 @@ var App = (function () {
     alerts.poll();
     refreshIfOld(store.status(mainPlace().id), Config.weather.refreshMs, store.refresh);
     refreshIfOld(news.status(), Config.news.refreshMs, news.refresh);
+    refreshIfOld(air.status(mainPlace().id), Config.air.refreshMs, air.refresh);
+    refreshIfOld(shabbat.status(), Config.shabbat.refreshMs, shabbat.refresh);
     if (traffic) traffic.wake();
   }
 
@@ -430,6 +457,7 @@ var App = (function () {
     IsraelView.init(document.getElementById('screen-israel'), Config.israel.regions);
     NewsView.init(document.getElementById('screen-news'));
     MarketsView.init(document.getElementById('screen-markets'), marketsLayout());
+    ShabbatView.init(document.getElementById('screen-shabbat'), { upcoming: Config.shabbat.upcoming });
     TrafficView.init(document.getElementById('screen-traffic'));
     MapView.init(document.getElementById('screen-map'));
     AlertsScreenView.init(document.getElementById('screen-alerts'), Config.alerts);   // makes the alert layer (#alert)
@@ -441,6 +469,8 @@ var App = (function () {
       idOf: function (i) { return Config.screens[i]; } }));
 
     store = Weather.createStore(Config.places, Config.weather, withTimers({ getJson: Net.getJson, onChange: onData('main', 'israel') }));
+    air = Air.createStore(airPlaces(), Config.air, withTimers({ getJson: Net.getJson, onChange: onData('main', 'israel') }));
+    shabbat = Shabbat.createStore(Config.shabbat, withTimers({ getJson: Net.getJson, onChange: onData('shabbat'), today: homeDate }));
     news = News.createStore(Config.news, withTimers({ getText: Net.getText, onChange: onData('news') }), I18n.lang());
     markets = Markets.createController(Config.markets, withTimers({ getJson: Net.getJson, documentVisible: function () { return !document.hidden; },
       onChange: onData('markets') }));
@@ -460,6 +490,8 @@ var App = (function () {
     // One parallel round at boot: every data set and the alert feed start together (traffic and the map load only while
     // their screen is on view).
     store.refresh();
+    air.refresh();
+    shabbat.refresh();
     news.refresh();
     alerts.poll();
     renderAlerts();

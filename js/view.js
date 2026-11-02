@@ -74,15 +74,39 @@ var View = (function () {
   var EMPTY_HOUR = '<div class="hour is-empty"><div class="hour-label">&nbsp;</div><div class="skeleton"></div></div>';
   var EMPTY_DAY = '<div class="day is-empty"><div class="skeleton"></div></div>';
 
-  function nowHtml(v, placeName) {
-    var c = v.current, t = v.today || { min: null, max: null, pop: null, sunrise: null, sunset: null };
+  // The air & UV block (batch 12), between the place's text and the big icon, without glyphs. UV comes with the weather
+  // (s.uv: { index, level } or null, shown «—»); the air with its own request (s.air: { aqi, level, dust, dustHigh } or
+  // null; s.airKind 'fresh' | 'stale' | 'loading' | 'failed'). An item: its label, then the figure and the level word —
+  // atomic parts, so a line wraps only between them; the dust line whenever the dust is high, even with no AQI (FIX-12B
+  // V12). Before the first air answer the slot holds a placeholder bar; no AQI says «Нет данных» (never a made-up level).
+  // The values come rounded (Air.summary, Weather.uv). After sunset the UV level word is dimmed: the day's peak is past.
+  function figure(num, wordKey, level) {
+    return '<span class="air-num">' + esc(num) + '</span> <span class="air-word lv-' + level + '">' + esc(I18n.t(wordKey)) + '</span>';
+  }
+  function airItem(cls, labelKey, value, extra) {
+    return '<div class="air-item ' + cls + '"><div class="air-label">' + esc(I18n.t(labelKey)) + '</div><div class="air-value">' + value + '</div>' +
+      extra + '</div>';
+  }
+  function airBlock(s, isDay) {
+    var a = s.air || null, loading = !a && (s.airKind === 'loading' || s.airKind === undefined);
+    var uv = s.uv ? figure(String(s.uv.index), 'w.uv.' + s.uv.level, s.uv.level) : '<span class="air-num">—</span>';
+    var air = loading ? '<span class="skeleton air-skeleton"></span>'
+      : !a || a.level === null ? '<span class="air-none">' + esc(I18n.t('w.noData')) + '</span>'
+      : figure(String(a.aqi), 'w.air.' + a.level, a.level);
+    var dust = a && a.dustHigh ? '<div class="air-dust">' + esc(I18n.t('w.dust', { n: a.dust })) + '</div>' : '';
+    return '<div class="now-air' + (a && s.airKind === 'stale' ? ' is-stale' : '') + '">' + airItem('air-uv' + (isDay ? '' : ' is-night'), 'w.uv', uv, '') +
+      airItem('air-aq', 'w.air', air, dust) + '</div>';
+  }
+
+  function nowHtml(v, s) {
+    var c = v.current, t = v.today || { min: null, max: null, pop: null, sunrise: null, sunset: null }, placeName = s.name;
     return '<div class="now-top"><div class="now-main">' +
         '<div class="now-place">' + esc(placeName) + '</div>' +
         '<div class="now-temp">' + temp(c.temp) + '</div>' +
         '<div class="now-cond">' + esc(I18n.condition(c.code)) + '</div>' +
         '<div class="now-sub">' + (c.feels === null ? '' : '<span>' + esc(I18n.t('w.feels', { t: temp(c.feels) })) + '</span>') +
           '<span>' + esc(I18n.t('w.high')) + ' ' + temp(t.max) + '</span><span>' + esc(I18n.t('w.low')) + ' ' + temp(t.min) + '</span></div>' +
-      '</div><div class="now-icon">' + Icons.weather(c.code, c.isDay) + '</div></div>' +
+      '</div>' + airBlock(s, c.isDay) + '<div class="now-icon">' + Icons.weather(c.code, c.isDay) + '</div></div>' +
       '<div class="details">' +
         detail('wind', I18n.t('w.wind'), c.wind === null ? '—' : Math.round(c.wind) + ' ' + I18n.t('w.kmh')) +
         detail('drop', I18n.t('w.humidity'), pct(c.humidity)) +
@@ -130,7 +154,7 @@ var View = (function () {
   }
 
   // v: Weather.forHour view or null (no data yet). s: { name (the home city in the interface language), kind ('fresh' |
-  // 'stale' | 'loading' | 'failed'), retryAt ("HH:MM" | '') }.
+  // 'stale' | 'loading' | 'failed'), retryAt ("HH:MM" | ''), uv, air, airKind (batch 12, airBlock above) }.
   function renderWeather(v, s) {
     var placeName = s.name;
     var hours = '', days = '', i;
@@ -143,7 +167,7 @@ var View = (function () {
       days = repeat(EMPTY_DAY, sizes.days);
     } else {
       els.now.className = 'card now' + (s.kind === 'stale' ? ' is-stale' : '');
-      els.now.innerHTML = nowHtml(v, placeName);
+      els.now.innerHTML = nowHtml(v, s);
       for (i = 0; i < v.hourly.length; i++) hours += hourHtml(v.hourly[i], i === 0 && v.nowShown);
       days = dailyHtml(v);
     }

@@ -7,9 +7,23 @@
 <p align="center">
   <b>Your family's morning glance, on the TV you already own — the companion to <a href="https://github.com/yaroslavrudenko/nastin-kinozal">«Настин кинозал»</a>.</b><br>
   A calm, always-on dashboard for Samsung Smart TVs — even a 2017 one — that sits on top while the player's music plays on.<br>
-  Clocks for Israel, Ukraine and Sydney · weather at home and across Israel · news · live traffic times and a live traffic map · Pikud HaOref alerts on every screen.<br>
+  Clocks for Israel, Ukraine and Sydney · weather, air quality and UV at home and across Israel · news · markets · Shabbat and holidays · live traffic times and a live traffic map · Pikud HaOref alerts on every screen.<br>
   In Russian, Hebrew or Ukrainian — ▲ / ▼ on the remote.
 </p>
+
+## Three languages, one remote
+
+**Русский · עברית · Українська.** Press ▼ or ▲ on the remote and every screen changes language at once, with no reload. The TV
+remembers the choice.
+
+- **Hebrew is right to left, all of it.** The whole layout mirrors; times, prices and temperatures stay left to right.
+- **Each language reads its own news:** NEWSru.co.il in Russian, Ynet and Globes in Hebrew, Українська правда and
+  Економічна правда in Ukrainian.
+- **Our own names, not a feed's.** The holidays and fasts, the Hebrew months and all 59 weekly parashot are translated by
+  us for Russian and Ukrainian (Hebcal's own lists leave the modern holidays in English). In Hebrew the date and the parasha
+  are the source's own words. Shares, currencies, regions, cities and alert kinds are named in every language too.
+
+More in [Languages](#languages).
 
 <p align="center">
   <img alt="Plays under «Настин кинозал»'s music" src="https://img.shields.io/badge/plays%20under-«Настин%20кинозал»%20music-e84393?style=for-the-badge">
@@ -17,16 +31,16 @@
   <img alt="Samsung Tizen 3.0+ (2017)" src="https://img.shields.io/badge/Samsung%20Tizen-3.0%2B%20·%202017%20TVs-1428A0?style=for-the-badge">
   <img alt="Chromium 47 engine, plain ES5" src="https://img.shields.io/badge/Chromium%2047-plain%20ES5-2f7ee8?style=for-the-badge">
   <img alt="A real installed app, not a web page" src="https://img.shields.io/badge/installed%20Tizen%20app-.wgt-34a853?style=for-the-badge"><br>
-  <img alt="Six screens with auto-rotation" src="https://img.shields.io/badge/screens-6%20·%20auto--rotation-8e44ad?style=for-the-badge">
+  <img alt="Eight screens with auto-rotation" src="https://img.shields.io/badge/screens-8%20·%20auto--rotation-8e44ad?style=for-the-badge">
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="233 automated tests" src="https://img.shields.io/badge/tests-233%20passing-brightgreen?style=for-the-badge">
+  <img alt="441 automated tests passing" src="https://img.shields.io/badge/tests-441%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" width="1000" alt="All six screens in Hebrew: clocks and weather at home, weather across Israel, news, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen">
+  <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home, weather across Israel, news, markets, Shabbat and holidays, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen">
 </p>
 
 ## Why it's special
@@ -35,20 +49,23 @@
 |---|---|
 | 🎵 **Plays under «Настин кинозал»'s music** | Open the player, start a channel, open the dashboard: the music keeps playing under the dashboard ([below](#plays-under-настин-кинозал)). Two apps, one family. |
 | 📺 **An installed app on a 2017 TV** | A signed Tizen `.wgt` for Tizen 3.0 / Chromium 47 (the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
-| 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources. |
+| 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources, and the holiday, month and parasha names are our own translations. |
+| 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view. |
+| 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha, the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
+| 🌬️ **Air, dust and UV** | Today's highest UV index and the European air-quality index at home, an air chip on every Israel region, and a dust warning when a khamsin comes in. |
 | 🚗 **Live Israeli traffic** | Ten routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
 | 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in your home city opens the Alerts screen at once, red and full, with an attention sound, and a red line «Тревога в Реховоте» stays at the top of every other screen; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
 | 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
-| 🔒 **No tracking, no keys in the repo** | No backend, no sign-up, no analytics. The Mapbox token goes into the packaged copy only; a test pins the placeholder. |
-| ✅ **Tested and reviewed** | 233 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| 🔒 **No tracking, no keys in the repo** | No backend, no sign-up, no analytics. The Mapbox token goes into the packaged copy only; a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key. |
+| ✅ **Tested and reviewed** | 441 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
 Home Dashboard is the companion app to **[«Настин кинозал»](https://github.com/yaroslavrudenko/nastin-kinozal)**, the IPTV player for
-the same TVs: the player brings the channels, the dashboard sits on top with the time, weather, news, traffic and alerts —
-while the music plays on.
+the same TVs: the player brings the channels, the dashboard sits on top with the time, weather, news, markets, Shabbat times,
+traffic and alerts — while the music plays on.
 
 1. Open «Настин кинозал» and start a channel.
 2. Open Home Dashboard.
@@ -64,20 +81,25 @@ leaves the front it sends `stop-behind`. If the player is not installed or not r
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with a 12-hour strip, and a 7-day forecast, mirrored right to left"></td>
-    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with the weather now and a 5-day forecast"></td>
+    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with the UV index and air quality, a 12-hour strip, and a 7-day forecast, mirrored right to left"></td>
+    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with an air-quality chip, the weather now and a 5-day forecast"></td>
   </tr>
-  <tr><td align="center"><b>1 · Home</b> — clocks and the weather at home</td><td align="center"><b>2 · Weather in Israel</b> — North, Centre, South</td></tr>
+  <tr><td align="center"><b>1 · Home</b> — clocks, the weather, air and UV at home</td><td align="center"><b>2 · Weather in Israel</b> — North, Centre, South</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-3-news.png" alt="News in Hebrew: Ynet and Globes columns, five headlines each, newest first"></td>
-    <td><img src="docs/screenshots/he-4-traffic.png" alt="Traffic in Hebrew: ten routes from Rehovot in two columns, each with the travel time, the delay against a typical day in colour, and the distance"></td>
+    <td><img src="docs/screenshots/he-4-markets.png" alt="Markets in Hebrew: six cards of six rows, currencies, US shares and Israeli shares on top, crypto, US indices and commodities below, each price with the day's change, mirrored right to left"></td>
   </tr>
-  <tr><td align="center"><b>3 · News</b> — the sources follow the language</td><td align="center"><b>4 · Traffic</b> — ten routes, live</td></tr>
+  <tr><td align="center"><b>3 · News</b> — the sources follow the language</td><td align="center"><b>4 · Markets</b> — six cards, the day's change</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-5-map.png" alt="Traffic map in Hebrew: a real Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot"></td>
-    <td><img src="docs/screenshots/he-6-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot with the time of the last check, nearby towns, and the recent Pikud HaOref alerts in Israel"></td>
+    <td><img src="docs/screenshots/he-5-shabbat.png" alt="Shabbat and holidays in Hebrew: Rehovot, today's date and Hebrew date, this week's parasha with candle lighting and havdalah, and the next holidays and fasts with a countdown"></td>
+    <td><img src="docs/screenshots/he-6-traffic.png" alt="Traffic in Hebrew: ten routes from Rehovot in two columns, each with the travel time, the delay against a typical day in colour, and the distance"></td>
   </tr>
-  <tr><td align="center"><b>5 · Traffic map</b> — a real Mapbox picture</td><td align="center"><b>6 · Alerts</b> — home, nearby, recent alerts in Israel</td></tr>
+  <tr><td align="center"><b>5 · Shabbat &amp; holidays</b> — candles, havdalah, what is next</td><td align="center"><b>6 · Traffic</b> — ten routes, live</td></tr>
+  <tr>
+    <td><img src="docs/screenshots/he-7-map.png" alt="Traffic map in Hebrew: a real Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot"></td>
+    <td><img src="docs/screenshots/he-8-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot with the time of the last check, nearby towns, and the recent Pikud HaOref alerts in Israel"></td>
+  </tr>
+  <tr><td align="center"><b>7 · Traffic map</b> — a real Mapbox picture</td><td align="center"><b>8 · Alerts</b> — home, nearby, recent alerts in Israel</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 20:32, enter the protected space and stay 10 minutes"></td>
     <td><img src="docs/screenshots/he-alert-preview.png" alt="The alert preview in Hebrew: the same overlay under a white band saying this is an alert test, not a real alert"></td>
@@ -98,29 +120,59 @@ leaves the front it sends `stop-behind`. If the player is not installed or not r
     <td><img src="docs/screenshots/uk-3-news.png" width="420" alt="News in Ukrainian: Ukraine and Economy columns from Ukrainska Pravda and Ekonomichna Pravda"></td>
   </tr>
   <tr><td align="center">Русский</td><td align="center">Українська</td></tr>
+  <tr>
+    <td><img src="docs/screenshots/ru-4-markets.png" width="420" alt="Markets in Russian: currencies, US shares, Israeli shares, crypto, US indices and commodities"></td>
+    <td><img src="docs/screenshots/uk-4-markets.png" width="420" alt="Markets in Ukrainian: currencies, US shares, Israeli shares, crypto, US indices and commodities"></td>
+  </tr>
+  <tr><td align="center">Русский · Рынки</td><td align="center">Українська · Ринки</td></tr>
 </table>
 
 <sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs</code>). The traffic map is a real Mapbox image captured on 2026-10-30;
-the other screens use the test fixtures, so the headlines, temperatures and travel times are sample data. The recent alerts on
-the Alerts screen are Pikud HaOref's real answer recorded on 2026-10-30.</sub>
+the other screens use the test fixtures, so the headlines, temperatures, prices and travel times are sample data. The recent alerts on
+the Alerts screen are Pikud HaOref's real answer recorded on 2026-10-30. The Markets and Shabbat screens and the air quality show
+real answers recorded on 2026-11-02 (Yahoo Finance and open.er-api at 08:57 UTC; Hebcal's calendar for Rehovot), drawn at
+09:31 that morning.</sub>
 
 It is a real installed **Tizen web app** (a signed `.wgt` package), not a web page: the TV's browser is
 slow and limited, while an installed app starts instantly, keeps the screen on and exits with Back.
 It runs on Samsung Tizen TVs from 2017 on (Tizen 3.0 or newer; 2016 models run Tizen 2.x and refuse the
 package). The oldest target is a 2017 UE50MU7000 (Tizen 3.0, Chromium 47), so the code is plain ES5 with
 no framework, no bundler and no backend. The typeface, [Inter](https://rsms.me/inter/), ships inside the
-app (static Light / Regular / Medium, Latin + Cyrillic, about 96 KB), so the TV shows the same type as the
-screenshot instead of whatever system font it has.
+app (static Light / Regular / Medium, Latin + Cyrillic, and a 1 KB subset for the ₪ ₴ ₽ signs; about 97 KB), so the TV
+shows the same type as the screenshot instead of whatever system font it has.
 
 ## What it shows
 
-Six screens, switched with the remote's ◀ ▶ and shown in turn every 45 seconds (page dots at the bottom
-mark the current one). Any key pauses the rotation for two minutes; `rotation.enabled: false` in the config
-turns it off. A screen that is not on view keeps its content and costs nothing: it is redrawn when it comes in.
+Eight screens, switched with the remote's ◀ ▶ and shown in turn (page dots at the bottom mark the current one):
+Home → Weather in Israel → News → Markets → Shabbat & holidays → Traffic → Traffic map → Alerts. Each stays 45 seconds;
+Markets stays 90 (`rotation.dwellMs`), so a full round takes 6 min 45 s. Any key pauses the rotation for two minutes;
+`rotation.enabled: false` in the config turns it off. A screen that is not on view keeps its content and costs nothing: it
+is redrawn when it comes in. The TV behaves the same on Shabbat: the same rotation, every screen (the owner's ruling,
+2026-11-02).
+
 A screen opened with ◀ ▶ — or on view when you change the language — refreshes its data at once (the owner's rule,
-2026-10-30): the weather for the home and Israel screens, both news feeds, the traffic round (within its daily cap), a new
-map image (within its own), the recent alerts. A request already running is never started twice, a held ▲ / ▼ refreshes
-once (0.6 s after the last press), and a rotation arrival keeps each screen's own schedule.
+2026-10-30): the weather and the air quality for the home and Israel screens, both news feeds, the markets, the Shabbat
+calendar, the traffic round (within its daily cap), a new map image (within its own), the recent alerts. A request already
+running is never started twice, a held ▲ / ▼ refreshes once (0.6 s after the last press), and a rotation arrival keeps each
+screen's own schedule. Measured on 2026-11-02 (headless Chrome, live answers): a ◀ ▶ open of Home or Israel asks the
+forecast and the air quality together (+2), an open of the Shabbat screen asks Hebcal (+1).
+
+### What it asks, and how often
+
+| Source | Screen | When | Requests |
+|---|---|---|---|
+| Open-Meteo forecast (with UV) | Home, Israel | every 15 min, and on an open | 1 for all six places |
+| Open-Meteo air quality | Home, Israel | every 60 min, and on an open | 1 for the home city and the three regions |
+| News feeds | News | every 10 min | the language's 2, in parallel |
+| Yahoo Finance + open.er-api | Markets | only while on view: on an open, then every 5 min | 4 cold, 2 while the daily rates are current, 0 off view |
+| Hebcal | Shabbat & holidays | once a day, on an open, and on waking with old data | 1 |
+| Mapbox Directions | Traffic | only while on view, at most every 10 min, ≤ 3,000 a UTC date | 10 per round |
+| Mapbox Static Images | Traffic map | only while on view, every 5 min, ≤ 600 a UTC date | 1 |
+| Pikud HaOref, live | every screen | every 5 s | 1 |
+| Pikud HaOref, history | Alerts | only while on view, every 2 min | 1 |
+
+At start the app sends **6 requests in one parallel round**: the forecast, the air quality, the two news feeds of the
+language, Hebcal and the alert feed (measured on 2026-11-02 with live answers, and pinned by a browser test).
 
 **1 · Home**
 
@@ -129,6 +181,13 @@ once (0.6 s after the last press), and a rotation arrival keeps each screen's ow
   tinted for the night from that city's sunrise and sunset.
 - **Weather** for the home city (Rehovot by default; see [Home city](#home-city)) from [Open-Meteo](https://open-meteo.com/) (free, no API key): temperature, feels-like,
   condition, wind, humidity, today's high/low, chance of rain, sunrise/sunset, a 12-hour strip and a 7-day list.
+- **Air and UV**, between the city and the big weather icon. «УФ макс.» is today's highest UV index with its level
+  (низкий, умеренный, высокий, очень высокий, экстремальный); after sunset the level word is dimmed, because the day's peak
+  is past. «Качество воздуха» is the European air-quality index with its level (хорошее up to 20, приемлемое to 40,
+  умеренное to 60, плохое to 80, очень плохое to 100, опасное above). When the dust reaches 100 µg/m³ — twice the EU daily
+  PM10 limit from dust alone, a khamsin — an amber line «Пыль · 240 мкг/м³» appears, even when the index itself is
+  missing. Before the first answer the slot holds a placeholder; with no index it says «Нет данных», never a made-up level;
+  old air data is dimmed. The block has a fixed width, so nothing moves when the dust line appears.
 - **Status**: "Updated at HH:MM". When a refresh fails, the last good data stays on screen and is marked as
   not updating, with the time it is from; every temperature from that data (the main card and each clock
   card) is dimmed, and the amber status line says it once. With no data at all, the weather card says so once, with
@@ -144,22 +203,27 @@ once (0.6 s after the last press), and a rotation arrival keeps each screen's ow
   real time-zone database for every hour of 2025–2030) and the disagreement is logged. If neither works,
   the clock says "Zone unknown" instead of a time.
 - **Weather refresh**: every 15 minutes, ONE request for all places (Open-Meteo takes comma-separated
-  coordinates), about 1.5 KB compressed. After a failure it waits a random time between 30 seconds and
-  1, 2, 4 and 8 minutes, then up to 15 minutes, so it never loops tightly and never synchronises. Data
-  older than 45 minutes is marked stale even if no request failed. "Now" and "Today" follow the clock, not
-  the age of the data.
+  coordinates); today's UV maximum rides in the same request, so it costs nothing more. After a failure it waits a
+  random time between 30 seconds and 1, 2, 4 and 8 minutes, then up to 15 minutes, so it never loops tightly and never
+  synchronises. Data older than 45 minutes is marked stale even if no request failed. "Now" and "Today" follow the clock,
+  not the age of the data.
+- **Air refresh**: ONE more request, to Open-Meteo's air-quality API, for the home city and the three Israel regions
+  together, every hour (the data are hourly), with the same back-off as the weather. Air data older than 3 hours is
+  marked stale.
 - **Burn-in care**: the whole layout drifts by a few pixels every 3 minutes, slowly (6 s), so static text
   never sits on the same pixels for hours. The layout is its own GPU layer, so a drift repaints nothing.
 - **Screen saver**: switched off while the app runs (the result is logged); **Back** closes the app.
   The TV's own **Eco "Auto Power Off"** is separate and an app cannot override it: it switches the TV off
   after about 4 hours without a remote key press. For an always-on dashboard turn it off in
   *Settings → General → Eco Solution → Auto Power Off*. Not yet verified on the TV for a run longer than 4 hours.
-- **Languages**: Russian, Hebrew and Ukrainian, switched with ▲ / ▼ (see Languages below).
+- **Languages**: Russian, Hebrew and Ukrainian, switched with ▲ / ▼ (see [Languages](#languages)).
 
 **2 · Weather in Israel**: three cards side by side — North (Haifa), Centre (Tel Aviv), South (Beer Sheva) — each
 with the temperature now, its condition, feels-like and wind, and a 5-day list with the same range bars as the
-main card. The regions ride the main weather's single Open-Meteo request (six places, one request), so this screen
-costs no request of its own; a failed refresh dims every card and the header says it once.
+main card. The head of each card ends with an air chip: the air glyph and the level word in its colour, or «пыль» when the
+dust is high (even with no index). The regions ride the main weather's single Open-Meteo request (six places, one
+request) and the home screen's air request (four places, one request), so this screen costs no request of its own; a
+failed refresh dims every card and the header says it once.
 
 **3 · News**: two columns, five headlines each, newest first, with how long ago. The interface language picks the
 sources (see Languages): in Russian «Израиль» and «Экономика» from [NEWSru.co.il](https://www.newsru.co.il/) (its Israel
@@ -176,7 +240,67 @@ only, while the header stays "Updated at"; when nothing came at all the header s
 в HH:MM». Hebrew is drawn in a bundled Noto Sans Hebrew (Regular, the Hebrew block only, about 7 KB, OFL) so the TV does not
 depend on its system fonts for it.
 
-**4 · Traffic**: ten widgets in two columns of five, all from the home city. For Rehovot (the default) «Города»: to the
+**4 · Markets**: six glass cards in a 3 × 2 grid, six rows each, all the same height. Top row: currencies, US shares,
+Israeli shares; bottom row: crypto, US indices, commodities (mirrored in Hebrew).
+
+| Card | Rows |
+|---|---|
+| Currencies | ₪ for 1 $ · ₪ for 1 € · ₴ for 1 ₪ · ₽ for 1 ₪ · $ for 1 € · ₴ for 1 $ |
+| US shares | Apple, NVIDIA, Microsoft, Alphabet, Amazon (the five largest US companies by market cap) + Intuit |
+| Israeli shares | Teva, Elbit Systems, Leumi, Hapoalim, Tower, Mizrahi Tefahot (the six largest on the Tel Aviv exchange) |
+| Crypto | Bitcoin, Ethereum, BNB, XRP, Solana, TRON (the six largest by market cap, no stablecoins), in $ |
+| US indices | S&P 500, Dow Jones, Nasdaq, Nasdaq 100, Russell 2000, VIX |
+| Commodities | Brent oil, natural gas, gold, silver, copper, WTI oil |
+
+The lists were checked on 2026-11-02 (`tests/fixtures/markets/ranking.json`); they live once, in `Config.markets`.
+
+- **Each row**: the name in the interface language, the price and the day's change with a soft green ▲ or a soft red ▼.
+  Every price in a card sits on one numeric grid: the currency sign in its own column, currencies to 4 decimals, indices
+  and crypto to 2 (a coin under 1 to 4). The Tel Aviv exchange quotes in agorot; the app divides by 100 and shows ₪.
+- **No day change from the source** (the hryvnia and ruble rows come from a daily table): a muted «—» in its place,
+  never a made-up figure.
+- **Closed markets** are said once, in the card's head: «закрыто» when every quote with trading hours is closed,
+  «частично закрыто» when some are; each closed price is dimmed. The daily-table rows have no trading hours and never
+  count, so on a weekend the currencies card still reads «закрыто».
+- **When a source fails**, a row keeps its last good price, dimmed, until the next good round. A row that never had a value
+  says «нет данных»; when a whole card has nothing, its head says «нет данных» in amber and its rows show «—». The header
+  says «Обновлено в HH:MM»; «Не обновляется · данные от HH:MM» after a failed round or 15 minutes without new data; and
+  «Котировки временно недоступны» when no price came at all.
+
+Sources, both without a key (checked 2026-11-02): [Yahoo Finance](https://finance.yahoo.com/)'s spark endpoint for 33
+symbols in 2 batched requests (it takes at most 20 symbols per request; 21 answer 400), and
+[open.er-api](https://open.er-api.com/)'s daily ILS and USD tables for the hryvnia and the ruble (Yahoo has no shekel pair
+for them, and its `UAH=X` reported 0.0% on a +3% day). A rate table is reused until the time the provider names for its
+next update, at most 24 hours. That makes **4 requests cold, 2 while the daily rates are current, and 0 while the screen is
+off view**: the markets are asked only while the screen is on view (at once on a ◀ ▶ open or a language change, else every
+5 minutes, one round at a time with a 15-second deadline). The quotes appear as soon as Yahoo answers, without waiting for
+the rate tables.
+
+**5 · Shabbat & holidays**: the home city's calendar on two cards.
+
+- **The week** (the wide card): the city, today's date, today's Hebrew date («22 хешвана 5787»; in Hebrew «כ״ב בחשון
+  תשפ״ז»), then «Шабат · Глава Хаей Сара» with two tiles: candle lighting and havdalah, each with its day and time, and
+  how long until the candles («через 4 дн.»; on the day itself «через 2 ч 14 мин»). From candle lighting on the eve of
+  Shabbat or a holiday, the Hebrew date is already the next day's, because the holy day has begun.
+- **A note line** for a fast («Пост 10 тевета · начало 05:18 · конец 16:55», amber while it runs) or the holiday today
+  («Сегодня: Ханука»).
+- **While Shabbat or a yom tov is in**, the card turns calm: «Шабат шалом», «Хаг самеах» or, on Yom Kippur, «Гмар хатима
+  това», the week's name said once, and havdalah («Авдала · 17:24» when it is today). A Shabbat next to a yom tov is shown
+  as Shabbat on Shabbat and as the holiday on the holiday.
+- **Holidays and fasts** (the narrow card): the next six, each with its short date and a day count, quiet until a week or
+  less is left, then amber; «идёт» while one runs; a fast carries the fast glyph. Shown: the festivals, Yom HaShoah, Yom
+  HaZikaron, Yom HaAtzmaut and Yom Yerushalayim, and the public fasts. In Jerusalem the list shows Shushan Purim instead of
+  Purim.
+
+The source is [Hebcal](https://www.hebcal.com/) (no key): ONE request a day carries the whole screen — candle lighting and
+havdalah (havdalah at nightfall), the parashot, the holidays, the fast times and a Hebrew date for every day, on the Israeli
+schedule — from 9 days back (an ongoing holiday keeps its first day) to 180 days ahead (the shortest lookahead that always
+fills the six rows). It is asked again when the screen is opened and when the TV wakes with old data; a failure is retried
+after 1, 2, 4 and 8 minutes, then every hour, never only the next day. The data covers half a year, so the screen recomputes
+"now" and "today" every minute from what it holds; a missed refresh never shows a wrong time. Every name comes from our own
+tables in each language, so a language switch costs no request.
+
+**6 · Traffic**: ten widgets in two columns of five, all from the home city. For Rehovot (the default) «Города»: to the
 centres of Tel Aviv, Jerusalem, Haifa, Beer Sheva and Ashkelon; «Рядом»: to Modi'in, Rishon LeZion, Ben Gurion Airport
 (Terminal 3), Holon and Glilot (Cinema City). Any other home city gets five of Tel Aviv, Jerusalem, Haifa, Beer Sheva,
 Ashkelon and Netanya (never itself) and its five nearest cities (see [Home city](#home-city)). Each widget: the name and a soft green / amber / red chip with the delay, the travel time now and the length, and a
@@ -218,7 +342,7 @@ current. It needs a Mapbox token (see Build); without one the screen says how to
 were checked live by the coordinator on 2026-10-30 16:28 (e.g. Tel Aviv 32.0 min vs a usual 39.3, Jerusalem 44.9 vs 56.4);
 the tests run on Mapbox's documented answer shape.
 
-**5 · Traffic map**: the live traffic around the home city (for Rehovot: Tel Aviv, Rehovot, Ashdod and Jerusalem; any other
+**7 · Traffic map**: the live traffic around the home city (for Rehovot: Tel Aviv, Rehovot, Ashdod and Jerusalem; any other
 city is in the middle) as ONE picture from
 the [Mapbox Static Images API](https://docs.mapbox.com/api/maps/static-images/) in Mapbox's live-traffic style
 (`traffic-night-v2`: green, orange and red lines over a night map), with the same Mapbox token as the routes. A white dot
@@ -231,7 +355,7 @@ header says «Карта недоступна · данные от HH:MM». Each
 asked for and never refunded, at most 600 a UTC date: Static Images' free tier is 50,000 a month, and any 31 days touch at
 most 32 UTC dates, so ≤ 32 × 600 = 19,200. The map's place names come from Mapbox, in English.
 
-**6 · Alerts**: the [Home Front Command](https://www.oref.org.il/) (Pikud HaOref) on one calm screen. At the start, home:
+**8 · Alerts**: the [Home Front Command](https://www.oref.org.il/) (Pikud HaOref) on one calm screen. At the start, home:
 a green shield and «Тревог нет · Реховот» with the time the feed last answered («Проверено в 20:32»); while an alert is up, its
 kind, areas and start time; while the feed is lost, «Тревоги: нет связи · последний ответ HH:MM» in amber — never "no
 alerts". Under it, the nearby towns («Рядом тревог нет», or the towns with an alert now). At the end, the **recent alerts in
@@ -289,8 +413,9 @@ depends on where the alert is:
 
 ## Home city
 
-Everything that is about "here" follows one city: the main weather card (and the Israel clock's temperature), the ten
-traffic routes and their names, the traffic map's centre and dot, the alert at home, the nearby towns and the red alert line.
+Everything that is about "here" follows one city: the main weather card (and the Israel clock's temperature), the air
+quality and UV at home, the Shabbat & holidays screen, the ten traffic routes and their names, the traffic map's centre and
+dot, the alert at home, the nearby towns and the red alert line.
 Rehovot is the default; 83 Israeli cities are in the catalogue [`js/cities.js`](js/cities.js) (every city of roughly 20,000
 people or more, plus the small towns around Rehovot).
 
@@ -308,8 +433,14 @@ people or more, plus the small towns around Rehovot).
   nearest cities (at least 2 km away); the map is centred on it; the nearby alerts are the cities within 20 km (11 at
   most; with fewer than 3, the 3 nearest within 40 km). Remote towns are honest: Eilat's «Рядом» are far away and it has no
   nearby alert towns.
-- **The cost.** A change of city costs no extra Mapbox request: still 10 per traffic round and 1 map image, both only while
-  their screen is on view, under the same daily caps. Travel times cached for one city are never shown for another.
+- **Candle lighting by the city's own custom.** 78 of the 83 cities carry their GeoNames id (checked 2026-11-02), so
+  Hebcal applies the city's own custom: Jerusalem lights 40 minutes before sunset (measured on the design day: 16:11 by id
+  against 16:25 by coordinates). Beitar Illit and Modi'in Illit have no id; they are asked by coordinates with the same
+  40 minutes. Umm al-Fahm, Tayibe and Ma'ale Adumim are asked by coordinates with Hebcal's default. In Jerusalem the
+  holiday list shows Shushan Purim instead of Purim.
+- **The cost.** A change of city costs no extra request of any kind: still 10 Mapbox requests per traffic round and 1 map
+  image, both only while their screen is on view, under the same daily caps; still one air request and one Hebcal request.
+  Travel times cached for one city are never shown for another.
 - **Maintenance.** `node tools/cities.mjs --order` re-sorts the picker for every language; `node tools/cities.mjs --check`
   compares the catalogue with Pikud HaOref's live area list and Open-Meteo's geocoding (run it at every release: a renamed
   Oref area would silently stop that city's home alerts).
@@ -327,23 +458,33 @@ in the config is only the first start's language, `languages` the order of the s
   Globes); Ukrainian — news about Ukraine in Ukrainian (Українська правда, Економічна правда). Only the active language's
   two feeds are fetched; a switch fetches the new ones at once (the columns say «Загружаем новости…» until they answer),
   plus the refresh of the screen on view.
-- **Everything else is translated and laid out for the language**: clocks, dates and weekdays, weather words, the Israel
-  regions, routes, statuses, the map, the alerts. Hebrew mirrors the whole layout right to left (Israel's clock on the
-  right, the forecast bars filling from the right), while times, temperatures and signed figures («+9 שע׳», «−4°») stay
-  left to right; the page dots and ◀ ▶ stay physical (◀ is the previous screen, on the left).
+- **Everything else is translated and laid out for the language**: clocks, dates and weekdays, weather words, the UV and
+  air-quality levels, the Israel regions, the market names and currency directions («₴ за 1 ₪», «הריבנה לשקל»), routes,
+  statuses, the map, the alerts. Hebrew mirrors the whole layout right to left (Israel's clock on the
+  right, the forecast bars filling from the right, the market cards in mirrored order), while times, prices, temperatures
+  and signed figures («+9 שע׳», «−4°») stay left to right; the page dots and ◀ ▶ stay physical (◀ is the previous screen,
+  on the left).
+- **Shabbat & holidays**: Hebcal is asked once, language-neutral, and every name on the screen comes from our own tables:
+  20 holidays and fasts, the Hebrew months and the 59 weekly parashot, in Russian, Hebrew and Ukrainian (a missing name
+  shows Hebcal's id, never a blank). Hebcal's own Russian and Ukrainian lists leave the modern holidays in English and
+  misspell some others, so they are not used. In Hebrew the Hebrew date («כ״ב בחשון תשפ״ז») and the parasha are the
+  source's own strings. A language switch on this screen needs no new data.
 - **Alerts**: in Hebrew the alert's own Hebrew words from Pikud HaOref are the main line (nothing translated twice); in
   Russian and Ukrainian the screen's own words, with the Hebrew original under them, right to left, when the kind is
   unknown. Areas are named in the language.
 - Hebrew uses the bundled Noto Sans Hebrew (every Hebrew character in the strings is in it); Ukrainian letters (і, ї, є, ґ,
-  ’) are in the bundled Inter.
+  ’) are in the bundled Inter, and so are the ₪, ₴ and ₽ signs. The Ukrainian city names and holiday, month and parasha
+  names await a native speaker's check.
 
 ## Configure
 
-Everything lives in [`js/config.js`](js/config.js): language, the home city (`homeCity`), screens and rotation, clocks
-(zones and order), weather places (the first is the home city's main card), news feeds per language, when the traffic
-routes are refreshed (`traffic.schedule`), the traffic map, the alert feed, refresh intervals and burn-in timing. The
-routes, the map's view and the alert areas are derived from the home city ([`js/cities.js`](js/cities.js),
-[`js/homecity.js`](js/homecity.js)). Names on screen are in `js/i18n.js`.
+Everything lives in [`js/config.js`](js/config.js): language, the home city (`homeCity`), screens and rotation (with a
+screen's own dwell in `rotation.dwellMs`), clocks (zones and order), weather places (the first is the home city's main
+card), the air quality (`air`: refresh and the dust threshold), news feeds per language, the markets (`markets`: the six
+groups, their rows and sources, the refresh), the Shabbat calendar (`shabbat`: the lookahead, the holidays and fasts shown,
+the refresh and retries), when the traffic routes are refreshed (`traffic.schedule`), the traffic map, the alert feed,
+refresh intervals and burn-in timing. The routes, the map's view, the alert areas and the Shabbat place are derived from
+the home city ([`js/cities.js`](js/cities.js), [`js/homecity.js`](js/homecity.js)). Names on screen are in `js/i18n.js`.
 
 ## Build, sign and install on any Samsung TV
 
@@ -365,7 +506,8 @@ only on the device that reports that DUID. `./build.sh` refuses any argument oth
 `MAPBOX_TOKEN` (a public token, `pk.…`, from account.mapbox.com) is put into the packaged copy of `js/config.js` only;
 the repository keeps the `__MAPBOX_TOKEN__` placeholder and a test pins it. Mapbox's free tier is 100,000 Directions
 requests a month; the traffic screen reserves every round before it sends it and stops at 3,000 requests a UTC date
-(`Config.traffic.schedule.dailyRequestCap`), so any 31 days stay under 96,000 — see screen 4.
+(`Config.traffic.schedule.dailyRequestCap`), so any 31 days stay under 96,000 — see screen 6. The markets, the air quality
+and the Shabbat calendar need no token.
 
 ## Develop and test
 
@@ -373,7 +515,7 @@ Open `index.html` in desktop Chrome at 1920×1080 for development. Tests use Nod
 have no dependencies in this repo:
 
 ```sh
-tests/run.sh                         # unit tests: time zones, weather, news, traffic, alerts, screens, refresh/stale/back-off, i18n (three languages), packaging, build.sh / find-tv.sh
+tests/run.sh                         # unit tests: time zones, weather, air quality, news, markets, the Shabbat calendar, traffic, alerts, screens, refresh/stale/back-off, i18n (three languages), packaging, build.sh / find-tv.sh
 PUPPETEER_CORE_DIR=<dir with puppeteer-core> tests/run.sh --browser   # + every screen in every language and the alert in headless Chrome at 1920×1080
 ACORN=<path to acorn> tools/es5-gate.sh                               # every script must parse as ES5
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
@@ -383,15 +525,20 @@ node tools/make-chime.mjs                                             # sounds/a
 node tools/cities.mjs --order | --check                               # the home-city catalogue: picker order / drift against the live sources
 ```
 
-The browser tests answer Open-Meteo, the news feeds, the alert feed, its history and Mapbox from `tests/fixtures/` (the
-recorded or documented shape of each source; the batch-2 news stories in them are invented, the batch-6 ones recorded, the
-map image a real traffic-night-v2 picture made smaller); they fail (never skip) without puppeteer-core.
+The browser tests answer Open-Meteo (forecast and air quality), the news feeds, Yahoo Finance and open.er-api, Hebcal, the
+alert feed, its history and Mapbox from `tests/fixtures/` (the recorded or documented shape of each source; the batch-2 news
+stories in them are invented, the batch-6 ones recorded, the market answers (`tests/fixtures/markets/`), the air answers
+(`tests/fixtures/air/`) and the Hebcal calendars (`tests/fixtures/hebcal/`) recorded on 2026-11-02, the map image a real
+traffic-night-v2 picture made smaller); they fail (never skip) without puppeteer-core. The Markets browser test also counts
+the requests: 4 on a cold round, 2 on a warm one. The Shabbat browser test (`tests/browser/shabbat12.test.mjs`) draws the
+Shabbat screen from the recorded calendar, pins the boot round, and checks the air & UV block on Home and the air chip on
+every Israel card in all three languages; `tests/shabbat-contract.test.js` feeds the calendar code's own output into the
+Shabbat view.
 
 ## Roadmap
 
 - Air-raid alerts in Ukraine (needs a token)
-- Currency: Bank of Israel and National Bank of Ukraine rates
-- Shabbat times and holidays (Hebcal)
+- Official rates: Bank of Israel and National Bank of Ukraine (the Markets screen shows market rates)
 - Family birthdays and reminders
 - Photo frame mode
 - Night mode (dimmer, warmer, clocks only)
@@ -402,4 +549,5 @@ MIT © Yaroslav Rudenko. See [LICENSE](LICENSE). The same licence covers the sib
 The bundled Inter font is © The Inter Project Authors, under the SIL Open Font License 1.1
 ([fonts/OFL.txt](fonts/OFL.txt)).
 City centres in `js/cities.js`: [GeoNames](https://www.geonames.org/) via Open-Meteo's geocoding, CC BY 4.0; six of them
-are centroids of Pikud HaOref area points from [oref_alert](https://github.com/amitfin/oref_alert) (MIT).
+are centroids of Pikud HaOref area points from [oref_alert](https://github.com/amitfin/oref_alert) (MIT). The GeoNames ids
+used for the Shabbat calendar come from the same geocoding.

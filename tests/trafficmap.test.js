@@ -6,7 +6,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { load, fakeTimers } = require('./harness');
 
-const FILES = ['js/config.js', 'js/ledger.js', 'js/trafficmap.js'];
+const FILES = ['js/config.js', 'js/tz.js', 'js/ledger.js', 'js/trafficmap.js'];   // batch 12 (S4): Ledger's dates come from Tz
 const T0 = Date.parse('2026-10-29T18:34:00Z');
 const MIN = 60000;
 const plain = (v) => JSON.parse(JSON.stringify(v));

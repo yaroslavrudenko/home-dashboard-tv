@@ -1,0 +1,1031 @@
+{
+  "weekday": {
+    "source": "hebcal-rehovot-2026-11-02-180d.json",
+    "nowMs": 1793613600000,
+    "today": "2026-11-02",
+    "snapshot": {
+      "today": {
+        "date": "2026-11-02",
+        "weekday": 1,
+        "day": 2,
+        "month": 10,
+        "hebrew": {
+          "day": 22,
+          "month": "Cheshvan",
+          "year": 5787,
+          "he": "כ״ב בחשון תשפ״ז"
+        }
+      },
+      "state": "weekday",
+      "window": {
+        "kind": "shabbat",
+        "holiday": null,
+        "parasha": {
+          "id": "Chayei Sara",
+          "he": "פרשת חיי שרה"
+        },
+        "during": null,
+        "candles": {
+          "at": 1793975220000,
+          "date": "2026-11-06",
+          "weekday": 5,
+          "time": "16:27"
+        },
+        "havdalah": {
+          "at": 1794065040000,
+          "date": "2026-11-07",
+          "weekday": 6,
+          "time": "17:24"
+        },
+        "daysToCandles": 4,
+        "minutesToCandles": null
+      },
+      "note": null,
+      "upcoming": [
+        {
+          "holiday": "chanukah",
+          "kind": "holiday",
+          "start": "2026-12-04",
+          "startWeekday": 5,
+          "startDay": 4,
+          "startMonth": 11,
+          "end": "2026-12-12",
+          "daysUntil": 32,
+          "ongoing": false
+        },
+        {
+          "holiday": "asara-btevet",
+          "kind": "fast",
+          "start": "2026-12-20",
+          "startWeekday": 0,
+          "startDay": 20,
+          "startMonth": 11,
+          "end": "2026-12-20",
+          "daysUntil": 48,
+          "ongoing": false
+        },
+        {
+          "holiday": "tu-bishvat",
+          "kind": "holiday",
+          "start": "2027-01-23",
+          "startWeekday": 6,
+          "startDay": 23,
+          "startMonth": 0,
+          "end": "2027-01-23",
+          "daysUntil": 82,
+          "ongoing": false
+        },
+        {
+          "holiday": "taanit-esther",
+          "kind": "fast",
+          "start": "2027-03-22",
+          "startWeekday": 1,
+          "startDay": 22,
+          "startMonth": 2,
+          "end": "2027-03-22",
+          "daysUntil": 140,
+          "ongoing": false
+        },
+        {
+          "holiday": "purim",
+          "kind": "holiday",
+          "start": "2027-03-23",
+          "startWeekday": 2,
+          "startDay": 23,
+          "startMonth": 2,
+          "end": "2027-03-23",
+          "daysUntil": 141,
+          "ongoing": false
+        },
+        {
+          "holiday": "pesach",
+          "kind": "holiday",
+          "start": "2027-04-22",
+          "startWeekday": 4,
+          "startDay": 22,
+          "startMonth": 3,
+          "end": "2027-04-28",
+          "daysUntil": 171,
+          "ongoing": false
+        }
+      ]
+    }
+  },
+  "erev": {
+    "source": "hebcal-rehovot-2026-11-06-180d.json",
+    "nowMs": 1793967180000,
+    "today": "2026-11-06",
+    "snapshot": {
+      "today": {
+        "date": "2026-11-06",
+        "weekday": 5,
+        "day": 6,
+        "month": 10,
+        "hebrew": {
+          "day": 26,
+          "month": "Cheshvan",
+          "year": 5787,
+          "he": "כ״ו בחשון תשפ״ז"
+        }
+      },
+      "state": "erev",
+      "window": {
+        "kind": "shabbat",
+        "holiday": null,
+        "parasha": {
+          "id": "Chayei Sara",
+          "he": "פרשת חיי שרה"
+        },
+        "during": null,
+        "candles": {
+          "at": 1793975220000,
+          "date": "2026-11-06",
+          "weekday": 5,
+          "time": "16:27"
+        },
+        "havdalah": {
+          "at": 1794065040000,
+          "date": "2026-11-07",
+          "weekday": 6,
+          "time": "17:24"
+        },
+        "daysToCandles": 0,
+        "minutesToCandles": 134
+      },
+      "note": null,
+      "upcoming": [
+        {
+          "holiday": "chanukah",
+          "kind": "holiday",
+          "start": "2026-12-04",
+          "startWeekday": 5,
+          "startDay": 4,
+          "startMonth": 11,
+          "end": "2026-12-12",
+          "daysUntil": 28,
+          "ongoing": false
+        },
+        {
+          "holiday": "asara-btevet",
+          "kind": "fast",
+          "start": "2026-12-20",
+          "startWeekday": 0,
+          "startDay": 20,
+          "startMonth": 11,
+          "end": "2026-12-20",
+          "daysUntil": 44,
+          "ongoing": false
+        },
+        {
+          "holiday": "tu-bishvat",
+          "kind": "holiday",
+          "start": "2027-01-23",
+          "startWeekday": 6,
+          "startDay": 23,
+          "startMonth": 0,
+          "end": "2027-01-23",
+          "daysUntil": 78,
+          "ongoing": false
+        },
+        {
+          "holiday": "taanit-esther",
+          "kind": "fast",
+          "start": "2027-03-22",
+          "startWeekday": 1,
+          "startDay": 22,
+          "startMonth": 2,
+          "end": "2027-03-22",
+          "daysUntil": 136,
+          "ongoing": false
+        },
+        {
+          "holiday": "purim",
+          "kind": "holiday",
+          "start": "2027-03-23",
+          "startWeekday": 2,
+          "startDay": 23,
+          "startMonth": 2,
+          "end": "2027-03-23",
+          "daysUntil": 137,
+          "ongoing": false
+        },
+        {
+          "holiday": "pesach",
+          "kind": "holiday",
+          "start": "2027-04-22",
+          "startWeekday": 4,
+          "startDay": 22,
+          "startMonth": 3,
+          "end": "2027-04-28",
+          "daysUntil": 167,
+          "ongoing": false
+        }
+      ]
+    }
+  },
+  "shabbat": {
+    "source": "hebcal-rehovot-2026-11-06-180d.json",
+    "nowMs": 1794038400000,
+    "today": "2026-11-07",
+    "snapshot": {
+      "today": {
+        "date": "2026-11-07",
+        "weekday": 6,
+        "day": 7,
+        "month": 10,
+        "hebrew": {
+          "day": 27,
+          "month": "Cheshvan",
+          "year": 5787,
+          "he": "כ״ז בחשון תשפ״ז"
+        }
+      },
+      "state": "shabbat",
+      "window": {
+        "kind": "shabbat",
+        "holiday": null,
+        "parasha": {
+          "id": "Chayei Sara",
+          "he": "פרשת חיי שרה"
+        },
+        "during": null,
+        "candles": {
+          "at": 1793975220000,
+          "date": "2026-11-06",
+          "weekday": 5,
+          "time": "16:27"
+        },
+        "havdalah": {
+          "at": 1794065040000,
+          "date": "2026-11-07",
+          "weekday": 6,
+          "time": "17:24"
+        },
+        "daysToCandles": 0,
+        "minutesToCandles": null
+      },
+      "note": null,
+      "upcoming": [
+        {
+          "holiday": "chanukah",
+          "kind": "holiday",
+          "start": "2026-12-04",
+          "startWeekday": 5,
+          "startDay": 4,
+          "startMonth": 11,
+          "end": "2026-12-12",
+          "daysUntil": 27,
+          "ongoing": false
+        },
+        {
+          "holiday": "asara-btevet",
+          "kind": "fast",
+          "start": "2026-12-20",
+          "startWeekday": 0,
+          "startDay": 20,
+          "startMonth": 11,
+          "end": "2026-12-20",
+          "daysUntil": 43,
+          "ongoing": false
+        },
+        {
+          "holiday": "tu-bishvat",
+          "kind": "holiday",
+          "start": "2027-01-23",
+          "startWeekday": 6,
+          "startDay": 23,
+          "startMonth": 0,
+          "end": "2027-01-23",
+          "daysUntil": 77,
+          "ongoing": false
+        },
+        {
+          "holiday": "taanit-esther",
+          "kind": "fast",
+          "start": "2027-03-22",
+          "startWeekday": 1,
+          "startDay": 22,
+          "startMonth": 2,
+          "end": "2027-03-22",
+          "daysUntil": 135,
+          "ongoing": false
+        },
+        {
+          "holiday": "purim",
+          "kind": "holiday",
+          "start": "2027-03-23",
+          "startWeekday": 2,
+          "startDay": 23,
+          "startMonth": 2,
+          "end": "2027-03-23",
+          "daysUntil": 136,
+          "ongoing": false
+        },
+        {
+          "holiday": "pesach",
+          "kind": "holiday",
+          "start": "2027-04-22",
+          "startWeekday": 4,
+          "startDay": 22,
+          "startMonth": 3,
+          "end": "2027-04-28",
+          "daysUntil": 166,
+          "ongoing": false
+        }
+      ]
+    }
+  },
+  "holidayToday": {
+    "source": "hebcal-rehovot-2026-12-08-s9.json",
+    "nowMs": 1796637600000,
+    "today": "2026-12-07",
+    "snapshot": {
+      "today": {
+        "date": "2026-12-07",
+        "weekday": 1,
+        "day": 7,
+        "month": 11,
+        "hebrew": {
+          "day": 27,
+          "month": "Kislev",
+          "year": 5787,
+          "he": "כ״ז בכסלו תשפ״ז"
+        }
+      },
+      "state": "weekday",
+      "window": {
+        "kind": "shabbat",
+        "holiday": null,
+        "parasha": {
+          "id": "Miketz",
+          "he": "פרשת מקץ"
+        },
+        "during": "chanukah",
+        "candles": {
+          "at": 1796998620000,
+          "date": "2026-12-11",
+          "weekday": 5,
+          "time": "16:17"
+        },
+        "havdalah": {
+          "at": 1797088620000,
+          "date": "2026-12-12",
+          "weekday": 6,
+          "time": "17:17"
+        },
+        "daysToCandles": 4,
+        "minutesToCandles": null
+      },
+      "note": {
+        "kind": "holiday",
+        "holiday": "chanukah"
+      },
+      "upcoming": [
+        {
+          "holiday": "chanukah",
+          "kind": "holiday",
+          "start": "2026-12-04",
+          "startWeekday": 5,
+          "startDay": 4,
+          "startMonth": 11,
+          "end": "2026-12-12",
+          "daysUntil": 0,
+          "ongoing": true
+        },
+        {
+          "holiday": "asara-btevet",
+          "kind": "fast",
+          "start": "2026-12-20",
+          "startWeekday": 0,
+          "startDay": 20,
+          "startMonth": 11,
+          "end": "2026-12-20",
+          "daysUntil": 13,
+          "ongoing": false
+        },
+        {
+          "holiday": "tu-bishvat",
+          "kind": "holiday",
+          "start": "2027-01-23",
+          "startWeekday": 6,
+          "startDay": 23,
+          "startMonth": 0,
+          "end": "2027-01-23",
+          "daysUntil": 47,
+          "ongoing": false
+        },
+        {
+          "holiday": "taanit-esther",
+          "kind": "fast",
+          "start": "2027-03-22",
+          "startWeekday": 1,
+          "startDay": 22,
+          "startMonth": 2,
+          "end": "2027-03-22",
+          "daysUntil": 105,
+          "ongoing": false
+        },
+        {
+          "holiday": "purim",
+          "kind": "holiday",
+          "start": "2027-03-23",
+          "startWeekday": 2,
+          "startDay": 23,
+          "startMonth": 2,
+          "end": "2027-03-23",
+          "daysUntil": 106,
+          "ongoing": false
+        },
+        {
+          "holiday": "pesach",
+          "kind": "holiday",
+          "start": "2027-04-22",
+          "startWeekday": 4,
+          "startDay": 22,
+          "startMonth": 3,
+          "end": "2027-04-28",
+          "daysUntil": 136,
+          "ongoing": false
+        }
+      ]
+    }
+  },
+  "fast": {
+    "source": "hebcal-rehovot-2026-11-02-180d.json",
+    "nowMs": 1797753600000,
+    "today": "2026-12-20",
+    "snapshot": {
+      "today": {
+        "date": "2026-12-20",
+        "weekday": 0,
+        "day": 20,
+        "month": 11,
+        "hebrew": {
+          "day": 10,
+          "month": "Tevet",
+          "year": 5787,
+          "he": "י׳ בטבת תשפ״ז"
+        }
+      },
+      "state": "weekday",
+      "window": {
+        "kind": "shabbat",
+        "holiday": null,
+        "parasha": {
+          "id": "Vayechi",
+          "he": "פרשת ויחי"
+        },
+        "during": null,
+        "candles": {
+          "at": 1798208520000,
+          "date": "2026-12-25",
+          "weekday": 5,
+          "time": "16:22"
+        },
+        "havdalah": {
+          "at": 1798298580000,
+          "date": "2026-12-26",
+          "weekday": 6,
+          "time": "17:23"
+        },
+        "daysToCandles": 5,
+        "minutesToCandles": null
+      },
+      "note": {
+        "kind": "fast",
+        "holiday": "asara-btevet",
+        "begins": {
+          "at": 1797736680000,
+          "date": "2026-12-20",
+          "weekday": 0,
+          "time": "05:18"
+        },
+        "ends": {
+          "at": 1797778500000,
+          "date": "2026-12-20",
+          "weekday": 0,
+          "time": "16:55"
+        },
+        "active": true
+      },
+      "upcoming": [
+        {
+          "holiday": "asara-btevet",
+          "kind": "fast",
+          "start": "2026-12-20",
+          "startWeekday": 0,
+          "startDay": 20,
+          "startMonth": 11,
+          "end": "2026-12-20",
+          "daysUntil": 0,
+          "ongoing": true
+        },
+        {
+          "holiday": "tu-bishvat",
+          "kind": "holiday",
+          "start": "2027-01-23",
+          "startWeekday": 6,
+          "startDay": 23,
+          "startMonth": 0,
+          "end": "2027-01-23",
+          "daysUntil": 34,
+          "ongoing": false
+        },
+        {
+          "holiday": "taanit-esther",
+          "kind": "fast",
+          "start": "2027-03-22",
+          "startWeekday": 1,
+          "startDay": 22,
+          "startMonth": 2,
+          "end": "2027-03-22",
+          "daysUntil": 92,
+          "ongoing": false
+        },
+        {
+          "holiday": "purim",
+          "kind": "holiday",
+          "start": "2027-03-23",
+          "startWeekday": 2,
+          "startDay": 23,
+          "startMonth": 2,
+          "end": "2027-03-23",
+          "daysUntil": 93,
+          "ongoing": false
+        },
+        {
+          "holiday": "pesach",
+          "kind": "holiday",
+          "start": "2027-04-22",
+          "startWeekday": 4,
+          "startDay": 22,
+          "startMonth": 3,
+          "end": "2027-04-28",
+          "daysUntil": 123,
+          "ongoing": false
+        }
+      ]
+    }
+  },
+  "yomtov": {
+    "source": "hebcal-rehovot-2027-04-19-180d.json",
+    "nowMs": 1808377200000,
+    "today": "2027-04-22",
+    "snapshot": {
+      "today": {
+        "date": "2027-04-22",
+        "weekday": 4,
+        "day": 22,
+        "month": 3,
+        "hebrew": {
+          "day": 15,
+          "month": "Nisan",
+          "year": 5787,
+          "he": "ט״ו בניסן תשפ״ז"
+        }
+      },
+      "state": "yomtov",
+      "window": {
+        "kind": "yomtov",
+        "holiday": "pesach",
+        "parasha": null,
+        "during": "pesach",
+        "candles": {
+          "at": 1808322780000,
+          "date": "2027-04-21",
+          "weekday": 3,
+          "time": "18:53"
+        },
+        "havdalah": {
+          "at": 1808412720000,
+          "date": "2027-04-22",
+          "weekday": 4,
+          "time": "19:52"
+        },
+        "daysToCandles": 0,
+        "minutesToCandles": null
+      },
+      "note": {
+        "kind": "holiday",
+        "holiday": "pesach"
+      },
+      "upcoming": [
+        {
+          "holiday": "pesach",
+          "kind": "holiday",
+          "start": "2027-04-22",
+          "startWeekday": 4,
+          "startDay": 22,
+          "startMonth": 3,
+          "end": "2027-04-28",
+          "daysUntil": 0,
+          "ongoing": true
+        },
+        {
+          "holiday": "yom-hashoah",
+          "kind": "holiday",
+          "start": "2027-05-04",
+          "startWeekday": 2,
+          "startDay": 4,
+          "startMonth": 4,
+          "end": "2027-05-04",
+          "daysUntil": 12,
+          "ongoing": false
+        },
+        {
+          "holiday": "yom-hazikaron",
+          "kind": "holiday",
+          "start": "2027-05-11",
+          "startWeekday": 2,
+          "startDay": 11,
+          "startMonth": 4,
+          "end": "2027-05-11",
+          "daysUntil": 19,
+          "ongoing": false
+        },
+        {
+          "holiday": "yom-haatzmaut",
+          "kind": "holiday",
+          "start": "2027-05-12",
+          "startWeekday": 3,
+          "startDay": 12,
+          "startMonth": 4,
+          "end": "2027-05-12",
+          "daysUntil": 20,
+          "ongoing": false
+        },
+        {
+          "holiday": "lag-baomer",
+          "kind": "holiday",
+          "start": "2027-05-25",
+          "startWeekday": 2,
+          "startDay": 25,
+          "startMonth": 4,
+          "end": "2027-05-25",
+          "daysUntil": 33,
+          "ongoing": false
+        },
+        {
+          "holiday": "yom-yerushalayim",
+          "kind": "holiday",
+          "start": "2027-06-04",
+          "startWeekday": 5,
+          "startDay": 4,
+          "startMonth": 5,
+          "end": "2027-06-04",
+          "daysUntil": 43,
+          "ongoing": false
+        }
+      ]
+    }
+  },
+  "yomkippur": {
+    "source": "hebcal-rehovot-2027-09-28-180d.json",
+    "nowMs": 1823238000000,
+    "today": "2027-10-11",
+    "snapshot": {
+      "today": {
+        "date": "2027-10-11",
+        "weekday": 1,
+        "day": 11,
+        "month": 9,
+        "hebrew": {
+          "day": 10,
+          "month": "Tishrei",
+          "year": 5788,
+          "he": "י׳ בתשרי תשפ״ח"
+        }
+      },
+      "state": "yomtov",
+      "window": {
+        "kind": "yomtov",
+        "holiday": "yom-kippur",
+        "parasha": null,
+        "during": "yom-kippur",
+        "candles": {
+          "at": 1823180040000,
+          "date": "2027-10-10",
+          "weekday": 0,
+          "time": "17:54"
+        },
+        "havdalah": {
+          "at": 1823269800000,
+          "date": "2027-10-11",
+          "weekday": 1,
+          "time": "18:50"
+        },
+        "daysToCandles": 0,
+        "minutesToCandles": null
+      },
+      "note": {
+        "kind": "holiday",
+        "holiday": "yom-kippur"
+      },
+      "upcoming": [
+        {
+          "holiday": "yom-kippur",
+          "kind": "holiday",
+          "start": "2027-10-11",
+          "startWeekday": 1,
+          "startDay": 11,
+          "startMonth": 9,
+          "end": "2027-10-11",
+          "daysUntil": 0,
+          "ongoing": true
+        },
+        {
+          "holiday": "sukkot",
+          "kind": "holiday",
+          "start": "2027-10-16",
+          "startWeekday": 6,
+          "startDay": 16,
+          "startMonth": 9,
+          "end": "2027-10-22",
+          "daysUntil": 5,
+          "ongoing": false
+        },
+        {
+          "holiday": "shmini-atzeret",
+          "kind": "holiday",
+          "start": "2027-10-23",
+          "startWeekday": 6,
+          "startDay": 23,
+          "startMonth": 9,
+          "end": "2027-10-23",
+          "daysUntil": 12,
+          "ongoing": false
+        },
+        {
+          "holiday": "chanukah",
+          "kind": "holiday",
+          "start": "2027-12-24",
+          "startWeekday": 5,
+          "startDay": 24,
+          "startMonth": 11,
+          "end": "2028-01-01",
+          "daysUntil": 74,
+          "ongoing": false
+        },
+        {
+          "holiday": "asara-btevet",
+          "kind": "fast",
+          "start": "2028-01-09",
+          "startWeekday": 0,
+          "startDay": 9,
+          "startMonth": 0,
+          "end": "2028-01-09",
+          "daysUntil": 90,
+          "ongoing": false
+        },
+        {
+          "holiday": "tu-bishvat",
+          "kind": "holiday",
+          "start": "2028-02-12",
+          "startWeekday": 6,
+          "startDay": 12,
+          "startMonth": 1,
+          "end": "2028-02-12",
+          "daysUntil": 124,
+          "ongoing": false
+        }
+      ]
+    }
+  },
+  "erevHoliday": {
+    "source": "hebcal-rehovot-2028-04-09-180d.json",
+    "nowMs": 1838982000000,
+    "today": "2028-04-10",
+    "snapshot": {
+      "today": {
+        "date": "2028-04-10",
+        "weekday": 1,
+        "day": 10,
+        "month": 3,
+        "hebrew": {
+          "day": 14,
+          "month": "Nisan",
+          "year": 5788,
+          "he": "י״ד בניסן תשפ״ח"
+        }
+      },
+      "state": "erev",
+      "window": {
+        "kind": "yomtov",
+        "holiday": "pesach",
+        "parasha": null,
+        "during": "pesach",
+        "candles": {
+          "at": 1838994360000,
+          "date": "2028-04-10",
+          "weekday": 1,
+          "time": "18:46"
+        },
+        "havdalah": {
+          "at": 1839084300000,
+          "date": "2028-04-11",
+          "weekday": 2,
+          "time": "19:45"
+        },
+        "daysToCandles": 0,
+        "minutesToCandles": 206
+      },
+      "note": null,
+      "upcoming": [
+        {
+          "holiday": "pesach",
+          "kind": "holiday",
+          "start": "2028-04-11",
+          "startWeekday": 2,
+          "startDay": 11,
+          "startMonth": 3,
+          "end": "2028-04-17",
+          "daysUntil": 1,
+          "ongoing": false
+        },
+        {
+          "holiday": "yom-hashoah",
+          "kind": "holiday",
+          "start": "2028-04-24",
+          "startWeekday": 1,
+          "startDay": 24,
+          "startMonth": 3,
+          "end": "2028-04-24",
+          "daysUntil": 14,
+          "ongoing": false
+        },
+        {
+          "holiday": "yom-hazikaron",
+          "kind": "holiday",
+          "start": "2028-05-01",
+          "startWeekday": 1,
+          "startDay": 1,
+          "startMonth": 4,
+          "end": "2028-05-01",
+          "daysUntil": 21,
+          "ongoing": false
+        },
+        {
+          "holiday": "yom-haatzmaut",
+          "kind": "holiday",
+          "start": "2028-05-02",
+          "startWeekday": 2,
+          "startDay": 2,
+          "startMonth": 4,
+          "end": "2028-05-02",
+          "daysUntil": 22,
+          "ongoing": false
+        },
+        {
+          "holiday": "lag-baomer",
+          "kind": "holiday",
+          "start": "2028-05-14",
+          "startWeekday": 0,
+          "startDay": 14,
+          "startMonth": 4,
+          "end": "2028-05-14",
+          "daysUntil": 34,
+          "ongoing": false
+        },
+        {
+          "holiday": "yom-yerushalayim",
+          "kind": "holiday",
+          "start": "2028-05-24",
+          "startWeekday": 3,
+          "startDay": 24,
+          "startMonth": 4,
+          "end": "2028-05-24",
+          "daysUntil": 44,
+          "ongoing": false
+        }
+      ]
+    }
+  },
+  "fastEve": {
+    "source": "hebcal-rehovot-2027-08-09-180d.json",
+    "nowMs": 1818005400000,
+    "today": "2027-08-11",
+    "snapshot": {
+      "today": {
+        "date": "2027-08-11",
+        "weekday": 3,
+        "day": 11,
+        "month": 7,
+        "hebrew": {
+          "day": 8,
+          "month": "Av",
+          "year": 5787,
+          "he": "ח׳ באב תשפ״ז"
+        }
+      },
+      "state": "weekday",
+      "window": {
+        "kind": "shabbat",
+        "holiday": null,
+        "parasha": {
+          "id": "Vaetchanan",
+          "he": "פרשת ואתחנן"
+        },
+        "during": null,
+        "candles": {
+          "at": 1818173220000,
+          "date": "2027-08-13",
+          "weekday": 5,
+          "time": "19:07"
+        },
+        "havdalah": {
+          "at": 1818263040000,
+          "date": "2027-08-14",
+          "weekday": 6,
+          "time": "20:04"
+        },
+        "daysToCandles": 2,
+        "minutesToCandles": null
+      },
+      "note": {
+        "kind": "fast",
+        "holiday": "tisha-bav",
+        "begins": {
+          "at": 1818001740000,
+          "date": "2027-08-11",
+          "weekday": 3,
+          "time": "19:29"
+        },
+        "ends": {
+          "at": 1818089760000,
+          "date": "2027-08-12",
+          "weekday": 4,
+          "time": "19:56"
+        },
+        "active": true
+      },
+      "upcoming": [
+        {
+          "holiday": "tisha-bav",
+          "kind": "fast",
+          "start": "2027-08-12",
+          "startWeekday": 4,
+          "startDay": 12,
+          "startMonth": 7,
+          "end": "2027-08-12",
+          "daysUntil": 1,
+          "ongoing": false
+        },
+        {
+          "holiday": "rosh-hashana",
+          "kind": "holiday",
+          "start": "2027-10-02",
+          "startWeekday": 6,
+          "startDay": 2,
+          "startMonth": 9,
+          "end": "2027-10-03",
+          "daysUntil": 52,
+          "ongoing": false
+        },
+        {
+          "holiday": "tzom-gedaliah",
+          "kind": "fast",
+          "start": "2027-10-04",
+          "startWeekday": 1,
+          "startDay": 4,
+          "startMonth": 9,
+          "end": "2027-10-04",
+          "daysUntil": 54,
+          "ongoing": false
+        },
+        {
+          "holiday": "yom-kippur",
+          "kind": "holiday",
+          "start": "2027-10-11",
+          "startWeekday": 1,
+          "startDay": 11,
+          "startMonth": 9,
+          "end": "2027-10-11",
+          "daysUntil": 61,
+          "ongoing": false
+        },
+        {
+          "holiday": "sukkot",
+          "kind": "holiday",
+          "start": "2027-10-16",
+          "startWeekday": 6,
+          "startDay": 16,
+          "startMonth": 9,
+          "end": "2027-10-22",
+          "daysUntil": 66,
+          "ongoing": false
+        },
+        {
+          "holiday": "shmini-atzeret",
+          "kind": "holiday",
+          "start": "2027-10-23",
+          "startWeekday": 6,
+          "startDay": 23,
+          "startMonth": 9,
+          "end": "2027-10-23",
+          "daysUntil": 73,
+          "ongoing": false
+        }
+      ]
+    }
+  }
+}

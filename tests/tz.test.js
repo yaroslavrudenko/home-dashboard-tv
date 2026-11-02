@@ -150,3 +150,15 @@ test('daylight-saving edges of the rules, to the minute (2026)', () => {
   assert.equal(R.AU_SYD(AT('2026-10-03T15:59:00Z')), 600);
   assert.equal(R.AU_SYD(AT('2026-10-03T16:00:00Z')), 660);
 });
+
+// Batch 12 (S4): the one home of the ISO calendar-date helpers (js/shabbat.js, js/weather.js, js/ledger.js use them).
+test('calendar dates: "YYYY-MM-DD" arithmetic in whole UTC days — no time zone, DST or leap-day drift', () => {
+  const { Tz } = load(FILES);
+  assert.equal(Tz.dateMs('2026-11-02'), Date.UTC(2026, 10, 2));
+  assert.equal(Tz.isoDate(Date.UTC(2026, 10, 2, 23, 59)), '2026-11-02');
+  assert.deepEqual(['2026-11-02', '2026-12-31', '2028-02-28', '2027-03-26'].map((d) => Tz.addDays(d, 1)), ['2026-11-03', '2027-01-01', '2028-02-29', '2027-03-27']);
+  assert.equal(Tz.addDays('2026-11-02', -9), '2026-10-24');
+  assert.deepEqual(['2026-11-06', '2026-11-07', '2027-10-11'].map(Tz.weekdayOf), [5, 6, 1]);
+  assert.deepEqual([Tz.daysBetween('2026-11-02', '2026-12-04'), Tz.daysBetween('2027-03-27', '2027-03-26')], [32, -1]);
+});
+

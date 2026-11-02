@@ -199,3 +199,56 @@ test('L2: news source names are the same in every language; each language names 
   }
 });
 
+
+// ---- Batch 12: the names of the data — 59 weekly parashot (every one Hebcal used over 20 Israeli years), the 19 holidays
+// and fasts on the screen, the 14 Hebrew months — and the screen's own strings, in Russian, Hebrew and Ukrainian, each its
+// own (checked with the English fallback cut out). Keys with a hyphen or an apostrophe escape the L3 scan above, so they
+// are listed here explicitly.
+const PARASHOT = Object.keys(require('./fixtures/hebcal/parashot-names.json'));
+const SLUGS = ['rosh-hashana', 'yom-kippur', 'sukkot', 'shmini-atzeret', 'chanukah', 'tu-bishvat', 'purim', 'shushan-purim', 'pesach', 'yom-hashoah',
+  'yom-hazikaron', 'yom-haatzmaut', 'lag-baomer', 'yom-yerushalayim', 'shavuot', 'tisha-bav', 'tzom-gedaliah', 'asara-btevet', 'taanit-esther', 'tzom-tammuz'];
+const MONTHS = ['Nisan', 'Iyyar', 'Sivan', 'Tamuz', 'Av', 'Elul', 'Tishrei', 'Cheshvan', 'Kislev', 'Tevet', "Sh'vat", 'Adar', 'Adar I', 'Adar II'];
+const B12_UI = ['screen.shabbat', 'sh.failed', 'sh.candles', 'sh.havdalah', 'sh.week', 'sh.shabbat', 'sh.parashaOf', 'sh.greet.shabbat',
+  'sh.greet.yomtov', 'sh.greet.yomkippur', 'sh.today', 'sh.tomorrow', 'sh.inDays', 'sh.inHM', 'sh.inM', 'sh.ongoing', 'sh.todayIs', 'sh.fastTimes',
+  'sh.upcoming', 'sh.hdate', 'w.uv', 'w.air', 'w.noData', 'w.dust', 'w.uv.low', 'w.uv.moderate', 'w.uv.high', 'w.uv.veryHigh', 'w.uv.extreme',
+  'w.air.good', 'w.air.fair', 'w.air.moderate', 'w.air.poor', 'w.air.veryPoor', 'w.air.extreme', 'w.air.dustWord'];
+
+test('B12: 59 parashot, 20 holidays and fasts (+ Shushan Purim, S9-2), 14 months and the screen\'s strings — own words in Russian, Hebrew and Ukrainian', () => {
+  const { I18n } = withoutFallback();
+  assert.equal(PARASHOT.length, 59);
+  const keys = B12_UI.concat(PARASHOT.map((p) => 'sh.parasha.' + p), SLUGS.map((s) => 'sh.h.' + s), MONTHS.map((m) => 'sh.month.' + m));
+  const seen = {};
+  for (const lang of ['ru', 'he', 'uk']) {
+    I18n.setLang(lang);
+    for (const k of keys) {
+      const v = I18n.t(k);
+      assert.ok(v && v !== k, lang + ' ' + k);
+      seen[lang + ' ' + k] = v;
+    }
+  }
+  I18n.setLang('uk');
+  for (const k of keys) assert.ok(!/[ыэъё]/i.test(I18n.t(k)), 'uk ' + k + ' has a Russian-only letter: ' + I18n.t(k));
+  I18n.setLang('he');
+  for (const k of keys) {
+    if (k === 'w.uv' || k === 'sh.hdate') continue;                       // «מדד UV», «{day} ב{month} {year}»: checked below
+    if (/^(sh\.week|sh\.parashaOf|sh\.todayIs|sh\.fastTimes)$/.test(k)) continue;   // a {name} template: Hebrew words around it
+    assert.match(I18n.t(k, { n: 1, h: 1, m: 5 }), /[֐-׿]/, 'he ' + k + ' is Hebrew');
+  }
+  // two parashot named the same in Russian (Hebcal's «Ваера» for both): never confused
+  assert.notEqual(seen['ru sh.parasha.Vayera'], seen['ru sh.parasha.Vaera']);
+});
+
+test('B12: the short date of a list: short weekday, day, month in each language', () => {
+  const ctx = load(FILES);
+  const d = (lang) => { ctx.I18n.setLang(lang); return ctx.I18n.dateShort(5, 4, 11); };
+  assert.deepEqual(['ru', 'he', 'uk', 'en'].map(d), ['Пт, 4 декабря', 'שישי, 4 בדצמבר', 'Пт, 4 грудня', 'Fri, December 4']);
+});
+
+test('FIX-12B: «Сегодня, 10 апреля» needs a day-month form; the unused «sh.loading» is gone', () => {
+  const ctx = load(FILES);
+  const d = (lang) => { ctx.I18n.setLang(lang); return ctx.I18n.dayMonth(10, 3); };
+  assert.deepEqual(['ru', 'he', 'uk', 'en'].map(d), ['10 апреля', '10 באפריל', '10 квітня', 'April 10']);
+  for (const lang of ['ru', 'he', 'uk', 'en']) { ctx.I18n.setLang(lang); assert.equal(ctx.I18n.t('sh.loading'), 'sh.loading', lang); }
+  ctx.I18n.setLang('ru');
+  assert.equal(ctx.I18n.t('w.uv'), 'УФ макс.');
+});

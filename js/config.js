@@ -55,13 +55,47 @@ var Config = {
     days: 7                             // daily list length
   },
 
+  // Air quality (js/air.js): Open-Meteo's air-quality API, no key, ONE request for the home city and the Israel regions
+  // (the App passes them). The data are hourly (CAMS), so it is asked hourly; the same back-off as the weather. Dust is
+  // flagged from dustUgm3 µg/m³: twice the EU daily PM10 limit from dust alone (ordinary haze reads 10–32, 2026-11-02).
+  air: {
+    base: 'https://air-quality-api.open-meteo.com/v1/air-quality',
+    refreshMs: 60 * 60 * 1000,
+    timeoutMs: 15 * 1000,
+    retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
+    retryFloorMs: 30 * 1000,
+    staleAfterMs: 3 * 60 * 60 * 1000,
+    dustUgm3: 100
+  },
+
+  // The Shabbat & holidays screen (js/shabbat.js): ONE Hebcal request (no key) for the home city, from 9 days back (an
+  // ongoing holiday keeps its first day) to lookaheadDays ahead — 180 is the shortest lookahead that always holds `upcoming` holidays (measured over a year of
+  // start days) — once a day, plus when the screen is opened and when the TV wakes with old data; no polling; a failing
+  // source is retried with the usual back-off and then at most every retryMaxMs. `place` ({ geo: GeoNames id or null,
+  // lat, lon, candleMins, shushanPurim }) is the home city's, written at boot (js/homecity.js). Shown: the festivals,
+  // the four Israeli national days of `holidays` and the public fasts of `fasts` (Hebcal's ids).
+  shabbat: {
+    base: 'https://www.hebcal.com/hebcal',
+    lookaheadDays: 180,
+    upcoming: 6,                        // rows of the holiday list
+    refreshMs: 24 * 60 * 60 * 1000,
+    timeoutMs: 15 * 1000,
+    retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
+    retryFloorMs: 30 * 1000,
+    retryMaxMs: 60 * 60 * 1000,         // past retryMs: an outage is retried hourly, never only the next day
+    staleAfterMs: 48 * 60 * 60 * 1000,
+    holidays: ['rosh-hashana', 'yom-kippur', 'sukkot', 'shmini-atzeret', 'chanukah', 'tu-bishvat', 'purim', 'pesach',
+      'yom-hashoah', 'yom-hazikaron', 'yom-haatzmaut', 'lag-baomer', 'yom-yerushalayim', 'shavuot'],
+    fasts: ['tzom-gedaliah', 'asara-btevet', 'taanit-esther', 'tzom-tammuz', 'tisha-bav']
+  },
+
   // Screens, switched with the remote's ◀ ▶: 'main' (clocks + weather), 'israel' (the weather across Israel), 'news',
-  // 'markets' (shares, crypto, indices, currencies, commodities), 'traffic' (ten routes), 'map' (the traffic map with the
-  // highways), 'alerts' (Pikud HaOref: home, nearby and the recent alerts in Israel). Auto-rotation shows the
+  // 'markets' (shares, crypto, indices, currencies, commodities), 'shabbat' (candle lighting, havdalah and the next holidays
+  // of the home city), 'traffic' (ten routes), 'map' (the traffic map with the highways), 'alerts' (Pikud HaOref: home, nearby and the recent alerts in Israel). Auto-rotation shows the
   // next one every intervalMs (enabled: false turns it off) — a screen named in dwellMs stays that long instead (the
   // markets 90 s: the owner, 2026-11-02); any key press pauses it for pauseAfterKeyMs, and an
   // alert at home (alerts.areas) holds it while the alert is up and for afterAlertMs after it clears.
-  screens: ['main', 'israel', 'news', 'markets', 'traffic', 'map', 'alerts'],
+  screens: ['main', 'israel', 'news', 'markets', 'shabbat', 'traffic', 'map', 'alerts'],
   rotation: { enabled: true, intervalMs: 45 * 1000, dwellMs: { markets: 90 * 1000 }, pauseAfterKeyMs: 2 * 60 * 1000, afterAlertMs: 2 * 60 * 1000 },
 
   // News: two columns, each one feed's top stories, newest first; the interface language picks the feeds (only the

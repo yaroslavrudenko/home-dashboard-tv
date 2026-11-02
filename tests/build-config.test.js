@@ -20,7 +20,9 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 // Batch 11: the Markets screen's quotes (Yahoo's spark endpoint on query1) and daily rates (open.er-api).
 const DATA = ['https://api.open-meteo.com', 'https://www.newsru.co.il', 'https://www.ynet.co.il', 'https://www.globes.co.il',
   'https://www.pravda.com.ua', 'https://epravda.com.ua', 'https://www.oref.org.il', 'https://alerts-history.oref.org.il', 'https://api.mapbox.com',
-  'https://query1.finance.yahoo.com', 'https://open.er-api.com'];
+  'https://query1.finance.yahoo.com', 'https://open.er-api.com',
+  // Batch 12: the air quality (Open-Meteo's air-quality API) and the Shabbat & holidays calendar (Hebcal).
+  'https://air-quality-api.open-meteo.com', 'https://www.hebcal.com'];
 const ORIGINS = DATA;
 test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV profile, internet, exactly the hosts the app reads', () => {
   const x = read('config.xml');

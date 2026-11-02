@@ -197,6 +197,92 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .range-dot { position: absolute; top: 0; width: 16px; height: 16px; border-radius: 8px; background: #fff; border: 3px solid #1c2440; }
 .day.is-empty .skeleton { flex: 1 1 auto; height: 24px; }
 
+/* ---- Batch 12. The air & UV block in the "now" card: in the free gap between the place's text and the big icon, no
+   glyphs; a label, then the figure and the level word (atomic, a line wraps only between them); the dust line only
+   when the dust is high. .now-top keeps its height. Level colours are soft and always come with the word. ---- */
+.now-air { flex: 0 0 240px; width: 240px; -webkit-margin-start: auto; -webkit-margin-end: 32px; display: flex; flex-direction: column; justify-content: flex-start; }   /* fixed and top-aligned: the dust line moves nothing */
+.air-item + .air-item { margin-top: 20px; }
+.air-label { font-size: 24px; line-height: 30px; color: rgba(255, 255, 255, 0.62); white-space: nowrap;
+  -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space «УФ-индекс» apart */
+.air-value { font-size: 24px; line-height: 38px; min-height: 38px; }
+.air-num, .air-word, .air-none, .air-dust { display: inline-block; white-space: nowrap; }
+.air-num { font-size: 30px; color: rgba(255, 255, 255, 0.92); -webkit-margin-end: 4px; }
+.air-none { color: rgba(255, 255, 255, 0.62); }
+.air-skeleton { display: inline-block; width: 140px; height: 24px; vertical-align: middle; }
+.air-dust { font-size: 24px; line-height: 30px; }
+.now.is-stale .air-uv .air-num, .now.is-stale .air-uv .air-word, .now-air.is-stale .air-aq .air-num,
+.now-air.is-stale .air-aq .air-word, .now-air.is-stale .air-dust { opacity: 0.72; }
+.air-uv.is-night .air-word { color: rgba(255, 255, 255, 0.62); }   /* after sunset: the day's peak is behind */
+.lv-low, .lv-good { color: #8ce6b4; }
+.lv-fair { color: #b9e6c9; }
+.lv-moderate { color: #ffd58f; }
+.lv-high, .lv-poor { color: #ffb38a; }
+.lv-veryHigh, .lv-veryPoor { color: #ff9a8c; }
+.lv-extreme { color: #ff8fb0; }
+.lv-dust, .air-dust { color: #ffb38a; }
+/* the Israel cards: one chip at the end of the region head (the glyph in the level's colour, then the word) */
+.region-air { display: block; -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; line-height: 32px; white-space: nowrap; }   /* its text on the city's baseline */
+.region-air.is-reserved { min-height: 28px; }
+.region-air .icon { display: inline-block; width: 28px; height: 28px; vertical-align: -6px; -webkit-margin-end: 8px; stroke-width: 4.5; }
+.region-air .ic-air { stroke: currentColor; }
+.region-air.is-stale { opacity: 0.72; }
+
+/* the new glyphs' quiet default (as .ic-car, .ic-news): the empty state's candles; places that tint them say so below */
+.ic-candles, .ic-havdalah, .ic-fast, .ic-air { stroke: rgba(255, 255, 255, 0.85); }
+/* ---- Batch 12. The Shabbat & holidays screen: card A two clock columns wide, card C one, so the seams line up with the
+   main screen. Words: proportional figures; the times and counts that change in place: tabular. ---- */
+.sh-body { flex-direction: row; -webkit-font-feature-settings: normal; font-feature-settings: normal; }
+.sh-week { flex: 1 1 auto; min-width: 0; -webkit-margin-end: 28px; padding: 32px 40px; display: flex; flex-direction: column; }
+.sh-list { flex: 0 0 auto; width: calc((100% - 56px) / 3); padding: 32px 40px 24px; display: flex; flex-direction: column; }
+.sh-place { font-size: 34px; font-weight: 500; line-height: 41px; color: rgba(255, 255, 255, 0.92); }
+.sh-date { margin-top: 8px; font-size: 28px; line-height: 34px; min-height: 34px; color: rgba(255, 255, 255, 0.62); }
+.sh-hdate { margin-top: 8px; font-size: 72px; font-weight: 300; line-height: 86px; min-height: 86px; white-space: nowrap; color: rgba(255, 255, 255, 0.95); }
+.sh-note { display: flex; align-items: center; height: 36px; margin-top: 16px; font-size: 28px; color: rgba(255, 255, 255, 0.72); white-space: nowrap; }
+.sh-note .icon { width: 32px; height: 32px; -webkit-margin-end: 12px; stroke-width: 4; }
+.sh-note .ic-fast { stroke: currentColor; }
+.sh-note.is-active { color: #ffcf8a; }
+.sh-rule { margin-top: auto; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.sh-title { margin-top: 32px; min-height: 32px; }
+.sh-tiles { flex: 0 0 auto; display: flex; margin-top: 16px; }   /* the tiles fit their content; the free space goes above the rule */
+.sh-tile { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; padding: 36px 40px; border-radius: 24px; background: rgba(255, 255, 255, 0.045); }
+.sh-tile + .sh-tile { -webkit-margin-start: 28px; }
+.sh-tile-head { display: flex; align-items: center; font-size: 30px; font-weight: 500; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
+.sh-tile-head .icon { width: 44px; height: 44px; -webkit-margin-end: 12px; stroke-width: 3.5; }
+.sh-tile-head .ic-candles, .sh-calm-line .ic-havdalah, .sh-tile-head .ic-havdalah { stroke: #ffd58f; }
+.sh-tile-date { margin-top: 12px; font-size: 28px; line-height: 34px; min-height: 34px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.sh-tile-time { margin-top: 24px; font-size: 136px; font-weight: 300; line-height: 1; min-height: 136px; white-space: nowrap; }
+.sh-tile-in { margin-top: 12px; height: 34px; font-size: 28px; line-height: 34px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.sh-tile-in.is-soon, .sh-row-in.is-soon { color: #ffd58f; }   /* a week or less: amber; further away: quiet */
+.sh-tile-time, .sh-tile-in, .sh-row-in, .sh-note { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
+.sh-skel { display: inline-block; vertical-align: middle; }
+.sh-skel-date { width: 340px; height: 26px; }
+.sh-skel-hdate { width: 520px; height: 64px; }
+.sh-skel-title { width: 360px; height: 24px; }
+.sh-skel-day { width: 260px; height: 26px; }
+.sh-skel-time { width: 330px; height: 104px; }
+.sh-skel-name { display: block; width: 220px; height: 30px; }
+.sh-skel-sub { display: block; width: 300px; height: 24px; margin-top: 12px; }
+/* Shabbat or a yom tov is in: a warm, calm card; the words say it, the tint only accompanies them */
+.sh-week.is-calm { background: linear-gradient(180deg, rgba(255, 200, 140, 0.11) 0%, rgba(255, 255, 255, 0.04) 100%); }
+.sh-calm { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.sh-calm-greet { font-size: 96px; font-weight: 300; line-height: 1.1; color: #ffe2b8; }
+.sh-calm-name { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.9); }
+.sh-calm-line { display: flex; align-items: center; margin-top: 32px; font-size: 30px; color: rgba(255, 255, 255, 0.72); white-space: nowrap; }
+.sh-calm-time { font-weight: 500; color: rgba(255, 255, 255, 0.95); }
+.sh-calm-line .icon { width: 40px; height: 40px; -webkit-margin-end: 12px; stroke-width: 3.5; }
+/* card C: six rows on one pitch, from the top; a name may take two lines, the date and the count one */
+.sh-rows { display: flex; flex-direction: column; margin-top: 8px; }
+.sh-row { flex: 0 0 128px; height: 128px; display: flex; flex-direction: column; justify-content: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.sh-row:first-child { border-top: 0; }
+.sh-row:empty { border-top-color: transparent; }
+.sh-row-name { font-size: 32px; font-weight: 500; line-height: 40px; color: rgba(255, 255, 255, 0.92); }
+.sh-row-sub { display: flex; justify-content: space-between; margin-top: 6px; font-size: 26px; line-height: 32px; white-space: nowrap; }
+.sh-row-date { color: rgba(255, 255, 255, 0.62); }
+.sh-row-in { -webkit-padding-start: 16px; color: rgba(255, 255, 255, 0.62); }
+.sh-row-in.is-ongoing { color: #8ce6b4; }
+.sh-row-name .icon { display: inline-block; width: 32px; height: 32px; vertical-align: -5px; -webkit-margin-end: 10px; stroke-width: 4; }   /* a fast: its glyph */
+.sh-row.is-empty { justify-content: center; }
+
 /* ---- News, Traffic and the alert are mostly words: proportional figures (tabular ones space out hyphens, as in
    "Тель-Авив"); only the figures that change in place stay tabular. */
 #screen-news, #screen-traffic, #screen-map, #screen-alerts, .corner, .alert, .banner { -webkit-font-feature-settings: normal; font-feature-settings: normal; }

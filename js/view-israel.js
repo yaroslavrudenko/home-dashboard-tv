@@ -15,8 +15,23 @@ var IsraelView = (function () {
     drawn = {};
   }
 
-  function headHtml(r) {
-    return '<div class="region-head"><span class="region-name">' + esc(I18n.t('r.' + r.id)) + '</span><span class="region-city">' + esc(I18n.t('place.' + r.place)) + '</span></div>';
+  // Batch 12: the air chip at the end of the head — the air glyph and one word: the level's, or «пыль» when the dust is
+  // high (even with no AQI: FIX-12B V12); the colour is the level's (dust alone: the dust colour). Before the first air
+  // answer an empty reserved box; nothing to say: no chip; stale: dimmed. What it shows, as data: { cls, word } | null —
+  // the card's key is made of this, never of the raw numbers (V13: AQI 31 → 39, both «приемлемое», redraws nothing).
+  function chipOf(card) {
+    var a = card.air || null;
+    if (!a && (card.airKind === 'loading' || card.airKind === undefined)) return { cls: 'is-reserved', word: '' };
+    if (!a || (a.level === null && !a.dustHigh)) return null;
+    return { cls: 'lv-' + (a.level || 'dust') + (card.airKind === 'stale' ? ' is-stale' : ''), word: a.dustHigh ? 'w.air.dustWord' : 'w.air.' + a.level };
+  }
+  function airChip(chip) {
+    if (!chip) return '';
+    return '<span class="region-air ' + chip.cls + '">' + (chip.word ? Icons.glyph('air') + '<span class="region-air-word">' + esc(I18n.t(chip.word)) + '</span>' : '') + '</span>';
+  }
+  function headHtml(r, card) {
+    return '<div class="region-head"><span class="region-name">' + esc(I18n.t('r.' + r.id)) + '</span><span class="region-city">' + esc(I18n.t('place.' + r.place)) + '</span>' +
+      airChip(chipOf(card)) + '</div>';
   }
   // The sub line's parts never break inside ("км/год" is one word); a line too long for the card wraps between them.
   function part(text) { return '<span class="region-part">' + esc(text) + '</span>'; }
@@ -28,12 +43,13 @@ var IsraelView = (function () {
       '<div class="region-cond">' + esc(I18n.condition(c.code)) + '</div><div class="region-sub">' + sub.join(' · ') + '</div>';
   }
 
-  // card: { region, view (Weather.forHour, the days cut to the screen's count) or null, kind, retryAt }.
+  // card: { region, view (Weather.forHour, the days cut to the screen's count) or null, kind, retryAt, air (Air.summary or
+  // null), airKind }.
   function cardHtml(card, days) {
     var v = card.view;
-    if (!v) return headHtml(card.region) + Html.emptyState(Icons.weather(3, true), I18n.t(card.kind === 'failed' ? 'w.failed' : 'w.loading'),
+    if (!v) return headHtml(card.region, card) + Html.emptyState(Icons.weather(3, true), I18n.t(card.kind === 'failed' ? 'w.failed' : 'w.loading'),
       card.kind === 'failed' ? Html.retryText(card.retryAt) : '');
-    return headHtml(card.region) + nowHtml(v.current) + '<div class="card-title region-days-title">' + esc(I18n.t('w.days', { n: days })) + '</div>' +
+    return headHtml(card.region, card) + nowHtml(v.current) + '<div class="card-title region-days-title">' + esc(I18n.t('w.days', { n: days })) + '</div>' +
       '<div class="days">' + View.dailyHtml(v) + '</div>';
   }
 
@@ -41,7 +57,8 @@ var IsraelView = (function () {
   // unique mask ids, so the HTML itself cannot be compared). status: { kind, updated ("HH:MM") } for the header.
   function render(cards, days, status) {
     for (var i = 0; i < cards.length; i++) {
-      var c = cards[i], key = c.key + '|' + I18n.lang();
+      // the chip is part of what the card shows: what it shows (not the raw air numbers) is in the key
+      var c = cards[i], key = c.key + '|' + JSON.stringify(chipOf(c)) + '|' + I18n.lang();
       if (drawn[c.region.id] === key) continue;
       drawn[c.region.id] = key;
       var el = els.el.querySelector('#region-' + c.region.id);

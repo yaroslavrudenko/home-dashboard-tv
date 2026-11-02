@@ -1,10 +1,11 @@
 /* The home city: which one it is, and everything the dashboard derives from it — the main weather card, the traffic
- * routes and their two columns, the traffic map, the alert areas at home and nearby. Written into Config once, at boot,
+ * routes and their two columns, the traffic map, the alert areas at home and nearby, the Shabbat calendar's place. Written into Config once, at boot,
  * before anything is made (a change of city reloads the app: js/app.js). ES5. No DOM.
  *   HomeCity.resolve(cities, storedId, buildId)  the stored choice when it names a catalogue city, else the build's
  *                                                (Config.homeCity), else 'rehovot'
  *   HomeCity.find(cities, id)       the catalogue entry of a city or a route destination (js/cities.js), or null
- *   HomeCity.derive(cities, id)     { id, city, place, routes, columns, map, alerts: { areas, nearby }, names }
+ *   HomeCity.derive(cities, id)     { id, city, place, routes, columns, map, alerts: { areas, nearby }, names,
+ *                                   shabbat: { geo (GeoNames id or null), lat, lon, candleMins (or null), shushanPurim } }
  *   HomeCity.apply(config, derived) writes the derived sections into Config
  *   HomeCity.name(entry, lang)      the entry's name in the interface language (English where it has none)
  * An entry may carry its own `near` (route ids), `alertsNearby` (city ids) and `map` ({ center, zoom }): Rehovot does,
@@ -81,11 +82,13 @@ var HomeCity = (function () {
     var map = city.map || { center: city.at, zoom: MAP_ZOOM };
     return { id: city.id, city: city, place: { id: HOME_PLACE, lat: city.at[0], lon: city.at[1] }, routes: routes,
       columns: [{ id: 'cities', legs: columns }, { id: 'near', legs: near }],
-      map: { center: map.center, zoom: map.zoom, home: city.at }, alerts: { areas: [area(city)], nearby: areas }, names: names };
+      map: { center: map.center, zoom: map.zoom, home: city.at }, alerts: { areas: [area(city)], nearby: areas }, names: names,
+      shabbat: { geo: city.geo || null, lat: city.at[0], lon: city.at[1], candleMins: city.candleMins || null, shushanPurim: !!city.shushanPurim } };
   }
 
   // The derived sections into Config: the main weather place (and the Israel clock's temperature with it), the routes and
-  // their columns, the map's centre / zoom / home dot, the alert areas; Config.home keeps the city and the names.
+  // their columns, the map's centre / zoom / home dot, the alert areas, the Shabbat calendar's place; Config.home keeps the
+  // city and the names.
   function apply(config, d) {
     config.places[0] = d.place;
     config.clocks[0].place = d.place.id;
@@ -96,6 +99,7 @@ var HomeCity = (function () {
     config.map.home = d.map.home;
     config.alerts.areas = d.alerts.areas;
     config.alerts.nearby = d.alerts.nearby;
+    config.shabbat.place = d.shabbat;
     config.home = { id: d.id, city: d.city, names: d.names };
   }
 

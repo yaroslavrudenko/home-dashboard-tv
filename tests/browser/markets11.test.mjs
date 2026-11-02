@@ -155,13 +155,13 @@ for (const [lang, dir] of [['ru', 'ltr'], ['he', 'rtl'], ['uk', 'ltr']]) {
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); return e.defaultPrevented; }, code);
 const LEFT = 37, RIGHT = 39, DOWN = 40;
 const QUIET = { news: 'ok', alerts: 'empty-bom.txt', markets: 'ok' };   // FIX-11B C8: the recorded answers
-const SCREENS = ['main', 'israel', 'news', 'markets', 'traffic', 'map', 'alerts'];
+const SCREENS = ['main', 'israel', 'news', 'markets', 'shabbat', 'traffic', 'map', 'alerts'];   // batch 12: Shabbat after the markets
 async function ready(app) { await app.page.waitForSelector('.day', { timeout: 10000 }); await wait(200); }
 const gets = (app) => app.requests.markets.filter((r) => r.method === 'GET').length;
 const screenOn = (p) => p.evaluate(() => document.querySelector('.screen.is-active').id);
 const toMarkets = async (p) => { for (let i = 0; i < SCREENS.indexOf('markets'); i++) await press(p, RIGHT); };
 
-test('M1: the Markets screen comes right after the news — seven page dots, the fourth lit; drawn at once (never an empty screen)', async () => {
+test('M1: the Markets screen comes right after the news — eight page dots, the fourth lit; drawn at once (never an empty screen)', async () => {
   const app = await openApp(QUIET);
   try {
     await ready(app);
@@ -174,7 +174,7 @@ test('M1: the Markets screen comes right after the news — seven page dots, the
     assert.deepEqual(await p.$$eval('.dot', (d) => d.map((e) => e.className)), SCREENS.map((id) => (id === 'markets' ? 'dot is-on' : 'dot')));
     assert.ok((await p.$eval('#screen-markets', (e) => e.textContent.trim())).length > 0, 'something is drawn: a loading or no-data state at least');
     await press(p, RIGHT); await wait(500);
-    assert.equal(await screenOn(p), 'screen-traffic', 'everything after it moved on by one');
+    assert.equal(await screenOn(p), 'screen-shabbat', 'the Shabbat screen comes next (batch 12)');
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
 });

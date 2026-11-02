@@ -8,7 +8,7 @@ import { openApp, measure, newsSource } from './page.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); return e.defaultPrevented; }, code);
 const YELLOW = 405, RIGHT = 39, LEFT = 37;
-const SCREENS = ['main', 'israel', 'news', 'markets', 'traffic', 'map', 'alerts'];   // batch 11: Markets after the news
+const SCREENS = ['main', 'israel', 'news', 'markets', 'shabbat', 'traffic', 'map', 'alerts'];   // batch 11: Markets after the news; batch 12: Shabbat after the markets
 const TOKEN = (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; };
 const QUIET = { news: 'ok', alerts: 'empty-bom.txt', traffic: 'ok', map: 'ok', configure: TOKEN };
 async function ready(app) { await app.page.waitForSelector('.day', { timeout: 10000 }); await wait(300); }
@@ -25,15 +25,15 @@ test('L1: the yellow key cycles Русский → עברית → Українс
     await ready(app);
     const p = app.page;
     let s = await state(p);
-    assert.deepEqual([s.lang, s.dir, s.stored, s.titles, s.israel], ['ru', 'ltr', null, ['Погода в Израиле', 'Новости', 'Рынки', 'Пробки', 'Карта пробок', 'Тревоги'], 'Израиль']);
+    assert.deepEqual([s.lang, s.dir, s.stored, s.titles, s.israel], ['ru', 'ltr', null, ['Погода в Израиле', 'Новости', 'Рынки', 'Шабат и праздники', 'Пробки', 'Карта пробок', 'Тревоги'], 'Израиль']);
     assert.equal(await press(p, YELLOW), true, 'the key is the app\'s');
     s = await state(p);
     assert.deepEqual([s.lang, s.dir, s.stored, s.toast, s.titles, s.israel],
-      ['he', 'rtl', 'he', ['toast is-on', 'עברית'], ['מזג האוויר בישראל', 'חדשות', 'שווקים', 'תנועה', 'מפת תנועה', 'התרעות'], 'ישראל']);
+      ['he', 'rtl', 'he', ['toast is-on', 'עברית'], ['מזג האוויר בישראל', 'חדשות', 'שווקים', 'שבת וחגים', 'תנועה', 'מפת תנועה', 'התרעות'], 'ישראל']);
     await press(p, YELLOW);
     s = await state(p);
     assert.deepEqual([s.lang, s.dir, s.stored, s.toast, s.titles, s.israel],
-      ['uk', 'ltr', 'uk', ['toast is-on', 'Українська'], ['Погода в Ізраїлі', 'Новини', 'Ринки', 'Затори', 'Карта заторів', 'Тривоги'], 'Ізраїль']);
+      ['uk', 'ltr', 'uk', ['toast is-on', 'Українська'], ['Погода в Ізраїлі', 'Новини', 'Ринки', 'Шабат і свята', 'Затори', 'Карта заторів', 'Тривоги'], 'Ізраїль']);
     await press(p, YELLOW);
     s = await state(p);
     assert.deepEqual([s.lang, s.stored, s.toast[1], s.israel], ['ru', 'ru', 'Русский', 'Израиль']);

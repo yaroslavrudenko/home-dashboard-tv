@@ -2,19 +2,20 @@
  *   Weather.url(places, cfg)           ONE request carries everything the dashboard shows for every place
  *   Weather.parse(json, cfg)           one place's answer → the model; throws only when current weather is unusable
  *   Weather.forHour(model, hourKey, cfg) the rows to show now: the hourly strip and the days from the wall clock
- *   Weather.createStore(...)           one request per refresh (js/refresher.js), last good data kept
+ *   Weather.uv(raw)                    a day's UV maximum → { index (rounded), level } or null
+ *   Weather.createStore(...)           one request per refresh (js/placestore.js), last good data kept
  * Times in the answer are the place's local wall time (timezone=auto), so sunrise "06:01" and the hourly
  * labels need no time-zone arithmetic here. */
 var Weather = (function () {
   var CURRENT = 'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day';
   var HOURLY = 'temperature_2m,weather_code,precipitation_probability,is_day';
-  var DAILY = 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max';
+  var DAILY = 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,precipitation_probability_max,uv_index_max';
+  // The UV levels on the rounded index (WHO): at most 2 low, 5 moderate, 7 high, 10 very high, above that extreme.
+  var UV_LEVELS = [[2, 'low'], [5, 'moderate'], [7, 'high'], [10, 'veryHigh']], opt = OpenMeteo.num;
 
   // Open-Meteo accepts comma-separated coordinates and answers with one element per place, in order.
   function url(places, cfg) {
-    var lat = [], lon = [];
-    for (var i = 0; i < places.length; i++) { lat.push(places[i].lat); lon.push(places[i].lon); }
-    return cfg.base + '?latitude=' + lat.join(',') + '&longitude=' + lon.join(',') +
+    return cfg.base + '?' + OpenMeteo.query(places) +
       '&current=' + CURRENT + '&hourly=' + HOURLY + '&daily=' + DAILY +
       '&timezone=auto&forecast_days=' + cfg.days + '&forecast_hours=' + cfg.forecastHours + '&wind_speed_unit=kmh';
   }
@@ -24,17 +25,11 @@ var Weather = (function () {
     return value;
   }
   function num(value, what) {
-    var n = need(value, what);
-    if (typeof n !== 'number' || isNaN(n)) throw new Error('weather: not a number ' + what);
-    return n;
+    if (opt(need(value, what)) === null) throw new Error('weather: not a number ' + what);
+    return value;
   }
-  function opt(value) { return typeof value === 'number' && !isNaN(value) ? value : null; }
   function cell(arr, i) { return arr ? arr[i] : undefined; }       // a missing optional array is a missing cell
   function hhmm(iso) { return iso ? String(iso).slice(11, 16) : null; }   // "2026-10-29T06:01" → "06:01"
-  function weekdayOf(isoDate) {                                      // "2026-10-29" → 4 (Thursday)
-    var p = String(isoDate).split('-');
-    return new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])).getUTCDay();
-  }
 
   // Current weather is required; every forecast value is optional (a missing cell is shown as a placeholder).
   function parse(json, cfg) {
@@ -52,9 +47,10 @@ var Weather = (function () {
     }
     var daily = [];
     for (var k = 0; k < days.length && k < cfg.days; k++) {
-      daily.push({ date: String(days[k]), weekday: weekdayOf(days[k]), code: opt(cell(d.weather_code, k)),
+      daily.push({ date: String(days[k]), weekday: Tz.weekdayOf(String(days[k])), code: opt(cell(d.weather_code, k)),
         min: opt(cell(d.temperature_2m_min, k)), max: opt(cell(d.temperature_2m_max, k)),
-        pop: opt(cell(d.precipitation_probability_max, k)), sunrise: hhmm(cell(d.sunrise, k)), sunset: hhmm(cell(d.sunset, k)) });
+        pop: opt(cell(d.precipitation_probability_max, k)), sunrise: hhmm(cell(d.sunrise, k)), sunset: hhmm(cell(d.sunset, k)),
+        uvMax: opt(cell(d.uv_index_max, k)) });
     }
     return {
       current: { temp: num(c.temperature_2m, 'temperature_2m'), feels: opt(c.apparent_temperature),
@@ -80,47 +76,14 @@ var Weather = (function () {
     return { current: model.current, today: today, hourly: hourly, daily: daily, nowShown: nowShown };
   }
 
-  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, onChange(store), random() (optional) }
-  // The cycle (one request in flight, jittered back-off, stop()) is the shared Refresher.
-  function createStore(places, cfg, deps) {
-    var state = {};
-    for (var i = 0; i < places.length; i++) state[places[i].id] = { data: null, updatedAt: 0, error: null };
-
-    function parseOrNull(json) { try { return parse(json, cfg); } catch (e) { return null; } }
-
-    // One answer for every place. Returns whether any place failed. A transport failure fails every place;
-    // a place whose own element does not parse fails alone. The last good data always stays.
-    function accept(err, json) {
-      var list = err ? [] : Array.isArray(json) ? json : [json], failed = false;
-      for (var i = 0; i < places.length; i++) {
-        var s = state[places[i].id], model = err ? null : parseOrNull(list[i]);
-        if (model) { s.data = model; s.updatedAt = deps.now(); s.error = null; } else { s.error = err || 'parse'; failed = true; }
-      }
-      return failed;
-    }
-
-    var cycle = Refresher.create(cfg, deps, function (finish) {
-      deps.getJson(url(places, cfg), cfg.timeoutMs, function (err, json) { finish(function () { return accept(err, json); }); });
-    }, function () { deps.onChange(api); });
-
-    var api = {
-      refresh: cycle.refresh,
-      get: function (id) { return state[id] ? state[id].data : null; },
-      // Stale = we have data but the last attempt failed, or it is older than staleAfterMs, or the device clock
-      // went backwards past it (an age below zero cannot be trusted as fresh).
-      status: function (id) {
-        var s = state[id];
-        if (!s) return { kind: 'none' };
-        if (!s.data) return { kind: s.error ? 'failed' : 'loading' };
-        var age = deps.now() - s.updatedAt;
-        return { kind: s.error || age < 0 || age > cfg.staleAfterMs ? 'stale' : 'fresh', updatedAt: s.updatedAt };
-      },
-      nextAt: cycle.nextAt,
-      failures: cycle.failures,
-      stop: cycle.stop
-    };
-    return api;
+  function uv(raw) {
+    if (opt(raw) === null) return null;
+    var index = Math.round(raw);
+    return { index: index, level: OpenMeteo.band(index, UV_LEVELS, 'extreme') };
   }
 
-  return { url: url, parse: parse, forHour: forHour, createStore: createStore };
+  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, onChange(store), random() (optional) }
+  function createStore(places, cfg, deps) { return PlaceStore.create(places, { cfg: cfg, url: url, parse: parse }, deps); }
+
+  return { url: url, parse: parse, forHour: forHour, uv: uv, createStore: createStore };
 })();

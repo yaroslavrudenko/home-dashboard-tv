@@ -123,12 +123,12 @@ const ALERTS_VIEW = () => {
   return { title: t('#screen-alerts .screen-title'), home: t('.al-home'), near: t('.al-near'),
     rows: [...document.querySelectorAll('.al-row')].map((r) => [...r.children].map((c) => c.textContent)), empty: t('.al-recent-empty') };
 };
-test('B1: the Alerts screen is the seventh (◀ from the main screen), quiet: «Тревог нет · Реховот», checked time, nearby, the recorded recent alerts', async () => {
+test('B1: the Alerts screen is the eighth (◀ from the main screen), quiet: «Тревог нет · Реховот», checked time, nearby, the recorded recent alerts', async () => {
   const app = await openApp(QUIET);
   try {
     await ready(app);
     const p = app.page;
-    assert.equal((await p.$$('.dot')).length, 7, 'seven page dots (batch 11: Markets)');
+    assert.equal((await p.$$('.dot')).length, 8, 'eight page dots (batch 11: Markets; batch 12: Shabbat)');
     await wait(400);
     assert.equal(gets(app.requests.history), 0, 'nothing asked while the screen is not on view');
     await press(p, LEFT);

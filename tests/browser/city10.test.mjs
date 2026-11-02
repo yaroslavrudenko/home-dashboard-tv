@@ -83,7 +83,7 @@ test('C/T12: OK on Haifa saves it and reloads once — the toast «Город: �
       from: [32.8185, 34.9988], map: [32.8185, 34.9988], areas: ['חיפה'] });
     const lat = new URL(app.weatherRequests[app.weatherRequests.length - 1]).searchParams.get('latitude').split(',');
     assert.equal(lat[0], '32.8185', 'the weather request asks for Haifa first');
-    for (let i = 0; i < 4; i++) await press(p, RIGHT);   // main → israel → news → markets → traffic
+    for (let i = 0; i < 5; i++) await press(p, RIGHT);   // main → israel → news → markets → shabbat → traffic
     await p.waitForSelector('.tw-name', { timeout: 5000 });
     await wait(300);
     const names = await p.evaluate(() => [...document.querySelectorAll('.tw-name')].map((e) => e.textContent));

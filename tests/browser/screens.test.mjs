@@ -20,7 +20,7 @@ const active = (p) => p.evaluate(() => [...document.querySelectorAll('.screen')]
 const dots = (p) => p.$$eval('.dot', (d) => d.map((e) => e.className));
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
 // FB5: the screens in Config.screens order; a screen is reached with ▶ pressed its index times.
-const SCREENS = ['main', 'israel', 'news', 'markets', 'traffic', 'map', 'alerts'];   // batch 11: Markets after the news
+const SCREENS = ['main', 'israel', 'news', 'markets', 'shabbat', 'traffic', 'map', 'alerts'];   // batch 11: Markets; batch 12: Shabbat
 const dotsAt = (i) => SCREENS.map((_, k) => (k === i ? 'dot is-on' : 'dot'));
 const toScreen = async (p, id) => { for (let i = 0; i < SCREENS.indexOf(id); i++) await press(p, RIGHT); };
 
@@ -29,7 +29,7 @@ test('◀ ▶ switch screens with page dots; the hidden screens keep their DOM a
   try {
     await ready(app);
     const p = app.page;
-    assert.deepEqual(await dots(p), dotsAt(0), 'seven page dots');
+    assert.deepEqual(await dots(p), dotsAt(0), 'eight page dots');
     // Ynet's times carry seconds: put the clock at :20 past 18:40, so no "… ago" text changes for the next 19 s (boundaries at :40).
     await p.evaluate(() => { window.__offsetMs += Date.parse('2026-10-29T18:40:20Z') - Date.now(); });
     assert.equal(await p.$('.news-col'), null, 'a screen never shown is not even drawn');
@@ -39,7 +39,7 @@ test('◀ ▶ switch screens with page dots; the hidden screens keep their DOM a
     const col = await p.$('.news-col');
     assert.deepEqual(await active(p), SCREENS.map((id, k) => ['screen-' + id, k === 2 ? 'screen is-active' : 'screen', k === 2 ? 'visible' : 'hidden']));
     assert.deepEqual(await dots(p), dotsAt(2));
-    for (const k of [3, 4, 5, 6]) { await press(p, RIGHT); await wait(800); assert.deepEqual(await dots(p), dotsAt(k)); }
+    for (const k of [3, 4, 5, 6, 7]) { await press(p, RIGHT); await wait(800); assert.deepEqual(await dots(p), dotsAt(k)); }
     await press(p, RIGHT); await wait(800);
     assert.deepEqual(await dots(p), dotsAt(0), 'wraps to the first screen');
     for (let i = 0; i < SCREENS.length - 2; i++) await press(p, LEFT);   // back round to the news
@@ -690,7 +690,7 @@ test('an alert nearby (not in Rehovot): only a quiet notice in the corner, no ov
 // once at once (weather for the main and Israel screens, both news feeds, the traffic batch, a new map overlay round);
 // a rotation arrival does not; an open while that source's request is in flight starts nothing.
 test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotation arrival does not; in flight, nothing', async () => {
-  const app = await openApp({ ...QUIET, history: 'history.json', configure: KEY, traffic: 'ok', map: 'ok', markets: 'fail' });
+  const app = await openApp({ ...QUIET, history: 'history.json', configure: KEY, traffic: 'ok', map: 'ok', markets: 'fail', air: 'ok', hebcal: 'ok' });
   try {
     await ready(app);
     const p = app.page;
@@ -698,18 +698,22 @@ test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotat
     const count = () => ({ weather: app.weatherRequests.length, news: app.requests.news.filter((r) => r.method === 'GET').length,
       markets: app.requests.markets.filter((r) => r.method === 'GET').length,
       traffic: app.requests.traffic.filter((r) => r.method === 'GET').length / 10,
-      map: app.requests.map.length, history: app.requests.history.filter((r) => r.method === 'GET').length });
+      map: app.requests.map.length, history: app.requests.history.filter((r) => r.method === 'GET').length,
+      air: app.requests.air.filter((r) => r.method === 'GET').length, hebcal: app.requests.hebcal.filter((r) => r.method === 'GET').length });
     const boot = count();
-    assert.deepEqual([boot.weather, boot.news, boot.traffic, boot.map, boot.markets], [1, 2, 0, 0, 0], 'boot: the map page is not loaded; nothing for the markets');
+    assert.deepEqual([boot.weather, boot.news, boot.traffic, boot.map, boot.markets, boot.air, boot.hebcal], [1, 2, 0, 0, 0, 1, 1],
+      'boot: one parallel round — weather, both feeds, the air (batch 12) and the calendar (batch 12); nothing for the map or the markets');
     const step = async (code) => { await press(p, code); await wait(800); return count(); };
     let c = await step(RIGHT);                                         // Israel
-    assert.deepEqual([c.weather, c.news], [2, 2], '◀ ▶ to the Israel weather: one weather request');
+    assert.deepEqual([c.weather, c.news, c.air], [2, 2, 2], '◀ ▶ to the Israel weather: one weather request and one air request');
     c = await step(RIGHT);                                             // news
     assert.deepEqual([c.weather, c.news], [2, 4], '◀ ▶ to the news: both feeds once');
     c = await step(RIGHT);                                             // markets (batch 11)
     const round = c.markets;                                           // the requests of one markets round
     assert.ok(round > 0, '◀ ▶ to the markets: one round');
     assert.deepEqual([c.weather, c.news], [2, 4], 'the markets screen asks nothing else');
+    c = await step(RIGHT);                                             // shabbat (batch 12)
+    assert.deepEqual([c.hebcal, c.weather, c.air], [2, 2, 2], '◀ ▶ to the Shabbat screen: one calendar request, nothing else');
     c = await step(RIGHT);                                             // traffic
     assert.equal(c.traffic, 1, '◀ ▶ to traffic: one batch');
     c = await step(RIGHT);                                             // map
@@ -721,7 +725,7 @@ test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotat
     c = await step(RIGHT);                                             // alerts
     assert.equal(c.history, 1, '◀ ▶ to the Alerts screen: one request for the recent alerts');
     c = await step(RIGHT);                                             // main
-    assert.deepEqual([c.weather, c.news, c.traffic, c.map, c.history, c.markets], [3, 4, 2, 2, 1, round], '◀ ▶ to the main screen: one weather request; the map left loaded, not reloaded; no markets request off its screen');
+    assert.deepEqual([c.weather, c.news, c.traffic, c.map, c.history, c.markets, c.air, c.hebcal], [3, 4, 2, 2, 1, round, 3, 2], '◀ ▶ to the main screen: one weather and one air request; the map left loaded, not reloaded; no markets or calendar request off their screens');
   } finally { await app.close(); }
   // the rotation moves on by itself: no refresh on arrival
   const rot = await openApp({ ...QUIET, configure: (c) => { c.rotation.intervalMs = 700; } });

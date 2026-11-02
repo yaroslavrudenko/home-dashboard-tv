@@ -45,6 +45,8 @@ var I18n = (function () {
       weekdaysShort: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
       monthsGen: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
       dateLong: '{weekday}, {day} {month}',
+      dateShort: '{weekday}, {day} {month}',   // with the short weekday (lists)
+      dayMonth: '{day} {month}',              // no weekday («Сегодня, 10 апреля»)
       wmo: WMO_RU,
       num: { decimal: ',', group: '\u202f' },
       s: {
@@ -60,6 +62,41 @@ var I18n = (function () {
         'w.kmh': 'км/ч', 'w.now': 'Сейчас', 'w.today': 'Сегодня', 'w.hourly': 'Почасовой прогноз', 'w.daily': 'Прогноз на 7 дней',
         'w.updated': 'Обновлено в {time}', 'w.stale': 'Не обновляется · данные от {time}', 'w.loading': 'Загружаем погоду…',
         'w.failed': 'Погода временно недоступна', 'w.retry': 'Повторим в {time}', 'w.retrySoon': 'Повторим позже',
+        // batch 12: the air & UV block, the Shabbat & holidays screen; then the names of the data (holidays by Hebcal slug,
+        // Hebrew months by Hebcal name, weekly parashot by Hebcal id; a missing one shows the Latin id)
+        'screen.shabbat': 'Шабат и праздники', 'sh.failed': 'Календарь временно недоступен',
+        'sh.candles': 'Зажигание свечей', 'sh.havdalah': 'Авдала', 'sh.week': 'Шабат · {name}',
+        'sh.shabbat': 'Шабат', 'sh.parashaOf': 'Глава {name}', 'sh.greet.shabbat': 'Шабат шалом',
+        'sh.greet.yomtov': 'Хаг самеах', 'sh.greet.yomkippur': 'Гмар хатима това', 'sh.today': 'Сегодня',
+        'sh.tomorrow': 'Завтра', 'sh.inDays': 'через {n} дн.', 'sh.inHM': 'через {h} ч {m} мин',
+        'sh.inM': 'через {m} мин', 'sh.ongoing': 'идёт', 'sh.todayIs': 'Сегодня: {name}',
+        'sh.fastTimes': '{name} · начало {begins} · конец {ends}', 'sh.upcoming': 'Праздники и посты', 'sh.hdate': '{day} {month} {year}',
+        'w.uv': 'УФ макс.', 'w.air': 'Качество воздуха', 'w.noData': 'Нет данных',
+        'w.dust': 'Пыль · {n} мкг/м³', 'w.uv.low': 'низкий', 'w.uv.moderate': 'умеренный',
+        'w.uv.high': 'высокий', 'w.uv.veryHigh': 'очень высокий', 'w.uv.extreme': 'экстремальный',
+        'w.air.good': 'хорошее', 'w.air.fair': 'приемлемое', 'w.air.moderate': 'умеренное',
+        'w.air.poor': 'плохое', 'w.air.veryPoor': 'очень плохое', 'w.air.extreme': 'опасное',
+        'w.air.dustWord': 'пыль',
+        'sh.h.rosh-hashana': 'Рош ха-Шана', 'sh.h.yom-kippur': 'Йом Кипур', 'sh.h.sukkot': 'Суккот', 'sh.h.shmini-atzeret': 'Симхат Тора',
+        'sh.h.chanukah': 'Ханука', 'sh.h.tu-bishvat': 'Ту би-Шват', 'sh.h.purim': 'Пурим', 'sh.h.shushan-purim': 'Шушан Пурим', 'sh.h.pesach': 'Песах',
+        'sh.h.yom-hashoah': 'День Катастрофы', 'sh.h.yom-hazikaron': 'День памяти павших', 'sh.h.yom-haatzmaut': 'День независимости', 'sh.h.lag-baomer': 'Лаг ба-Омер',
+        'sh.h.yom-yerushalayim': 'День Иерусалима', 'sh.h.shavuot': 'Шавуот', 'sh.h.tisha-bav': 'Девятое ава', 'sh.h.tzom-gedaliah': 'Пост Гедалии',
+        'sh.h.asara-btevet': 'Пост 10 тевета', 'sh.h.taanit-esther': 'Пост Эстер', 'sh.h.tzom-tammuz': 'Пост 17 тамуза',
+        'sh.month.Nisan': 'нисана', 'sh.month.Iyyar': 'ияра', 'sh.month.Sivan': 'сивана', 'sh.month.Tamuz': 'тамуза', 'sh.month.Av': 'ава',
+        'sh.month.Elul': 'элула', 'sh.month.Tishrei': 'тишрея', 'sh.month.Cheshvan': 'хешвана', 'sh.month.Kislev': 'кислева', 'sh.month.Tevet': 'тевета',
+        'sh.month.Sh\'vat': 'швата', 'sh.month.Adar': 'адара', 'sh.month.Adar I': 'адара I', 'sh.month.Adar II': 'адара II',
+        'sh.parasha.Nitzavim-Vayeilech': 'Ницавим-Ваелех', 'sh.parasha.Ha’azinu': 'Аазину', 'sh.parasha.Bereshit': 'Берешит', 'sh.parasha.Noach': 'Ноах', 'sh.parasha.Lech-Lecha': 'Лех-Леха',
+        'sh.parasha.Vayera': 'Вайера', 'sh.parasha.Chayei Sara': 'Хаей Сара', 'sh.parasha.Toldot': 'Толдот', 'sh.parasha.Vayetzei': 'Ваеце', 'sh.parasha.Vayishlach': 'Ваишлах',
+        'sh.parasha.Vayeshev': 'Ваешев', 'sh.parasha.Miketz': 'Микец', 'sh.parasha.Vayigash': 'Ваигаш', 'sh.parasha.Vayechi': 'Ваехи', 'sh.parasha.Shemot': 'Шмот',
+        'sh.parasha.Vaera': 'Ваэра', 'sh.parasha.Bo': 'Бо', 'sh.parasha.Beshalach': 'Бешалах', 'sh.parasha.Yitro': 'Итро', 'sh.parasha.Mishpatim': 'Мишпатим',
+        'sh.parasha.Terumah': 'Трума', 'sh.parasha.Tetzaveh': 'Тецаве', 'sh.parasha.Ki Tisa': 'Ки Тиса', 'sh.parasha.Vayakhel': 'Ваякгель', 'sh.parasha.Pekudei': 'Пкудей',
+        'sh.parasha.Vayikra': 'Ваикра', 'sh.parasha.Tzav': 'Цав', 'sh.parasha.Shmini': 'Шмини', 'sh.parasha.Tazria': 'Тазриа', 'sh.parasha.Metzora': 'Мецора',
+        'sh.parasha.Achrei Mot': 'Ахарей Мот', 'sh.parasha.Kedoshim': 'Кдошим', 'sh.parasha.Emor': 'Эмор', 'sh.parasha.Behar': 'Беар', 'sh.parasha.Bechukotai': 'Бехукотай',
+        'sh.parasha.Bamidbar': 'Бамидбар', 'sh.parasha.Nasso': 'Насо', 'sh.parasha.Beha’alotcha': 'Беаалотха', 'sh.parasha.Sh’lach': 'Шлах', 'sh.parasha.Korach': 'Корах',
+        'sh.parasha.Chukat': 'Хукат', 'sh.parasha.Balak': 'Балак', 'sh.parasha.Pinchas': 'Пинхас', 'sh.parasha.Matot-Masei': 'Матот-Масей', 'sh.parasha.Devarim': 'Дварим',
+        'sh.parasha.Vaetchanan': 'Ваэтханан', 'sh.parasha.Eikev': 'Эйкев', 'sh.parasha.Re’eh': 'Рээ', 'sh.parasha.Shoftim': 'Шофтим', 'sh.parasha.Ki Teitzei': 'Ки Теце',
+        'sh.parasha.Ki Tavo': 'Ки Таво', 'sh.parasha.Vayakhel-Pekudei': 'Ваякгель-Пкудей', 'sh.parasha.Tazria-Metzora': 'Тазриа-Мецора', 'sh.parasha.Achrei Mot-Kedoshim': 'Ахарей Мот-Кдошим', 'sh.parasha.Behar-Bechukotai': 'Беар-Бехукотай',
+        'sh.parasha.Nitzavim': 'Ницавим', 'sh.parasha.Vayeilech': 'Ваелех', 'sh.parasha.Matot': 'Матот', 'sh.parasha.Masei': 'Масей',
         'screen.main': 'Главная', 'screen.news': 'Новости', 'screen.traffic': 'Пробки', 'screen.map': 'Карта пробок',
         'm.loading': 'Загружаем карту…', 'm.unavailable': 'Карта недоступна', 'm.staleFrom': 'Карта недоступна · данные от {time}',
         'n.col.il': 'Израиль', 'n.col.econ': 'Экономика',
@@ -112,6 +149,8 @@ var I18n = (function () {
       weekdaysShort: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
       monthsGen: ['בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר'],
       dateLong: '{weekday}, {day} {month}',
+      dateShort: '{weekday}, {day} {month}',   // with the short weekday (lists)
+      dayMonth: '{day} {month}',              // no weekday («Сегодня, 10 апреля»)
       wmo: WMO_HE,
       num: { decimal: '.', group: ',' },
       s: {
@@ -127,6 +166,41 @@ var I18n = (function () {
         'w.kmh': 'קמ״ש', 'w.now': 'עכשיו', 'w.today': 'היום', 'w.hourly': 'תחזית שעתית', 'w.daily': 'תחזית ל־7 ימים',
         'w.updated': 'עודכן ב־{time}', 'w.stale': 'לא מתעדכן · נתונים מ־{time}', 'w.loading': 'טוען את מזג האוויר…',
         'w.failed': 'מזג האוויר אינו זמין כרגע', 'w.retry': 'ננסה שוב ב־{time}', 'w.retrySoon': 'ננסה שוב בקרוב',
+        // batch 12: the air & UV block, the Shabbat & holidays screen; then the names of the data (holidays by Hebcal slug,
+        // Hebrew months by Hebcal name, weekly parashot by Hebcal id; a missing one shows the Latin id)
+        'screen.shabbat': 'שבת וחגים', 'sh.failed': 'הלוח אינו זמין כרגע',
+        'sh.candles': 'הדלקת נרות', 'sh.havdalah': 'הבדלה', 'sh.week': 'שבת · {name}',
+        'sh.shabbat': 'שבת', 'sh.parashaOf': 'פרשת {name}', 'sh.greet.shabbat': 'שבת שלום',
+        'sh.greet.yomtov': 'חג שמח', 'sh.greet.yomkippur': 'גמר חתימה טובה', 'sh.today': 'היום',
+        'sh.tomorrow': 'מחר', 'sh.inDays': 'בעוד {n} ימים', 'sh.inHM': 'בעוד {h} שע׳ {m} דק׳',
+        'sh.inM': 'בעוד {m} דק׳', 'sh.ongoing': 'מתקיים', 'sh.todayIs': 'היום: {name}',
+        'sh.fastTimes': '{name} · תחילה {begins} · סיום {ends}', 'sh.upcoming': 'חגים וצומות', 'sh.hdate': '{day} ב{month} {year}',
+        'w.uv': 'מדד UV מרבי', 'w.air': 'איכות האוויר', 'w.noData': 'אין נתונים',
+        'w.dust': 'אבק · {n} מק״ג/מ״ק', 'w.uv.low': 'נמוך', 'w.uv.moderate': 'בינוני',
+        'w.uv.high': 'גבוה', 'w.uv.veryHigh': 'גבוה מאוד', 'w.uv.extreme': 'קיצוני',
+        'w.air.good': 'טובה', 'w.air.fair': 'סבירה', 'w.air.moderate': 'בינונית',
+        'w.air.poor': 'ירודה', 'w.air.veryPoor': 'ירודה מאוד', 'w.air.extreme': 'מסוכנת',
+        'w.air.dustWord': 'אבק',
+        'sh.h.rosh-hashana': 'ראש השנה', 'sh.h.yom-kippur': 'יום כיפור', 'sh.h.sukkot': 'סוכות', 'sh.h.shmini-atzeret': 'שמחת תורה',
+        'sh.h.chanukah': 'חנוכה', 'sh.h.tu-bishvat': 'ט״ו בשבט', 'sh.h.purim': 'פורים', 'sh.h.shushan-purim': 'שושן פורים', 'sh.h.pesach': 'פסח',
+        'sh.h.yom-hashoah': 'יום השואה', 'sh.h.yom-hazikaron': 'יום הזיכרון', 'sh.h.yom-haatzmaut': 'יום העצמאות', 'sh.h.lag-baomer': 'ל״ג בעומר',
+        'sh.h.yom-yerushalayim': 'יום ירושלים', 'sh.h.shavuot': 'שבועות', 'sh.h.tisha-bav': 'תשעה באב', 'sh.h.tzom-gedaliah': 'צום גדליה',
+        'sh.h.asara-btevet': 'עשרה בטבת', 'sh.h.taanit-esther': 'תענית אסתר', 'sh.h.tzom-tammuz': 'צום י״ז בתמוז',
+        'sh.month.Nisan': 'ניסן', 'sh.month.Iyyar': 'אייר', 'sh.month.Sivan': 'סיון', 'sh.month.Tamuz': 'תמוז', 'sh.month.Av': 'אב',
+        'sh.month.Elul': 'אלול', 'sh.month.Tishrei': 'תשרי', 'sh.month.Cheshvan': 'חשון', 'sh.month.Kislev': 'כסלו', 'sh.month.Tevet': 'טבת',
+        'sh.month.Sh\'vat': 'שבט', 'sh.month.Adar': 'אדר', 'sh.month.Adar I': 'אדר א׳', 'sh.month.Adar II': 'אדר ב׳',
+        'sh.parasha.Nitzavim-Vayeilech': 'נצבים־וילך', 'sh.parasha.Ha’azinu': 'האזינו', 'sh.parasha.Bereshit': 'בראשית', 'sh.parasha.Noach': 'נח', 'sh.parasha.Lech-Lecha': 'לך־לך',
+        'sh.parasha.Vayera': 'וירא', 'sh.parasha.Chayei Sara': 'חיי שרה', 'sh.parasha.Toldot': 'תולדות', 'sh.parasha.Vayetzei': 'ויצא', 'sh.parasha.Vayishlach': 'וישלח',
+        'sh.parasha.Vayeshev': 'וישב', 'sh.parasha.Miketz': 'מקץ', 'sh.parasha.Vayigash': 'ויגש', 'sh.parasha.Vayechi': 'ויחי', 'sh.parasha.Shemot': 'שמות',
+        'sh.parasha.Vaera': 'וארא', 'sh.parasha.Bo': 'בא', 'sh.parasha.Beshalach': 'בשלח', 'sh.parasha.Yitro': 'יתרו', 'sh.parasha.Mishpatim': 'משפטים',
+        'sh.parasha.Terumah': 'תרומה', 'sh.parasha.Tetzaveh': 'תצוה', 'sh.parasha.Ki Tisa': 'כי תשא', 'sh.parasha.Vayakhel': 'ויקהל', 'sh.parasha.Pekudei': 'פקודי',
+        'sh.parasha.Vayikra': 'ויקרא', 'sh.parasha.Tzav': 'צו', 'sh.parasha.Shmini': 'שמיני', 'sh.parasha.Tazria': 'תזריע', 'sh.parasha.Metzora': 'מצרע',
+        'sh.parasha.Achrei Mot': 'אחרי מות', 'sh.parasha.Kedoshim': 'קדשים', 'sh.parasha.Emor': 'אמור', 'sh.parasha.Behar': 'בהר', 'sh.parasha.Bechukotai': 'בחקתי',
+        'sh.parasha.Bamidbar': 'במדבר', 'sh.parasha.Nasso': 'נשא', 'sh.parasha.Beha’alotcha': 'בהעלתך', 'sh.parasha.Sh’lach': 'שלח־לך', 'sh.parasha.Korach': 'קורח',
+        'sh.parasha.Chukat': 'חוקת', 'sh.parasha.Balak': 'בלק', 'sh.parasha.Pinchas': 'פינחס', 'sh.parasha.Matot-Masei': 'מטות־מסעי', 'sh.parasha.Devarim': 'דברים',
+        'sh.parasha.Vaetchanan': 'ואתחנן', 'sh.parasha.Eikev': 'עקב', 'sh.parasha.Re’eh': 'ראה', 'sh.parasha.Shoftim': 'שופטים', 'sh.parasha.Ki Teitzei': 'כי־תצא',
+        'sh.parasha.Ki Tavo': 'כי־תבוא', 'sh.parasha.Vayakhel-Pekudei': 'ויקהל־פקודי', 'sh.parasha.Tazria-Metzora': 'תזריע־מצרע', 'sh.parasha.Achrei Mot-Kedoshim': 'אחרי מות־קדשים', 'sh.parasha.Behar-Bechukotai': 'בהר־בחקתי',
+        'sh.parasha.Nitzavim': 'נצבים', 'sh.parasha.Vayeilech': 'וילך', 'sh.parasha.Matot': 'מטות', 'sh.parasha.Masei': 'מסעי',
         'screen.main': 'ראשי', 'screen.news': 'חדשות', 'screen.traffic': 'תנועה', 'screen.map': 'מפת תנועה',
         'm.loading': 'טוען את המפה…', 'm.unavailable': 'המפה אינה זמינה', 'm.staleFrom': 'המפה אינה זמינה · נתונים מ־{time}',
         'n.col.il': 'ישראל', 'n.col.econ': 'כלכלה',
@@ -179,6 +253,8 @@ var I18n = (function () {
       weekdaysShort: ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
       monthsGen: ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'],
       dateLong: '{weekday}, {day} {month}',
+      dateShort: '{weekday}, {day} {month}',   // with the short weekday (lists)
+      dayMonth: '{day} {month}',              // no weekday («Сегодня, 10 апреля»)
       wmo: WMO_UK,
       num: { decimal: ',', group: '\u202f' },
       s: {
@@ -194,6 +270,41 @@ var I18n = (function () {
         'w.kmh': 'км/год', 'w.now': 'Зараз', 'w.today': 'Сьогодні', 'w.hourly': 'Погодинний прогноз', 'w.daily': 'Прогноз на 7 днів',
         'w.updated': 'Оновлено о {time}', 'w.stale': 'Не оновлюється · дані від {time}', 'w.loading': 'Завантажуємо погоду…',
         'w.failed': 'Погода тимчасово недоступна', 'w.retry': 'Повторимо о {time}', 'w.retrySoon': 'Повторимо пізніше',
+        // batch 12: the air & UV block, the Shabbat & holidays screen; then the names of the data (holidays by Hebcal slug,
+        // Hebrew months by Hebcal name, weekly parashot by Hebcal id; a missing one shows the Latin id)
+        'screen.shabbat': 'Шабат і свята', 'sh.failed': 'Календар тимчасово недоступний',
+        'sh.candles': 'Засвічування свічок', 'sh.havdalah': 'Авдала', 'sh.week': 'Шабат · {name}',
+        'sh.shabbat': 'Шабат', 'sh.parashaOf': 'Розділ {name}', 'sh.greet.shabbat': 'Шабат шалом',
+        'sh.greet.yomtov': 'Хаг самеах', 'sh.greet.yomkippur': 'Гмар хатіма това', 'sh.today': 'Сьогодні',
+        'sh.tomorrow': 'Завтра', 'sh.inDays': 'за {n} дн.', 'sh.inHM': 'за {h} год {m} хв',
+        'sh.inM': 'за {m} хв', 'sh.ongoing': 'триває', 'sh.todayIs': 'Сьогодні: {name}',
+        'sh.fastTimes': '{name} · початок {begins} · кінець {ends}', 'sh.upcoming': 'Свята та пости', 'sh.hdate': '{day} {month} {year}',
+        'w.uv': 'УФ макс.', 'w.air': 'Якість повітря', 'w.noData': 'Немає даних',
+        'w.dust': 'Пил · {n} мкг/м³', 'w.uv.low': 'низький', 'w.uv.moderate': 'помірний',
+        'w.uv.high': 'високий', 'w.uv.veryHigh': 'дуже високий', 'w.uv.extreme': 'екстремальний',
+        'w.air.good': 'добре', 'w.air.fair': 'прийнятне', 'w.air.moderate': 'помірне',
+        'w.air.poor': 'погане', 'w.air.veryPoor': 'дуже погане', 'w.air.extreme': 'небезпечне',
+        'w.air.dustWord': 'пил',
+        'sh.h.rosh-hashana': 'Рош га-Шана', 'sh.h.yom-kippur': 'Йом Кіпур', 'sh.h.sukkot': 'Суккот', 'sh.h.shmini-atzeret': 'Сімхат Тора',
+        'sh.h.chanukah': 'Ханука', 'sh.h.tu-bishvat': 'Ту бі-Шват', 'sh.h.purim': 'Пурім', 'sh.h.shushan-purim': 'Шушан Пурім', 'sh.h.pesach': 'Песах',
+        'sh.h.yom-hashoah': 'День Катастрофи', 'sh.h.yom-hazikaron': 'День пам’яті полеглих', 'sh.h.yom-haatzmaut': 'День незалежності', 'sh.h.lag-baomer': 'Лаг ба-Омер',
+        'sh.h.yom-yerushalayim': 'День Єрусалима', 'sh.h.shavuot': 'Шавуот', 'sh.h.tisha-bav': 'Дев’яте ава', 'sh.h.tzom-gedaliah': 'Піст Гедалії',
+        'sh.h.asara-btevet': 'Піст 10 тевета', 'sh.h.taanit-esther': 'Піст Естер', 'sh.h.tzom-tammuz': 'Піст 17 тамуза',
+        'sh.month.Nisan': 'нісана', 'sh.month.Iyyar': 'іяра', 'sh.month.Sivan': 'сівана', 'sh.month.Tamuz': 'тамуза', 'sh.month.Av': 'ава',
+        'sh.month.Elul': 'елула', 'sh.month.Tishrei': 'тішрея', 'sh.month.Cheshvan': 'хешвана', 'sh.month.Kislev': 'кіслева', 'sh.month.Tevet': 'тевета',
+        'sh.month.Sh\'vat': 'швата', 'sh.month.Adar': 'адара', 'sh.month.Adar I': 'адара I', 'sh.month.Adar II': 'адара II',
+        'sh.parasha.Nitzavim-Vayeilech': 'Ніцавім-Ваєлех', 'sh.parasha.Ha’azinu': 'Аазіну', 'sh.parasha.Bereshit': 'Берешіт', 'sh.parasha.Noach': 'Ноах', 'sh.parasha.Lech-Lecha': 'Лех-Леха',
+        'sh.parasha.Vayera': 'Ваєра', 'sh.parasha.Chayei Sara': 'Хаей Сара', 'sh.parasha.Toldot': 'Толдот', 'sh.parasha.Vayetzei': 'Ваєце', 'sh.parasha.Vayishlach': 'Ваїшлах',
+        'sh.parasha.Vayeshev': 'Ваєшев', 'sh.parasha.Miketz': 'Мікец', 'sh.parasha.Vayigash': 'Ваїгаш', 'sh.parasha.Vayechi': 'Ваєхі', 'sh.parasha.Shemot': 'Шмот',
+        'sh.parasha.Vaera': 'Ваера', 'sh.parasha.Bo': 'Бо', 'sh.parasha.Beshalach': 'Бешалах', 'sh.parasha.Yitro': 'Їтро', 'sh.parasha.Mishpatim': 'Мішпатім',
+        'sh.parasha.Terumah': 'Трума', 'sh.parasha.Tetzaveh': 'Тецаве', 'sh.parasha.Ki Tisa': 'Кі Тіса', 'sh.parasha.Vayakhel': 'Ваякгель', 'sh.parasha.Pekudei': 'Пкудей',
+        'sh.parasha.Vayikra': 'Ваїкра', 'sh.parasha.Tzav': 'Цав', 'sh.parasha.Shmini': 'Шміні', 'sh.parasha.Tazria': 'Тазріа', 'sh.parasha.Metzora': 'Мецора',
+        'sh.parasha.Achrei Mot': 'Ахарей Мот', 'sh.parasha.Kedoshim': 'Кдошім', 'sh.parasha.Emor': 'Емор', 'sh.parasha.Behar': 'Беар', 'sh.parasha.Bechukotai': 'Бехукотай',
+        'sh.parasha.Bamidbar': 'Бамідбар', 'sh.parasha.Nasso': 'Насо', 'sh.parasha.Beha’alotcha': 'Бегаалотха', 'sh.parasha.Sh’lach': 'Шлах', 'sh.parasha.Korach': 'Корах',
+        'sh.parasha.Chukat': 'Хукат', 'sh.parasha.Balak': 'Балак', 'sh.parasha.Pinchas': 'Пінхас', 'sh.parasha.Matot-Masei': 'Матот-Масей', 'sh.parasha.Devarim': 'Дварім',
+        'sh.parasha.Vaetchanan': 'Ваетханан', 'sh.parasha.Eikev': 'Ейкев', 'sh.parasha.Re’eh': 'Рее', 'sh.parasha.Shoftim': 'Шофтім', 'sh.parasha.Ki Teitzei': 'Кі Теце',
+        'sh.parasha.Ki Tavo': 'Кі Таво', 'sh.parasha.Vayakhel-Pekudei': 'Ваякгель-Пкудей', 'sh.parasha.Tazria-Metzora': 'Тазріа-Мецора', 'sh.parasha.Achrei Mot-Kedoshim': 'Ахарей Мот-Кдошім', 'sh.parasha.Behar-Bechukotai': 'Беар-Бехукотай',
+        'sh.parasha.Nitzavim': 'Ніцавім', 'sh.parasha.Vayeilech': 'Ваєлех', 'sh.parasha.Matot': 'Матот', 'sh.parasha.Masei': 'Масей',
         'screen.main': 'Головна', 'screen.news': 'Новини', 'screen.traffic': 'Затори', 'screen.map': 'Карта заторів',
         'm.loading': 'Завантажуємо карту…', 'm.unavailable': 'Карта недоступна', 'm.staleFrom': 'Карта недоступна · дані від {time}',
         'n.col.il': 'Україна', 'n.col.econ': 'Економіка',
@@ -246,6 +357,8 @@ var I18n = (function () {
       weekdaysShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
       monthsGen: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
       dateLong: '{weekday}, {month} {day}',
+      dateShort: '{weekday}, {month} {day}',   // with the short weekday (lists)
+      dayMonth: '{month} {day}',              // no weekday («Сегодня, 10 апреля»)
       wmo: WMO_EN,
       num: { decimal: '.', group: ',' },
       s: {
@@ -261,6 +374,41 @@ var I18n = (function () {
         'w.kmh': 'km/h', 'w.now': 'Now', 'w.today': 'Today', 'w.hourly': 'Hourly forecast', 'w.daily': '7-day forecast',
         'w.updated': 'Updated at {time}', 'w.stale': 'Not updating · data from {time}', 'w.loading': 'Loading the weather…',
         'w.failed': 'Weather is temporarily unavailable', 'w.retry': 'Retrying at {time}', 'w.retrySoon': 'Will retry soon',
+        // batch 12: the air & UV block, the Shabbat & holidays screen; then the names of the data (holidays by Hebcal slug,
+        // Hebrew months by Hebcal name, weekly parashot by Hebcal id; a missing one shows the Latin id)
+        'screen.shabbat': 'Shabbat & holidays', 'sh.failed': 'The calendar is temporarily unavailable',
+        'sh.candles': 'Candle lighting', 'sh.havdalah': 'Havdalah', 'sh.week': 'Shabbat · {name}',
+        'sh.shabbat': 'Shabbat', 'sh.parashaOf': 'Parashat {name}', 'sh.greet.shabbat': 'Shabbat shalom',
+        'sh.greet.yomtov': 'Chag sameach', 'sh.greet.yomkippur': 'Gmar chatima tova', 'sh.today': 'Today',
+        'sh.tomorrow': 'Tomorrow', 'sh.inDays': 'in {n} days', 'sh.inHM': 'in {h} h {m} min',
+        'sh.inM': 'in {m} min', 'sh.ongoing': 'now', 'sh.todayIs': 'Today: {name}',
+        'sh.fastTimes': '{name} · begins {begins} · ends {ends}', 'sh.upcoming': 'Holidays and fasts', 'sh.hdate': '{day} {month} {year}',
+        'w.uv': 'UV max', 'w.air': 'Air quality', 'w.noData': 'No data',
+        'w.dust': 'Dust · {n} µg/m³', 'w.uv.low': 'low', 'w.uv.moderate': 'moderate',
+        'w.uv.high': 'high', 'w.uv.veryHigh': 'very high', 'w.uv.extreme': 'extreme',
+        'w.air.good': 'good', 'w.air.fair': 'fair', 'w.air.moderate': 'moderate',
+        'w.air.poor': 'poor', 'w.air.veryPoor': 'very poor', 'w.air.extreme': 'extremely poor',
+        'w.air.dustWord': 'dust',
+        'sh.h.rosh-hashana': 'Rosh Hashana', 'sh.h.yom-kippur': 'Yom Kippur', 'sh.h.sukkot': 'Sukkot', 'sh.h.shmini-atzeret': 'Simchat Torah',
+        'sh.h.chanukah': 'Chanukah', 'sh.h.tu-bishvat': 'Tu BiShvat', 'sh.h.purim': 'Purim', 'sh.h.shushan-purim': 'Shushan Purim', 'sh.h.pesach': 'Pesach',
+        'sh.h.yom-hashoah': 'Holocaust Remembrance Day', 'sh.h.yom-hazikaron': 'Memorial Day', 'sh.h.yom-haatzmaut': 'Independence Day', 'sh.h.lag-baomer': 'Lag BaOmer',
+        'sh.h.yom-yerushalayim': 'Jerusalem Day', 'sh.h.shavuot': 'Shavuot', 'sh.h.tisha-bav': 'Tisha B’Av', 'sh.h.tzom-gedaliah': 'Fast of Gedaliah',
+        'sh.h.asara-btevet': 'Tenth of Tevet', 'sh.h.taanit-esther': 'Fast of Esther', 'sh.h.tzom-tammuz': 'Seventeenth of Tammuz',
+        'sh.month.Nisan': 'Nisan', 'sh.month.Iyyar': 'Iyyar', 'sh.month.Sivan': 'Sivan', 'sh.month.Tamuz': 'Tamuz', 'sh.month.Av': 'Av',
+        'sh.month.Elul': 'Elul', 'sh.month.Tishrei': 'Tishrei', 'sh.month.Cheshvan': 'Cheshvan', 'sh.month.Kislev': 'Kislev', 'sh.month.Tevet': 'Tevet',
+        'sh.month.Sh\'vat': 'Sh\'vat', 'sh.month.Adar': 'Adar', 'sh.month.Adar I': 'Adar I', 'sh.month.Adar II': 'Adar II',
+        'sh.parasha.Nitzavim-Vayeilech': 'Nitzavim-Vayeilech', 'sh.parasha.Ha’azinu': 'Ha’azinu', 'sh.parasha.Bereshit': 'Bereshit', 'sh.parasha.Noach': 'Noach', 'sh.parasha.Lech-Lecha': 'Lech-Lecha',
+        'sh.parasha.Vayera': 'Vayera', 'sh.parasha.Chayei Sara': 'Chayei Sara', 'sh.parasha.Toldot': 'Toldot', 'sh.parasha.Vayetzei': 'Vayetzei', 'sh.parasha.Vayishlach': 'Vayishlach',
+        'sh.parasha.Vayeshev': 'Vayeshev', 'sh.parasha.Miketz': 'Miketz', 'sh.parasha.Vayigash': 'Vayigash', 'sh.parasha.Vayechi': 'Vayechi', 'sh.parasha.Shemot': 'Shemot',
+        'sh.parasha.Vaera': 'Vaera', 'sh.parasha.Bo': 'Bo', 'sh.parasha.Beshalach': 'Beshalach', 'sh.parasha.Yitro': 'Yitro', 'sh.parasha.Mishpatim': 'Mishpatim',
+        'sh.parasha.Terumah': 'Terumah', 'sh.parasha.Tetzaveh': 'Tetzaveh', 'sh.parasha.Ki Tisa': 'Ki Tisa', 'sh.parasha.Vayakhel': 'Vayakhel', 'sh.parasha.Pekudei': 'Pekudei',
+        'sh.parasha.Vayikra': 'Vayikra', 'sh.parasha.Tzav': 'Tzav', 'sh.parasha.Shmini': 'Shmini', 'sh.parasha.Tazria': 'Tazria', 'sh.parasha.Metzora': 'Metzora',
+        'sh.parasha.Achrei Mot': 'Achrei Mot', 'sh.parasha.Kedoshim': 'Kedoshim', 'sh.parasha.Emor': 'Emor', 'sh.parasha.Behar': 'Behar', 'sh.parasha.Bechukotai': 'Bechukotai',
+        'sh.parasha.Bamidbar': 'Bamidbar', 'sh.parasha.Nasso': 'Nasso', 'sh.parasha.Beha’alotcha': 'Beha’alotcha', 'sh.parasha.Sh’lach': 'Sh’lach', 'sh.parasha.Korach': 'Korach',
+        'sh.parasha.Chukat': 'Chukat', 'sh.parasha.Balak': 'Balak', 'sh.parasha.Pinchas': 'Pinchas', 'sh.parasha.Matot-Masei': 'Matot-Masei', 'sh.parasha.Devarim': 'Devarim',
+        'sh.parasha.Vaetchanan': 'Vaetchanan', 'sh.parasha.Eikev': 'Eikev', 'sh.parasha.Re’eh': 'Re’eh', 'sh.parasha.Shoftim': 'Shoftim', 'sh.parasha.Ki Teitzei': 'Ki Teitzei',
+        'sh.parasha.Ki Tavo': 'Ki Tavo', 'sh.parasha.Vayakhel-Pekudei': 'Vayakhel-Pekudei', 'sh.parasha.Tazria-Metzora': 'Tazria-Metzora', 'sh.parasha.Achrei Mot-Kedoshim': 'Achrei Mot-Kedoshim', 'sh.parasha.Behar-Bechukotai': 'Behar-Bechukotai',
+        'sh.parasha.Nitzavim': 'Nitzavim', 'sh.parasha.Vayeilech': 'Vayeilech', 'sh.parasha.Matot': 'Matot', 'sh.parasha.Masei': 'Masei',
         'screen.main': 'Home', 'screen.news': 'News', 'screen.traffic': 'Traffic', 'screen.map': 'Traffic map',
         'm.loading': 'Loading the map…', 'm.unavailable': 'The map is unavailable', 'm.staleFrom': 'The map is unavailable · data from {time}',
         'n.col.il': 'Israel', 'n.col.econ': 'Economy',
@@ -325,6 +473,14 @@ var I18n = (function () {
     return TABLES.en.s[key] !== undefined ? TABLES.en.s[key] : key;
   }
 
+  // Which weekday names a date form uses (none: the form names no weekday).
+  var WEEKDAYS_OF = { dateLong: 'weekdays', dateShort: 'weekdaysShort', dayMonth: null };
+  // One filler for every date form of the table: d = { weekday (index, when the form names one), day, month (index) }.
+  function dateWith(form, d) {
+    var tb = table(), names = WEEKDAYS_OF[form];
+    return fill(tb[form], { weekday: names ? tb[names][d.weekday] : '', day: d.day, month: tb.monthsGen[d.month] });
+  }
+
   function fill(text, vars) {
     if (!vars) return text;
     return text.replace(/\{(\w+)\}/g, function (all, k) { return vars.hasOwnProperty(k) ? String(vars[k]) : all; });
@@ -346,10 +502,11 @@ var I18n = (function () {
       if (min < 24 * 60) return this.t('n.hAgo', { n: Math.floor(min / 60) });
       return this.t('n.dAgo', { n: Math.floor(min / 1440) });
     },
-    dateLong: function (weekdayIndex, day, monthIndex) {
-      var tb = table();
-      return fill(tb.dateLong, { weekday: tb.weekdays[weekdayIndex], day: day, month: tb.monthsGen[monthIndex] });
-    },
+    // "Пт, 4 декабря": a list's date, with the short weekday.
+    dateShort: function (weekdayIndex, day, monthIndex) { return dateWith('dateShort', { weekday: weekdayIndex, day: day, month: monthIndex }); },
+    dateLong: function (weekdayIndex, day, monthIndex) { return dateWith('dateLong', { weekday: weekdayIndex, day: day, month: monthIndex }); },
+    // "10 апреля": the day and the month, no weekday.
+    dayMonth: function (day, monthIndex) { return dateWith('dayMonth', { day: day, month: monthIndex }); },
     condition: function (code) {
       var w = table().wmo;
       return w[code] !== undefined ? w[code] : (TABLES.en.wmo[code] !== undefined ? TABLES.en.wmo[code] : '');

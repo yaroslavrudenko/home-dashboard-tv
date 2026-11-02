@@ -7,7 +7,7 @@ import { openApp, measure, legibility } from './page.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); }, code);
 const RIGHT = 39, LEFT = 37;
-const SCREENS = ['main', 'israel', 'news', 'markets', 'traffic', 'map', 'alerts'];   // batch 11: Markets after the news
+const SCREENS = ['main', 'israel', 'news', 'markets', 'shabbat', 'traffic', 'map', 'alerts'];   // batch 11: Markets; batch 12: Shabbat
 const toScreen = async (p, id) => { for (let i = 0; i < SCREENS.indexOf(id); i++) await press(p, RIGHT); };
 // configure functions run in the page (their source is sent there): no closure over this file's names.
 async function ready(app) { await app.page.waitForSelector('.day', { timeout: 10000 }); await wait(200); }

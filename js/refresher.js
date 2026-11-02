@@ -1,6 +1,7 @@
 /* The refresh cycle weather and news share. ES5.
  *   Refresher.create(cfg, deps, hop, after)
- *     cfg:   { refreshMs, retryMs: [back-off ceilings after 1, 2, … failures], retryFloorMs }
+ *     cfg:   { refreshMs, retryMs: [back-off ceilings after 1, 2, … failures], retryFloorMs, retryMaxMs (optional: the
+ *            ceiling past the list; default refreshMs — a once-a-day source sets an hour so an outage is retried hourly) }
  *     deps:  { now(), setTimeout, clearTimeout, random() (optional) }
  *     hop(finish):  starts ONE refresh (one parallel round of requests) and calls finish(apply) exactly once;
  *                   apply() stores the answers and returns how the round went: falsy = fine; truthy = failed (back
@@ -8,7 +9,7 @@
  *     after():      called once per finished hop (render)
  * Only one hop is ever in flight; the next one is scheduled when it ends, so requests never pile up.
  * After n failed hops in a row the wait is drawn at random between retryFloorMs and the n-th ceiling (full
- * jitter; past the list, cfg.refreshMs). Every ceiling is capped by cfg.refreshMs: a back-off never waits
+ * jitter; past the list, cfg.retryMaxMs or else cfg.refreshMs). Every ceiling is capped by cfg.refreshMs: a back-off never waits
  * longer than the regular schedule would, and never loops tightly. */
 var Refresher = (function () {
   function create(cfg, deps, hop, after) {
@@ -18,7 +19,7 @@ var Refresher = (function () {
     function delayAfter(n) {
       var p = cfg.refreshMs;
       if (n === 0) return p;
-      var ceiling = Math.min(n > cfg.retryMs.length ? p : cfg.retryMs[n - 1], p), floor = Math.min(cfg.retryFloorMs, ceiling);
+      var ceiling = Math.min(n > cfg.retryMs.length ? cfg.retryMaxMs || p : cfg.retryMs[n - 1], p), floor = Math.min(cfg.retryFloorMs, ceiling);
       return Math.round(floor + random() * (ceiling - floor));
     }
     function schedule(ms) {

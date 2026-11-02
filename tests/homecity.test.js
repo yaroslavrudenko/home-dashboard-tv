@@ -151,7 +151,7 @@ test('C/T7: alerts by the city\'s Oref names — Modi\'in\'s centres raise Modi\
 });
 
 test('C/T8 (F1): the traffic row cache carries its routes\' signature — another city\'s times are never shown; the pre-signature cache stays only for Rehovot', () => {
-  const app = load(['js/config.js', 'js/ledger.js', 'js/traffic.js']);
+  const app = load(['js/config.js', 'js/tz.js', 'js/ledger.js', 'js/traffic.js']);
   const T0 = Date.parse('2026-10-29T18:00:00Z');
   const rehovot = app.Config.traffic, haifa = plain(rehovot);
   haifa.routes = app.HomeCity.derive(app.Cities, 'haifa').routes;
@@ -175,7 +175,7 @@ test('C/T8 (F1): the traffic row cache carries its routes\' signature — anothe
 });
 
 test('C/T8: a round writes the signature into the cache', () => {
-  const app = load(['js/config.js', 'js/ledger.js', 'js/traffic.js']);
+  const app = load(['js/config.js', 'js/tz.js', 'js/ledger.js', 'js/traffic.js']);
   const cfg = app.Config.traffic;
   cfg.token = 'pk.test';
   const m = new Map(), dones = [];
@@ -185,4 +185,32 @@ test('C/T8: a round writes the signature into the cache', () => {
   assert.equal(dones.length, 10);
   dones.forEach((d) => d('timeout'));
   assert.equal(JSON.parse(m.get('tt-cache')).sig, app.Traffic.signature(cfg.routes));
+});
+
+// Batch 12: the Shabbat screen asks Hebcal for the home city by its GeoNames id (the city's own candle custom), else by
+// its centre. Ids: GeoNames via Open-Meteo geocoding, kept where the match is ≤ 2 km away and Hebcal answers it
+// (design captures geonameid-probe-2pass.json, 2026-11-02).
+test('B12: 78 cities carry a GeoNames id (positive integers, all different); the five without one are the design\'s', () => {
+  const withGeo = Cities.list.filter((c) => c.geo !== undefined);
+  assert.equal(withGeo.length, 78);
+  assert.ok(withGeo.every((c) => Number.isInteger(c.geo) && c.geo > 0));
+  assert.equal(new Set(withGeo.map((c) => c.geo)).size, 78);
+  assert.deepEqual(plain(Cities.list.filter((c) => c.geo === undefined).map((c) => c.id)).sort(), ['beitarillit', 'maaleadumim', 'modiinillit', 'tayibe', 'ummalfahm']);
+  assert.ok(Cities.pois.every((p) => p.geo === undefined), 'route destinations are not homes');
+});
+
+test('B12: derive gives the Shabbat place — Rehovot 293725, Jerusalem 281184 (Shushan Purim), Beitar Illit / Modi\'in Illit by their centre with the Jerusalem 40 minutes; apply writes it into Config.shabbat', () => {
+  assert.deepEqual(plain(HomeCity.derive(Cities, 'rehovot').shabbat), { geo: 293725, lat: 31.8928, lon: 34.8113, candleMins: null, shushanPurim: false });
+  assert.deepEqual(plain(HomeCity.derive(Cities, 'jlm').shabbat), { geo: 281184, lat: 31.7816, lon: 35.2186, candleMins: null, shushanPurim: true });
+  assert.deepEqual(plain(HomeCity.derive(Cities, 'beitarillit').shabbat), { geo: null, lat: 31.7014, lon: 35.1162, candleMins: 40, shushanPurim: false });
+  assert.deepEqual(plain(HomeCity.derive(Cities, 'modiinillit').shabbat), { geo: null, lat: 31.9308, lon: 35.045, candleMins: 40, shushanPurim: false });
+  const c = load(['js/config.js']).Config;
+  HomeCity.apply(c, HomeCity.derive(Cities, 'haifa'));
+  assert.deepEqual(plain(c.shabbat.place), { geo: 294801, lat: 32.8185, lon: 34.9988, candleMins: null, shushanPurim: false });
+});
+
+test('S9: only Jerusalem keeps Shushan Purim; only the two cities without a GeoNames id that follow the Jerusalem custom carry 40 candle minutes', () => {
+  assert.deepEqual(plain(Cities.list.filter((c) => c.shushanPurim).map((c) => c.id)), ['jlm']);
+  assert.deepEqual(plain(Cities.list.filter((c) => c.candleMins).map((c) => [c.id, c.candleMins, c.geo === undefined])).sort(),
+    [['beitarillit', 40, true], ['modiinillit', 40, true]]);
 });

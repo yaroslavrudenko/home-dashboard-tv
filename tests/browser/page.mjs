@@ -24,9 +24,26 @@ const BY_LAT = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney', 
 const MIME = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff' };
 
 // The answer to one multi-location request: one recorded fixture per requested latitude, in order.
+// Batch 12: the 2026-10-29 recordings predate the UV index; each place's daily uv_index_max is taken from the 2026-11-02
+// recording of the same call (tests/fixtures/weather-uv-2026-11-02.json), by place index, where the recording lacks it.
+const UV = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'weather-uv-2026-11-02.json'), 'utf8'));
 export function weatherAnswer(url) {
   const lats = new URL(url).searchParams.get('latitude').split(',');
-  return '[' + lats.map((lat) => fs.readFileSync(path.join(FIXTURES, BY_LAT[lat] + '.json'), 'utf8')).join(',') + ']';
+  return JSON.stringify(lats.map((lat, i) => {
+    const w = JSON.parse(fs.readFileSync(path.join(FIXTURES, BY_LAT[lat] + '.json'), 'utf8'));
+    if (w.daily && !w.daily.uv_index_max && UV[i]) w.daily.uv_index_max = UV[i].daily.uv_index_max.slice(0, w.daily.time.length);
+    return w;
+  }));
+}
+// Batch 12: the air quality (one request for every place: the 4-place recording, or the 1-place one) and the Hebcal
+// calendar (Jerusalem's recording for its GeoNames id, else Rehovot's; both 2026-11-02, 180 days).
+export function airAnswer(url) {
+  const n = new URL(url).searchParams.get('latitude').split(',').length;
+  return { status: 200, contentType: 'application/json', body: fixtureText('air/aq-' + (n === 1 ? '1place' : '4places') + '.json') };
+}
+export function hebcalAnswer(url) {
+  const jlm = new URL(url).searchParams.get('geonameid') === '281184';
+  return { status: 200, contentType: 'application/json', body: fixtureText('hebcal/hebcal-' + (jlm ? 'jlm' : 'rehovot') + '-2026-11-02-180d.json') };
 }
 
 function loadPuppeteer() {
@@ -85,6 +102,12 @@ async function answerFor(kind, opts, url, n) {
     const r = await fetch(url);
     return { status: r.status, contentType: r.headers.get('content-type') || 'application/json', body: Buffer.from(await r.arrayBuffer()) };
   }
+  if (kind === 'air' || kind === 'hebcal') {
+    if (o === 'ok') return kind === 'air' ? airAnswer(url) : hebcalAnswer(url);
+    if (o !== 'live') throw new Error(kind + ': use \'ok\', \'fail\', \'live\' or a function');
+    const r = await fetch(url);
+    return { status: r.status, contentType: r.headers.get('content-type') || 'application/json', body: Buffer.from(await r.arrayBuffer()) };
+  }
   if (kind === 'news') {
     if (o === 'live') { const r = await fetch(url); return { status: r.status, body: Buffer.from(await r.arrayBuffer()) }; }
     return { status: 200, body: fixtureText('news/' + newsSource(url) + '.xml') };   // 'ok', or a function that answered null
@@ -109,7 +132,7 @@ export async function openApp(opts = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080 });
   const weatherRequests = [];
-  const requests = { news: [], alerts: [], history: [], traffic: [], map: [], markets: [] };
+  const requests = { news: [], alerts: [], history: [], traffic: [], map: [], markets: [], air: [], hebcal: [] };
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.evaluateOnNewDocument((fixed, lang, configure, init, home) => {
@@ -149,7 +172,8 @@ export async function openApp(opts = {}) {
       done = req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
     } else {
       const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : url.startsWith(HISTORY) ? 'history' : MAP.test(url) ? 'map'
-        : url.startsWith('https://api.mapbox.com/') ? 'traffic' : MARKETS.test(url) ? 'markets' : null;
+        : url.startsWith('https://api.mapbox.com/') ? 'traffic' : MARKETS.test(url) ? 'markets'
+        : url.startsWith('https://air-quality-api.open-meteo.com/') ? 'air' : url.startsWith('https://www.hebcal.com/') ? 'hebcal' : null;
       if (kind) requests[kind].push({ url, method: req.method(), headers: req.headers(), body: req.postData() });
       if (!kind || opts[kind] === undefined) done = req.abort();
       else if ((kind === 'map' || kind === 'traffic') && opts[kind] === 'live') done = req.continue();   // the real service

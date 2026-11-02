@@ -1,6 +1,7 @@
 /* Line-style weather icons as inline SVG strings (soft colours and per-size stroke widths via CSS). ES5.
  * Icons.weather(code, isDay) maps an Open-Meteo WMO code to an icon; Icons.glyph(name) gives the small
- * detail icons (wind, drop, umbrella, sunrise, sunset) and the screens' glyphs (car, warning, shield, news). */
+ * detail icons (wind, drop, umbrella, sunrise, sunset) and the screens' glyphs (car, warning, shield, news; candles,
+ * havdalah, fast, air). */
 var Icons = (function () {
   var CLOUD = 'M19 46h27a9 9 0 0 0 0-18a13 13 0 0 0-25-2a10 10 0 0 0-2 20z';
   var maskSeq = 0;
@@ -82,7 +83,14 @@ var Icons = (function () {
     warning: '<g class="ic-warning"><path d="M32 10l24 42H8z"/><path d="M32 26v12"/><circle cx="32" cy="45" r="1.4"/></g>',
     shield: '<g class="ic-shield"><path d="M32 8l20 8v14c0 13-9 22-20 26-11-4-20-13-20-26V16z"/><path d="M23 32l6 6 12-13"/></g>',
     news: '<g class="ic-news"><rect x="12" y="14" width="34" height="38" rx="4"/><path d="M46 24h6v22a6 6 0 0 1-12 0"/>' +
-      '<path d="M19 23h20M19 31h20M19 39h12"/></g>'
+      '<path d="M19 23h20M19 31h20M19 39h12"/></g>',
+    // batch 12: Shabbat candles, the havdalah cup, a fast (an empty plate, crossed), air (three soft waves)
+    candles: '<g class="ic-candles"><path d="M20 30h8v22h-8zM36 30h8v22h-8z"/><path d="M24 14c3 4 3 8 0 11c-3-3-3-7 0-11zM40 14c3 4 3 8 0 11c-3-3-3-7 0-11z"/>' +
+      '<path d="M12 54h40"/></g>',
+    havdalah: '<g class="ic-havdalah"><path d="M20 12h24l-3 20a9 9 0 0 1-18 0z"/><path d="M32 41v11M23 54h18"/><path d="M47 10l2 4 4 1-4 1-2 4-2-4-4-1 4-1z"/></g>',
+    fast: '<g class="ic-fast"><circle cx="32" cy="34" r="18"/><circle cx="32" cy="34" r="9"/><path d="M15 51l34-34"/></g>',
+    air: '<g class="ic-air"><path d="M10 22c6-6 12-6 18 0s12 6 18 0c3-3 5-4 8-4"/><path d="M10 34c6-6 12-6 18 0s12 6 18 0c3-3 5-4 8-4"/>' +
+      '<path d="M10 46c6-6 12-6 18 0s12 6 18 0c3-3 5-4 8-4"/></g>'
   };
   function glyph(name) { return svg('g-' + name, GLYPHS[name] || ''); }
 

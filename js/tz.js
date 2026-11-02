@@ -11,9 +11,13 @@
  * When both 1 and 2 are available and disagree, the built-in rule wins: it is checked against real tzdata for
  * every hour of 2025–2030, while the TV's Intl data is frozen in 2015 or may ignore `timeZone` altogether.
  * The disagreement is logged once per clock and not marked on screen.
+ *
+ * Calendar dates "YYYY-MM-DD" (the one home of this arithmetic: weather, the Shabbat calendar, the request ledger) are
+ * whole UTC days, so no zone, DST or leap second ever enters it:
+ *   Tz.dateMs(date) · Tz.isoDate(ms) · Tz.addDays(date, n) · Tz.weekdayOf(date) (0 = Sunday) · Tz.daysBetween(from, to)
  */
 var Tz = (function () {
-  var HOUR = 3600000;
+  var HOUR = 3600000, DAY = 24 * HOUR;
 
   // ---- built-in rules (valid as of 2026; used only when the TV cannot resolve the zone) ----------
   function lastSunday(year, month) {           // month 0-based; returns the day of month
@@ -113,5 +117,13 @@ var Tz = (function () {
   // "2026-10-29T20": the wall time's hour in the format of Open-Meteo's local times, null when unknown.
   function hourKey(w) { return w.ok ? w.year + '-' + pad2(w.month + 1) + '-' + pad2(w.day) + 'T' + pad2(w.hours) : null; }
 
-  return { resolve: resolve, wallTime: wallTime, intlOffset: intlOffset, rules: RULES, pad2: pad2, hhmm: hhmm, hourKey: hourKey };
+  // ---- calendar dates ----------------------------------------------------------------------------
+  function dateMs(date) { return Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)); }
+  function isoDate(ms) { return new Date(ms).toISOString().slice(0, 10); }
+  function addDays(date, n) { return isoDate(dateMs(date) + n * DAY); }
+  function weekdayOf(date) { return new Date(dateMs(date)).getUTCDay(); }
+  function daysBetween(from, to) { return Math.round((dateMs(to) - dateMs(from)) / DAY); }
+
+  return { resolve: resolve, wallTime: wallTime, intlOffset: intlOffset, rules: RULES, pad2: pad2, hhmm: hhmm, hourKey: hourKey,
+    dateMs: dateMs, isoDate: isoDate, addDays: addDays, weekdayOf: weekdayOf, daysBetween: daysBetween };
 })();
