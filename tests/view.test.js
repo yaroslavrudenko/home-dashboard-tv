@@ -65,20 +65,20 @@ test('B12 air & UV: between the place text and the icon, no glyphs; UV and air e
   const r = mainWith('ru', { uv: { index: 5, level: 'moderate' }, air: FAIR, airKind: 'fresh' });
   assert.ok(r.html.indexOf('now-main') < r.html.indexOf('now-air') && r.html.indexOf('now-air') < r.html.indexOf('now-icon'), 'between the text and the icon');
   assert.ok(!/<svg/.test(r.block), 'no glyph icons in the block');
-  assert.deepEqual(stripTags(r.block), ['УФ макс.', '5', 'умеренный', 'Качество воздуха', '38', 'приемлемое', 'Пыль · 25 мкг/м³']);
+  assert.deepEqual(stripTags(r.block), ['УФ макс.', '5', 'умеренный', 'Качество воздуха', '38', 'приемлемое', 'Пыль', '25', 'мкг/м³']);
   assert.match(r.block, /<span class="air-word lv-moderate">умеренный<\/span>/);
   assert.match(r.block, /<span class="air-word lv-fair">приемлемое<\/span>/);
   assert.match(r.html, /<div class="details">/, 'the details row is still there, unchanged');
 });
 
-test('B12 air: high dust is a khamsin — the amber «Хамсин» line and the dust under it; in every language', () => {
-  for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Хамсин', 'пыль 240 мкг/м³']],
-    ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'חמסין', 'אבק 240 מק״ג/מ״ק']],
-    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Хамсин', 'пил 240 мкг/м³']]]) {
+test('B12 air: high dust is a khamsin — the dust item «Пыль · 240 мкг/м³ хамсин», amber word; in every language', () => {
+  for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Пыль', '240', 'мкг/м³', 'хамсин']],
+    ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'אבק', '240', 'מק״ג/מ״ק', 'חמסין']],
+    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Пил', '240', 'мкг/м³', 'хамсин']]]) {
     const r = mainWith(lang, { uv: { index: 9, level: 'veryHigh' }, air: DUSTY, airKind: 'fresh' });
     assert.deepEqual(stripTags(r.block), words, lang);
   }
-  assert.match(mainWith('ru', { uv: null, air: FAIR, airKind: 'fresh' }).block, /<div class="air-dust is-normal">Пыль · 25 мкг\/м³<\/div>/, 'ordinary dust: the muted line');
+  assert.deepEqual(stripTags(mainWith('ru', { uv: null, air: FAIR, airKind: 'fresh' }).block).slice(-3), ['Пыль', '25', 'мкг/м³'], 'ordinary dust: its own labelled item');
 });
 
 test('B12 air: loading keeps the slot (a placeholder bar), failed says «Нет данных», stale is dimmed, no UV reads «—»', () => {
@@ -102,18 +102,21 @@ function israelWith(lang, air, airKind) {
   const card = { region: regions[0], view: null, kind: 'loading', retryAt: '', key: 'k1', air, airKind };
   ctx.IsraelView.render([card], 5, { kind: 'none', updated: '' });
   const html = doc.nodes['region-center'].innerHTML;
-  return { ctx, doc, card, regions, head: html.slice(0, html.indexOf('</div>') + 6) };
+  // head: the region head and, right under it, the air line (its own line since the owner's «должно быть понятно»)
+  const line = html.match(/<div class="region-air[^"]*">.*?<\/div>/);
+  return { ctx, doc, card, regions, head: html.slice(0, html.indexOf('</div>') + 6) + (line ? line[0] : '') };
 }
 
-test('B12 Israel chip: the air glyph and one word at the end of the region head; «хамсин» when the dust is high', () => {
+test('B12 Israel air line: labelled «Воздух: приемлемое» on its own line under the head; «Воздух: хамсин» when the dust is high', () => {
   const fair = israelWith('ru', FAIR, 'fresh');
-  assert.match(fair.head, /<span class="region-air lv-fair"><svg class="icon g-air"[\s\S]*<\/svg><span class="region-air-word">приемлемое<\/span><\/span><\/div>$/);
-  assert.match(israelWith('ru', DUSTY, 'fresh').head, /<span class="region-air lv-dust">[\s\S]*>хамсин<\/span>/, 'a khamsin: the word «хамсин» in the dust colour (the owner, 2026-11-02)');
+  assert.match(fair.head, /<\/div><div class="region-air lv-fair"><span class="region-air-label">Воздух:<\/span> <span class="region-air-word">приемлемое<\/span><\/div>$/);
+  for (const [lang, label] of [['he', 'אוויר:'], ['uk', 'Повітря:']]) assert.match(israelWith(lang, FAIR, 'fresh').head, new RegExp('<span class="region-air-label">' + label + '</span>'), lang);
+  assert.match(israelWith('ru', DUSTY, 'fresh').head, /<div class="region-air lv-dust"><span class="region-air-label">Воздух:<\/span> <span class="region-air-word">хамсин<\/span>/, 'a khamsin: labelled, in the dust colour');
   assert.match(israelWith('he', FAIR, 'fresh').head, />סבירה</);
   assert.match(israelWith('uk', DUSTY, 'fresh').head, />хамсин</);
   assert.match(israelWith('ru', FAIR, 'stale').head, /region-air lv-fair is-stale/);
-  assert.match(israelWith('ru', null, 'loading').head, /<span class="region-air is-reserved"><\/span>/, 'loading: an empty reserved box');
-  assert.ok(!/region-air/.test(israelWith('ru', null, 'failed').head), 'no data: no chip');
+  assert.match(israelWith('ru', null, 'loading').head, /<div class="region-air is-reserved"><\/div>$/, 'loading: the line reserved, empty');
+  assert.match(israelWith('ru', null, 'failed').head, /<div class="region-air is-reserved"><\/div>$/, 'no data: no words, the line still reserved (nothing moves)');
 });
 
 test('B12 Israel chip: an air answer alone redraws the card (the air is in the card key)', () => {
@@ -137,13 +140,13 @@ test('V4: after sunset the UV level word is dimmed (the day\'s maximum is behind
 });
 
 test('V12: high dust is said even when the AQI is missing — main line and region chip, ru/he/uk, fresh and stale', () => {
-  for (const [lang, none, dust, word] of [['ru', 'Нет данных', ['Хамсин', 'пыль 240 мкг/м³'], 'хамсин'], ['he', 'אין נתונים', ['חמסין', 'אבק 240 מק״ג/מ״ק'], 'חמסין'],
-    ['uk', 'Немає даних', ['Хамсин', 'пил 240 мкг/м³'], 'хамсин']]) {
+  for (const [lang, none, dust, word] of [['ru', 'Нет данных', ['Пыль', '240', 'мкг/м³', 'хамсин'], 'хамсин'], ['he', 'אין נתונים', ['אבק', '240', 'מק״ג/מ״ק', 'חמסין'], 'חמסין'],
+    ['uk', 'Немає даних', ['Пил', '240', 'мкг/м³', 'хамсин'], 'хамсин']]) {
     for (const kind of ['fresh', 'stale']) {
       const r = mainWith(lang, { uv: null, air: DUST_NO_AQI, airKind: kind });
-      assert.deepEqual(stripTags(r.block).slice(-3), [none].concat(dust), lang + ' ' + kind + ': «no data» for the AQI, the khamsin line kept');
+      assert.deepEqual(stripTags(r.block).slice(-5), [none].concat(dust), lang + ' ' + kind + ': «no data» for the AQI, the dust item kept');
       const chip = israelWith(lang, DUST_NO_AQI, kind).head;
-      assert.match(chip, new RegExp('<span class="region-air lv-dust' + (kind === 'stale' ? ' is-stale' : '') + '">[\\s\\S]*>' + word + '<\\/span>'), lang + ' ' + kind);
+      assert.match(chip, new RegExp('<div class="region-air lv-dust' + (kind === 'stale' ? ' is-stale' : '') + '">[\\s\\S]*>' + word + '<\\/span>'), lang + ' ' + kind);
     }
   }
 });
@@ -164,23 +167,44 @@ test('V13: the region card is keyed by what the chip shows — AQI 31 → 39 (bo
 });
 
 // The owner (2026-11-02): «вижу ультрофеолет - но не вижу пыли … не вижу хамсин», «открой все-равно - я хочу видть все даже если
-// мало». The dust is ALWAYS shown: a muted line on an ordinary day; from 100 µg/m³ the amber «Хамсин» line with the dust
-// under it; no value, no line (never made up) — and the two-line slot is reserved in every state, so nothing moves.
-test('Dust always: an ordinary day shows the muted dust line in ru, he and uk', () => {
-  for (const [lang, line] of [['ru', 'Пыль · 25 мкг/м³'], ['he', 'אבק · 25 מק״ג/מ״ק'], ['uk', 'Пил · 25 мкг/м³']]) {
-    const r = mainWith(lang, { uv: null, air: FAIR, airKind: 'fresh' });
-    assert.match(r.block, new RegExp('<div class="air-dust is-normal">' + line.replace(/[/]/g, '\\/') + '<\\/div>'), lang);
+// мало»; then «Качество воздуха:... Пыль: ... - должно быть понятно а не вкучу слеплено». The dust is ALWAYS shown, as a THIRD
+// item of its own, like «УФ макс.» and «Качество воздуха»: its label «Пыль», then «27 мкг/м³» in the value style; from
+// 100 µg/m³ the amber word «хамсин» in the level-word slot; no value, no item (never made up) — its slot stays reserved.
+const dustItem = (block) => { const i = block.indexOf('<div class="air-item air-dust'); return i < 0 ? null : block.slice(i); };
+test('Dust: its own item with its own label, the value in the value line — ru, he, uk', () => {
+  for (const [lang, label, unit] of [['ru', 'Пыль', 'мкг/м³'], ['he', 'אבק', 'מק״ג/מ״ק'], ['uk', 'Пил', 'мкг/м³']]) {
+    const d = dustItem(mainWith(lang, { uv: null, air: FAIR, airKind: 'fresh' }).block);
+    assert.ok(d, lang + ': a dust item');
+    assert.match(d, new RegExp('^<div class="air-item air-dust"><div class="air-label">' + label + '</div><div class="air-value"><span class="air-num">25</span> <span class="air-unit">' + unit.replace(/[/]/g, '\\/') + '</span></div></div>'), lang);
+    assert.ok(!/air-word/.test(d), lang + ': an ordinary day has no level word');
   }
 });
-test('Dust always: at 100 µg/m³ and more it is a khamsin — «Хамсин» over «пыль 240 мкг/м³», amber', () => {
-  const r = mainWith('ru', { uv: null, air: DUSTY, airKind: 'fresh' });
-  assert.match(r.block, /<div class="air-dust is-high"><span class="air-dust-word">Хамсин<\/span><span class="air-dust-val">пыль 240 мкг\/м³<\/span><\/div>/);
-  assert.match(mainWith('ru', { uv: null, air: { aqi: 41, level: 'moderate', dust: 100, dustHigh: true }, airKind: 'fresh' }).block, /is-high[\s\S]*пыль 100 мкг/);
+test('Dust: at 100 µg/m³ and more «хамсин» sits in the value line\'s word slot, amber — like «умеренный» after «5»', () => {
+  for (const [lang, word] of [['ru', 'хамсин'], ['he', 'חמסין'], ['uk', 'хамсин']]) {
+    const d = dustItem(mainWith(lang, { uv: null, air: DUSTY, airKind: 'fresh' }).block);
+    assert.match(d, new RegExp('<div class="air-value"><span class="air-num">240</span> <span class="air-unit">[^<]+</span> <span class="air-word lv-khamsin">' + word + '</span></div>'), lang);
+  }
+  assert.match(dustItem(mainWith('ru', { uv: null, air: { aqi: 41, level: 'moderate', dust: 100, dustHigh: true }, airKind: 'fresh' }).block), />100<[\s\S]*>хамсин</);
 });
-test('Dust always: no dust value — no line and no number, the slot stays reserved', () => {
+test('Dust: no dust value — the item is not drawn (no label, no number), its slot reserved', () => {
   const r = mainWith('ru', { uv: null, air: { aqi: 38, level: 'fair', dust: null, dustHigh: false }, airKind: 'fresh' });
-  assert.match(r.block, /<div class="air-dust is-none"><\/div>/);
-  assert.ok(!/мкг/.test(r.block), 'no made-up value');
+  assert.match(r.block, /<div class="air-item air-dust is-none"><\/div><\/div>$/);
+  assert.ok(!/мкг|Пыль/.test(r.block), 'no made-up value, no orphan label');
   const loading = mainWith('ru', { uv: null, air: null, airKind: 'loading' });
-  assert.match(loading.block, /<div class="air-dust is-none"><\/div>/, 'before the first air answer: the slot is there too');
+  assert.match(loading.block, /<div class="air-item air-dust is-none"><\/div>/, 'before the first air answer: the slot is there too');
+});
+
+// The owner: «должно быть понятно». The chance of rain in the day lists sat squeezed under the weather icon, over its drops,
+// and read as part of the icon. It is now its own small line under the icon: an umbrella glyph and the percentage, the
+// icon lifted so the two never overlap; the row keeps its height.
+test('Day rows: the chance of rain carries an umbrella glyph and sits apart from the weather icon', () => {
+  const ctx = load(B12);
+  ctx.I18n.setLang('ru');
+  const day = (pop) => ({ weekday: 4, code: 61, min: 15, max: 25, pop });
+  const v = { current: { temp: 20 }, today: null, daily: [day(33), day(10), day(null)] };
+  const html = ctx.View.dailyHtml(v);
+  const rows = html.split('<div class="day">').slice(1);
+  assert.match(rows[0], /<span class="day-pop"><svg class="icon g-umbrella"[\s\S]*?<\/svg>33%<\/span>/, 'rain chance: umbrella + percentage');
+  assert.match(rows[1], /<span class="day-pop"><\/span>/, 'under 20 %: nothing said, the slot kept');
+  assert.match(rows[2], /<span class="day-pop"><\/span>/);
 });

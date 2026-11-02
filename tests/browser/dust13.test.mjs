@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { openApp, measure, legibility } from './page.mjs';
+import { openApp, measure, legibility, weatherAnswer } from './page.mjs';
 
 const FIX = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'fixtures', 'air', 'aq-4places.json');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -18,32 +18,57 @@ const airWith = (dust) => () => {
   for (const p of list) p.current.dust = dust;
   return { status: 200, contentType: 'application/json', body: JSON.stringify(list) };
 };
+// The recorded weather with real rain chances (the recording's are 0–18 %, under the 20 % the lists show), 100 % the widest.
+const rainy = (n, url) => {
+  const list = JSON.parse(weatherAnswer(url));
+  for (const p of list) p.daily.precipitation_probability_max = [33, 100, 45, 20, 64, 10, 87];
+  return { status: 200, body: JSON.stringify(list) };
+};
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
-const WORD = { ru: ['Пыль · 25 мкг/м³', 'Хамсин', 'хамсин'], he: ['אבק · 25 מק״ג/מ״ק', 'חמסין', 'חמסין'], uk: ['Пил · 25 мкг/м³', 'Хамсин', 'хамсин'] };
+// [the dust item's label, its value at 25, the khamsin word, the air line's label]
+const WORD = { ru: ['Пыль', '25 мкг/м³', 'хамсин', 'Воздух:'], he: ['אבק', '25 מק״ג/מ״ק', 'חמסין', 'אוויר:'], uk: ['Пил', '25 мкг/м³', 'хамсин', 'Повітря:'] };
 
 for (const lang of ['ru', 'he', 'uk']) {
   test('Dust always, ' + lang + ': 25 µg/m³ muted, 240 a khamsin, none no line — the air block the same size in every state, nothing cut', async () => {
     const boxes = {};
     for (const dust of [25, 240, null]) {
-      const app = await openApp({ lang, weather: 'ok', news: 'ok', alerts: 'empty-bom.txt', air: airWith(dust), now: NOW, configure: (c) => { c.rotation.enabled = false; } });
+      const app = await openApp({ lang, weather: rainy, news: 'ok', alerts: 'empty-bom.txt', air: airWith(dust), now: NOW, configure: (c) => { c.rotation.enabled = false; } });
       try {
         const p = app.page;
         await p.waitForSelector('.now-air .air-num', { timeout: 10000 });
         await p.evaluate(() => document.fonts.ready); await wait(500);
-        const v = await p.evaluate(() => { const b = document.querySelector('.now-air').getBoundingClientRect(), d = document.querySelector('.now-air .air-dust');
-          return { box: [Math.round(b.width), Math.round(b.height)], dust: d.className, text: d.textContent, dustBox: Math.round(d.getBoundingClientRect().height) }; });
+        const v = await p.evaluate(() => {
+          const q = (s) => document.querySelector(s), r = (e) => e.getBoundingClientRect();
+          const b = r(q('.now-air')), top = r(q('.now-top')), d = q('.now-air .air-dust'), items = [...document.querySelectorAll('.now-air .air-item')];
+          const label = d.querySelector('.air-label'), value = d.querySelector('.air-value');
+          return { box: [Math.round(b.width), Math.round(b.height)], cls: d.className, label: label ? label.textContent : null,
+            value: value ? value.textContent.replace(/\s+/g, ' ').trim() : null, word: d.querySelector('.air-word') ? d.querySelector('.air-word').textContent : null,
+            wordInValue: !!(value && value.querySelector('.air-word')), // one line: every part of the value overlaps every other vertically (a wrapped part would sit wholly below)
+            lines: value ? (Math.max.apply(null, [...value.children].map((c) => r(c).top)) < Math.min.apply(null, [...value.children].map((c) => r(c).bottom)) ? 1 : 2) : 0,
+            heights: items.map((i) => Math.round(r(i).height)), gaps: items.slice(1).map((i, k) => Math.round(r(i).top - r(items[k]).bottom)),
+            inside: b.bottom <= top.bottom + 0.5 };
+        });
         boxes[dust] = v.box;
-        if (dust === 25) assert.deepEqual([v.dust, v.text], ['air-dust is-normal', WORD[lang][0]]);
-        if (dust === 240) assert.ok(v.dust === 'air-dust is-high' && v.text.startsWith(WORD[lang][1]), lang + ': ' + v.text);
-        if (dust === null) assert.deepEqual([v.dust, v.text], ['air-dust is-none', ''], 'no value: no line');
-        assert.equal(v.dustBox, 60, 'the two-line slot is reserved');
+        assert.equal(v.heights.length, 3, 'three items: UV, air quality, dust');
+        assert.ok(v.inside, lang + ' ' + dust + ': the three items fit the card');
+        assert.deepEqual(v.gaps, [20, 20], 'the same gap between the items');
+        if (dust === 25) assert.deepEqual([v.cls, v.label, v.value, v.word], ['air-item air-dust', WORD[lang][0], WORD[lang][1], null], lang);
+        if (dust === 240) assert.deepEqual([v.cls, v.label, v.word, v.wordInValue, v.lines], ['air-item air-dust', WORD[lang][0], WORD[lang][2], true, 1], lang + ': «хамсин» in the value line, one line');
+        if (dust === null) assert.deepEqual([v.cls, v.label, v.value], ['air-item air-dust is-none', null, null], 'no value: no item drawn');
+        assert.deepEqual(v.heights, [68, 68, 68], 'every item the same height, the dust slot reserved when empty');
         assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' ' + dust + ' main');
         assert.deepEqual((await p.evaluate(legibility, '#screen-main .now-air *')).bad, [], lang + ' ' + dust + ' legible');
         if (process.env.DUST_SHOTS) { fs.mkdirSync(process.env.DUST_SHOTS, { recursive: true }); await p.screenshot({ path: path.join(process.env.DUST_SHOTS, 'main-' + lang + '-' + dust + '.png') }); }
         await press(p, 39); await wait(900);
         const chips = await p.$$eval('#screen-israel .region-air', (c) => c.map((e) => e.textContent.trim()));
-        if (dust === 240) assert.deepEqual(chips, [WORD[lang][2], WORD[lang][2], WORD[lang][2]], 'a khamsin on every region chip');
-        else assert.ok(chips.every((t) => t !== WORD[lang][2]), 'no khamsin below 100 µg/m³');
+        assert.ok(chips.every((t) => t.indexOf(WORD[lang][3]) === 0), lang + ': every air line is labelled: ' + JSON.stringify(chips));
+        if (dust === 240) assert.deepEqual(chips, [0, 1, 2].map(() => WORD[lang][3] + ' ' + WORD[lang][2]), 'a khamsin on every region, labelled');
+        else assert.ok(chips.every((t) => t.indexOf(WORD[lang][2]) < 0), 'no khamsin below 100 µg/m³');
+        // the chance of rain never over the weather icon (the owner: «должно быть понятно»), here and on the main 7-day list
+        const overlap = await p.evaluate(() => [...document.querySelectorAll('.day-icon')].filter((s) => {
+          const i = s.querySelector(':scope > .icon'), t = s.querySelector('.day-pop'); if (!i || !t || !t.textContent) return false;
+          const a = i.getBoundingClientRect(), b = t.getBoundingClientRect(); return b.top < a.bottom - 0.5 && a.top < b.bottom - 0.5; }).length);
+        assert.equal(overlap, 0, lang + ': a rain chance overlaps its icon');
         assert.deepEqual(clean(await p.evaluate(measure, '#screen-israel *')), [], lang + ' ' + dust + ' israel');
         if (process.env.DUST_SHOTS) await p.screenshot({ path: path.join(process.env.DUST_SHOTS, 'israel-' + lang + '-' + dust + '.png') });
         assert.deepEqual(app.errors, []);

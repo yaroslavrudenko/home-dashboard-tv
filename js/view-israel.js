@@ -25,13 +25,16 @@ var IsraelView = (function () {
     if (!a || (a.level === null && !a.dustHigh)) return null;
     return { cls: 'lv-' + (a.dustHigh || !a.level ? 'dust' : a.level) + (card.airKind === 'stale' ? ' is-stale' : ''), word: a.dustHigh ? 'w.air.khamsinWord' : 'w.air.' + a.level };
   }
-  function airChip(chip) {
-    if (!chip) return '';
-    return '<span class="region-air ' + chip.cls + '">' + (chip.word ? Icons.glyph('air') + '<span class="region-air-word">' + esc(I18n.t(chip.word)) + '</span>' : '') + '</span>';
+  // The air, labelled on its own line under the head («Воздух: приемлемое» — the owner: «должно быть понятно»); the line is
+  // there in every state (empty while there is nothing to say), so nothing below it moves when the air arrives.
+  function airLine(chip) {
+    if (!chip || !chip.word) return '<div class="region-air is-reserved"></div>';
+    return '<div class="region-air ' + chip.cls + '"><span class="region-air-label">' + esc(I18n.t('w.airShort')) + '</span> <span class="region-air-word">' +
+      esc(I18n.t(chip.word)) + '</span></div>';
   }
   function headHtml(r, card) {
     return '<div class="region-head"><span class="region-name">' + esc(I18n.t('r.' + r.id)) + '</span><span class="region-city">' + esc(I18n.t('place.' + r.place)) + '</span>' +
-      airChip(chipOf(card)) + '</div>';
+      '</div>' + airLine(chipOf(card));
   }
   // The sub line's parts never break inside ("км/год" is one word); a line too long for the card wraps between them.
   function part(text) { return '<span class="region-part">' + esc(text) + '</span>'; }

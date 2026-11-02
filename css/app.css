@@ -184,9 +184,13 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .day:first-child { border-top: 0; }
 .day-name { width: 136px; font-size: 30px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 /* the icon is centred on the row; the chance of rain hangs below it and never moves it */
-.day-icon { position: relative; width: 72px; height: 82px; }
-.day-icon .icon { position: absolute; left: 14px; top: 19px; width: 44px; height: 44px; stroke-width: 4; }
-.day-pop { position: absolute; left: 0; right: 0; top: 61px; text-align: center; font-size: 24px; line-height: 20px; color: #8ec5ff; }
+/* the weather icon in the upper part of the slot, the chance of rain on its own line under it — an umbrella and the
+   percentage, never over the icon's drops (the owner: «должно быть понятно»); the row keeps its 82 px */
+.day-icon { position: relative; width: 88px; height: 82px; }
+.day-icon > .icon { position: absolute; left: 22px; top: 4px; width: 44px; height: 44px; stroke-width: 4; }
+.day-pop { position: absolute; left: 0; right: 0; top: 52px; height: 26px; text-align: center; font-size: 24px; line-height: 26px; color: #8ec5ff; white-space: nowrap; }
+.day-pop .icon { display: inline-block; width: 20px; height: 20px; vertical-align: -3px; -webkit-margin-end: 4px; stroke-width: 5; }
+.day-pop .icon g { stroke: #8ec5ff; }
 .day-min { width: 72px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.62); }
 .day-max { width: 72px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.95); }
 .range { position: relative; flex: 1 1 auto; height: 16px; -webkit-margin-start: 16px; -webkit-margin-end: 8px; }
@@ -200,22 +204,25 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* ---- Batch 12. The air & UV block in the "now" card: in the free gap between the place's text and the big icon, no
    glyphs; a label, then the figure and the level word (atomic, a line wraps only between them); the dust line only
    when the dust is high. .now-top keeps its height. Level colours are soft and always come with the word. ---- */
-.now-air { flex: 0 0 240px; width: 240px; -webkit-margin-start: auto; -webkit-margin-end: 32px; display: flex; flex-direction: column; justify-content: flex-start; }   /* fixed and top-aligned: the dust line moves nothing */
+.now-air { flex: 0 0 256px; width: 256px; -webkit-margin-start: auto; -webkit-margin-end: 32px; display: flex; flex-direction: column; justify-content: flex-start; }   /* fixed and top-aligned: the dust line moves nothing */
 .air-item + .air-item { margin-top: 20px; }
-.air-label { font-size: 24px; line-height: 30px; color: rgba(255, 255, 255, 0.62); white-space: nowrap;
+.air-label { height: 30px; font-size: 24px; line-height: 30px; color: rgba(255, 255, 255, 0.62); white-space: nowrap;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space «УФ-индекс» apart */
-.air-value { font-size: 24px; line-height: 38px; min-height: 38px; }
+.air-value { height: 38px; font-size: 24px; line-height: 38px; white-space: nowrap; }
 .air-num, .air-word, .air-none { display: inline-block; white-space: nowrap; }
 .air-num { font-size: 30px; color: rgba(255, 255, 255, 0.92); -webkit-margin-end: 4px; }
+/* the figure and its words on one baseline, each box only as tall as its text, so the line stays inside its 38 px */
+.air-num { line-height: 34px; }
+.air-word, .air-unit, .air-none { line-height: 28px; }
 .air-none { color: rgba(255, 255, 255, 0.62); }
 .air-skeleton { display: inline-block; width: 140px; height: 24px; vertical-align: middle; }
-/* the dust: always said (the owner, 2026-11-02); two lines reserved in every state — a khamsin's «Хамсин» over its value, an
-   ordinary day's one muted line, or nothing — so nothing in the card moves when the dust changes */
-.air-dust { height: 60px; font-size: 24px; line-height: 30px; white-space: nowrap; }
-.air-dust.is-normal { color: rgba(255, 255, 255, 0.62); }
-.air-dust-word, .air-dust-val { display: block; }
+/* the dust: a third item like the other two (label, then value); its height is the same with or without a value, so
+   nothing moves; the unit in the label's quiet grey */
+.air-item { height: 68px; }   /* label 30 + value 38, fixed: the dust item takes the same room with or without a value */
+.air-unit { display: inline-block; white-space: nowrap; color: rgba(255, 255, 255, 0.62); }
+.lv-khamsin { color: #ffb38a; }
 .now.is-stale .air-uv .air-num, .now.is-stale .air-uv .air-word, .now-air.is-stale .air-aq .air-num,
-.now-air.is-stale .air-aq .air-word, .now-air.is-stale .air-dust { opacity: 0.72; }
+.now-air.is-stale .air-aq .air-word, .now-air.is-stale .air-dust .air-num, .now-air.is-stale .air-dust .air-word { opacity: 0.72; }
 .air-uv.is-night .air-word { color: rgba(255, 255, 255, 0.62); }   /* after sunset: the day's peak is behind */
 .lv-low, .lv-good { color: #8ce6b4; }
 .lv-fair { color: #b9e6c9; }
@@ -223,13 +230,12 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .lv-high, .lv-poor { color: #ffb38a; }
 .lv-veryHigh, .lv-veryPoor { color: #ff9a8c; }
 .lv-extreme { color: #ff8fb0; }
-.lv-dust, .air-dust.is-high { color: #ffb38a; }
-/* the Israel cards: one chip at the end of the region head (the glyph in the level's colour, then the word) */
-.region-air { display: block; -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; line-height: 32px; white-space: nowrap; }   /* its text on the city's baseline */
-.region-air.is-reserved { min-height: 28px; }
-.region-air .icon { display: inline-block; width: 28px; height: 28px; vertical-align: -6px; -webkit-margin-end: 8px; stroke-width: 4.5; }
-.region-air .ic-air { stroke: currentColor; }
-.region-air.is-stale { opacity: 0.72; }
+.lv-dust { color: #ffb38a; }
+/* the Israel cards: the air on its own line under the head, labelled («Воздух:» grey, the level word in its colour); the
+   line keeps its height when empty */
+.region-air { height: 34px; margin-top: 4px; font-size: 28px; line-height: 34px; white-space: nowrap; -webkit-font-feature-settings: normal; font-feature-settings: normal; }
+.region-air-label { color: rgba(255, 255, 255, 0.62); }
+.region-air.is-stale .region-air-word { opacity: 0.72; }
 
 /* the new glyphs' quiet default (as .ic-car, .ic-news): the empty state's candles; places that tint them say so below */
 .ic-candles, .ic-havdalah, .ic-fast, .ic-air { stroke: rgba(255, 255, 255, 0.85); }

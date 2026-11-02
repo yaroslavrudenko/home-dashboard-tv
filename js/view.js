@@ -88,11 +88,14 @@ var View = (function () {
     return '<div class="air-item ' + cls + '"><div class="air-label">' + esc(I18n.t(labelKey)) + '</div><div class="air-value">' + value + '</div>' +
       extra + '</div>';
   }
+  // The dust: a third item of its own (the owner, 2026-11-02: «должно быть понятно а не вкучу слеплено») — its label «Пыль»,
+  // then «27 мкг/м³» in the value style; a khamsin (≥ 100 µg/m³) adds the amber word «хамсин» in the level-word slot, as
+  // «умеренный» after «5». No value: the item is not drawn, its slot stays (nothing moves).
   function dustHtml(a) {
-    if (!a || typeof a.dust !== 'number') return '<div class="air-dust is-none"></div>';
-    if (a.dustHigh) return '<div class="air-dust is-high"><span class="air-dust-word">' + esc(I18n.t('w.khamsin')) + '</span><span class="air-dust-val">' +
-      esc(I18n.t('w.dustHigh', { n: a.dust })) + '</span></div>';
-    return '<div class="air-dust is-normal">' + esc(I18n.t('w.dust', { n: a.dust })) + '</div>';
+    if (!a || typeof a.dust !== 'number') return '<div class="air-item air-dust is-none"></div>';
+    var value = '<span class="air-num">' + esc(String(a.dust)) + '</span> <span class="air-unit">' + esc(I18n.t('w.dustUnit')) + '</span>' +
+      (a.dustHigh ? ' <span class="air-word lv-khamsin">' + esc(I18n.t('w.air.khamsinWord')) + '</span>' : '');
+    return airItem('air-dust', 'w.dustLabel', value, '');
   }
   function airBlock(s, isDay) {
     var a = s.air || null, loading = !a && (s.airKind === 'loading' || s.airKind === undefined);
@@ -102,7 +105,7 @@ var View = (function () {
       : figure(String(a.aqi), 'w.air.' + a.level, a.level);
     var dust = dustHtml(a);
     return '<div class="now-air' + (a && s.airKind === 'stale' ? ' is-stale' : '') + '">' + airItem('air-uv' + (isDay ? '' : ' is-night'), 'w.uv', uv, '') +
-      airItem('air-aq', 'w.air', air, dust) + '</div>';
+      airItem('air-aq', 'w.air', air, '') + dust + '</div>';
   }
 
   function nowHtml(v, s) {
@@ -153,7 +156,7 @@ var View = (function () {
         if (isToday) bar += '<div class="range-dot" style="left:calc((100% - 16px) * ' + Math.max(0, Math.min(1, (v.current.temp - lo) / span)).toFixed(3) + ')"></div>';
       }
       out += '<div class="day"><div class="day-name">' + esc(isToday ? I18n.t('w.today') : I18n.weekdayShort(day.weekday)) + '</div>' +
-        '<div class="day-icon">' + (day.code === null ? '' : Icons.weather(day.code, true)) + '<span class="day-pop">' + popText(day.pop) + '</span></div>' +
+        '<div class="day-icon">' + (day.code === null ? '' : Icons.weather(day.code, true)) + '<span class="day-pop">' + (popText(day.pop) ? Icons.glyph('umbrella') + popText(day.pop) : '') + '</span></div>' +
         '<div class="day-min">' + temp(day.min) + '</div><div class="range">' + bar + '</div>' +
         '<div class="day-max">' + temp(day.max) + '</div></div>';
     }
