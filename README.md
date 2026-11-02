@@ -6,7 +6,7 @@
 
 <p align="center">
   <b>Your family's morning glance, on the TV you already own — the companion to <a href="https://github.com/yaroslavrudenko/nastin-kinozal">«Настин кинозал»</a>.</b><br>
-  A calm, always-on dashboard for Samsung Smart TVs — even a 2017 one — that sits on top while the player's music plays on.<br>
+  A calm, always-on dashboard for Samsung Smart TVs — from 2017 models to the newest — that sits on top while the player's music plays on.<br>
   Clocks for Israel, Ukraine and Sydney · weather, air quality and UV at home and across Israel · news · markets · Shabbat and holidays · live traffic times and a live traffic map · Pikud HaOref alerts on every screen.<br>
   In Russian, Hebrew or Ukrainian — ▲ / ▼ on the remote.
 </p>
@@ -28,8 +28,8 @@ More in [Languages](#languages).
 <p align="center">
   <img alt="Plays under «Настин кинозал»'s music" src="https://img.shields.io/badge/plays%20under-«Настин%20кинозал»%20music-e84393?style=for-the-badge">
   <img alt="Companion apps: Home Dashboard + Настин кинозал" src="https://img.shields.io/badge/companion%20apps-dashboard%20%2B%20player-6c5ce7?style=for-the-badge"><br>
-  <img alt="Samsung Tizen 3.0+ (2017)" src="https://img.shields.io/badge/Samsung%20Tizen-3.0%2B%20·%202017%20TVs-1428A0?style=for-the-badge">
-  <img alt="Chromium 47 engine, plain ES5" src="https://img.shields.io/badge/Chromium%2047-plain%20ES5-2f7ee8?style=for-the-badge">
+  <img alt="Samsung Smart TVs from 2017 (Tizen 3.0) to the newest models" src="https://img.shields.io/badge/Samsung%20Smart%20TVs-2017%20(Tizen%203.0)%20to%20newest-1428A0?style=for-the-badge">
+  <img alt="Compatible down to Chromium 47, plain ES5" src="https://img.shields.io/badge/compatible%20down%20to-Chromium%2047%20·%20ES5-2f7ee8?style=for-the-badge">
   <img alt="A real installed app, not a web page" src="https://img.shields.io/badge/installed%20Tizen%20app-.wgt-34a853?style=for-the-badge"><br>
   <img alt="Eight screens with auto-rotation" src="https://img.shields.io/badge/screens-8%20·%20auto--rotation-8e44ad?style=for-the-badge">
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
@@ -43,12 +43,19 @@ More in [Languages](#languages).
   <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home, weather across Israel, news, markets, Shabbat and holidays, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen">
 </p>
 
+## 📺 Supported TVs
+
+Home Dashboard supports Samsung Smart TVs across the whole range: from models almost 10 years old (the 2017 generation,
+Tizen 3.0) up to the newest current models. It is not an app only for old TVs. We keep the code compatible with the
+oldest supported generation (Tizen 3.0, Chromium 47), so it also runs on older sets; there is one package for every
+generation. It is developed and tested on the owner's 2017 Samsung UE50MU7000.
+
 ## Why it's special
 
 | | |
 |---|---|
 | 🎵 **Plays under «Настин кинозал»'s music** | Open the player, start a channel, open the dashboard: the music keeps playing under the dashboard ([below](#plays-under-настин-кинозал)). Two apps, one family. |
-| 📺 **An installed app on a 2017 TV** | A signed Tizen `.wgt` for Tizen 3.0 / Chromium 47 (the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
+| 📺 **An installed app for every Samsung generation** | A signed Tizen `.wgt` for Samsung Smart TVs from 2017 to the newest models, kept compatible down to Tizen 3.0 / Chromium 47 (tested on the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
 | 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources, and the holiday, month and parasha names are our own translations. |
 | 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view. |
 | 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha, the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
@@ -135,8 +142,9 @@ real answers recorded on 2026-11-02 (Yahoo Finance and open.er-api at 08:57 UTC;
 
 It is a real installed **Tizen web app** (a signed `.wgt` package), not a web page: the TV's browser is
 slow and limited, while an installed app starts instantly, keeps the screen on and exits with Back.
-It runs on Samsung Tizen TVs from 2017 on (Tizen 3.0 or newer; 2016 models run Tizen 2.x and refuse the
-package). The oldest target is a 2017 UE50MU7000 (Tizen 3.0, Chromium 47), so the code is plain ES5 with
+It runs on Samsung Tizen TVs from 2017 up to the newest models (Tizen 3.0 or newer; 2016 models run Tizen 2.x and refuse the
+package). The code stays compatible with the oldest supported generation, Tizen 3.0 with Chromium 47 (the owner's 2017
+UE50MU7000, on which it is tested), so it is plain ES5 with
 no framework, no bundler and no backend. The typeface, [Inter](https://rsms.me/inter/), ships inside the
 app (static Light / Regular / Medium, Latin + Cyrillic, and a 1 KB subset for the ₪ ₴ ₽ signs; about 97 KB), so the TV
 shows the same type as the screenshot instead of whatever system font it has.
