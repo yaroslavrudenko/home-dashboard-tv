@@ -15,15 +15,15 @@ var IsraelView = (function () {
     drawn = {};
   }
 
-  // Batch 12: the air chip at the end of the head — the air glyph and one word: the level's, or «пыль» when the dust is
-  // high (even with no AQI: FIX-12B V12); the colour is the level's (dust alone: the dust colour). Before the first air
+  // Batch 12: the air chip at the end of the head — the air glyph and one word: the level's, or «хамсин» when the dust is
+  // high (even with no AQI: FIX-12B V12) in the dust colour; otherwise the level's colour. Before the first air
   // answer an empty reserved box; nothing to say: no chip; stale: dimmed. What it shows, as data: { cls, word } | null —
   // the card's key is made of this, never of the raw numbers (V13: AQI 31 → 39, both «приемлемое», redraws nothing).
   function chipOf(card) {
     var a = card.air || null;
     if (!a && (card.airKind === 'loading' || card.airKind === undefined)) return { cls: 'is-reserved', word: '' };
     if (!a || (a.level === null && !a.dustHigh)) return null;
-    return { cls: 'lv-' + (a.level || 'dust') + (card.airKind === 'stale' ? ' is-stale' : ''), word: a.dustHigh ? 'w.air.dustWord' : 'w.air.' + a.level };
+    return { cls: 'lv-' + (a.dustHigh || !a.level ? 'dust' : a.level) + (card.airKind === 'stale' ? ' is-stale' : ''), word: a.dustHigh ? 'w.air.khamsinWord' : 'w.air.' + a.level };
   }
   function airChip(chip) {
     if (!chip) return '';

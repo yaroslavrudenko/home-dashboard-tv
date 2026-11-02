@@ -65,20 +65,20 @@ test('B12 air & UV: between the place text and the icon, no glyphs; UV and air e
   const r = mainWith('ru', { uv: { index: 5, level: 'moderate' }, air: FAIR, airKind: 'fresh' });
   assert.ok(r.html.indexOf('now-main') < r.html.indexOf('now-air') && r.html.indexOf('now-air') < r.html.indexOf('now-icon'), 'between the text and the icon');
   assert.ok(!/<svg/.test(r.block), 'no glyph icons in the block');
-  assert.deepEqual(stripTags(r.block), ['УФ макс.', '5', 'умеренный', 'Качество воздуха', '38', 'приемлемое']);
+  assert.deepEqual(stripTags(r.block), ['УФ макс.', '5', 'умеренный', 'Качество воздуха', '38', 'приемлемое', 'Пыль · 25 мкг/м³']);
   assert.match(r.block, /<span class="air-word lv-moderate">умеренный<\/span>/);
   assert.match(r.block, /<span class="air-word lv-fair">приемлемое<\/span>/);
   assert.match(r.html, /<div class="details">/, 'the details row is still there, unchanged');
 });
 
-test('B12 air: high dust adds the amber dust line; in every language', () => {
-  for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Пыль · 240 мкг/м³']],
-    ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'אבק · 240 מק״ג/מ״ק']],
-    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Пил · 240 мкг/м³']]]) {
+test('B12 air: high dust is a khamsin — the amber «Хамсин» line and the dust under it; in every language', () => {
+  for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Хамсин', 'пыль 240 мкг/м³']],
+    ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'חמסין', 'אבק 240 מק״ג/מ״ק']],
+    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Хамсин', 'пил 240 мкг/м³']]]) {
     const r = mainWith(lang, { uv: { index: 9, level: 'veryHigh' }, air: DUSTY, airKind: 'fresh' });
     assert.deepEqual(stripTags(r.block), words, lang);
   }
-  assert.ok(!/air-dust/.test(mainWith('ru', { uv: null, air: FAIR, airKind: 'fresh' }).block), 'ordinary dust: no dust line');
+  assert.match(mainWith('ru', { uv: null, air: FAIR, airKind: 'fresh' }).block, /<div class="air-dust is-normal">Пыль · 25 мкг\/м³<\/div>/, 'ordinary dust: the muted line');
 });
 
 test('B12 air: loading keeps the slot (a placeholder bar), failed says «Нет данных», stale is dimmed, no UV reads «—»', () => {
@@ -105,12 +105,12 @@ function israelWith(lang, air, airKind) {
   return { ctx, doc, card, regions, head: html.slice(0, html.indexOf('</div>') + 6) };
 }
 
-test('B12 Israel chip: the air glyph and one word at the end of the region head; «пыль» when the dust is high', () => {
+test('B12 Israel chip: the air glyph and one word at the end of the region head; «хамсин» when the dust is high', () => {
   const fair = israelWith('ru', FAIR, 'fresh');
   assert.match(fair.head, /<span class="region-air lv-fair"><svg class="icon g-air"[\s\S]*<\/svg><span class="region-air-word">приемлемое<\/span><\/span><\/div>$/);
-  assert.match(israelWith('ru', DUSTY, 'fresh').head, /<span class="region-air lv-extreme">[\s\S]*>пыль<\/span>/, 'V3: the colour is the level\'s, the word «пыль»');
+  assert.match(israelWith('ru', DUSTY, 'fresh').head, /<span class="region-air lv-dust">[\s\S]*>хамсин<\/span>/, 'a khamsin: the word «хамсин» in the dust colour (the owner, 2026-11-02)');
   assert.match(israelWith('he', FAIR, 'fresh').head, />סבירה</);
-  assert.match(israelWith('uk', DUSTY, 'fresh').head, />пил</);
+  assert.match(israelWith('uk', DUSTY, 'fresh').head, />хамсин</);
   assert.match(israelWith('ru', FAIR, 'stale').head, /region-air lv-fair is-stale/);
   assert.match(israelWith('ru', null, 'loading').head, /<span class="region-air is-reserved"><\/span>/, 'loading: an empty reserved box');
   assert.ok(!/region-air/.test(israelWith('ru', null, 'failed').head), 'no data: no chip');
@@ -137,11 +137,11 @@ test('V4: after sunset the UV level word is dimmed (the day\'s maximum is behind
 });
 
 test('V12: high dust is said even when the AQI is missing — main line and region chip, ru/he/uk, fresh and stale', () => {
-  for (const [lang, none, dust, word] of [['ru', 'Нет данных', 'Пыль · 240 мкг/м³', 'пыль'], ['he', 'אין נתונים', 'אבק · 240 מק״ג/מ״ק', 'אבק'],
-    ['uk', 'Немає даних', 'Пил · 240 мкг/м³', 'пил']]) {
+  for (const [lang, none, dust, word] of [['ru', 'Нет данных', ['Хамсин', 'пыль 240 мкг/м³'], 'хамсин'], ['he', 'אין נתונים', ['חמסין', 'אבק 240 מק״ג/מ״ק'], 'חמסין'],
+    ['uk', 'Немає даних', ['Хамсин', 'пил 240 мкг/м³'], 'хамсин']]) {
     for (const kind of ['fresh', 'stale']) {
       const r = mainWith(lang, { uv: null, air: DUST_NO_AQI, airKind: kind });
-      assert.deepEqual(stripTags(r.block).slice(-2), [none, dust], lang + ' ' + kind + ': «no data» for the AQI, the dust line kept');
+      assert.deepEqual(stripTags(r.block).slice(-3), [none].concat(dust), lang + ' ' + kind + ': «no data» for the AQI, the khamsin line kept');
       const chip = israelWith(lang, DUST_NO_AQI, kind).head;
       assert.match(chip, new RegExp('<span class="region-air lv-dust' + (kind === 'stale' ? ' is-stale' : '') + '">[\\s\\S]*>' + word + '<\\/span>'), lang + ' ' + kind);
     }
@@ -156,9 +156,31 @@ test('V13: the region card is keyed by what the chip shows — AQI 31 → 39 (bo
   assert.equal(el.writes, 1, 'same word, same colour: not rewritten');
   again({ aqi: 120, level: 'extreme', dust: 150, dustHigh: true });
   again({ aqi: 130, level: 'extreme', dust: 210, dustHigh: true });
-  assert.equal(el.writes, 2, 'dust 150 → 210: the same «пыль»');
+  assert.equal(el.writes, 2, 'dust 150 → 210: the same «хамсин»');
   again({ aqi: 45, level: 'moderate', dust: 20, dustHigh: false });
   assert.equal(el.writes, 3);
   again({ aqi: 45, level: 'moderate', dust: 20, dustHigh: false }, 'stale');
   assert.equal(el.writes, 4, 'stale dims the chip: a change');
+});
+
+// The owner (2026-11-02): «вижу ультрофеолет - но не вижу пыли … не вижу хамсин», «открой все-равно - я хочу видть все даже если
+// мало». The dust is ALWAYS shown: a muted line on an ordinary day; from 100 µg/m³ the amber «Хамсин» line with the dust
+// under it; no value, no line (never made up) — and the two-line slot is reserved in every state, so nothing moves.
+test('Dust always: an ordinary day shows the muted dust line in ru, he and uk', () => {
+  for (const [lang, line] of [['ru', 'Пыль · 25 мкг/м³'], ['he', 'אבק · 25 מק״ג/מ״ק'], ['uk', 'Пил · 25 мкг/м³']]) {
+    const r = mainWith(lang, { uv: null, air: FAIR, airKind: 'fresh' });
+    assert.match(r.block, new RegExp('<div class="air-dust is-normal">' + line.replace(/[/]/g, '\\/') + '<\\/div>'), lang);
+  }
+});
+test('Dust always: at 100 µg/m³ and more it is a khamsin — «Хамсин» over «пыль 240 мкг/м³», amber', () => {
+  const r = mainWith('ru', { uv: null, air: DUSTY, airKind: 'fresh' });
+  assert.match(r.block, /<div class="air-dust is-high"><span class="air-dust-word">Хамсин<\/span><span class="air-dust-val">пыль 240 мкг\/м³<\/span><\/div>/);
+  assert.match(mainWith('ru', { uv: null, air: { aqi: 41, level: 'moderate', dust: 100, dustHigh: true }, airKind: 'fresh' }).block, /is-high[\s\S]*пыль 100 мкг/);
+});
+test('Dust always: no dust value — no line and no number, the slot stays reserved', () => {
+  const r = mainWith('ru', { uv: null, air: { aqi: 38, level: 'fair', dust: null, dustHigh: false }, airKind: 'fresh' });
+  assert.match(r.block, /<div class="air-dust is-none"><\/div>/);
+  assert.ok(!/мкг/.test(r.block), 'no made-up value');
+  const loading = mainWith('ru', { uv: null, air: null, airKind: 'loading' });
+  assert.match(loading.block, /<div class="air-dust is-none"><\/div>/, 'before the first air answer: the slot is there too');
 });

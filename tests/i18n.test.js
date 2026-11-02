@@ -211,7 +211,7 @@ const MONTHS = ['Nisan', 'Iyyar', 'Sivan', 'Tamuz', 'Av', 'Elul', 'Tishrei', 'Ch
 const B12_UI = ['screen.shabbat', 'sh.failed', 'sh.candles', 'sh.havdalah', 'sh.week', 'sh.shabbat', 'sh.parashaOf', 'sh.greet.shabbat',
   'sh.greet.yomtov', 'sh.greet.yomkippur', 'sh.today', 'sh.tomorrow', 'sh.inDays', 'sh.inHM', 'sh.inM', 'sh.ongoing', 'sh.todayIs', 'sh.fastTimes',
   'sh.upcoming', 'sh.hdate', 'w.uv', 'w.air', 'w.noData', 'w.dust', 'w.uv.low', 'w.uv.moderate', 'w.uv.high', 'w.uv.veryHigh', 'w.uv.extreme',
-  'w.air.good', 'w.air.fair', 'w.air.moderate', 'w.air.poor', 'w.air.veryPoor', 'w.air.extreme', 'w.air.dustWord'];
+  'w.air.good', 'w.air.fair', 'w.air.moderate', 'w.air.poor', 'w.air.veryPoor', 'w.air.extreme', 'w.air.khamsinWord', 'w.khamsin', 'w.dustHigh'];
 
 test('B12: 59 parashot, 20 holidays and fasts (+ Shushan Purim, S9-2), 14 months and the screen\'s strings — own words in Russian, Hebrew and Ukrainian', () => {
   const { I18n } = withoutFallback();

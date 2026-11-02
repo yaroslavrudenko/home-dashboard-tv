@@ -77,8 +77,9 @@ var View = (function () {
   // The air & UV block (batch 12), between the place's text and the big icon, without glyphs. UV comes with the weather
   // (s.uv: { index, level } or null, shown «—»); the air with its own request (s.air: { aqi, level, dust, dustHigh } or
   // null; s.airKind 'fresh' | 'stale' | 'loading' | 'failed'). An item: its label, then the figure and the level word —
-  // atomic parts, so a line wraps only between them; the dust line whenever the dust is high, even with no AQI (FIX-12B
-  // V12). Before the first air answer the slot holds a placeholder bar; no AQI says «Нет данных» (never a made-up level).
+  // atomic parts, so a line wraps only between them. The dust is always said (the owner, 2026-11-02): a muted line on an
+  // ordinary day; from cfg.dustUgm3 (a khamsin) the amber «Хамсин» with the dust under it, even with no AQI (FIX-12B V12);
+  // no dust value, no line — and the two-line slot is reserved in every state, so nothing moves. Before the first air answer the slot holds a placeholder bar; no AQI says «Нет данных» (never a made-up level).
   // The values come rounded (Air.summary, Weather.uv). After sunset the UV level word is dimmed: the day's peak is past.
   function figure(num, wordKey, level) {
     return '<span class="air-num">' + esc(num) + '</span> <span class="air-word lv-' + level + '">' + esc(I18n.t(wordKey)) + '</span>';
@@ -87,13 +88,19 @@ var View = (function () {
     return '<div class="air-item ' + cls + '"><div class="air-label">' + esc(I18n.t(labelKey)) + '</div><div class="air-value">' + value + '</div>' +
       extra + '</div>';
   }
+  function dustHtml(a) {
+    if (!a || typeof a.dust !== 'number') return '<div class="air-dust is-none"></div>';
+    if (a.dustHigh) return '<div class="air-dust is-high"><span class="air-dust-word">' + esc(I18n.t('w.khamsin')) + '</span><span class="air-dust-val">' +
+      esc(I18n.t('w.dustHigh', { n: a.dust })) + '</span></div>';
+    return '<div class="air-dust is-normal">' + esc(I18n.t('w.dust', { n: a.dust })) + '</div>';
+  }
   function airBlock(s, isDay) {
     var a = s.air || null, loading = !a && (s.airKind === 'loading' || s.airKind === undefined);
     var uv = s.uv ? figure(String(s.uv.index), 'w.uv.' + s.uv.level, s.uv.level) : '<span class="air-num">—</span>';
     var air = loading ? '<span class="skeleton air-skeleton"></span>'
       : !a || a.level === null ? '<span class="air-none">' + esc(I18n.t('w.noData')) + '</span>'
       : figure(String(a.aqi), 'w.air.' + a.level, a.level);
-    var dust = a && a.dustHigh ? '<div class="air-dust">' + esc(I18n.t('w.dust', { n: a.dust })) + '</div>' : '';
+    var dust = dustHtml(a);
     return '<div class="now-air' + (a && s.airKind === 'stale' ? ' is-stale' : '') + '">' + airItem('air-uv' + (isDay ? '' : ' is-night'), 'w.uv', uv, '') +
       airItem('air-aq', 'w.air', air, dust) + '</div>';
   }

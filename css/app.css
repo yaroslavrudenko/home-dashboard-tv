@@ -205,11 +205,15 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .air-label { font-size: 24px; line-height: 30px; color: rgba(255, 255, 255, 0.62); white-space: nowrap;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space «УФ-индекс» apart */
 .air-value { font-size: 24px; line-height: 38px; min-height: 38px; }
-.air-num, .air-word, .air-none, .air-dust { display: inline-block; white-space: nowrap; }
+.air-num, .air-word, .air-none { display: inline-block; white-space: nowrap; }
 .air-num { font-size: 30px; color: rgba(255, 255, 255, 0.92); -webkit-margin-end: 4px; }
 .air-none { color: rgba(255, 255, 255, 0.62); }
 .air-skeleton { display: inline-block; width: 140px; height: 24px; vertical-align: middle; }
-.air-dust { font-size: 24px; line-height: 30px; }
+/* the dust: always said (the owner, 2026-11-02); two lines reserved in every state — a khamsin's «Хамсин» over its value, an
+   ordinary day's one muted line, or nothing — so nothing in the card moves when the dust changes */
+.air-dust { height: 60px; font-size: 24px; line-height: 30px; white-space: nowrap; }
+.air-dust.is-normal { color: rgba(255, 255, 255, 0.62); }
+.air-dust-word, .air-dust-val { display: block; }
 .now.is-stale .air-uv .air-num, .now.is-stale .air-uv .air-word, .now-air.is-stale .air-aq .air-num,
 .now-air.is-stale .air-aq .air-word, .now-air.is-stale .air-dust { opacity: 0.72; }
 .air-uv.is-night .air-word { color: rgba(255, 255, 255, 0.62); }   /* after sunset: the day's peak is behind */
@@ -219,7 +223,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .lv-high, .lv-poor { color: #ffb38a; }
 .lv-veryHigh, .lv-veryPoor { color: #ff9a8c; }
 .lv-extreme { color: #ff8fb0; }
-.lv-dust, .air-dust { color: #ffb38a; }
+.lv-dust, .air-dust.is-high { color: #ffb38a; }
 /* the Israel cards: one chip at the end of the region head (the glyph in the level's colour, then the word) */
 .region-air { display: block; -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; line-height: 32px; white-space: nowrap; }   /* its text on the city's baseline */
 .region-air.is-reserved { min-height: 28px; }
