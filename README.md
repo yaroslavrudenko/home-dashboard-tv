@@ -11,6 +11,20 @@
   In Russian, Hebrew or Ukrainian — ▲ / ▼ on the remote.
 </p>
 
+<p align="center">
+  <img alt="Plays under «Настин кинозал»'s music" src="https://img.shields.io/badge/plays%20under-«Настин%20кинозал»%20music-e84393?style=for-the-badge">
+  <img alt="Companion apps: Home Dashboard + Настин кинозал" src="https://img.shields.io/badge/companion%20apps-dashboard%20%2B%20player-6c5ce7?style=for-the-badge"><br>
+  <img alt="Samsung Smart TVs from 2017 (Tizen 3.0) to the newest models" src="https://img.shields.io/badge/Samsung%20Smart%20TVs-2017%20(Tizen%203.0)%20to%20newest-1428A0?style=for-the-badge">
+  <img alt="Compatible down to Chromium 47, plain ES5" src="https://img.shields.io/badge/compatible%20down%20to-Chromium%2047%20·%20ES5-2f7ee8?style=for-the-badge">
+  <img alt="A real installed app, not a web page" src="https://img.shields.io/badge/installed%20Tizen%20app-.wgt-34a853?style=for-the-badge"><br>
+  <img alt="Eight screens with auto-rotation" src="https://img.shields.io/badge/screens-8%20·%20auto--rotation-8e44ad?style=for-the-badge">
+  <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
+  <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
+  <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
+  <img alt="460 automated tests passing" src="https://img.shields.io/badge/tests-460%20passing-brightgreen?style=for-the-badge">
+  <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
+</p>
+
 ## Every screen at a glance
 
 **Eight screens that change by themselves every 45 seconds (Markets stays 90), or with ◀ ▶ on the remote:** clocks and the weather at home, the weather across Israel, the news, the markets, Shabbat and holidays, live traffic for ten routes, a live traffic map and the Pikud HaOref alerts. Calm dark glass cards readable from the sofa, the same app in Russian, Hebrew (fully right to left) and Ukrainian, and a red alert that takes over every screen when it matters. Below: all eight screens together, then each one on its own, then the other languages.
@@ -104,20 +118,6 @@ repository.
 **Every other screen needs no key, no account and no password:** Home, Weather in Israel, UV, air quality and dust
 ([Open-Meteo](https://open-meteo.com/)), News (RSS feeds), Markets ([Yahoo Finance](https://finance.yahoo.com/) and
 [open.er-api](https://open.er-api.com/)), Shabbat & holidays ([Hebcal](https://www.hebcal.com/)) and Alerts (Pikud HaOref).
-
-<p align="center">
-  <img alt="Plays under «Настин кинозал»'s music" src="https://img.shields.io/badge/plays%20under-«Настин%20кинозал»%20music-e84393?style=for-the-badge">
-  <img alt="Companion apps: Home Dashboard + Настин кинозал" src="https://img.shields.io/badge/companion%20apps-dashboard%20%2B%20player-6c5ce7?style=for-the-badge"><br>
-  <img alt="Samsung Smart TVs from 2017 (Tizen 3.0) to the newest models" src="https://img.shields.io/badge/Samsung%20Smart%20TVs-2017%20(Tizen%203.0)%20to%20newest-1428A0?style=for-the-badge">
-  <img alt="Compatible down to Chromium 47, plain ES5" src="https://img.shields.io/badge/compatible%20down%20to-Chromium%2047%20·%20ES5-2f7ee8?style=for-the-badge">
-  <img alt="A real installed app, not a web page" src="https://img.shields.io/badge/installed%20Tizen%20app-.wgt-34a853?style=for-the-badge"><br>
-  <img alt="Eight screens with auto-rotation" src="https://img.shields.io/badge/screens-8%20·%20auto--rotation-8e44ad?style=for-the-badge">
-  <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
-  <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
-  <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="460 automated tests passing" src="https://img.shields.io/badge/tests-460%20passing-brightgreen?style=for-the-badge">
-  <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
-</p>
 
 ## 📺 Supported TVs
 
