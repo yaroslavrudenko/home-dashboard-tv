@@ -252,3 +252,38 @@ test('FIX-12B: «Сегодня, 10 апреля» needs a day-month form; the u
   ctx.I18n.setLang('ru');
   assert.equal(ctx.I18n.t('w.uv'), 'УФ макс.');
 });
+
+// ---- The weekly reading on the Shabbat screen: its labels, the nine special Shabbatot and every book of the Torah and the
+// prophets — own words in Russian, Hebrew and Ukrainian. Every book the recorded Hebcal answers name has its entry.
+const READ_UI = ['sh.read.parasha', 'sh.read.torah', 'sh.read.haftarah', 'sh.read.special', 'sh.read.mevarchim', 'sh.read.rc', 'sh.read.rcText',
+  'sh.read.omer', 'sh.read.omerDay'];
+const SPECIALS = ['shabbat-shekalim', 'shabbat-zachor', 'shabbat-parah', 'shabbat-hachodesh', 'shabbat-hagadol', 'shabbat-chazon', 'shabbat-nachamu',
+  'shabbat-shuva', 'shabbat-shirah'];
+const BOOKS = ['Genesis', 'Exodus', 'Leviticus', 'Numbers', 'Deuteronomy', 'Joshua', 'Judges', 'I Samuel', 'II Samuel', 'I Kings', 'II Kings', 'Isaiah',
+  'Jeremiah', 'Ezekiel', 'Hosea', 'Joel', 'Amos', 'Obadiah', 'Jonah', 'Micah', 'Nahum', 'Habakkuk', 'Zephaniah', 'Haggai', 'Zechariah', 'Malachi',
+  'Ruth', 'Esther', 'Lamentations', 'Ecclesiastes', 'Song of Songs'];
+
+test('Reading: the labels, 9 special Shabbatot and 31 books — own words in Russian, Hebrew and Ukrainian; every recorded book is covered', () => {
+  const fs = require('node:fs'), path = require('node:path'), dir = path.join(__dirname, 'fixtures/hebcal');
+  const named = new Set();
+  for (const f of fs.readdirSync(dir).filter((n) => /-ly\.json$/.test(n))) {
+    for (const it of JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')).items) {
+      const l = it.leyning || {};
+      for (const ref of [l.torah, l.haftarah]) {
+        if (ref) String(ref).replace(/ \| .*$/, '').split('; ').forEach((part) => { const m = /^(.+?) \d/.exec(part); if (m) named.add(m[1]); });
+      }
+    }
+  }
+  assert.ok(named.size >= 15, 'the recordings name books: ' + [...named]);
+  for (const b of named) assert.ok(BOOKS.includes(b), 'a recorded book without an entry: ' + b);
+  const { I18n } = withoutFallback();
+  const keys = READ_UI.concat(SPECIALS.map((s) => 'sh.special.' + s), BOOKS.map((b) => 'sh.book.' + b));
+  for (const lang of ['ru', 'he', 'uk']) {
+    I18n.setLang(lang);
+    for (const k of keys) { const v = I18n.t(k); assert.ok(v && v !== k, lang + ' ' + k); }
+  }
+  I18n.setLang('uk');
+  for (const k of keys) assert.ok(!/[ыэъё]/i.test(I18n.t(k)), 'uk ' + k + ': ' + I18n.t(k));
+  I18n.setLang('he');
+  for (const k of keys) assert.match(I18n.t(k, { n: 3, month: 'כסלו' }), /[֐-׿]/, 'he ' + k + ' is Hebrew');
+});

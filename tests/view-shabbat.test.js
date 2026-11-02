@@ -261,3 +261,53 @@ test('S7/S5: the view needs no updatedAt, no range and no occurrence Hebrew date
   render(s, { updated: '07:15' });
   assert.equal(text(status().innerHTML).join(''), 'Обновлено в 07:15');
 });
+
+// ---- The weekly reading block (the owner: «на странице празников нет инфы какую стих Торы читаем и может еще чего») ------
+// Drawn from the REAL data path: the recorded Hebcal answers with readings (tests/fixtures/hebcal/*-ly.json) through
+// Shabbat.parse and Shabbat.view at fixed home instants. Every value under its own label.
+const fsR = require('node:fs'), pathR = require('node:path');
+const RFILES = ['js/config.js', 'js/i18n.js', 'js/tz.js', 'js/refresher.js', 'js/placestore.js', 'js/shabbat.js', 'js/html.js', 'js/icons.js', 'js/view.js', 'js/view-shabbat.js'];
+function readingScreen(lang, capture, isoNow, today) {
+  const ctx = load(RFILES);
+  ctx.I18n.setLang(lang);
+  const json = JSON.parse(fsR.readFileSync(pathR.join(__dirname, 'fixtures', 'hebcal', 'hebcal-rehovot-' + capture + '-ly.json'), 'utf8'));
+  const snapR = ctx.Shabbat.view(ctx.Shabbat.parse(json, ctx.Config.shabbat), Date.parse(isoNow), today, ctx.Config.shabbat);
+  const scr = fakeScreen();
+  ctx.ShabbatView.init(scr.el, { upcoming: 6 });
+  ctx.ShabbatView.render(snapR, { kind: 'fresh', updated: '09:31', retryAt: '', place: PLACE[lang] });
+  const html = scr.nodes['sh-week'].innerHTML, i = html.indexOf('<div class="sh-read">');
+  const block = i < 0 ? null : html.slice(i, html.indexOf('<div class="sh-read-end"></div>'));
+  const items = block ? [...block.matchAll(/<div class="sh-read-item[^"]*">([\s\S]*?)<\/div><\/div>/g)].map((m) => text(m[1].replace(/<\/?span[^>]*>/g, '') + '</div>')) : [];   // a reference's parts are spans: one value
+  return { html, block, items };
+}
+
+test('Reading, weekday, ru: «Недельная глава» Хаей Сара with its verses, «Афтара», «Шабат мевархим» — each value under its label', () => {
+  const r = readingScreen('ru', '2026-11-02', '2026-11-02T12:00:00+02:00', '2026-11-02');
+  assert.ok(r.block, 'the reading block');
+  assert.deepEqual(r.items, [['Недельная глава', 'Хаей Сара', 'Берешит 23:1–25:18'], ['Афтара', 'Мелахим I 1:1–31'], ['Шабат мевархим', 'Рош ходеш кислева · Вт, 10 ноября']]);
+  assert.equal(part(r.html, 'card-title sh-title'), 'Шабат', 'the parasha is in the block: not repeated in the title');
+});
+
+test('Reading in Hebrew and Ukrainian: their own labels and book names; in Hebrew the verses stay left to right', () => {
+  const LRE = '‪', PDF = '‬';
+  const he = readingScreen('he', '2026-11-02', '2026-11-02T12:00:00+02:00', '2026-11-02');
+  assert.deepEqual(he.items.slice(0, 2), [['פרשת השבוע', 'חיי שרה', 'בראשית ' + LRE + '23:1–25:18' + PDF], ['הפטרה', 'מלכים א ' + LRE + '1:1–31' + PDF]]);
+  const uk = readingScreen('uk', '2026-11-02', '2026-11-02T12:00:00+02:00', '2026-11-02');
+  assert.deepEqual(uk.items.slice(0, 2), [['Тижнева глава', 'Хаей Сара', 'Берешит 23:1–25:18'], ['Гафтара', 'Мелахім I 1:1–31']]);
+});
+
+test('Reading on a yom tov: «Чтение Торы» Песах with both books; a special Shabbat; the Omer count during the Omer', () => {
+  const pesach = readingScreen('ru', '2027-04-19', '2027-04-22T10:00:00+03:00', '2027-04-22');
+  assert.deepEqual(pesach.items.slice(0, 2), [['Чтение Торы', 'Песах', 'Шмот 12:21–51; Бемидбар 28:16–25'], ['Афтара', 'Йеошуа 3:5–7, 5:2–6:1, 6:27']]);
+  assert.ok(!/sh-calm-name/.test(pesach.html), 'the calm card does not repeat the name the block already gives');
+  const shirah = readingScreen('ru', '2027-01-18', '2027-01-18T12:00:00+02:00', '2027-01-18');
+  assert.deepEqual(shirah.items[2], ['Особый шабат', 'Шабат Шира']);
+  const omer = readingScreen('ru', '2027-04-19', '2027-04-25T10:00:00+03:00', '2027-04-25');
+  assert.deepEqual(omer.items[omer.items.length - 1], ['Счёт омера', 'день 3']);
+});
+
+test('Reading: no reading in the data (an older answer) — no block, never a made-up portion', () => {
+  const { render, week } = setup('ru');
+  render(snap('weekday'));
+  assert.ok(!/sh-read/.test(week().innerHTML));
+});

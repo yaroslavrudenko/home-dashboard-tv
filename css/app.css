@@ -595,3 +595,16 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 /* a range bar and a time bar fill from the right: the coldest end next to the low temperature, the trip from the start */
 [dir="rtl"] .range, [dir="rtl"] .tbar { -webkit-transform: scaleX(-1); transform: scaleX(-1); }
 
+
+/* The weekly reading (card A, the band between the Hebrew date and the rule): every value under its own label.
+   Worst case, a note above and a reference on two lines: 52 + 8 + 148 = 208 of the 220 px band. */
+.sh-ref-part { white-space: nowrap; }
+.sh-read { margin-top: 8px; }
+.sh-read-row { display: -webkit-flex; display: flex; }
+/* the portion column is as wide as its text (names are short); the haftarah and the extra line take the rest */
+.sh-read-row > .sh-read-item { -webkit-flex: 0 1 auto; flex: 0 1 auto; max-width: 50%; -webkit-padding-end: 64px; }
+.sh-read-col { -webkit-flex: 1 1 0; flex: 1 1 0; min-width: 0; }
+.sh-read-extra { margin-top: 8px; }
+.sh-read-label { font-size: 26px; line-height: 32px; color: rgba(255, 255, 255, 0.62); }
+.sh-read-name { font-size: 36px; line-height: 44px; font-weight: 500; color: rgba(255, 255, 255, 0.95); }
+.sh-read-ref, .sh-read-value { font-size: 28px; line-height: 36px; color: rgba(255, 255, 255, 0.85); }

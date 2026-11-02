@@ -54,7 +54,8 @@ test('S8: the screen states are exported constants, and view() only ever answers
 
 test('URL (S2): ONE request from today − 9 days to today + 180 — by GeoNames id, else lat/lon in Israel\'s zone with the city\'s candle minutes', () => {
   const ctx = load(FILES), cfg = ctx.Config.shabbat;
-  const Q = 'https://www.hebcal.com/hebcal?v=1&cfg=json&i=on&c=on&M=on&s=on&maj=on&min=on&mod=on&mf=on&d=on&lg=s&leyning=off';
+  // the readings (leyning), special Shabbatot (ss), Rosh Chodesh (nx), the Omer (o) and Shabbat Mevarchim (mvch): still ONE request
+  const Q = 'https://www.hebcal.com/hebcal?v=1&cfg=json&i=on&c=on&M=on&s=on&maj=on&min=on&mod=on&mf=on&d=on&lg=s&leyning=on&ss=on&nx=on&o=on&mvch=on';
   assert.equal(ctx.Shabbat.url(cfg, { geo: 293725, lat: 31.8928, lon: 34.8113, candleMins: null }, '2026-11-02'),
     Q + '&geonameid=293725&start=2026-10-24&end=2027-05-01');
   assert.equal(ctx.Shabbat.url(cfg, { geo: null, lat: 31.7014, lon: 35.1162, candleMins: 40 }, '2026-11-02'),
@@ -399,4 +400,44 @@ test('S3: a long outage retries at least hourly (retryMaxMs), never waiting a wh
   assert.equal(h.calls.length, 9, 'every wait ended in one more attempt');
   assert.ok(waits.every((w) => w >= 30000 && w <= 3600000), JSON.stringify(waits));
   assert.ok(waits.slice(4).every((w) => w > 8 * 60000), 'past the list: up to the hour, not the 8-min ceiling');
+});
+
+// ---- The weekly reading (the owner: «на странице празников нет инфы какую стих Торы читаем и может еще чего») -------------
+// Recorded with the app's own URL and the reading parameters (*-ly.json, 2026-11-02): Hebcal's own references, as given.
+const LY = (d) => 'hebcal-rehovot-' + d + '-ly';
+const segOf = (data, candleDate) => { for (const w of data.windows) for (const g of w.segments) if (g.start.date === candleDate) return plain(g); return null; };
+
+test('reading: Shabbat Chayei Sara — the Torah reading and the haftarah as Hebcal gives them; Shabbat Mevarchim Kislev with Rosh Chodesh on 11-10', () => {
+  const ctx = load(FILES), d = parsed(ctx, LY('2026-11-02'));
+  assert.deepEqual(segOf(d, '2026-11-06').reading, { torah: 'Genesis 23:1-25:18', haftarah: 'I Kings 1:1-31',
+    special: { kind: 'mevarchim', month: 'Kislev', date: '2026-11-10' } });
+  assert.deepEqual(segOf(d, '2026-11-13').reading, { torah: 'Genesis 25:19-28:9', haftarah: 'Malachi 1:1-2:7', special: null }, 'an ordinary Shabbat: no extra line');
+});
+
+test('reading: a special Shabbat (Shirah) is named; the haftarah keeps only its reference (Hebcal\'s « | Shabbat …» note cut)', () => {
+  const ctx = load(FILES), d = parsed(ctx, LY('2027-01-18'));
+  const r = segOf(d, '2027-01-22').reading;
+  assert.deepEqual(r.special, { kind: 'shabbat', id: 'shabbat-shirah', he: 'שבת שירה' });
+  assert.equal(r.torah, 'Exodus 13:17-17:16');
+  const apr = parsed(ctx, LY('2027-04-19'));
+  assert.equal(segOf(apr, '2027-04-16').reading.haftarah, 'Malachi 3:4-24', 'Shabbat HaGadol: « | Shabbat HaGadol» not in the reference');
+  assert.equal(segOf(apr, '2027-04-16').reading.special.id, 'shabbat-hagadol');
+});
+
+test('reading: a yom tov reads its own portion (Pesach I), and Shabbat Chol HaMoed its holiday reading with its haftarah', () => {
+  const ctx = load(FILES), d = parsed(ctx, LY('2027-04-19'));
+  assert.deepEqual(segOf(d, '2027-04-21').reading, { torah: 'Exodus 12:21-51; Numbers 28:16-25', haftarah: 'Joshua 3:5-7, 5:2-6:1, 6:27', special: null });
+  assert.equal(segOf(d, '2027-04-23').reading.haftarah, 'Ezekiel 37:1-14', 'Shabbat Chol HaMoed Pesach');
+});
+
+test('reading reaches the screen: view() hands the shown segment\'s reading, and today\'s Omer count during the Omer only', () => {
+  const ctx = load(FILES), cfg = ctx.Config.shabbat, d = parsed(ctx, LY('2027-04-19'));
+  const v = ctx.Shabbat.view(d, IL('2027-04-25T10:00:00+03:00'), '2027-04-25', cfg);
+  assert.equal(v.omer, 3, 'the third day of the Omer');
+  assert.ok(v.window.reading, 'the next window carries its reading');
+  const nov = ctx.Shabbat.view(parsed(ctx, LY('2026-11-02')), IL('2026-11-02T12:00:00+02:00'), '2026-11-02', cfg);
+  assert.equal(nov.omer, null, 'no Omer in November');
+  assert.equal(nov.window.reading.torah, 'Genesis 23:1-25:18');
+  const old = ctx.Shabbat.view(parsed(ctx, NOV), IL('2026-11-02T12:00:00+02:00'), '2026-11-02', cfg);
+  assert.equal(old.window.reading, null, 'an answer without readings (leyning off): no reading, never made up');
 });

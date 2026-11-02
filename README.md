@@ -19,11 +19,26 @@ remembers the choice.
 - **Hebrew is right to left, all of it.** The whole layout mirrors; times, prices and temperatures stay left to right.
 - **Each language reads its own news:** NEWSru.co.il in Russian, Ynet and Globes in Hebrew, Українська правда and
   Економічна правда in Ukrainian.
-- **Our own names, not a feed's.** The holidays and fasts, the Hebrew months and all 59 weekly parashot are translated by
-  us for Russian and Ukrainian (Hebcal's own lists leave the modern holidays in English). In Hebrew the date and the parasha
+- **Our own names, not a feed's.** The holidays and fasts, the Hebrew months, all 59 weekly parashot and the books of the
+  Torah and haftarah readings are translated by us for Russian and Ukrainian (Hebcal's own lists leave the modern holidays in English). In Hebrew the date and the parasha
   are the source's own words. Shares, currencies, regions, cities and alert kinds are named in every language too.
 
 More in [Languages](#languages).
+
+## 🔑 Keys: only one, for traffic
+
+**Two screens need a key, and it is the same one:** a Mapbox **public** token (`pk.…`, free tier, from
+[account.mapbox.com](https://account.mapbox.com/)), set as `MAPBOX_TOKEN` in the git-ignored `build.local.env`
+(`build.local.env.example` shows the line to fill in). The build puts it into the packaged app only; it is never in the
+repository.
+
+- **6 · Traffic**: travel times for the 10 routes (Mapbox Directions, `driving-traffic`).
+- **7 · Traffic map**: the live-traffic picture (Mapbox Static Images).
+- Without the token, both screens say how to connect one and send no requests.
+
+**Every other screen needs no key, no account and no password:** Home, Weather in Israel, UV, air quality and dust
+([Open-Meteo](https://open-meteo.com/)), News (RSS feeds), Markets ([Yahoo Finance](https://finance.yahoo.com/) and
+[open.er-api](https://open.er-api.com/)), Shabbat & holidays ([Hebcal](https://www.hebcal.com/)) and Alerts (Pikud HaOref).
 
 <p align="center">
   <img alt="Plays under «Настин кинозал»'s music" src="https://img.shields.io/badge/plays%20under-«Настин%20кинозал»%20music-e84393?style=for-the-badge">
@@ -35,12 +50,12 @@ More in [Languages](#languages).
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="441 automated tests passing" src="https://img.shields.io/badge/tests-441%20passing-brightgreen?style=for-the-badge">
+  <img alt="460 automated tests passing" src="https://img.shields.io/badge/tests-460%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home, weather across Israel, news, markets, Shabbat and holidays, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen">
+  <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home, weather across Israel, news, markets, Shabbat and holidays with the week's Torah reading, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen">
 </p>
 
 ## 📺 Supported TVs
@@ -58,15 +73,15 @@ generation. It is developed and tested on the owner's 2017 Samsung UE50MU7000.
 | 📺 **An installed app for every Samsung generation** | A signed Tizen `.wgt` for Samsung Smart TVs from 2017 to the newest models, kept compatible down to Tizen 3.0 / Chromium 47 (tested on the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
 | 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources, and the holiday, month and parasha names are our own translations. |
 | 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view. |
-| 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha, the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
+| 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha with its Torah verses and haftarah (and a special Shabbat, Shabbat Mevarchim or the Omer count when there is one), the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
 | 🌬️ **Air, dust and UV** | Today's highest UV index and the European air-quality index at home, an air chip on every Israel region, and a dust warning when a khamsin comes in. |
 | 🚗 **Live Israeli traffic** | Ten routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
 | 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in your home city opens the Alerts screen at once, red and full, with an attention sound, and a red line «Тревога в Реховоте» stays at the top of every other screen; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
 | 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
-| 🔒 **No tracking, no keys in the repo** | No backend, no sign-up, no analytics. The Mapbox token goes into the packaged copy only; a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key. |
-| ✅ **Tested and reviewed** | 441 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
+| ✅ **Tested and reviewed** | 460 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -98,10 +113,10 @@ leaves the front it sends `stop-behind`. If the player is not installed or not r
   </tr>
   <tr><td align="center"><b>3 · News</b> — the sources follow the language</td><td align="center"><b>4 · Markets</b> — six cards, the day's change</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-5-shabbat.png" alt="Shabbat and holidays in Hebrew: Rehovot, today's date and Hebrew date, this week's parasha with candle lighting and havdalah, and the next holidays and fasts with a countdown"></td>
+    <td><img src="docs/screenshots/he-5-shabbat.png" alt="Shabbat and holidays in Hebrew: Rehovot, today's date and Hebrew date, the weekly portion Chayei Sara with its verses, the haftarah and Shabbat Mevarchim for Kislev, candle lighting and havdalah, and the next holidays and fasts with a countdown"></td>
     <td><img src="docs/screenshots/he-6-traffic.png" alt="Traffic in Hebrew: ten routes from Rehovot in two columns, each with the travel time, the delay against a typical day in colour, and the distance"></td>
   </tr>
-  <tr><td align="center"><b>5 · Shabbat &amp; holidays</b> — candles, havdalah, what is next</td><td align="center"><b>6 · Traffic</b> — ten routes, live</td></tr>
+  <tr><td align="center"><b>5 · Shabbat &amp; holidays</b> — the reading, candles, havdalah, what is next</td><td align="center"><b>6 · Traffic</b> — ten routes, live</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-7-map.png" alt="Traffic map in Hebrew: a real Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot"></td>
     <td><img src="docs/screenshots/he-8-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot with the time of the last check, nearby towns, and the recent Pikud HaOref alerts in Israel"></td>
@@ -287,13 +302,19 @@ the rate tables.
 **5 · Shabbat & holidays**: the home city's calendar on two cards.
 
 - **The week** (the wide card): the city, today's date, today's Hebrew date («22 хешвана 5787»; in Hebrew «כ״ב בחשון
-  תשפ״ז»), then «Шабат · Глава Хаей Сара» with two tiles: candle lighting and havdalah, each with its day and time, and
+  תשפ״ז»), then the week's reading, then «Шабат» with two tiles: candle lighting and havdalah, each with its day and time, and
   how long until the candles («через 4 дн.»; on the day itself «через 2 ч 14 мин»). From candle lighting on the eve of
   Shabbat or a holiday, the Hebrew date is already the next day's, because the holy day has begun.
+- **The reading**, every value under its own label: «Недельная глава» — the parasha («Хаей Сара») with its Torah verses
+  («Берешит 23:1–25:18»); «Афтара» — the haftarah («Мелахим I 1:1–31»). On a festival the label is «Чтение Торы» and the
+  festival's own reading is shown. One more labelled line when there is one: a special Shabbat («Особый шабат · Шабат
+  Шира»), «Шабат мевархим» with the coming Rosh Chodesh and its date, Rosh Chodesh on Shabbat, or else today's «Счёт
+  омера · день 3». The books are named in each language (Берешит, Шмот…; בראשית, שמות…), the verse numbers stay left to
+  right, and a long reference breaks only between its parts. Only what Hebcal gives is shown; nothing is invented.
 - **A note line** for a fast («Пост 10 тевета · начало 05:18 · конец 16:55», amber while it runs) or the holiday today
   («Сегодня: Ханука»).
 - **While Shabbat or a yom tov is in**, the card turns calm: «Шабат шалом», «Хаг самеах» or, on Yom Kippur, «Гмар хатима
-  това», the week's name said once, and havdalah («Авдала · 17:24» when it is today). A Shabbat next to a yom tov is shown
+  това», the week's reading above (or its name said once when there is no reading), and havdalah («Авдала · 17:24» when it is today). A Shabbat next to a yom tov is shown
   as Shabbat on Shabbat and as the holiday on the holiday.
 - **Holidays and fasts** (the narrow card): the next six, each with its short date and a day count, quiet until a week or
   less is left, then amber; «идёт» while one runs; a fast carries the fast glyph. Shown: the festivals, Yom HaShoah, Yom
@@ -301,7 +322,8 @@ the rate tables.
   Purim.
 
 The source is [Hebcal](https://www.hebcal.com/) (no key): ONE request a day carries the whole screen — candle lighting and
-havdalah (havdalah at nightfall), the parashot, the holidays, the fast times and a Hebrew date for every day, on the Israeli
+havdalah (havdalah at nightfall), the parashot with their Torah and haftarah readings, the special Shabbatot, Rosh Chodesh,
+Shabbat Mevarchim, the Omer, the holidays, the fast times and a Hebrew date for every day, on the Israeli
 schedule — from 9 days back (an ongoing holiday keeps its first day) to 180 days ahead (the shortest lookahead that always
 fills the six rows). It is asked again when the screen is opened and when the TV wakes with old data; a failure is retried
 after 1, 2, 4 and 8 minutes, then every hour, never only the next day. The data covers half a year, so the screen recomputes
@@ -473,7 +495,8 @@ in the config is only the first start's language, `languages` the order of the s
   and signed figures («+9 שע׳», «−4°») stay left to right; the page dots and ◀ ▶ stay physical (◀ is the previous screen,
   on the left).
 - **Shabbat & holidays**: Hebcal is asked once, language-neutral, and every name on the screen comes from our own tables:
-  20 holidays and fasts, the Hebrew months and the 59 weekly parashot, in Russian, Hebrew and Ukrainian (a missing name
+  20 holidays and fasts, the Hebrew months, the 59 weekly parashot, the 9 special Shabbatot and the 31 books named in
+  the Torah and haftarah readings, in Russian, Hebrew and Ukrainian (a missing name
   shows Hebcal's id, never a blank). Hebcal's own Russian and Ukrainian lists leave the modern holidays in English and
   misspell some others, so they are not used. In Hebrew the Hebrew date («כ״ב בחשון תשפ״ז») and the parasha are the
   source's own strings. A language switch on this screen needs no new data.

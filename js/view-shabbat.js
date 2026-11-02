@@ -50,7 +50,59 @@ var ShabbatView = (function () {
   }
   function weekTitle(w) {
     if (w.kind === 'yomtov' && w.holiday) return holiday(w.holiday);
+    if (w.reading) return I18n.t('sh.shabbat');                          // the reading block names the parasha
     return w.parasha || w.during ? I18n.t('sh.week', { name: windowName(w) }) : I18n.t('sh.shabbat');
+  }
+
+  // ---- The weekly reading (the owner: «нет инфы какую стих Торы читаем и может еще чего»): every value under its label.
+  // A reference as Hebcal writes it ("Genesis 23:1-25:18; Numbers 28:9-15"), as its parts: each part's book from our table (an unknown
+  // one as written), the verses with an en dash and left to right inside Hebrew.
+  var BOOK_REF = /^(.+?) (\d[\s\S]*)$/;
+  function refText(ref) {
+    var parts = String(ref).split('; '), out = [];
+    for (var i = 0; i < parts.length; i++) {
+      var m = BOOK_REF.exec(parts[i]);
+      out.push(m ? named('sh.book.', m[1]) + ' ' + I18n.ltr(m[2].replace(/-/g, '\u2013')) : parts[i]);
+    }
+    return out;
+  }
+  // Each part of a reference stays on one line (verse numbers never split); a long reference breaks between its parts.
+  function refHtml(ref) {
+    var parts = refText(ref), html = [];
+    for (var i = 0; i < parts.length; i++) html.push('<span class="sh-ref-part">' + esc(parts[i] + (i < parts.length - 1 ? ';' : '')) + '</span>');
+    return html.join(' ');
+  }
+  // The portion's name: the parasha (the label says «weekly portion»), else the festival read.
+  function portionName(w) {
+    if (w.kind === 'yomtov' && w.holiday) return holiday(w.holiday);
+    if (w.parasha) return named('sh.parasha.', w.parasha.id);
+    return w.during ? holiday(w.during) : '';
+  }
+  function readItem(cls, labelKey, valueHtml) {
+    return '<div class="sh-read-item ' + cls + '"><div class="sh-read-label">' + esc(I18n.t(labelKey)) + '</div>' + valueHtml + '</div>';
+  }
+  function rcText(monthId, date) {
+    var line = I18n.t('sh.read.rcText', { month: named('sh.month.', monthId) });
+    return date ? line + ' · ' + I18n.dateShort(Tz.weekdayOf(date), +date.slice(8, 10), +date.slice(5, 7) - 1) : line;
+  }
+  // The one extra line: a special Shabbat, Shabbat Mevarchim, Rosh Chodesh on Shabbat — else today's Omer count.
+  function extraItem(special, omer) {
+    var v = function (t) { return '<div class="sh-read-value">' + esc(t) + '</div>'; };
+    if (special && special.kind === 'shabbat') return readItem('sh-read-extra', 'sh.read.special', v(I18n.lang() === 'he' && special.he ? special.he : named('sh.special.', special.id)));
+    if (special && special.kind === 'mevarchim') return readItem('sh-read-extra', 'sh.read.mevarchim', v(rcText(special.month, special.date)));
+    if (special && special.kind === 'roshchodesh') return readItem('sh-read-extra', 'sh.read.rc', v(rcText(special.month, special.date)));
+    if (omer) return readItem('sh-read-extra', 'sh.read.omer', v(I18n.t('sh.read.omerDay', { n: omer })));
+    return '';
+  }
+  function readingHtml(snap) {
+    var w = snap.window, r = w && w.reading;
+    if (!r) return '';
+    var torah = r.torah ? readItem('sh-read-torah', w.parasha && w.kind !== 'yomtov' ? 'sh.read.parasha' : 'sh.read.torah',
+      '<div class="sh-read-name">' + esc(portionName(w)) + '</div><div class="sh-read-ref">' + refHtml(r.torah) + '</div>') : '';
+    var haftarah = r.haftarah ? readItem('sh-read-haftarah', 'sh.read.haftarah', '<div class="sh-read-ref">' + refHtml(r.haftarah) + '</div>') : '';
+    // two columns: the portion | the haftarah over the extra line — the band holds them without reaching the rule
+    return '<div class="sh-read"><div class="sh-read-row">' + torah + '<div class="sh-read-col">' + haftarah + extraItem(r.special, snap.omer) +
+      '</div></div><div class="sh-read-end"></div></div>';
   }
   function countDays(n) { return n === 0 ? I18n.t('sh.today') : n === 1 ? I18n.t('sh.tomorrow') : I18n.t('sh.inDays', { n: n }); }
   // How long until the candles: minutes on the day itself (erev), else days.
@@ -91,7 +143,8 @@ var ShabbatView = (function () {
     var w = snap.window, h = w.havdalah;
     var greet = snap.state === STATE.YOMTOV ? (w.holiday === 'yom-kippur' ? 'sh.greet.yomkippur' : 'sh.greet.yomtov') : 'sh.greet.shabbat';
     var when = !h ? '' : ' · ' + (h.date === snap.today.date ? '<b class="sh-calm-time">' + esc(h.time) + '</b>' : esc(longDate(h) + ' · ' + h.time));
-    return '<div class="sh-calm"><div class="sh-calm-greet">' + esc(I18n.t(greet)) + '</div><div class="sh-calm-name">' + esc(windowName(w)) + '</div>' +
+    // with the reading block above, the name is said there: not twice
+    return '<div class="sh-calm"><div class="sh-calm-greet">' + esc(I18n.t(greet)) + '</div>' + (w.reading ? '' : '<div class="sh-calm-name">' + esc(windowName(w)) + '</div>') +
       '<div class="sh-calm-line">' + Icons.glyph('havdalah') + '<span>' + esc(I18n.t('sh.havdalah')) + when + '</span></div></div>';
   }
   function failedHtml(s) { return Html.emptyState(Icons.glyph('candles'), I18n.t('sh.failed'), Html.retryText(s.retryAt)); }
@@ -110,7 +163,7 @@ var ShabbatView = (function () {
     // the calm card names the holiday itself: «Сегодня: Песах» under «Хаг самеах · Песах» would say it twice (V8)
     var top = todayHtml(snap.today, s.place) + noteHtml(calm && snap.note && snap.note.kind === 'holiday' ? null : snap.note);
     if (!snap.window) return top + failedHtml(s);                         // data older than its range: nothing to show as coming
-    return top + (calm ? calmHtml(snap) : '<div class="sh-rule"></div>' + tilesHtml(snap));
+    return top + readingHtml(snap) + (calm ? calmHtml(snap) : '<div class="sh-rule"></div>' + tilesHtml(snap));
   }
 
   // runningFast: the slug of a fast already running (the note says so) — its row says «идёт», never «Завтра» (V8).
@@ -144,7 +197,7 @@ var ShabbatView = (function () {
   function render(snapshot, s) {
     var lang = I18n.lang(), calm = !!snapshot && isCalm(snapshot.state), failed = !snapshot && s.kind === 'failed';
     draw({ name: 'week', el: els.week, build: function () { return weekHtml(snapshot, s); },
-      key: JSON.stringify([snapshot && [snapshot.state, snapshot.window, snapshot.note, snapshot.today], snapshot ? '' : s.kind, s.retryAt, s.place, lang]),
+      key: JSON.stringify([snapshot && [snapshot.state, snapshot.window, snapshot.note, snapshot.today, snapshot.omer || null], snapshot ? '' : s.kind, s.retryAt, s.place, lang]),
       cls: 'card sh-week' + (calm ? ' is-calm' : '') + (snapshot ? '' : ' is-empty') });
     draw({ name: 'list', el: els.list, build: function () { return listHtml(snapshot, failed); },
       key: JSON.stringify([snapshot && snapshot.upcoming, snapshot && snapshot.note, failed, lang]), cls: 'card sh-list' + (snapshot ? '' : ' is-empty') });

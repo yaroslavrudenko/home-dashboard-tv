@@ -91,7 +91,56 @@ for (const lang of ['ru', 'he', 'uk']) {
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-shabbat *')), [], lang + ' shabbat');
       assert.deepEqual((await p.evaluate(legibility, '#screen-shabbat *')).bad, [], lang + ' shabbat legible');
       assert.equal(await p.$eval('html', (e) => e.dir), lang === 'he' ? 'rtl' : 'ltr');
+      // the weekly reading fills the band under the Hebrew date: three labelled items, wholly above the rule and the tiles
+      const r = await p.evaluate(() => {
+        const box = (e) => e.getBoundingClientRect();
+        const read = document.querySelector('#sh-week .sh-read'), rule = document.querySelector('#sh-week .sh-rule'), date = document.querySelector('#sh-week .sh-hdate');
+        return { items: [].map.call(document.querySelectorAll('#sh-week .sh-read-item'), (e) => [].map.call(e.children, (c) => c.textContent.trim())),
+          top: box(read).top, bottom: box(read).bottom, rule: box(rule).top, date: box(date).bottom };
+      });
+      assert.equal(r.items.length, 3, lang + ': portion, haftarah, Shabbat Mevarchim: ' + JSON.stringify(r.items));
+      assert.ok(r.items.every((it) => it.length >= 2 && it.every((t) => t.length > 0)), lang + ': every value under its label');
+      assert.ok(r.top >= r.date && r.bottom <= r.rule - 12, lang + ': inside the band, clear of the rule ' + JSON.stringify(r));
       await shot(p, 'shabbat-' + lang);
+      assert.deepEqual(app.errors, []);
+    } finally { await app.close(); }
+  });
+}
+
+// The weekly reading in its tightest states: a festival week with today's note and a two-part Torah reference (Omer day 3,
+// 25 April 2027), the calm festival day in Hebrew (Pesach I) and a special Shabbat (Shirah) — every reference part on one
+// line (verse numbers never split), the block clear of the rule, nothing cut. Captures: tests/fixtures/hebcal/*-ly.json.
+const READING = [
+  ['omer', 'ru', '2027-04-25T07:00:00Z', '2027-04-19', 'Счёт омера'],
+  ['pesach', 'he', '2027-04-22T07:00:00Z', '2027-04-19', 'הפטרה'],
+  ['shirah', 'uk', '2027-01-18T08:00:00Z', '2027-01-18', 'Особливий шабат'],
+];
+for (const [name, lang, iso, capture, label] of READING) {
+  test('Reading, ' + name + ' (' + lang + '): labelled, references whole, clear of the rule, nothing cut', async () => {
+    const hebcal = (n, url) => ({ status: 200, contentType: 'application/json',
+      body: fs.readFileSync(path.resolve('tests/fixtures/hebcal/hebcal-' + (new URL(url).searchParams.get('geonameid') === '281184' ? 'jlm' : 'rehovot') + '-' + capture + '-ly.json'), 'utf8') });
+    const app = await openApp({ ...RECORDED, hebcal, lang, now: Date.parse(iso), configure: (c) => { c.rotation.enabled = false; } });
+    try {
+      const p = app.page;
+      await p.waitForSelector('.day', { timeout: 10000 });
+      await toScreen(p, 'shabbat');
+      await p.waitForSelector('#sh-week .sh-read', { timeout: 5000 });
+      await p.evaluate(() => document.fonts.ready);
+      await wait(900);
+      const r = await p.evaluate(() => {
+        const read = document.querySelector('#sh-week .sh-read'), rule = document.querySelector('#sh-week .sh-rule');
+        const parts = [].map.call(document.querySelectorAll('#sh-week .sh-ref-part'), (e) => [e.textContent,   // lines = distinct rect tops (bidi runs give several rects on one line)
+          [].map.call(e.getClientRects(), (b) => Math.round(b.top)).filter((t, i, a) => a.indexOf(t) === i).length]);
+        return { labels: [].map.call(document.querySelectorAll('#sh-week .sh-read-label'), (e) => e.textContent),
+          parts, bottom: read.getBoundingClientRect().bottom, rule: rule ? rule.getBoundingClientRect().top : null,
+          calm: !!document.querySelector('#sh-week .sh-calm') };
+      });
+      assert.ok(r.labels.includes(label), name + ': ' + JSON.stringify(r.labels));
+      assert.ok(r.parts.length >= 2 && r.parts.every(([, lines]) => lines === 1), name + ': every reference part on one line ' + JSON.stringify(r.parts));
+      if (!r.calm) assert.ok(r.bottom <= r.rule - 12, name + ': clear of the rule ' + JSON.stringify(r));
+      assert.deepEqual(clean(await p.evaluate(measure, '#screen-shabbat *')), [], name + ' shabbat');
+      assert.deepEqual((await p.evaluate(legibility, '#screen-shabbat *')).bad, [], name + ' legible');
+      await shot(p, 'reading-' + name + '-' + lang);
       assert.deepEqual(app.errors, []);
     } finally { await app.close(); }
   });

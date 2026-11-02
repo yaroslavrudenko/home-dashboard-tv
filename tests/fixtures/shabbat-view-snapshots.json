@@ -25,6 +25,7 @@
           "he": "פרשת חיי שרה"
         },
         "during": null,
+        "reading": null,
         "candles": {
           "at": 1793975220000,
           "date": "2026-11-06",
@@ -108,7 +109,8 @@
           "daysUntil": 171,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   },
   "erev": {
@@ -137,6 +139,7 @@
           "he": "פרשת חיי שרה"
         },
         "during": null,
+        "reading": null,
         "candles": {
           "at": 1793975220000,
           "date": "2026-11-06",
@@ -220,7 +223,8 @@
           "daysUntil": 167,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   },
   "shabbat": {
@@ -249,6 +253,7 @@
           "he": "פרשת חיי שרה"
         },
         "during": null,
+        "reading": null,
         "candles": {
           "at": 1793975220000,
           "date": "2026-11-06",
@@ -332,7 +337,8 @@
           "daysUntil": 166,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   },
   "holidayToday": {
@@ -361,6 +367,7 @@
           "he": "פרשת מקץ"
         },
         "during": "chanukah",
+        "reading": null,
         "candles": {
           "at": 1796998620000,
           "date": "2026-12-11",
@@ -447,7 +454,8 @@
           "daysUntil": 136,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   },
   "fast": {
@@ -476,6 +484,7 @@
           "he": "פרשת ויחי"
         },
         "during": null,
+        "reading": null,
         "candles": {
           "at": 1798208520000,
           "date": "2026-12-25",
@@ -564,7 +573,8 @@
           "daysUntil": 123,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   },
   "yomtov": {
@@ -590,6 +600,7 @@
         "holiday": "pesach",
         "parasha": null,
         "during": "pesach",
+        "reading": null,
         "candles": {
           "at": 1808322780000,
           "date": "2027-04-21",
@@ -676,7 +687,8 @@
           "daysUntil": 43,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   },
   "yomkippur": {
@@ -702,6 +714,7 @@
         "holiday": "yom-kippur",
         "parasha": null,
         "during": "yom-kippur",
+        "reading": null,
         "candles": {
           "at": 1823180040000,
           "date": "2027-10-10",
@@ -788,7 +801,8 @@
           "daysUntil": 124,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   },
   "erevHoliday": {
@@ -814,6 +828,7 @@
         "holiday": "pesach",
         "parasha": null,
         "during": "pesach",
+        "reading": null,
         "candles": {
           "at": 1838994360000,
           "date": "2028-04-10",
@@ -897,7 +912,8 @@
           "daysUntil": 44,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   },
   "fastEve": {
@@ -926,6 +942,7 @@
           "he": "פרשת ואתחנן"
         },
         "during": null,
+        "reading": null,
         "candles": {
           "at": 1818173220000,
           "date": "2027-08-13",
@@ -1025,7 +1042,8 @@
           "daysUntil": 73,
           "ongoing": false
         }
-      ]
+      ],
+      "omer": null
     }
   }
 }

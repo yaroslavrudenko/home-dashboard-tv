@@ -43,7 +43,7 @@ export function airAnswer(url) {
 }
 export function hebcalAnswer(url) {
   const jlm = new URL(url).searchParams.get('geonameid') === '281184';
-  return { status: 200, contentType: 'application/json', body: fixtureText('hebcal/hebcal-' + (jlm ? 'jlm' : 'rehovot') + '-2026-11-02-180d.json') };
+  return { status: 200, contentType: 'application/json', body: fixtureText('hebcal/hebcal-' + (jlm ? 'jlm' : 'rehovot') + '-2026-11-02-ly.json') };   // captured with the app's own params (leyning, specials, Rosh Chodesh, Omer)
 }
 
 function loadPuppeteer() {
