@@ -50,6 +50,14 @@ var Config = {
     retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
     retryFloorMs: 30 * 1000,
     staleAfterMs: 45 * 60 * 1000,       // data older than this is marked stale even without a failure
+    keepMaxMs: 48 * 60 * 60 * 1000,     // batch 14: the last good answer, kept on the TV, is shown (stale) after a restart this long
+    // Batch 15: MET Norway, asked in the same refresh whenever the Open-Meteo attempt fails (js/met.js): one forecast request
+    // per place (never again before its Expires) and one sunrise request per place per day, all at once.
+    met: {
+      forecastBase: 'https://api.met.no/weatherapi/locationforecast/2.0/complete',
+      sunBase: 'https://api.met.no/weatherapi/sunrise/3.0/sun',
+      timeoutMs: 15 * 1000
+    },
     hours: 12,                          // hourly strip length
     forecastHours: 24,                  // hourly rows fetched: the strip can follow the clock for 12 h without new data
     days: 7                             // daily list length
@@ -65,6 +73,7 @@ var Config = {
     retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
     retryFloorMs: 30 * 1000,
     staleAfterMs: 3 * 60 * 60 * 1000,
+    keepMaxMs: 12 * 60 * 60 * 1000,     // batch 14: the last good answer kept on the TV, shown (stale) after a restart
     dustUgm3: 100,
     // Batch 13: the dust forecast in the same request — hourly for forecastDays days from today's 00:00 (CAMS reaches ~4 to
     // 5 days, later cells are null); a day's value (its hourly maximum) is shown only with dustDayMinHours of its 24 values.

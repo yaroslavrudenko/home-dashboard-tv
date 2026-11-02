@@ -3,7 +3,8 @@
  *   Weather.parse(json, cfg)           one place's answer → the model; throws only when current weather is unusable
  *   Weather.forHour(model, hourKey, cfg) the rows to show now: the hourly strip and the days from the wall clock
  *   Weather.uv(raw)                    a day's UV maximum → { index (rounded), level } or null
- *   Weather.createStore(...)           one request per refresh (js/placestore.js), last good data kept
+ *   Weather.createStore(...)           one request per refresh (js/placestore.js), last good data kept; MET Norway
+ *                                      (js/met.js) in the same refresh when the Open-Meteo attempt fails
  * Times in the answer are the place's local wall time (timezone=auto), so sunrise "06:01" and the hourly
  * labels need no time-zone arithmetic here. */
 var Weather = (function () {
@@ -82,8 +83,13 @@ var Weather = (function () {
     return { index: index, level: OpenMeteo.band(index, UV_LEVELS, 'extreme') };
   }
 
-  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, onChange(store), random() (optional) }
-  function createStore(places, cfg, deps) { return PlaceStore.create(places, { cfg: cfg, url: url, parse: parse }, deps); }
+  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, onChange(store), random() (optional),
+  //         storage (optional: the last good answer is kept under 'weather.v1', js/placestore.js),
+  //         wallOf(place) → wall(ms) and getJsonExpiring (both optional: batch 15, MET Norway as the fallback, js/met.js) }
+  function createStore(places, cfg, deps) {
+    var fallback = deps.wallOf && cfg.met ? Met.fallback(cfg, deps) : null;
+    return PlaceStore.create(places, { cfg: cfg, url: url, parse: parse, persistKey: 'weather', fallback: fallback }, deps);
+  }
 
   return { url: url, parse: parse, forHour: forHour, uv: uv, createStore: createStore };
 })();

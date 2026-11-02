@@ -319,3 +319,13 @@ test('X9: View.dustTitle takes the translated title and label; the legend states
     '<span class="dust-legend-khamsin">хамсин ≥ 100</span></div></div>');
   assert.match(ctx.View.dustTitle('A', 'B', { limit: 100, active: true }), /<span class="dust-legend-khamsin is-active">/);
 });
+
+// Batch 15 (M4): while MET Norway's data are shown the weather status says so, in every language; Open-Meteo's says nothing more.
+test('B15: the status line names MET Norway when its data are shown (fresh and stale); nothing added for Open-Meteo', () => {
+  const ctx = load(['js/config.js', 'js/i18n.js', 'js/tz.js', 'js/html.js', 'js/icons.js', 'js/view.js']);
+  const say = (lang, kind, source) => { ctx.I18n.setLang(lang); return ctx.View.statusText(kind, '02.11 17:30', source); };
+  assert.deepEqual([say('ru', 'fresh', 'met'), say('ru', 'stale', 'met'), say('ru', 'fresh', undefined), say('ru', 'loading', 'met')],
+    ['Обновлено в 02.11 17:30 · MET Norway', 'Не обновляется · данные от 02.11 17:30 · MET Norway', 'Обновлено в 02.11 17:30', '']);
+  assert.equal(say('uk', 'fresh', 'met'), 'Оновлено о 02.11 17:30 · MET Norway');
+  assert.equal(say('he', 'fresh', 'met'), 'עודכן ב־02.11 17:30 · MET נורווגיה');
+});

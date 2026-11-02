@@ -18,6 +18,9 @@ var View = (function () {
     doc = document;
     sizes = size;
     els = { clocks: byId('clocks'), now: byId('now'), hourly: byId('hourly'), daily: byId('daily'), status: byId('status') };
+    // The status is fitted by measuring (B14-1): a font that arrives after the first fit changes every width, so fit again
+    // then (Chromium 47 has FontFaceSet and its loadingdone event).
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', refitStatus);
     var html = '';
     for (var i = 0; i < clocks.length; i++) {
       html += '<div class="card clock" id="clock-' + esc(clocks[i].id) + '"></div>';
@@ -222,12 +225,38 @@ var View = (function () {
 
   // The status line speaks only about data on screen: "updated at" or "not updating · data from". Loading
   // and failure are said once, in the weather card itself.
-  function renderStatus(kind, time) {
-    Html.setStatus(els.status, 'status', kind, statusText(kind, time));
+  // The hourly card's status sits at the end of its title row (B14-1): never nearer than STATUS_GAP to the title and the dust
+  // legend. It takes the first of its forms that keeps that gap, measured once per new text (a change of state, time,
+  // source or language), never per tick: the full sentence; the short one («Не обновляется · 20:32»); with «MET» for
+  // «MET Norway»; for a stale time, the shortest word («Устарело · 02.11 20:32 · MET»). Every form keeps a word: the state
+  // is never said by colour alone.
+  var STATUS_GAP = 24, statusDrawn = '', statusArgs = null;
+  var STATUS_FORMS = { fresh: [['w.updated', 'src.met'], ['w.updatedShort', 'src.met'], ['w.updatedShort', 'src.metShort']],
+    stale: [['w.stale', 'src.met'], ['w.staleShort', 'src.met'], ['w.staleShort', 'src.metShort'], ['w.staleTiny', 'src.metShort']] };
+  function renderStatus(kind, time, source) {
+    var key = [kind, time, source, I18n.lang()].join('|'), forms = STATUS_FORMS[kind] || [];
+    if (key === statusDrawn) return;
+    statusDrawn = key;
+    statusArgs = [kind, time, source];
+    Html.setStatus(els.status, 'status', kind, statusText(kind, time, source));
+    for (var i = 1; i < forms.length && !statusClear(); i++) {
+      var text = I18n.t(forms[i][0], { time: time });
+      Html.setStatus(els.status, 'status', kind, source ? I18n.t('w.source', { text: text, source: I18n.t(forms[i][1]) }) : text);
+    }
   }
-  // "Обновлено в 20:32" / "Не обновляется · данные от 20:32" / nothing (loading and failure are said in the card)
-  function statusText(kind, time) {
-    return kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
+  function refitStatus() { if (statusArgs) { statusDrawn = ''; renderStatus(statusArgs[0], statusArgs[1], statusArgs[2]); } }
+  // Whether the status keeps STATUS_GAP from the title and the legend on its row (no head yet: nothing to keep clear of).
+  function statusClear() {
+    var head = els.hourly.querySelector('.card-head');
+    if (!head || !els.status.firstChild) return true;
+    var s = els.status.getBoundingClientRect(), t = head.firstChild.getBoundingClientRect(), l = head.lastChild.getBoundingClientRect();
+    return I18n.dir() === 'rtl' ? Math.min(t.left, l.left) - s.right >= STATUS_GAP : s.left - Math.max(t.right, l.right) >= STATUS_GAP;
+  }
+  // "Обновлено в 20:32" / "Не обновляется · данные от 20:32" / nothing (loading and failure are said in the card); with the
+  // source's name after it when the data are not the usual source's (batch 15: «… · MET Norway»).
+  function statusText(kind, time, source) {
+    var text = kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
+    return text && source ? I18n.t('w.source', { text: text, source: I18n.t('src.' + source) }) : text;
   }
 
   return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, statusText: statusText, temp: temp, diffText: diffText,

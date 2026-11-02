@@ -57,7 +57,8 @@ var IsraelView = (function () {
   }
 
   // cards: in screen order; key: what each card shows as a string (an unchanged card is not rewritten: icons carry
-  // unique mask ids, so the HTML itself cannot be compared). status: { kind, updated ("HH:MM") } for the header.
+  // unique mask ids, so the HTML itself cannot be compared). status: { kind, updated ("HH:MM", "DD.MM HH:MM" on another day),
+  // source (batch 15: 'met' when MET Norway's data are shown) } for the header.
   function render(cards, days, status) {
     for (var i = 0; i < cards.length; i++) {
       // the chip and the days' dust are part of what the card shows: what they show (not the raw air numbers) is in the key
@@ -68,7 +69,7 @@ var IsraelView = (function () {
       el.innerHTML = cardHtml(c, days);
       el.className = 'card region' + (c.kind === 'stale' ? ' is-stale' : c.view ? '' : ' is-empty');
     }
-    Html.setStatus(els.status, 'status screen-status', status.kind, View.statusText(status.kind, status.updated));
+    Html.setStatus(els.status, 'status screen-status', status.kind, View.statusText(status.kind, status.updated, status.source));
   }
 
   return { init: init, render: render };

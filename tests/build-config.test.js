@@ -22,7 +22,9 @@ const DATA = ['https://api.open-meteo.com', 'https://www.newsru.co.il', 'https:/
   'https://www.pravda.com.ua', 'https://epravda.com.ua', 'https://www.oref.org.il', 'https://alerts-history.oref.org.il', 'https://api.mapbox.com',
   'https://query1.finance.yahoo.com', 'https://open.er-api.com',
   // Batch 12: the air quality (Open-Meteo's air-quality API) and the Shabbat & holidays calendar (Hebcal).
-  'https://air-quality-api.open-meteo.com', 'https://www.hebcal.com'];
+  'https://air-quality-api.open-meteo.com', 'https://www.hebcal.com',
+  // Batch 15: MET Norway, the weather's fallback source (forecast and sunrise).
+  'https://api.met.no'];
 const ORIGINS = DATA;
 test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV profile, internet, exactly the hosts the app reads', () => {
   const x = read('config.xml');

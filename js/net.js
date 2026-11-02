@@ -1,6 +1,8 @@
 /* HTTP over XMLHttpRequest (Chromium 47 has no fetch), always with a hard timeout. ES5.
- *   Net.request(opts, done)  opts: { url, timeoutMs, method ('GET'), body (string), headers ({}), json (bool) }
+ *   Net.request(opts, done)  opts: { url, timeoutMs, method ('GET'), body (string), headers ({}), json (bool), expires (bool) }
  *   Net.getJson(url, timeoutMs, done) / Net.getText(url, timeoutMs, done)
+ *   Net.getJsonExpiring(url, timeoutMs, done)  as getJson, and a good answer also passes { expires }: its Expires header
+ *                                       ('' when absent) — batch 15: MET Norway's answers are not asked again before it
  *   Net.getImage(url, timeoutMs, done)  an image (the traffic map) with the same hard deadline: done(error, img) once,
  *                                       error 'error' | 'timeout' | 'cancelled'; returns { img, cancel() }. A timeout or
  *                                       cancel removes the handlers and clears src, which stops the download.
@@ -25,7 +27,7 @@ var Net = (function () {
       if (!opts.json) { finish(null, xhr.responseText); return; }
       var json;
       try { json = JSON.parse(xhr.responseText); } catch (e) { finish('parse'); return; }
-      finish(null, json);
+      finish(null, json, opts.expires ? { expires: xhr.getResponseHeader('Expires') || '' } : undefined);
     };
     xhr.ontimeout = function () { finish('timeout'); };
     xhr.onerror = xhr.onabort = function () { finish('network'); };
@@ -40,6 +42,7 @@ var Net = (function () {
   }
 
   function getJson(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true }, done); }
+  function getJsonExpiring(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true, expires: true }, done); }
   function getText(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs }, done); }
 
   function getImage(url, timeoutMs, done) {
@@ -59,5 +62,5 @@ var Net = (function () {
     return { img: img, cancel: function () { finish('cancelled'); } };
   }
 
-  return { request: request, getJson: getJson, getText: getText, getImage: getImage };
+  return { request: request, getJson: getJson, getJsonExpiring: getJsonExpiring, getText: getText, getImage: getImage };
 })();

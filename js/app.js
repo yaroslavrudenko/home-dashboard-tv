@@ -77,10 +77,22 @@ var App = (function () {
   }
   function withTimers(extra) { var d = timers(); for (var k in extra) if (extra.hasOwnProperty(k)) d[k] = extra[k]; return d; }
 
+  // The index of the clock linked to a weather place, or -1.
+  function clockOf(placeId) {
+    for (var i = 0; i < Config.clocks.length; i++) if (Config.clocks[i].place === placeId) return i;
+    return -1;
+  }
+  // A weather place's wall clock (batch 15: MET Norway's UTC times): the clock linked to the place, else the home clock
+  // (the Israel regions, shown at Israel's time on their screen).
+  function placeWall(place) {
+    var r = resolved[Math.max(clockOf(place.id), 0)];
+    return function (ms) { return Tz.wallTime(r, ms); };
+  }
+
   // The wall-clock hour of a weather place, from the clock linked to it (null: no such clock or zone unknown).
   function placeHourKey(placeId) {
-    for (var i = 0; i < Config.clocks.length; i++) if (Config.clocks[i].place === placeId) return Tz.hourKey(wallNow(i));
-    return null;
+    var i = clockOf(placeId);
+    return i < 0 ? null : Tz.hourKey(wallNow(i));
   }
 
   function renderClocks() {
@@ -110,14 +122,14 @@ var App = (function () {
       View.renderWeather(v, { name: HomeCity.name(Config.home.city, I18n.lang()), kind: s.kind, retryAt: retryAt(store.nextAt()),
         uv: v && v.today ? Weather.uv(v.today.uvMax) : null, air: a.air, airKind: a.airKind, dust: dust });
     }
-    View.renderStatus(s.kind, homeHhmm(s.updatedAt));
+    View.renderStatus(s.kind, homeStamp(s.updatedAt), s.source);   // B14-3: a time of another day carries its date
     renderClocks();
   }
 
   // The Israel weather screen: each region's card from the main weather's data at Israel's wall-clock hour; the header
   // speaks once for the data on screen (stale if any card is, with the oldest time).
   function renderIsrael() {
-    var cfg = Config.israel, hour = Tz.hourKey(wallNow(0)), next = store.nextAt(), cards = [], kind = '', oldest = 0, i;
+    var cfg = Config.israel, hour = Tz.hourKey(wallNow(0)), next = store.nextAt(), cards = [], kind = '', oldest = 0, source, i;
     for (i = 0; i < cfg.regions.length; i++) {
       var r = cfg.regions[i], s = store.status(r.place), data = store.get(r.place), v = null;
       if (data) {
@@ -125,13 +137,14 @@ var App = (function () {
         v.daily = v.daily.slice(0, cfg.days);
         kind = kind === 'stale' || s.kind === 'stale' ? 'stale' : 'fresh';
         oldest = oldest ? Math.min(oldest, s.updatedAt) : s.updatedAt;
+        source = source || s.source;   // batch 15: the header names MET Norway when any card shows its data
       }
       var ra = airOf(r.place);   // the view keys the card on the air chip it draws (FIX-12B V13), never on the raw numbers
       // ... and on the days' dust it draws (B13-D7)
       cards.push({ region: r, view: v, kind: s.kind, retryAt: retryAt(next), key: [hour, s.kind, s.updatedAt, next].join('|'), air: ra.air, airKind: ra.airKind,
         dust: dustOf(r.place, [], v ? keysOf(v.daily, 'date') : []) });
     }
-    IsraelView.render(cards, cfg.days, { kind: kind || 'none', updated: homeHhmm(oldest) });
+    IsraelView.render(cards, cfg.days, { kind: kind || 'none', updated: homeStamp(oldest), source: source });
   }
 
   // The header speaks for the columns that are current (fresh: the newest answer); a failed feed says so in its own
@@ -168,7 +181,8 @@ var App = (function () {
       resumeAt: homeStamp(st.resumeAt ? Math.ceil(st.resumeAt / 60000) * 60000 : 0) });
   }
 
-  // localStorage, or null where the TV refuses it (traffic then pauses: its request counter cannot be kept).
+  // localStorage, or null where the TV refuses it (traffic then pauses: its request counter cannot be kept; the weather and
+  // the air then start empty after a restart, as before batch 14).
   function storage() { try { return window.localStorage || null; } catch (e) { return null; } }
 
   function renderMap() {
@@ -485,8 +499,11 @@ var App = (function () {
     screens = Screens.create(Config.screens.length, Config.rotation, withTimers({ onShow: showScreen,
       idOf: function (i) { return Config.screens[i]; } }));
 
-    store = Weather.createStore(Config.places, Config.weather, withTimers({ getJson: Net.getJson, onChange: onData('main', 'israel') }));
-    air = Air.createStore(airPlaces(), Config.air, withTimers({ getJson: Net.getJson, onChange: onData('main', 'israel') }));
+    // Batch 14: the weather and the air keep their last good answer on the TV (shown, stale, after a restart).
+    // Batch 15: MET Norway in the same refresh when Open-Meteo fails, each place's UTC times on its own clock.
+    store = Weather.createStore(Config.places, Config.weather, withTimers({ getJson: Net.getJson, storage: storage(), onChange: onData('main', 'israel'),
+      getJsonExpiring: Net.getJsonExpiring, wallOf: placeWall }));
+    air = Air.createStore(airPlaces(), Config.air, withTimers({ getJson: Net.getJson, storage: storage(), onChange: onData('main', 'israel') }));
     shabbat = Shabbat.createStore(Config.shabbat, withTimers({ getJson: Net.getJson, onChange: onData('shabbat'), today: homeDate }));
     news = News.createStore(Config.news, withTimers({ getText: Net.getText, onChange: onData('news') }), I18n.lang());
     markets = Markets.createController(Config.markets, withTimers({ getJson: Net.getJson, documentVisible: function () { return !document.hidden; },

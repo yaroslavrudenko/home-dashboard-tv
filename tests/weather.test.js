@@ -334,3 +334,71 @@ test('S4: a value that is not a finite number is no value — Infinity in a fore
   const bad = fixture('rehovot'); bad.current.temperature_2m = Infinity;
   assert.throws(() => ctx.Weather.parse(bad, cfg), /temperature_2m/, 'a required value must be a real number');
 });
+
+// Batch 14 (the owner, 2026-11-02: «делай хранение погоды» — Open-Meteo answered 503 after a restart and the TV showed no
+// weather): the weather store keeps its last good answer under 'weather.v1' and a restarted app shows it, stale, for 48 h.
+test('B14: a restarted app shows the last good weather of every place, stale and dated, for up to 48 h (key weather.v1)', () => {
+  const ctx = load(FILES), items = {}, storage = { getItem: (k) => (k in items ? items[k] : null), setItem: (k, v) => { items[k] = String(v); } };
+  assert.equal(ctx.Config.weather.keepMaxMs, 48 * 3600000);
+  const first = fakeTimers(T0), calls = [], deps = (clock) => ({ storage, now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
+    onChange: () => {}, getJson: (url, ms, done) => calls.push({ done, lats: new URL(url).searchParams.get('latitude').split(',') }) });
+  const byLat = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney', '32.794': 'haifa', '32.0853': 'telaviv', '31.2518': 'beersheva' };
+  const a = ctx.Weather.createStore(ctx.Config.places, ctx.Config.weather, deps(first));
+  a.refresh();
+  calls[0].done(null, calls[0].lats.map((lat) => fixture(byLat[lat])));
+  assert.deepEqual(Object.keys(items), ['weather.v1']);
+  a.stop();
+  const later = fakeTimers(T0 + 2 * 3600000), b = ctx.Weather.createStore(ctx.Config.places, ctx.Config.weather, deps(later));
+  for (const p of ctx.Config.places) {
+    assert.equal(b.status(p.id).kind, 'stale', p.id);
+    assert.equal(b.status(p.id).updatedAt, T0, p.id);
+    assert.equal(b.get(p.id).current.temp, a.get(p.id).current.temp, p.id + ': the same reading');
+  }
+  const gone = fakeTimers(T0 + 48 * 3600000 + 1), c = ctx.Weather.createStore(ctx.Config.places, ctx.Config.weather, deps(gone));
+  assert.equal(c.get(ctx.Config.places[0].id), null, 'older than 48 h: not shown');
+});
+
+// Batch 15: the weather store's fallback is MET Norway (js/met.js), wired by Weather.createStore when the App gives each
+// place's wall clock (deps.wallOf) and an Expires-aware getJson.
+test('B15: Open-Meteo answers 503 → the same refresh asks MET for all 6 places at once (6 forecasts + 6 suns); every place shown, source met', () => {
+  const ctx = load(FILES.concat(['js/met.js'])), clock = fakeTimers(Date.parse('2026-11-02T15:25:00Z')), om = [], met = [];
+  const zone = (id) => ctx.Tz.resolve({ zones: id === 'kyiv' ? ['Europe/Kyiv'] : id === 'sydney' ? ['Australia/Sydney'] : ['Asia/Jerusalem'] }, clock.now(), ctx.Intl);
+  const store = ctx.Weather.createStore(ctx.Config.places, ctx.Config.weather, { now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
+    onChange: () => {}, getJson: (url, ms, done) => om.push(done), getJsonExpiring: (url, ms, done) => met.push({ url, done }),
+    wallOf: (p) => { const r = zone(p.id); return (ms) => ctx.Tz.wallTime(r, ms); } });
+  store.refresh();
+  om[0]('http 503');
+  assert.equal(met.length, 12, 'one forecast and one sun request per place, all before any answer');
+  const ids = ['rehovot', 'kyiv', 'sydney', 'haifa', 'telaviv', 'beersheva'];
+  met.forEach((c, i) => c.done(null, require('./fixtures/met/' + (c.url.indexOf('/sun?') > 0 ? 'sun-' : '') + ids[Math.floor(i / 2)] + '.json'), { expires: '' }));
+  for (const p of ctx.Config.places) {
+    assert.deepEqual([store.status(p.id).kind, store.status(p.id).source], ['fresh', 'met'], p.id);
+    assert.equal(typeof store.get(p.id).current.temp, 'number', p.id);
+  }
+  assert.equal(store.get('home').current.hourKey, '2026-11-02T17');
+  assert.equal(store.get('sydney').current.hourKey, '2026-11-03T02');
+  store.refresh();
+  assert.equal(om.length, 2, 'the next refresh asks Open-Meteo first');
+});
+
+test('B15: without wallOf (no clock to place MET\'s UTC times) the store has no fallback: Open-Meteo alone, as before', () => {
+  const ctx = load(FILES.concat(['js/met.js'])), s = makeStore(ctx);
+  s.store.refresh();
+  s.answer('http 503');
+  assert.equal(s.store.status(ctx.Config.places[0].id).kind, 'failed');
+});
+
+// FIX-15B Y1 (the reviewers' P1, kept): MET answering 200 with a body it cannot read ({}) never wedges the weather — the
+// round ends as a failure, the back-off follows and the next refresh is accepted.
+test('FIX-15B Y1: MET answers {} for every place → the refresh ends, back-off pending, the next refresh asks Open-Meteo again', () => {
+  const ctx = load(FILES.concat(['js/met.js'])), clock = fakeTimers(Date.parse('2026-11-02T15:25:00Z')), om = [];
+  const r = ctx.Tz.resolve({ zones: ['Asia/Jerusalem'] }, clock.now(), ctx.Intl);
+  const store = ctx.Weather.createStore(ctx.Config.places, ctx.Config.weather, { now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
+    random: () => 0, onChange: () => {}, getJson: (u, ms, done) => om.push(done), getJsonExpiring: (u, ms, done) => done(null, {}, { expires: '' }),
+    wallOf: () => (ms) => ctx.Tz.wallTime(r, ms) });
+  store.refresh();
+  assert.doesNotThrow(() => om[0]('http 503'));
+  assert.deepEqual([store.status('home').kind, clock.pending()], ['failed', [30000]]);
+  assert.equal(store.refresh(), true);
+  assert.equal(om.length, 2);
+});

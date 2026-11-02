@@ -21,7 +21,7 @@ function places(ctx) {
 test('config: hourly, 15 s timeout, the weather back-off, stale after 3 h, dust flagged from 100 µg/m³', () => {
   const a = plain(load(FILES).Config.air);
   assert.deepEqual(a, { base: 'https://air-quality-api.open-meteo.com/v1/air-quality', refreshMs: 3600000, timeoutMs: 15000,
-    retryMs: [60000, 120000, 240000, 480000], retryFloorMs: 30000, staleAfterMs: 3 * 3600000, dustUgm3: 100,
+    retryMs: [60000, 120000, 240000, 480000], retryFloorMs: 30000, staleAfterMs: 3 * 3600000, keepMaxMs: 12 * 3600000, dustUgm3: 100,
     forecastDays: 5, dustDayMinHours: 20 });   // B13-D1 / B13-D3: the dust forecast's days and a day's minimum of hourly values
 });
 
@@ -213,4 +213,22 @@ test('X6: a day whose values are ALL exactly 0 is a fill — no hourly values, n
   const g = plain(ctx.Air.forecast(ctx.Air.parse(one, cfg), ['2026-11-03T06'], ['2026-11-03'], cfg));
   assert.deepEqual(g.hours, [{ dust: 0, khamsin: false }], 'a single 0 stays 0');
   assert.notEqual(g.days[0], null, 'its day stays');
+});
+
+// Batch 14: the air store keeps its last good answer under 'air.v1'; a restarted app shows it, stale, for up to 12 h.
+test('B14: a restarted app shows the last good air quality, stale, for up to 12 h (key air.v1)', () => {
+  const ctx = load(FILES), items = {}, storage = { getItem: (k) => (k in items ? items[k] : null), setItem: (k, v) => { items[k] = String(v); } };
+  const T = Date.parse('2026-11-02T09:00:00Z'), calls = [];
+  const deps = (at) => { const t = fakeTimers(at); return { storage, now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+    onChange: () => {}, getJson: (url, ms, done) => calls.push(done) }; };
+  const a = ctx.Air.createStore(places(ctx), ctx.Config.air, deps(T));
+  a.refresh();
+  calls[0](null, air('aq-4places'));
+  assert.deepEqual(Object.keys(items), ['air.v1']);
+  const b = ctx.Air.createStore(places(ctx), ctx.Config.air, deps(T + 12 * 3600000));
+  for (const p of places(ctx)) {
+    assert.deepEqual([b.status(p.id).kind, b.status(p.id).updatedAt], ['stale', T], p.id);
+    assert.equal(JSON.stringify(b.get(p.id)), JSON.stringify(a.get(p.id)), p.id + ': the same model');
+  }
+  assert.equal(ctx.Air.createStore(places(ctx), ctx.Config.air, deps(T + 12 * 3600000 + 1)).get(places(ctx)[0].id), null, 'older than 12 h');
 });

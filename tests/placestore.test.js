@@ -77,3 +77,276 @@ test('S7: the generic store knows no API — the Open-Meteo coordinate list live
   const ctx = load(FILES);
   assert.deepEqual(Object.keys(ctx.PlaceStore).sort(), ['create']);
 });
+
+// Batch 14 (the owner, 2026-11-02: «делай хранение погоды»): a store with source.persistKey and deps.storage keeps the last
+// good RAW answer under `<persistKey>.v1` ({ v: 1, at, url, json }), one write per good refresh; at boot, when the request
+// would be the same (the same places, the same parameters), it is parsed again and shown as stale («не обновляется») until a
+// live answer arrives. The first refresh still runs at once.
+const HOUR = 3600000;
+const kept = Object.assign({}, cfg, { keepMaxMs: 48 * HOUR });
+const persisted = { cfg: kept, url: source.url, parse: source.parse, persistKey: 'wx' };
+function fakeStorage(initial, opts = {}) {
+  const items = Object.assign({}, initial), writes = [];
+  return { items, writes,
+    getItem: (k) => { if (opts.throwRead) throw new Error('denied'); return Object.prototype.hasOwnProperty.call(items, k) ? items[k] : null; },
+    setItem: (k, v) => { writes.push(k); if (opts.throwWrite) throw new Error('QuotaExceededError'); items[k] = String(v); } };
+}
+function makeKept(places, storage, nowAt, src = persisted) {
+  const ctx = load(FILES), t = fakeTimers(nowAt), calls = [];
+  const s = ctx.PlaceStore.create(places, src, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout, random: () => 0,
+    onChange: () => {}, getJson: (url, ms, done) => calls.push(done), storage });
+  return { t, s, calls };
+}
+const st2 = (st) => ({ kind: st.kind, updatedAt: st.updatedAt });   // the vm realm's object, as a plain one
+const urlOf = (ids) => 'https://x.test/?ids=' + ids.join(',');
+// A saved entry for the places of the request (default: one per element of json, ids a, b, c, …).
+const entry = (at, json, v = 1, ids = json.map((x, i) => 'abc'[i])) => JSON.stringify({ v, at, url: urlOf(ids), json });
+
+test('B14: a good answer is saved raw under <persistKey>.v1 with the time it came — one write per good refresh, none on a failure', () => {
+  const st = fakeStorage(), h = makeKept([{ id: 'a' }, { id: 'b' }], st, 1000);
+  assert.deepEqual(st.writes, [], 'nothing written at boot');
+  h.s.refresh();
+  h.calls[0](null, [{ v: 1, extra: 'raw' }, { v: 2 }]);
+  assert.deepEqual(st.writes, ['wx.v1']);
+  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: 1000, url: urlOf(['a', 'b']), json: [{ v: 1, extra: 'raw' }, { v: 2 }] }, 'the raw answer, not the model');
+  h.s.refresh();
+  h.calls[1]('http 503');
+  assert.deepEqual(st.writes, ['wx.v1'], 'a failed refresh writes nothing');
+});
+
+test('B14: at boot the saved answer is parsed again: every place has its data, stale, dated by the saved time — the first refresh still asks', () => {
+  const T = 100 * HOUR, st = fakeStorage({ 'wx.v1': entry(T - 3 * HOUR, [{ v: 7 }, { v: 8 }]) });
+  const h = makeKept([{ id: 'a' }, { id: 'b' }], st, T);
+  assert.deepEqual([h.s.get('a'), h.s.get('b')], [7, 8]);
+  assert.deepEqual([st2(h.s.status('a')), st2(h.s.status('b'))], [{ kind: 'stale', updatedAt: T - 3 * HOUR }, { kind: 'stale', updatedAt: T - 3 * HOUR }]);
+  assert.equal(h.s.refresh(), true, 'the first refresh runs: nothing replaces the request');
+  assert.equal(h.calls.length, 1);
+});
+
+test('B14: restored data is stale even when its saved time is within staleAfterMs — never fresh from storage', () => {
+  const T = 100 * HOUR, st = fakeStorage({ 'wx.v1': entry(T - 60000, [{ v: 7 }]) });
+  const h = makeKept([{ id: 'a' }], st, T);
+  assert.deepEqual(st2(h.s.status('a')), { kind: 'stale', updatedAt: T - 60000 });
+});
+
+test('B14: a live answer replaces the restored data — fresh, and saved again', () => {
+  const T = 100 * HOUR, st = fakeStorage({ 'wx.v1': entry(T - HOUR, [{ v: 7 }]) });
+  const h = makeKept([{ id: 'a' }], st, T);
+  h.s.refresh();
+  h.calls[0](null, [{ v: 9 }]);
+  assert.deepEqual([h.s.get('a'), st2(h.s.status('a'))], [9, { kind: 'fresh', updatedAt: T }]);
+  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: T, url: urlOf(['a']), json: [{ v: 9 }] });
+});
+
+test('B14: a failed first refresh keeps the restored data on screen, still stale', () => {
+  const T = 100 * HOUR, st = fakeStorage({ 'wx.v1': entry(T - HOUR, [{ v: 7 }]) });
+  const h = makeKept([{ id: 'a' }], st, T);
+  h.s.refresh();
+  h.calls[0]('http 503');
+  assert.deepEqual([h.s.get('a'), st2(h.s.status('a'))], [7, { kind: 'stale', updatedAt: T - HOUR }]);
+});
+
+test('B14: an entry older than keepMaxMs is not used (48 h kept, 48 h + 1 ms not)', () => {
+  const T = 100 * HOUR;
+  const at = makeKept([{ id: 'a' }], fakeStorage({ 'wx.v1': entry(T - 48 * HOUR, [{ v: 7 }]) }), T);
+  assert.equal(at.s.get('a'), 7, 'exactly keepMaxMs old: kept');
+  const past = makeKept([{ id: 'a' }], fakeStorage({ 'wx.v1': entry(T - 48 * HOUR - 1, [{ v: 7 }]) }), T);
+  assert.deepEqual([past.s.get('a'), past.s.status('a').kind], [null, 'loading']);
+});
+
+test('B14: a saved time in the future (the clock went back) restores as stale, never fresh', () => {
+  const T = 100 * HOUR, h = makeKept([{ id: 'a' }], fakeStorage({ 'wx.v1': entry(T + HOUR, [{ v: 7 }]) }), T);
+  assert.deepEqual(st2(h.s.status('a')), { kind: 'stale', updatedAt: T + HOUR });
+});
+
+test('B14: broken JSON, another version, a malformed entry or a storage that throws → an empty start, as without storage', () => {
+  const T = 100 * HOUR;
+  const cases = [fakeStorage({ 'wx.v1': '{not json' }), fakeStorage({ 'wx.v1': entry(T - HOUR, [{ v: 7 }], 2) }),
+    fakeStorage({ 'wx.v1': JSON.stringify({ v: 1, url: urlOf(['a']), json: [{ v: 7 }] }) }), fakeStorage({ 'wx.v1': 'null' }), fakeStorage({}),
+    fakeStorage({ 'wx.v1': entry(T - HOUR, [{ v: 7 }]) }, { throwRead: true }), null];
+  for (const st of cases) {
+    const h = makeKept([{ id: 'a' }], st, T);
+    assert.deepEqual([h.s.get('a'), h.s.status('a').kind], [null, 'loading'], JSON.stringify(st && st.items));
+  }
+});
+
+test('B14: a storage that refuses the write (quota) never breaks the refresh', () => {
+  const st = fakeStorage({}, { throwWrite: true }), h = makeKept([{ id: 'a' }], st, 1000);
+  h.s.refresh();
+  assert.doesNotThrow(() => h.calls[0](null, [{ v: 1 }]));
+  assert.deepEqual([st.writes, h.s.get('a'), h.s.status('a').kind, h.s.failures(), h.t.pending()], [['wx.v1'], 1, 'fresh', 0, [600000]]);
+});
+
+test('B14: the saved answer goes through the CURRENT parse — a place it rejects gets no data, the others are restored', () => {
+  const T = 100 * HOUR, st = fakeStorage({ 'wx.v1': entry(T - HOUR, [{ v: 7 }, { old: 'shape' }, { v: 9 }]) });
+  const h = makeKept([{ id: 'a' }, { id: 'b' }, { id: 'c' }], st, T);
+  assert.deepEqual([h.s.get('a'), h.s.get('b'), h.s.get('c')], [7, null, 9]);
+  assert.deepEqual([h.s.status('a').kind, h.s.status('b').kind, h.s.status('c').kind], ['stale', 'loading', 'stale']);
+});
+
+test('B14: without persistKey, or without storage, nothing is read or written (today\'s behaviour)', () => {
+  const T = 100 * HOUR, st = fakeStorage({ 'wx.v1': entry(T - HOUR, [{ v: 7 }]) });
+  const noKey = makeKept([{ id: 'a' }], st, T, source);
+  noKey.s.refresh();
+  noKey.calls[0](null, [{ v: 1 }]);
+  assert.deepEqual([st.writes, noKey.s.status('a').kind], [[], 'fresh']);
+  const noStorage = makeKept([{ id: 'a' }], null, T);
+  assert.equal(noStorage.s.get('a'), null);
+  noStorage.s.refresh();
+  assert.doesNotThrow(() => noStorage.calls[0](null, [{ v: 1 }]));
+  assert.equal(noStorage.s.status('a').kind, 'fresh');
+});
+
+test('B14: an answer saved for another request (the home city changed, or the places or parameters did) is not used', () => {
+  const T = 100 * HOUR, st = fakeStorage({ 'wx.v1': entry(T - HOUR, [{ v: 7 }, { v: 8 }], 1, ['a', 'b']) });
+  const moved = makeKept([{ id: 'a' }, { id: 'c' }], st, T);
+  assert.deepEqual([moved.s.get('a'), moved.s.get('c'), moved.s.status('a').kind], [null, null, 'loading']);
+  const throwing = { cfg: kept, parse: source.parse, persistKey: 'wx', url: () => { throw new Error('no place yet'); } };
+  assert.equal(makeKept([{ id: 'a' }, { id: 'b' }], st, T, throwing).s.get('a'), null, 'a url() that throws restores nothing');
+  assert.equal(makeKept([{ id: 'a' }, { id: 'b' }], st, T).s.get('b'), 8, 'the same request: restored');
+});
+
+// Batch 15 (the owner, 2026-11-02: «каждый раз пытаться первый вариант - при ошибке второй»): a source may carry a
+// fallback { id, fetch(places, done(err, list)), parse(json, cfg, place) }. Every refresh asks the primary first; when that
+// attempt fails (a transport/HTTP error, a timeout, or an answer where no place parses) the SAME refresh asks the fallback.
+// Its data carry status().source = its id; the next refresh asks the primary first again.
+function makeFallback(places, opts = {}) {
+  const ctx = load(FILES), t = fakeTimers(opts.at || 1000), calls = [], rounds = [];
+  const fb = { id: 'alt', fetch: (ps, done) => rounds.push({ ids: ps.map((p) => p.id), done }),
+    parse: (json, c, place) => { if (!json || typeof json.w !== 'number') throw new Error('alt: bad'); return { w: json.w, place: place.id }; } };
+  const src = Object.assign({}, opts.persist ? persisted : source, { fallback: fb });
+  if (opts.persist) src.cfg = kept;
+  let changes = 0;
+  const s = ctx.PlaceStore.create(places, src, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout, random: () => 0,
+    onChange: () => { changes++; }, getJson: (url, ms, done) => calls.push(done), storage: opts.storage || null });
+  return { s, t, calls, rounds, changes: () => changes };
+}
+const twoPlaces = () => [{ id: 'a' }, { id: 'b' }];
+
+for (const [label, fail] of [['an HTTP 503', (d) => d('http 503')], ['a 429', (d) => d('http 429')], ['a timeout', (d) => d('timeout')],
+  ['a transport error', (d) => d('network')], ['an answer where no place parses', (d) => d(null, [{ nope: 1 }, { nope: 2 }])]]) {
+  test('B15: ' + label + ' from the primary → ONE fallback round for every place in the same refresh; its data shown, fresh, source "alt"', () => {
+    const h = makeFallback(twoPlaces());
+    h.s.refresh();
+    fail(h.calls[0]);
+    assert.equal(h.rounds.length, 1, 'one fallback round');
+    assert.deepEqual(h.rounds[0].ids, ['a', 'b']);
+    assert.equal(h.changes(), 0, 'nothing rendered before the fallback answered');
+    h.rounds[0].done(null, [{ w: 5 }, { w: 6 }]);
+    assert.deepEqual([h.s.get('a').w, h.s.get('a').place, h.s.get('b').w, h.s.status('a').kind, h.s.status('a').source, h.s.failures(), h.changes()],
+      [5, 'a', 6, 'fresh', 'alt', 0, 1]);
+    assert.deepEqual(h.t.pending(), [600000], 'the fallback worked: the regular schedule');
+  });
+}
+
+test('B15: the primary answers → no fallback round at all; a place the primary could not parse alone is not a reason to ask', () => {
+  const h = makeFallback(twoPlaces());
+  h.s.refresh();
+  h.calls[0](null, [{ v: 1 }, { v: 2 }]);
+  h.s.refresh();
+  h.calls[1](null, [{ v: 3 }, { nope: 1 }]);
+  assert.deepEqual([h.rounds.length, h.s.get('a'), h.s.status('a').source], [0, 3, undefined]);
+});
+
+test('B15: the next refresh asks the primary first again; its good answer replaces the fallback\'s data at once', () => {
+  const h = makeFallback(twoPlaces());
+  h.s.refresh();
+  h.calls[0]('http 503');
+  h.rounds[0].done(null, [{ w: 5 }, { w: 6 }]);
+  h.s.refresh();
+  assert.equal(h.calls.length, 2, 'the primary is asked again');
+  assert.equal(h.rounds.length, 1, 'and the fallback is not asked before it answered');
+  h.calls[1](null, [{ v: 1 }, { v: 2 }]);
+  assert.deepEqual([h.s.get('a'), h.s.status('a').kind, h.s.status('a').source, h.rounds.length], [1, 'fresh', undefined, 1]);
+});
+
+test('B15: both fail → the last good data stay (stale) and the normal back-off follows; a fallback place that fails alone keeps its own', () => {
+  const h = makeFallback(twoPlaces());
+  h.s.refresh();
+  h.calls[0](null, [{ v: 1 }, { v: 2 }]);
+  h.s.refresh();
+  h.calls[1]('http 503');
+  h.rounds[0].done(null, [null, null]);
+  assert.deepEqual([h.s.get('a'), h.s.status('a').kind, h.s.failures(), h.t.pending()], [1, 'stale', 1, [30000]]);
+  h.s.refresh();
+  h.calls[2]('timeout');
+  h.rounds[1].done(null, [{ w: 9 }, null]);
+  assert.deepEqual([h.s.get('a').w, h.s.status('a').kind, h.s.get('b'), h.s.status('b').kind, h.s.failures()], [9, 'fresh', 2, 'stale', 2], 'a place still failing: a failed hop, as with the primary');
+});
+
+test('B15: stop() while the primary is in flight → no fallback round is started by its late failure', () => {
+  const h = makeFallback(twoPlaces());
+  h.s.refresh();
+  h.s.stop();
+  h.calls[0]('http 503');
+  assert.equal(h.rounds.length, 0);
+});
+
+test('B15: the fallback\'s answer is kept with its source and restored through ITS parse after a restart (stale, source shown)', () => {
+  const st = fakeStorage(), T = 100 * HOUR;
+  const h = makeFallback(twoPlaces(), { persist: true, storage: st, at: T });
+  h.s.refresh();
+  h.calls[0]('http 503');
+  h.rounds[0].done(null, [{ w: 5 }, { w: 6 }]);
+  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: T, url: urlOf(['a', 'b']), src: 'alt', json: [{ w: 5 }, { w: 6 }] });
+  const again = makeFallback(twoPlaces(), { persist: true, storage: st, at: T + HOUR });
+  assert.deepEqual([again.s.get('a').w, again.s.status('a').kind, again.s.status('a').source, again.s.status('a').updatedAt], [5, 'stale', 'alt', T]);
+  const noFallback = makeKept(twoPlaces(), st, T + HOUR);
+  assert.equal(noFallback.s.get('a'), null, 'a store without that fallback ignores the entry');
+});
+
+// FIX-15B: the fallback's own clock and lifecycle — stamp(el) → { at, restored } dates its data (Y8: a reused answer keeps its
+// arrival time; Y6: an answer that came back from the TV stays stale), restore(list, places) refills its caches after a
+// restart, cancel() on stop() (Y2), and a fetch that throws never leaves the store in flight (Y1).
+function makeStamped(opts = {}) {
+  const ctx = load(FILES), t = fakeTimers(opts.at || 100 * HOUR), calls = [], rounds = [], log = [];
+  const fb = { id: 'alt', fetch: (ps, done) => { if (opts.throwing) throw new Error('boom'); rounds.push(done); },
+    parse: (json) => { if (!json || typeof json.w !== 'number') throw new Error('bad'); return json.w; },
+    stamp: (el) => ({ at: el.at, restored: !!el.restored }), cancel: () => log.push('cancel'), restore: (list, ps) => log.push(['restore', list.length, ps.length]) };
+  const src = Object.assign({}, persisted, { fallback: fb });
+  const s = ctx.PlaceStore.create([{ id: 'a' }], src, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout, random: () => 0,
+    onChange: () => {}, getJson: (u, ms, done) => calls.push(done), storage: opts.storage || null });
+  return { s, t, calls, rounds, log };
+}
+
+test('FIX-15B Y8: fallback data are dated by the fallback\'s stamp (the arrival of a reused answer), not by now', () => {
+  const h = makeStamped();
+  h.s.refresh();
+  h.calls[0]('http 503');
+  h.rounds[0](null, [{ w: 4, at: 100 * HOUR - 20 * 60000 }]);
+  assert.deepEqual([h.s.get('a'), st2(h.s.status('a'))], [4, { kind: 'fresh', updatedAt: 100 * HOUR - 20 * 60000 }]);
+});
+
+test('FIX-15B Y6: an answer the fallback brought back from the TV stays stale (restored) until a live answer', () => {
+  const h = makeStamped();
+  h.s.refresh();
+  h.calls[0]('http 503');
+  h.rounds[0](null, [{ w: 4, at: 100 * HOUR - 5 * 60000, restored: true }]);
+  assert.equal(h.s.status('a').kind, 'stale');
+  h.s.refresh();
+  h.calls[1](null, [{ v: 9 }]);
+  assert.deepEqual([h.s.get('a'), h.s.status('a').kind], [9, 'fresh']);
+});
+
+test('FIX-15B Y6: at boot a kept fallback entry refills the fallback (restore) and is dated by its stamp', () => {
+  const st = fakeStorage({ 'wx.v1': JSON.stringify({ v: 1, at: 100 * HOUR, url: urlOf(['a']), src: 'alt', json: [{ w: 4, at: 100 * HOUR - HOUR }] }) });
+  const h = makeStamped({ storage: st, at: 100 * HOUR + 60000 });
+  assert.deepEqual(h.log, [['restore', 1, 1]]);
+  assert.deepEqual([h.s.get('a'), st2(h.s.status('a'))], [4, { kind: 'stale', updatedAt: 100 * HOUR - HOUR }]);
+});
+
+test('FIX-15B Y2: stop() cancels the fallback\'s round', () => {
+  const h = makeStamped();
+  h.s.refresh();
+  h.calls[0]('http 503');
+  h.s.stop();
+  assert.deepEqual(h.log, ['cancel']);
+});
+
+test('FIX-15B Y1: a fallback that throws ends the round as failed — back-off, nothing stuck in flight', () => {
+  const h = makeStamped({ throwing: true });
+  h.s.refresh();
+  assert.doesNotThrow(() => h.calls[0]('http 503'));
+  assert.deepEqual([h.s.status('a').kind, h.s.failures(), h.t.pending()], ['failed', 1, [30000]]);
+  assert.equal(h.s.refresh(), true, 'not stuck in flight');
+});

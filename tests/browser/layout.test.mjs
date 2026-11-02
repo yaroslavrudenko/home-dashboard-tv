@@ -175,7 +175,10 @@ test('a failed refresh marks the temperature stale on every clock card and on th
     assert.equal(await p.$$eval('.now.is-stale', (e) => e.length), 1, 'marked on the main card');
     assert.equal(await p.$$eval('.stale-mark', (e) => e.length), 0, 'FB5-N6: no amber dot');
     assert.equal(await p.$eval('.now.is-stale .now-temp', (e) => getComputedStyle(e).color), 'rgba(255, 255, 255, 0.62)', 'the main temperature is dimmed');
-    assert.match(await p.$eval('#status', (e) => e.textContent), /^Не обновляется · данные от 20:3\d$/);
+    // B15 (B14-1): beside the dust legend the full line «Не обновляется · данные от 20:3x» touched it: the short form, 24 px clear
+    assert.match(await p.$eval('#status', (e) => e.textContent), /^Не обновляется · 20:3\d$/);
+    assert.ok(await p.evaluate(() => { const r = (e) => e.getBoundingClientRect(), h = document.querySelector('#hourly .card-head');
+      return r(document.getElementById('status')).left - Math.max(r(h.firstChild).right, r(h.lastChild).right) >= 24; }), 'the status 24 px clear of the legend');
     const dim = await p.$eval('.clock-weather.is-stale .clock-temp', (e) => getComputedStyle(e).color);
     assert.equal(dim, 'rgba(255, 255, 255, 0.62)', 'the stale temperature is dimmed');
   } finally { await app.close(); }

@@ -102,3 +102,14 @@ test('FB5B-M1: Net.getImage — cancel() stops the download and reports "cancell
   assert.deepEqual(c2, [null]);
   assert.equal(d.img.src, 'https://t.test/5.png', 'a loaded image is left alone');
 });
+
+// Batch 15: MET Norway's terms — never ask again before the answer's Expires. getJsonExpiring passes that header (a CORS-safelisted
+// response header, readable cross-origin) on a good answer; getJson's contract (FB5D-V1: nothing on a 200) is unchanged.
+test('B15: getJsonExpiring passes { expires } with a good answer (\'\' when absent); errors as getJson', () => {
+  const run = (play) => { const ctx = load(['js/net.js'], { XMLHttpRequest: fakeXhr((x) => { x.getResponseHeader = (h) => (/^expires$/i.test(h) ? x.exp : /^retry-after$/i.test(h) ? '' : null); play(x); }) });
+    const calls = []; ctx.Net.getJsonExpiring('https://x.test/m', 1000, (err, json, meta) => calls.push([err, JSON.stringify(json), meta === undefined ? 'none' : JSON.stringify(meta)])); return calls; };
+  assert.deepEqual(run((x) => { x.exp = 'Mon, 02 Nov 2026 15:59:48 GMT'; fire(x, 4, 200, '{"a":1}'); }), [[null, '{"a":1}', '{"expires":"Mon, 02 Nov 2026 15:59:48 GMT"}']]);
+  assert.deepEqual(run((x) => { x.exp = null; fire(x, 4, 200, '{}'); }), [[null, '{}', '{"expires":""}']]);
+  assert.deepEqual(run((x) => fire(x, 4, 503)), [['http 503', undefined, '{"retryAfter":""}']]);
+  assert.deepEqual(run((x) => fire(x, 4, 200, '{bad')), [['parse', undefined, 'none']]);
+});

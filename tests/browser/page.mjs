@@ -52,6 +52,17 @@ export function airForecastAnswer(name, days) {
     return { status: 200, contentType: 'application/json', body: JSON.stringify(list) };
   };
 }
+// Batch 15: MET Norway (api.met.no), the weather's fallback: each forecast request (one place, lat/lon) gets that place's
+// recording (tests/fixtures/met/<place>.json, asked 2026-11-02 15:2x UTC), each sunrise request the place's sun recording; with
+// an Expires half an hour after the recordings, as MET sends one. Use as `met: 'ok'`.
+const MET_BY_LAT = { '31.8928': 'rehovot', '50.4501': 'kyiv', '-33.8688': 'sydney', '32.794': 'haifa', '32.0853': 'telaviv', '31.2518': 'beersheva', '32.8185': 'haifa' };
+export const MET_EXPIRES = 'Mon, 02 Nov 2026 16:00:00 GMT';
+export function metAnswer(url) {
+  const u = new URL(url), id = MET_BY_LAT[u.searchParams.get('lat')];
+  if (!id) return { status: 422, contentType: 'application/json', body: '{}' };
+  return { status: 200, contentType: 'application/json', headers: { Expires: MET_EXPIRES },
+    body: fixtureText('met/' + (u.pathname.indexOf('/sun') >= 0 ? 'sun-' : '') + id + '.json') };
+}
 export function hebcalAnswer(url) {
   const jlm = new URL(url).searchParams.get('geonameid') === '281184';
   return { status: 200, contentType: 'application/json', body: fixtureText('hebcal/hebcal-' + (jlm ? 'jlm' : 'rehovot') + '-2026-11-02-ly.json') };   // captured with the app's own params (leyning, specials, Rosh Chodesh, Omer)
@@ -72,6 +83,7 @@ function loadPuppeteer() {
 // | 'fail' | (round, url) => { status, body } (round: 1 for the first ten GETs, …); `opts.map` (the traffic map image)
 // 'ok' (tests/fixtures/mapbox/static.png, a real traffic-night-v2 image made smaller) | 'fail' | (n, url) => { status, body }
 // | { hang: true }; `opts.traffic` / `opts.map` 'live': straight to the real Mapbox (a measurement with a real token).
+// `opts.met` (batch 15: MET Norway, the weather's fallback) 'ok' (metAnswer) | 'fail' | 'live' | (n, url) => { status, body }.
 // `opts.markets` (batch 11: Yahoo Finance, open.er-api.com) 'ok' (the recorded answers in tests/fixtures/markets:
 // marketsRecorded) | 'fail' | 'live' (fetched from the real sources by Node at that moment) | (n, url) => { status, body }.
 // Left out: the request is aborted (a network failure), as before these screens existed.
@@ -113,8 +125,8 @@ async function answerFor(kind, opts, url, n) {
     const r = await fetch(url);
     return { status: r.status, contentType: r.headers.get('content-type') || 'application/json', body: Buffer.from(await r.arrayBuffer()) };
   }
-  if (kind === 'air' || kind === 'hebcal') {
-    if (o === 'ok') return kind === 'air' ? airAnswer(url) : hebcalAnswer(url);
+  if (kind === 'air' || kind === 'hebcal' || kind === 'met') {
+    if (o === 'ok') return kind === 'air' ? airAnswer(url) : kind === 'met' ? metAnswer(url) : hebcalAnswer(url);
     if (o !== 'live') throw new Error(kind + ': use \'ok\', \'fail\', \'live\' or a function');
     const r = await fetch(url);
     return { status: r.status, contentType: r.headers.get('content-type') || 'application/json', body: Buffer.from(await r.arrayBuffer()) };
@@ -143,7 +155,7 @@ export async function openApp(opts = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080 });
   const weatherRequests = [];
-  const requests = { news: [], alerts: [], history: [], traffic: [], map: [], markets: [], air: [], hebcal: [] };
+  const requests = { news: [], alerts: [], history: [], traffic: [], map: [], markets: [], air: [], hebcal: [], met: [] };
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.evaluateOnNewDocument((fixed, lang, configure, init, home) => {
@@ -185,7 +197,8 @@ export async function openApp(opts = {}) {
     } else {
       const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : url.startsWith(HISTORY) ? 'history' : MAP.test(url) ? 'map'
         : url.startsWith('https://api.mapbox.com/') ? 'traffic' : MARKETS.test(url) ? 'markets'
-        : url.startsWith('https://air-quality-api.open-meteo.com/') ? 'air' : url.startsWith('https://www.hebcal.com/') ? 'hebcal' : null;
+        : url.startsWith('https://air-quality-api.open-meteo.com/') ? 'air' : url.startsWith('https://www.hebcal.com/') ? 'hebcal'
+        : url.startsWith('https://api.met.no/') ? 'met' : null;
       if (kind) requests[kind].push({ url, method: req.method(), headers: req.headers(), body: req.postData() });
       if (!kind || opts[kind] === undefined) done = req.abort();
       else if ((kind === 'map' || kind === 'traffic') && opts[kind] === 'live') done = req.continue();   // the real service

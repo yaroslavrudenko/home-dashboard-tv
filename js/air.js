@@ -84,8 +84,9 @@ var Air = (function () {
     return { hours: hours, days: days };
   }
 
-  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, onChange(store), random() (optional) }
-  function createStore(places, cfg, deps) { return PlaceStore.create(places, { cfg: cfg, url: url, parse: parse }, deps); }
+  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, onChange(store), random() (optional),
+  //         storage (optional: the last good answer is kept under 'air.v1', js/placestore.js) }
+  function createStore(places, cfg, deps) { return PlaceStore.create(places, { cfg: cfg, url: url, parse: parse, persistKey: 'air' }, deps); }
 
   return { url: url, parse: parse, summary: summary, forecast: forecast, createStore: createStore };
 })();

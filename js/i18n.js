@@ -61,7 +61,7 @@ var I18n = (function () {
         'w.wind': 'Ветер', 'w.humidity': 'Влажность', 'w.rain': 'Осадки', 'w.sunrise': 'Восход', 'w.sunset': 'Закат',
         'w.kmh': 'км/ч', 'w.now': 'Сейчас', 'w.today': 'Сегодня', 'w.hourly': 'Почасовой прогноз', 'w.daily': 'Прогноз на 7 дней',
         'w.updated': 'Обновлено в {time}', 'w.stale': 'Не обновляется · данные от {time}', 'w.loading': 'Загружаем погоду…',
-        'w.failed': 'Погода временно недоступна', 'w.retry': 'Повторим в {time}', 'w.retrySoon': 'Повторим позже',
+        'w.failed': 'Погода временно недоступна', 'w.retry': 'Повторим в {time}', 'w.retrySoon': 'Повторим позже', 'w.source': '{text} · {source}', 'src.met': 'MET Norway', 'w.updatedShort': 'Обновлено {time}', 'w.staleShort': 'Не обновляется · {time}', 'w.staleTiny': 'Устарело · {time}', 'src.metShort': 'MET',
         // batch 12: the air & UV block, the Shabbat & holidays screen; then the names of the data (holidays by Hebcal slug,
         // Hebrew months by Hebcal name, weekly parashot by Hebcal id; a missing one shows the Latin id)
         'screen.shabbat': 'Шабат и праздники', 'sh.failed': 'Календарь временно недоступен',
@@ -169,7 +169,7 @@ var I18n = (function () {
         'w.wind': 'רוח', 'w.humidity': 'לחות', 'w.rain': 'משקעים', 'w.sunrise': 'זריחה', 'w.sunset': 'שקיעה',
         'w.kmh': 'קמ״ש', 'w.now': 'עכשיו', 'w.today': 'היום', 'w.hourly': 'תחזית שעתית', 'w.daily': 'תחזית ל־7 ימים',
         'w.updated': 'עודכן ב־{time}', 'w.stale': 'לא מתעדכן · נתונים מ־{time}', 'w.loading': 'טוען את מזג האוויר…',
-        'w.failed': 'מזג האוויר אינו זמין כרגע', 'w.retry': 'ננסה שוב ב־{time}', 'w.retrySoon': 'ננסה שוב בקרוב',
+        'w.failed': 'מזג האוויר אינו זמין כרגע', 'w.retry': 'ננסה שוב ב־{time}', 'w.retrySoon': 'ננסה שוב בקרוב', 'w.source': '{text} · {source}', 'src.met': 'MET נורווגיה', 'w.updatedShort': 'עודכן {time}', 'w.staleShort': 'לא מתעדכן · {time}', 'w.staleTiny': 'ישן · {time}', 'src.metShort': 'MET נורווגיה',
         // batch 12: the air & UV block, the Shabbat & holidays screen; then the names of the data (holidays by Hebcal slug,
         // Hebrew months by Hebcal name, weekly parashot by Hebcal id; a missing one shows the Latin id)
         'screen.shabbat': 'שבת וחגים', 'sh.failed': 'הלוח אינו זמין כרגע',
@@ -277,7 +277,7 @@ var I18n = (function () {
         'w.wind': 'Вітер', 'w.humidity': 'Вологість', 'w.rain': 'Опади', 'w.sunrise': 'Схід', 'w.sunset': 'Захід',
         'w.kmh': 'км/год', 'w.now': 'Зараз', 'w.today': 'Сьогодні', 'w.hourly': 'Погодинний прогноз', 'w.daily': 'Прогноз на 7 днів',
         'w.updated': 'Оновлено о {time}', 'w.stale': 'Не оновлюється · дані від {time}', 'w.loading': 'Завантажуємо погоду…',
-        'w.failed': 'Погода тимчасово недоступна', 'w.retry': 'Повторимо о {time}', 'w.retrySoon': 'Повторимо пізніше',
+        'w.failed': 'Погода тимчасово недоступна', 'w.retry': 'Повторимо о {time}', 'w.retrySoon': 'Повторимо пізніше', 'w.source': '{text} · {source}', 'src.met': 'MET Norway', 'w.updatedShort': 'Оновлено {time}', 'w.staleShort': 'Не оновлюється · {time}', 'w.staleTiny': 'Застаріло · {time}', 'src.metShort': 'MET',
         // batch 12: the air & UV block, the Shabbat & holidays screen; then the names of the data (holidays by Hebcal slug,
         // Hebrew months by Hebcal name, weekly parashot by Hebcal id; a missing one shows the Latin id)
         'screen.shabbat': 'Шабат і свята', 'sh.failed': 'Календар тимчасово недоступний',
@@ -385,7 +385,7 @@ var I18n = (function () {
         'w.wind': 'Wind', 'w.humidity': 'Humidity', 'w.rain': 'Rain', 'w.sunrise': 'Sunrise', 'w.sunset': 'Sunset',
         'w.kmh': 'km/h', 'w.now': 'Now', 'w.today': 'Today', 'w.hourly': 'Hourly forecast', 'w.daily': '7-day forecast',
         'w.updated': 'Updated at {time}', 'w.stale': 'Not updating · data from {time}', 'w.loading': 'Loading the weather…',
-        'w.failed': 'Weather is temporarily unavailable', 'w.retry': 'Retrying at {time}', 'w.retrySoon': 'Will retry soon',
+        'w.failed': 'Weather is temporarily unavailable', 'w.retry': 'Retrying at {time}', 'w.retrySoon': 'Will retry soon', 'w.source': '{text} · {source}', 'src.met': 'MET Norway', 'w.updatedShort': 'Updated {time}', 'w.staleShort': 'Not updating · {time}', 'w.staleTiny': 'Old · {time}', 'src.metShort': 'MET',
         // batch 12: the air & UV block, the Shabbat & holidays screen; then the names of the data (holidays by Hebcal slug,
         // Hebrew months by Hebcal name, weekly parashot by Hebcal id; a missing one shows the Latin id)
         'screen.shabbat': 'Shabbat & holidays', 'sh.failed': 'The calendar is temporarily unavailable',
