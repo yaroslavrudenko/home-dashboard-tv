@@ -11,95 +11,15 @@
   In Russian, Hebrew or Ukrainian — ▲ / ▼ on the remote.
 </p>
 
-## Three languages, one remote
+## Every screen at a glance
 
-**Русский · עברית · Українська.** Press ▼ or ▲ on the remote and every screen changes language at once, with no reload. The TV
-remembers the choice.
-
-- **Hebrew is right to left, all of it.** The whole layout mirrors; times, prices and temperatures stay left to right.
-- **Each language reads its own news:** NEWSru.co.il in Russian, Ynet and Globes in Hebrew, Українська правда and
-  Економічна правда in Ukrainian.
-- **Our own names, not a feed's.** The holidays and fasts, the Hebrew months, all 59 weekly parashot and the books of the
-  Torah and haftarah readings are translated by us for Russian and Ukrainian (Hebcal's own lists leave the modern holidays in English). In Hebrew the date and the parasha
-  are the source's own words. Shares, currencies, regions, cities and alert kinds are named in every language too.
-
-More in [Languages](#languages).
-
-## 🔑 Keys: only one, for traffic
-
-**Two screens need a key, and it is the same one:** a Mapbox **public** token (`pk.…`, free tier, from
-[account.mapbox.com](https://account.mapbox.com/)), set as `MAPBOX_TOKEN` in the git-ignored `build.local.env`
-(`build.local.env.example` shows the line to fill in). The build puts it into the packaged app only; it is never in the
-repository.
-
-- **6 · Traffic**: travel times for the 10 routes (Mapbox Directions, `driving-traffic`).
-- **7 · Traffic map**: the live-traffic picture (Mapbox Static Images).
-- Without the token, both screens say how to connect one and send no requests.
-
-**Every other screen needs no key, no account and no password:** Home, Weather in Israel, UV, air quality and dust
-([Open-Meteo](https://open-meteo.com/)), News (RSS feeds), Markets ([Yahoo Finance](https://finance.yahoo.com/) and
-[open.er-api](https://open.er-api.com/)), Shabbat & holidays ([Hebcal](https://www.hebcal.com/)) and Alerts (Pikud HaOref).
-
-<p align="center">
-  <img alt="Plays under «Настин кинозал»'s music" src="https://img.shields.io/badge/plays%20under-«Настин%20кинозал»%20music-e84393?style=for-the-badge">
-  <img alt="Companion apps: Home Dashboard + Настин кинозал" src="https://img.shields.io/badge/companion%20apps-dashboard%20%2B%20player-6c5ce7?style=for-the-badge"><br>
-  <img alt="Samsung Smart TVs from 2017 (Tizen 3.0) to the newest models" src="https://img.shields.io/badge/Samsung%20Smart%20TVs-2017%20(Tizen%203.0)%20to%20newest-1428A0?style=for-the-badge">
-  <img alt="Compatible down to Chromium 47, plain ES5" src="https://img.shields.io/badge/compatible%20down%20to-Chromium%2047%20·%20ES5-2f7ee8?style=for-the-badge">
-  <img alt="A real installed app, not a web page" src="https://img.shields.io/badge/installed%20Tizen%20app-.wgt-34a853?style=for-the-badge"><br>
-  <img alt="Eight screens with auto-rotation" src="https://img.shields.io/badge/screens-8%20·%20auto--rotation-8e44ad?style=for-the-badge">
-  <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
-  <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
-  <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="460 automated tests passing" src="https://img.shields.io/badge/tests-460%20passing-brightgreen?style=for-the-badge">
-  <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
-</p>
+**Eight screens that change by themselves every 45 seconds (Markets stays 90), or with ◀ ▶ on the remote:** clocks and the weather at home, the weather across Israel, the news, the markets, Shabbat and holidays, live traffic for ten routes, a live traffic map and the Pikud HaOref alerts. Calm dark glass cards readable from the sofa, the same app in Russian, Hebrew (fully right to left) and Ukrainian, and a red alert that takes over every screen when it matters. Below: all eight screens together, then each one on its own, then the other languages.
 
 <p align="center">
   <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home, weather across Israel, news, markets, Shabbat and holidays with the week's Torah reading, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen">
 </p>
 
-## 📺 Supported TVs
-
-Home Dashboard supports Samsung Smart TVs across the whole range: from models almost 10 years old (the 2017 generation,
-Tizen 3.0) up to the newest current models. It is not an app only for old TVs. We keep the code compatible with the
-oldest supported generation (Tizen 3.0, Chromium 47), so it also runs on older sets; there is one package for every
-generation. It is developed and tested on the owner's 2017 Samsung UE50MU7000.
-
-## Why it's special
-
-| | |
-|---|---|
-| 🎵 **Plays under «Настин кинозал»'s music** | Open the player, start a channel, open the dashboard: the music keeps playing under the dashboard ([below](#plays-under-настин-кинозал)). Two apps, one family. |
-| 📺 **An installed app for every Samsung generation** | A signed Tizen `.wgt` for Samsung Smart TVs from 2017 to the newest models, kept compatible down to Tizen 3.0 / Chromium 47 (tested on the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
-| 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources, and the holiday, month and parasha names are our own translations. |
-| 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view. |
-| 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha with its Torah verses and haftarah (and a special Shabbat, Shabbat Mevarchim or the Omer count when there is one), the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
-| 🌬️ **Air, dust and UV** | Today's highest UV index and the European air-quality index at home, an air chip on every Israel region, and a dust warning when a khamsin comes in. |
-| 🚗 **Live Israeli traffic** | Ten routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
-| 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in your home city opens the Alerts screen at once, red and full, with an attention sound, and a red line «Тревога в Реховоте» stays at the top of every other screen; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
-| 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
-| 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
-| ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
-| 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 460 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
-
-## Plays under «Настин кинозал»
-
-Home Dashboard is the companion app to **[«Настин кинозал»](https://github.com/yaroslavrudenko/nastin-kinozal)**, the IPTV player for
-the same TVs: the player brings the channels, the dashboard sits on top with the time, weather, news, markets, Shabbat times,
-traffic and alerts — while the music plays on.
-
-1. Open «Настин кинозал» and start a channel.
-2. Open Home Dashboard.
-3. The music keeps playing under the dashboard. Leave the dashboard for YouTube or any other app and the player stops,
-   as it always does.
-
-How: on start and on every return to the front, the dashboard sends `play-behind` to the player's Tizen message port
-`kinozal.control` (twice, 1.5 s apart, in case the player has not yet handled its own "hidden" event); when the dashboard
-leaves the front it sends `stop-behind`. If the player is not installed or not running, nothing happens
-([`js/player-behind.js`](js/player-behind.js)). Verified by the owner on his UE50MU7000 on 2026-10-30.
-
-## See every screen
+### Each screen
 
 <table>
   <tr>
@@ -156,6 +76,56 @@ the Alerts screen are Pikud HaOref's real answer recorded on 2026-10-30. The Mar
 real answers recorded on 2026-11-02 (Yahoo Finance and open.er-api at 08:57 UTC; Hebcal's calendar for Rehovot), drawn at
 09:31 that morning.</sub>
 
+## Three languages, one remote
+
+**Русский · עברית · Українська.** Press ▼ or ▲ on the remote and every screen changes language at once, with no reload. The TV
+remembers the choice.
+
+- **Hebrew is right to left, all of it.** The whole layout mirrors; times, prices and temperatures stay left to right.
+- **Each language reads its own news:** NEWSru.co.il in Russian, Ynet and Globes in Hebrew, Українська правда and
+  Економічна правда in Ukrainian.
+- **Our own names, not a feed's.** The holidays and fasts, the Hebrew months, all 59 weekly parashot and the books of the
+  Torah and haftarah readings are translated by us for Russian and Ukrainian (Hebcal's own lists leave the modern holidays in English). In Hebrew the date and the parasha
+  are the source's own words. Shares, currencies, regions, cities and alert kinds are named in every language too.
+
+More in [Languages](#languages).
+
+## 🔑 Keys: only one, for traffic
+
+**Two screens need a key, and it is the same one:** a Mapbox **public** token (`pk.…`, free tier, from
+[account.mapbox.com](https://account.mapbox.com/)), set as `MAPBOX_TOKEN` in the git-ignored `build.local.env`
+(`build.local.env.example` shows the line to fill in). The build puts it into the packaged app only; it is never in the
+repository.
+
+- **6 · Traffic**: travel times for the 10 routes (Mapbox Directions, `driving-traffic`).
+- **7 · Traffic map**: the live-traffic picture (Mapbox Static Images).
+- Without the token, both screens say how to connect one and send no requests.
+
+**Every other screen needs no key, no account and no password:** Home, Weather in Israel, UV, air quality and dust
+([Open-Meteo](https://open-meteo.com/)), News (RSS feeds), Markets ([Yahoo Finance](https://finance.yahoo.com/) and
+[open.er-api](https://open.er-api.com/)), Shabbat & holidays ([Hebcal](https://www.hebcal.com/)) and Alerts (Pikud HaOref).
+
+<p align="center">
+  <img alt="Plays under «Настин кинозал»'s music" src="https://img.shields.io/badge/plays%20under-«Настин%20кинозал»%20music-e84393?style=for-the-badge">
+  <img alt="Companion apps: Home Dashboard + Настин кинозал" src="https://img.shields.io/badge/companion%20apps-dashboard%20%2B%20player-6c5ce7?style=for-the-badge"><br>
+  <img alt="Samsung Smart TVs from 2017 (Tizen 3.0) to the newest models" src="https://img.shields.io/badge/Samsung%20Smart%20TVs-2017%20(Tizen%203.0)%20to%20newest-1428A0?style=for-the-badge">
+  <img alt="Compatible down to Chromium 47, plain ES5" src="https://img.shields.io/badge/compatible%20down%20to-Chromium%2047%20·%20ES5-2f7ee8?style=for-the-badge">
+  <img alt="A real installed app, not a web page" src="https://img.shields.io/badge/installed%20Tizen%20app-.wgt-34a853?style=for-the-badge"><br>
+  <img alt="Eight screens with auto-rotation" src="https://img.shields.io/badge/screens-8%20·%20auto--rotation-8e44ad?style=for-the-badge">
+  <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
+  <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
+  <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
+  <img alt="460 automated tests passing" src="https://img.shields.io/badge/tests-460%20passing-brightgreen?style=for-the-badge">
+  <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
+</p>
+
+## 📺 Supported TVs
+
+Home Dashboard supports Samsung Smart TVs across the whole range: from models almost 10 years old (the 2017 generation,
+Tizen 3.0) up to the newest current models. It is not an app only for old TVs. We keep the code compatible with the
+oldest supported generation (Tizen 3.0, Chromium 47), so it also runs on older sets; there is one package for every
+generation. It is developed and tested on the owner's 2017 Samsung UE50MU7000.
+
 It is a real installed **Tizen web app** (a signed `.wgt` package), not a web page: the TV's browser is
 slow and limited, while an installed app starts instantly, keeps the screen on and exits with Back.
 It runs on Samsung Tizen TVs from 2017 up to the newest models (Tizen 3.0 or newer; 2016 models run Tizen 2.x and refuse the
@@ -164,6 +134,40 @@ UE50MU7000, on which it is tested), so it is plain ES5 with
 no framework, no bundler and no backend. The typeface, [Inter](https://rsms.me/inter/), ships inside the
 app (static Light / Regular / Medium, Latin + Cyrillic, and a 1 KB subset for the ₪ ₴ ₽ signs; about 97 KB), so the TV
 shows the same type as the screenshot instead of whatever system font it has.
+
+## Why it's special
+
+| | |
+|---|---|
+| 🎵 **Plays under «Настин кинозал»'s music** | Open the player, start a channel, open the dashboard: the music keeps playing under the dashboard ([below](#plays-under-настин-кинозал)). Two apps, one family. |
+| 📺 **An installed app for every Samsung generation** | A signed Tizen `.wgt` for Samsung Smart TVs from 2017 to the newest models, kept compatible down to Tizen 3.0 / Chromium 47 (tested on the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
+| 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources, and the holiday, month and parasha names are our own translations. |
+| 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view. |
+| 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha with its Torah verses and haftarah (and a special Shabbat, Shabbat Mevarchim or the Omer count when there is one), the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
+| 🌬️ **Air, dust and UV** | Today's highest UV index and the European air-quality index at home, an air chip on every Israel region, and a dust warning when a khamsin comes in. |
+| 🚗 **Live Israeli traffic** | Ten routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
+| 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in your home city opens the Alerts screen at once, red and full, with an attention sound, and a red line «Тревога в Реховоте» stays at the top of every other screen; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
+| 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
+| 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
+| ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
+| 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
+| ✅ **Tested and reviewed** | 460 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+
+## Plays under «Настин кинозал»
+
+Home Dashboard is the companion app to **[«Настин кинозал»](https://github.com/yaroslavrudenko/nastin-kinozal)**, the IPTV player for
+the same TVs: the player brings the channels, the dashboard sits on top with the time, weather, news, markets, Shabbat times,
+traffic and alerts — while the music plays on.
+
+1. Open «Настин кинозал» and start a channel.
+2. Open Home Dashboard.
+3. The music keeps playing under the dashboard. Leave the dashboard for YouTube or any other app and the player stops,
+   as it always does.
+
+How: on start and on every return to the front, the dashboard sends `play-behind` to the player's Tizen message port
+`kinozal.control` (twice, 1.5 s apart, in case the player has not yet handled its own "hidden" event); when the dashboard
+leaves the front it sends `stop-behind`. If the player is not installed or not running, nothing happens
+([`js/player-behind.js`](js/player-behind.js)). Verified by the owner on his UE50MU7000 on 2026-10-30.
 
 ## What it shows
 
