@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { load, fakeTimers } = require('./harness');
 
-const FILES = ['js/config.js', 'js/alerts.js', 'js/alerts-history.js'];
+const FILES = ['js/config.js', 'js/alerts.js', 'js/onview.js', 'js/alerts-history.js'];   // FIX-11B A4: the gate is js/onview.js
 const T0 = Date.parse('2026-10-29T18:34:00Z');
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const recorded = () => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'oref', 'history.json'), 'utf8'));
@@ -126,4 +126,15 @@ test('A2: a real alert always wins over the preview: the real state comes back u
   assert.equal(v, real, 'the real state itself');
   assert.equal(JSON.stringify(real), before);
   assert.equal(v.preview, undefined);
+});
+
+// FIX-11B A4 [C4+P11] (EN-6): the recent alerts and the markets share ONE on-view gate, js/onview.js — no second copy.
+test('A4: the recent alerts are asked through the shared on-view gate (OnView.create with refreshMs), not a copy of it', () => {
+  const ctx = load(FILES), t = fakeTimers(T0), made = [];
+  const create = ctx.OnView.create;
+  ctx.OnView.create = function (refreshMs) { made.push(refreshMs); return create.apply(this, arguments); };
+  ctx.AlertsHistory.createController(ctx.Config.alerts.history, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+    getJson: () => {}, onChange: () => {} });
+  assert.deepEqual(made, [ctx.Config.alerts.history.refreshMs]);
+  assert.ok(!/lastAttemptAt/.test(require('node:fs').readFileSync(require('node:path').join(require('./harness').ROOT, 'js', 'alerts-history.js'), 'utf8')), 'no gate of its own left');
 });

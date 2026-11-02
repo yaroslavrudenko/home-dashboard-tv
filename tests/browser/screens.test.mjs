@@ -20,7 +20,7 @@ const active = (p) => p.evaluate(() => [...document.querySelectorAll('.screen')]
 const dots = (p) => p.$$eval('.dot', (d) => d.map((e) => e.className));
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
 // FB5: the screens in Config.screens order; a screen is reached with ▶ pressed its index times.
-const SCREENS = ['main', 'israel', 'news', 'traffic', 'map', 'alerts'];
+const SCREENS = ['main', 'israel', 'news', 'markets', 'traffic', 'map', 'alerts'];   // batch 11: Markets after the news
 const dotsAt = (i) => SCREENS.map((_, k) => (k === i ? 'dot is-on' : 'dot'));
 const toScreen = async (p, id) => { for (let i = 0; i < SCREENS.indexOf(id); i++) await press(p, RIGHT); };
 
@@ -29,7 +29,7 @@ test('◀ ▶ switch screens with page dots; the hidden screens keep their DOM a
   try {
     await ready(app);
     const p = app.page;
-    assert.deepEqual(await dots(p), dotsAt(0), 'six page dots');
+    assert.deepEqual(await dots(p), dotsAt(0), 'seven page dots');
     // Ynet's times carry seconds: put the clock at :20 past 18:40, so no "… ago" text changes for the next 19 s (boundaries at :40).
     await p.evaluate(() => { window.__offsetMs += Date.parse('2026-10-29T18:40:20Z') - Date.now(); });
     assert.equal(await p.$('.news-col'), null, 'a screen never shown is not even drawn');
@@ -39,10 +39,11 @@ test('◀ ▶ switch screens with page dots; the hidden screens keep their DOM a
     const col = await p.$('.news-col');
     assert.deepEqual(await active(p), SCREENS.map((id, k) => ['screen-' + id, k === 2 ? 'screen is-active' : 'screen', k === 2 ? 'visible' : 'hidden']));
     assert.deepEqual(await dots(p), dotsAt(2));
-    for (const k of [3, 4, 5]) { await press(p, RIGHT); await wait(800); assert.deepEqual(await dots(p), dotsAt(k)); }
+    for (const k of [3, 4, 5, 6]) { await press(p, RIGHT); await wait(800); assert.deepEqual(await dots(p), dotsAt(k)); }
     await press(p, RIGHT); await wait(800);
     assert.deepEqual(await dots(p), dotsAt(0), 'wraps to the first screen');
-    await press(p, LEFT); await press(p, LEFT); await press(p, LEFT); await press(p, LEFT); await wait(800);
+    for (let i = 0; i < SCREENS.length - 2; i++) await press(p, LEFT);   // back round to the news
+    await wait(800);
     assert.deepEqual(await dots(p), dotsAt(2));
     assert.equal(await col.evaluate((e) => e.isConnected), true, 'the news DOM survived the switches (no rebuild on switch)');
     const rest = await p.$$eval('.screen', (s) => s.map((e) => getComputedStyle(e).transform));
@@ -496,7 +497,7 @@ test('an alert in Rehovot: the Alerts screen at once, filled by the alert; the r
     assert.ok(v.onTop, 'the alert is what the screen shows');
     assert.deepEqual(v.text, ['Ракетный обстрел', 'Реховот', 'С 20:32', 'Войдите в защищённое помещение и оставайтесь там 10 мин']);
     assert.equal(v.pulse, 'alert-pulse');
-    assert.deepEqual(await dots(p), dotsAt(5), 'rotation held while the alert is up');
+    assert.deepEqual(await dots(p), dotsAt(SCREENS.indexOf('alerts')), 'rotation held while the alert is up');
     assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);
     for (const k of [LEFT, RIGHT, ENTER, 13, 27, 8]) await press(p, k);
     await wait(300);
@@ -539,7 +540,7 @@ test('the alert stays for its hold after the last listing and a grace of confirm
     assert.ok(clearAt > 0, 'the feed stopped listing the area');
     assert.ok(gone - clearAt >= 1300, 'stayed through the hold: ' + (gone - clearAt) + ' ms after the last listing');
     assert.ok(gone - clearAt < 3500, 'then cleared: ' + (gone - clearAt) + ' ms');
-    assert.deepEqual(await dots(p), dotsAt(5), 'still on the Alerts screen: the rotation was held');
+    assert.deepEqual(await dots(p), dotsAt(SCREENS.indexOf('alerts')), 'still on the Alerts screen: the rotation was held');
     await wait(1400);
     assert.deepEqual(await dots(p), dotsAt(0), 'rotation resumed afterAlertMs after the alert');
   } finally { await app.close(); }
@@ -689,21 +690,26 @@ test('an alert nearby (not in Rehovot): only a quiet notice in the corner, no ov
 // once at once (weather for the main and Israel screens, both news feeds, the traffic batch, a new map overlay round);
 // a rotation arrival does not; an open while that source's request is in flight starts nothing.
 test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotation arrival does not; in flight, nothing', async () => {
-  const app = await openApp({ ...QUIET, history: 'history.json', configure: KEY, traffic: 'ok', map: 'ok' });
+  const app = await openApp({ ...QUIET, history: 'history.json', configure: KEY, traffic: 'ok', map: 'ok', markets: 'fail' });
   try {
     await ready(app);
     const p = app.page;
     await wait(500);
     const count = () => ({ weather: app.weatherRequests.length, news: app.requests.news.filter((r) => r.method === 'GET').length,
+      markets: app.requests.markets.filter((r) => r.method === 'GET').length,
       traffic: app.requests.traffic.filter((r) => r.method === 'GET').length / 10,
       map: app.requests.map.length, history: app.requests.history.filter((r) => r.method === 'GET').length });
     const boot = count();
-    assert.deepEqual([boot.weather, boot.news, boot.traffic, boot.map], [1, 2, 0, 0], 'boot: the map page is not loaded');
+    assert.deepEqual([boot.weather, boot.news, boot.traffic, boot.map, boot.markets], [1, 2, 0, 0, 0], 'boot: the map page is not loaded; nothing for the markets');
     const step = async (code) => { await press(p, code); await wait(800); return count(); };
     let c = await step(RIGHT);                                         // Israel
     assert.deepEqual([c.weather, c.news], [2, 2], '◀ ▶ to the Israel weather: one weather request');
     c = await step(RIGHT);                                             // news
     assert.deepEqual([c.weather, c.news], [2, 4], '◀ ▶ to the news: both feeds once');
+    c = await step(RIGHT);                                             // markets (batch 11)
+    const round = c.markets;                                           // the requests of one markets round
+    assert.ok(round > 0, '◀ ▶ to the markets: one round');
+    assert.deepEqual([c.weather, c.news], [2, 4], 'the markets screen asks nothing else');
     c = await step(RIGHT);                                             // traffic
     assert.equal(c.traffic, 1, '◀ ▶ to traffic: one batch');
     c = await step(RIGHT);                                             // map
@@ -715,13 +721,13 @@ test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotat
     c = await step(RIGHT);                                             // alerts
     assert.equal(c.history, 1, '◀ ▶ to the Alerts screen: one request for the recent alerts');
     c = await step(RIGHT);                                             // main
-    assert.deepEqual([c.weather, c.news, c.traffic, c.map, c.history], [3, 4, 2, 2, 1], '◀ ▶ to the main screen: one weather request; the map left loaded, not reloaded');
+    assert.deepEqual([c.weather, c.news, c.traffic, c.map, c.history, c.markets], [3, 4, 2, 2, 1, round], '◀ ▶ to the main screen: one weather request; the map left loaded, not reloaded; no markets request off its screen');
   } finally { await app.close(); }
   // the rotation moves on by itself: no refresh on arrival
   const rot = await openApp({ ...QUIET, configure: (c) => { c.rotation.intervalMs = 700; } });
   try {
     await ready(rot);
-    await wait(2600);                                                  // main → Israel → news (→ traffic)
+    await wait(2600);                                                  // main → Israel → news (→ markets)
     assert.deepEqual([rot.weatherRequests.length, rot.requests.news.filter((r) => r.method === 'GET').length], [1, 2], 'rotation arrivals: nothing');
   } finally { await rot.close(); }
   // an open while the feeds are still loading starts nothing

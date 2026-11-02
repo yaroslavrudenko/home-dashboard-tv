@@ -1,0 +1,77 @@
+'use strict';
+// js/onview.js: the on-view refresh gate shared by the Markets screen and the Alerts screen's recent alerts. A source is
+// asked only while its screen is on view and the TV shows the page; an explicit open at once; otherwise once
+// refreshMs has passed since the last ATTEMPT (FIX-11B A5: a slow round never stretches the cadence); one round at a time.
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { load, fakeTimers } = require('./harness');
+
+const T0 = Date.parse('2026-11-02T09:00:00Z');
+const EVERY = 5 * 60000;
+
+function make() {
+  const ctx = load(['js/onview.js']);
+  const t = fakeTimers(T0), runs = [];
+  let visible = true;
+  const gate = ctx.OnView.create(EVERY, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout, documentVisible: () => visible },
+    (done) => { runs.push({ at: t.now() - T0, done }); });
+  return { gate, t, runs, end: (i) => runs[i].done(), page: (v) => { visible = v; gate.visibilityChanged(); } };
+}
+
+test('A5: a round that takes 15 s does not stretch the cadence: the next one starts refreshMs after the last attempt began', () => {
+  const m = make();
+  m.gate.setVisible(true, true);
+  m.t.advance(15000);
+  m.end(0);
+  assert.deepEqual(m.t.pending(), [EVERY - 15000], 'the next attempt is due 5 min after the first began');
+  m.t.advance(EVERY - 15000);
+  assert.deepEqual(m.runs.map((r) => r.at), [0, EVERY]);
+});
+
+test('A5: a round that ends after refreshMs (a slow source) is followed at once, never sooner than its end', () => {
+  const m = make();
+  m.gate.setVisible(true, true);
+  m.t.advance(EVERY + 2000);
+  assert.equal(m.runs.length, 1, 'one round at a time');
+  m.end(0);
+  assert.deepEqual(m.t.pending(), [0]);
+  m.t.advance(0);
+  assert.equal(m.runs.length, 2);
+});
+
+test('hidden screen: nothing, however long; an explicit open at once; a second open in flight: nothing', () => {
+  const m = make();
+  m.t.advance(60 * 60000);
+  assert.equal(m.runs.length, 0);
+  m.gate.setVisible(true, true);
+  m.gate.setVisible(true, true);
+  assert.equal(m.runs.length, 1);
+});
+
+test('a rotation arrival within refreshMs waits for it; after refreshMs it asks at once', () => {
+  const m = make();
+  m.gate.setVisible(true, false);
+  m.end(0);
+  m.gate.setVisible(false);
+  m.t.advance(EVERY / 2);
+  m.gate.setVisible(true, false);
+  assert.equal(m.runs.length, 1);
+  m.t.advance(EVERY / 2);
+  assert.equal(m.runs.length, 2, 'asked when the last attempt turned refreshMs old');
+});
+
+test('C6: leaving the screen (or the TV hiding the page) during a round leaves no timer behind', () => {
+  const m = make();
+  m.gate.setVisible(true, true);
+  m.gate.setVisible(false);
+  m.end(0);
+  assert.deepEqual(m.t.pending(), [], 'left during the round');
+  m.gate.setVisible(true, true);
+  m.page(false);
+  m.end(1);
+  assert.deepEqual(m.t.pending(), [], 'page hidden during the round');
+  m.t.advance(60 * 60000);
+  assert.equal(m.runs.length, 2);
+  m.page(true);
+  assert.equal(m.runs.length, 3, 'shown again on view, past the cadence: at once');
+});

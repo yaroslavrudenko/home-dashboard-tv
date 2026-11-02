@@ -1,0 +1,288 @@
+{
+  "updatedAt": 1793298720000,
+  "groups": [
+    {
+      "id": "fx",
+      "rows": [
+        {
+          "id": "USDILS",
+          "price": 3.6912,
+          "currency": "ILS",
+          "changePct": -0.18,
+          "closed": false
+        },
+        {
+          "id": "EURILS",
+          "price": 4.0137,
+          "currency": "ILS",
+          "changePct": 0.11,
+          "closed": false
+        },
+        {
+          "id": "UAHperILS",
+          "price": 11.37,
+          "currency": "UAH",
+          "changePct": null,
+          "closed": null
+        },
+        {
+          "id": "RUBperILS",
+          "price": 22.05,
+          "currency": "RUB",
+          "changePct": null,
+          "closed": null
+        },
+        {
+          "id": "EURUSD",
+          "price": 1.0874,
+          "currency": "USD",
+          "changePct": 0.29,
+          "closed": false
+        },
+        {
+          "id": "UAHperUSD",
+          "price": 41.62,
+          "currency": "UAH",
+          "changePct": null,
+          "closed": null
+        }
+      ]
+    },
+    {
+      "id": "us",
+      "rows": [
+        {
+          "id": "AAPL",
+          "price": 268.15,
+          "currency": "USD",
+          "changePct": 0.37,
+          "closed": false
+        },
+        {
+          "id": "NVDA",
+          "price": 201.37,
+          "currency": "USD",
+          "changePct": 1.84,
+          "closed": false
+        },
+        {
+          "id": "MSFT",
+          "price": 517.62,
+          "currency": "USD",
+          "changePct": -0.42,
+          "closed": false
+        },
+        {
+          "id": "GOOGL",
+          "price": 284.9,
+          "currency": "USD",
+          "changePct": 2.11,
+          "closed": false
+        },
+        {
+          "id": "AMZN",
+          "price": 231.48,
+          "currency": "USD",
+          "changePct": 0.93,
+          "closed": false
+        },
+        {
+          "id": "INTU",
+          "price": 662.4,
+          "currency": "USD",
+          "changePct": -1.27,
+          "closed": false
+        }
+      ]
+    },
+    {
+      "id": "il",
+      "rows": [
+        {
+          "id": "TEVA.TA",
+          "price": 72.95,
+          "currency": "ILS",
+          "changePct": -0.61,
+          "closed": true
+        },
+        {
+          "id": "ESLT.TA",
+          "price": 1642,
+          "currency": "ILS",
+          "changePct": 1.08,
+          "closed": true
+        },
+        {
+          "id": "LUMI.TA",
+          "price": 64.12,
+          "currency": "ILS",
+          "changePct": -0.35,
+          "closed": true
+        },
+        {
+          "id": "POLI.TA",
+          "price": 66.8,
+          "currency": "ILS",
+          "changePct": 0.52,
+          "closed": true
+        },
+        {
+          "id": "TSEM.TA",
+          "price": 318.4,
+          "currency": "ILS",
+          "changePct": 2.36,
+          "closed": true
+        },
+        {
+          "id": "MZTF.TA",
+          "price": null,
+          "currency": "ILS",
+          "changePct": null,
+          "closed": false
+        }
+      ]
+    },
+    {
+      "id": "crypto",
+      "rows": [
+        {
+          "id": "BTC",
+          "price": 108452.31,
+          "currency": "USD",
+          "changePct": 0.84,
+          "closed": false
+        },
+        {
+          "id": "ETH",
+          "price": 3912.55,
+          "currency": "USD",
+          "changePct": -1.92,
+          "closed": false
+        },
+        {
+          "id": "BNB",
+          "price": 1084.2,
+          "currency": "USD",
+          "changePct": 0.12,
+          "closed": false
+        },
+        {
+          "id": "XRP",
+          "price": 2.41,
+          "currency": "USD",
+          "changePct": 3.07,
+          "closed": false
+        },
+        {
+          "id": "SOL",
+          "price": 186.33,
+          "currency": "USD",
+          "changePct": -2.48,
+          "closed": false,
+          "stale": true
+        },
+        {
+          "id": "TRX",
+          "price": 0.3412,
+          "currency": "USD",
+          "changePct": 0.66,
+          "closed": false
+        }
+      ]
+    },
+    {
+      "id": "indices",
+      "rows": [
+        {
+          "id": "^GSPC",
+          "price": 6812.44,
+          "currency": null,
+          "changePct": 0.26,
+          "closed": true
+        },
+        {
+          "id": "^DJI",
+          "price": 47315.8,
+          "currency": null,
+          "changePct": 0.09,
+          "closed": true
+        },
+        {
+          "id": "^IXIC",
+          "price": 23104.61,
+          "currency": null,
+          "changePct": 0.48,
+          "closed": true
+        },
+        {
+          "id": "^NDX",
+          "price": 25377.12,
+          "currency": null,
+          "changePct": 0.55,
+          "closed": true
+        },
+        {
+          "id": "^RUT",
+          "price": 2481.06,
+          "currency": null,
+          "changePct": -0.73,
+          "closed": true
+        },
+        {
+          "id": "^VIX",
+          "price": 17.84,
+          "currency": null,
+          "changePct": -3.12,
+          "closed": false
+        }
+      ]
+    },
+    {
+      "id": "commodities",
+      "rows": [
+        {
+          "id": "BZ=F",
+          "price": 64.82,
+          "currency": "USD",
+          "changePct": -1.12,
+          "closed": false
+        },
+        {
+          "id": "NG=F",
+          "price": 3.947,
+          "currency": "USD",
+          "changePct": 2.65,
+          "closed": true
+        },
+        {
+          "id": "GC=F",
+          "price": 4012.3,
+          "currency": "USD",
+          "changePct": 0.41,
+          "closed": false
+        },
+        {
+          "id": "SI=F",
+          "price": 48.62,
+          "currency": "USD",
+          "changePct": 0.96,
+          "closed": false
+        },
+        {
+          "id": "HG=F",
+          "price": 5.0815,
+          "currency": "USD",
+          "changePct": -0.21,
+          "closed": false
+        },
+        {
+          "id": "CL=F",
+          "price": 61.04,
+          "currency": "USD",
+          "changePct": -1.05,
+          "closed": false
+        }
+      ]
+    }
+  ]
+}

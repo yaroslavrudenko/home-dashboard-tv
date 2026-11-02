@@ -17,8 +17,10 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 // batch 6: Mapbox instead of TomTom).
 // Batch 6: the news feeds of the three languages (L2) and Mapbox; batch 7: the traffic map is a Mapbox image (img-src),
 // the Waze frame and its hosts are gone. Batch 8: the Alerts screen's recent alerts (alerts-history.oref.org.il).
+// Batch 11: the Markets screen's quotes (Yahoo's spark endpoint on query1) and daily rates (open.er-api).
 const DATA = ['https://api.open-meteo.com', 'https://www.newsru.co.il', 'https://www.ynet.co.il', 'https://www.globes.co.il',
-  'https://www.pravda.com.ua', 'https://epravda.com.ua', 'https://www.oref.org.il', 'https://alerts-history.oref.org.il', 'https://api.mapbox.com'];
+  'https://www.pravda.com.ua', 'https://epravda.com.ua', 'https://www.oref.org.il', 'https://alerts-history.oref.org.il', 'https://api.mapbox.com',
+  'https://query1.finance.yahoo.com', 'https://open.er-api.com'];
 const ORIGINS = DATA;
 test('config.xml: package HomeDash01, app HomeDash01.Dashboard, Tizen 3.0, TV profile, internet, exactly the hosts the app reads', () => {
   const x = read('config.xml');
@@ -104,7 +106,7 @@ test('index.html loads every app script, config first and app last', () => {
 test('the Inter font files referenced by the CSS exist, carry the OFL licence and are packaged by build.sh', () => {
   const css = read('css/app.css');
   const urls = [...css.matchAll(/url\(\.\.\/(fonts\/Inter-[^)]+)\)/g)].map((m) => m[1]);
-  assert.equal(urls.length, 7, 'Light/Regular/Medium × Latin/Cyrillic + "≈"');
+  assert.equal(urls.length, 8, 'Light/Regular/Medium × Latin/Cyrillic + "≈" + ₪ ₴ ₽ (batch 11)');
   let bytes = 0;
   for (const u of urls) {
     const b = fs.readFileSync(path.join(ROOT, u));
@@ -114,6 +116,19 @@ test('the Inter font files referenced by the CSS exist, carry the OFL licence an
   assert.ok(bytes < 1024 * 1024, 'fonts stay under 1 MB: ' + bytes);
   assert.match(read('fonts/OFL.txt'), /SIL Open Font License, Version 1\.1/);
   assert.match(read('build.sh'), /cp -R config\.xml index\.html css js img fonts sounds \.buildResult\//);
+});
+
+// Batch 11: the Markets screen's currency signs ₪ ₴ ₽ (names and prices, Regular) are in none of Google's Latin / Cyrillic
+// subsets, so the TV would draw them in a system font: one more tiny Inter Regular subset with exactly those three, like
+// the "≈" one, loaded only when one of them is drawn.
+test('Batch 11: ₪ ₴ ₽ come from a bundled Inter Regular subset of exactly those three signs', () => {
+  const css = read('css/app.css');
+  const face = /@font-face \{ font-family: "Inter"; font-weight: 400; src: url\(\.\.\/(fonts\/Inter-400-currency\.woff2)\) format\("woff2"\); unicode-range: ([^;]+); \}/.exec(css);
+  assert.ok(face, 'one @font-face for the currency subset');
+  assert.equal(face[2], 'U+20AA, U+20B4, U+20BD');
+  const b = fs.readFileSync(path.join(ROOT, face[1]));
+  assert.equal(b.toString('latin1', 0, 4), 'wOF2');
+  assert.ok(b.length < 2048, 'three glyphs: ' + b.length + ' bytes');
 });
 
 // FB5B-H1: Hebrew (news, the alert's original title) has its own bundled face: Noto Sans Hebrew Regular, the Hebrew

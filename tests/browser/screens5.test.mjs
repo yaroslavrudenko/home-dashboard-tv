@@ -7,7 +7,7 @@ import { openApp, measure, legibility } from './page.mjs';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); }, code);
 const RIGHT = 39, LEFT = 37;
-const SCREENS = ['main', 'israel', 'news', 'traffic', 'map', 'alerts'];
+const SCREENS = ['main', 'israel', 'news', 'markets', 'traffic', 'map', 'alerts'];   // batch 11: Markets after the news
 const toScreen = async (p, id) => { for (let i = 0; i < SCREENS.indexOf(id); i++) await press(p, RIGHT); };
 // configure functions run in the page (their source is sent there): no closure over this file's names.
 async function ready(app) { await app.page.waitForSelector('.day', { timeout: 10000 }); await wait(200); }
@@ -84,7 +84,7 @@ test('MAP-S1: the map is one Mapbox live-traffic image filling the card — not 
   try {
     await ready(app);
     const p = app.page;
-    assert.equal(await p.$$eval('.dot', (d) => d.length), 6);
+    assert.equal(await p.$$eval('.dot', (d) => d.length), SCREENS.length);
     assert.equal(app.requests.map.length, 0, 'never shown: no image asked for');
     await press(p, LEFT); await press(p, LEFT);    // ◀ ◀ from the main screen (past the Alerts screen): the map
     await p.waitForFunction(() => { const i = document.querySelector('.map-img'); return i && i.naturalWidth > 0; }, { timeout: 8000, polling: 50 });

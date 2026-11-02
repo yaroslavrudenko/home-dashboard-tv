@@ -46,6 +46,7 @@ var I18n = (function () {
       monthsGen: ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'],
       dateLong: '{weekday}, {day} {month}',
       wmo: WMO_RU,
+      num: { decimal: ',', group: '\u202f' },
       s: {
         'lang.name': 'Русский',
         'city.israel': 'Израиль', 'city.ukraine': 'Украина', 'city.sydney': 'Сидней',
@@ -87,7 +88,22 @@ var I18n = (function () {
         'a.banner': 'Тревога в {place}', 'a.bannerSince': 'Тревога в {place} · с {time}',
         'screen.alerts': 'Тревоги', 'a.home.quiet': 'Тревог нет', 'a.checked': 'Проверено в {time}', 'a.checking': 'Проверяем…',
         'a.near.title': 'Рядом', 'a.near.quiet': 'Рядом тревог нет', 'a.recent': 'Последние тревоги в Израиле',
-        'a.recent.none': 'За последние {n} дней тревог не было', 'a.recent.loading': 'Загружаем…', 'a.recent.failed': 'Список тревог недоступен'
+        'a.recent.none': 'За последние {n} дней тревог не было', 'a.recent.loading': 'Загружаем…', 'a.recent.failed': 'Список тревог недоступен',
+        'screen.markets': 'Рынки', 'markets.loading': 'Загружаем котировки…', 'markets.failed': 'Котировки временно недоступны',
+        'markets.closed': 'закрыто', 'markets.partlyClosed': 'частично закрыто', 'markets.noData': 'нет данных',
+        'markets.group.fx': 'Валюты', 'markets.group.us': 'Акции США', 'markets.group.il': 'Акции Израиля',
+        'markets.group.crypto': 'Криптовалюты', 'markets.group.indices': 'Индексы США', 'markets.group.commodities': 'Сырьё',
+        'markets.row.USDILS': '₪ за 1 $', 'markets.row.EURILS': '₪ за 1 €', 'markets.row.UAHperILS': '₴ за 1 ₪', 'markets.row.RUBperILS': '₽ за 1 ₪',
+        'markets.row.EURUSD': '$ за 1 €', 'markets.row.UAHperUSD': '₴ за 1 $',
+        'markets.row.NVDA': 'NVIDIA', 'markets.row.MSFT': 'Microsoft', 'markets.row.AAPL': 'Apple', 'markets.row.GOOGL': 'Alphabet',
+        'markets.row.AMZN': 'Amazon', 'markets.row.INTU': 'Intuit',
+        'markets.row.LUMI.TA': 'Леуми', 'markets.row.POLI.TA': 'Апоалим', 'markets.row.ESLT.TA': 'Эльбит', 'markets.row.TEVA.TA': 'Тева',
+        'markets.row.MZTF.TA': 'Мизрахи',
+        'markets.row.TSEM.TA': 'Tower',
+        'markets.row.BTC': 'Биткоин', 'markets.row.ETH': 'Эфириум', 'markets.row.XRP': 'XRP', 'markets.row.BNB': 'BNB', 'markets.row.SOL': 'Солана',
+        'markets.row.TRX': 'TRON', 'markets.row.^GSPC': 'S&P 500', 'markets.row.^DJI': 'Dow Jones', 'markets.row.^IXIC': 'Nasdaq', 'markets.row.^NDX': 'Nasdaq 100', 'markets.row.^RUT': 'Russell 2000',
+        'markets.row.BZ=F': 'Нефть Brent', 'markets.row.NG=F': 'Газ', 'markets.row.GC=F': 'Золото', 'markets.row.SI=F': 'Серебро', 'markets.row.HG=F': 'Медь',
+        'markets.row.^VIX': 'VIX', 'markets.row.CL=F': 'Нефть WTI'
       }
     },
     he: {
@@ -97,6 +113,7 @@ var I18n = (function () {
       monthsGen: ['בינואר', 'בפברואר', 'במרץ', 'באפריל', 'במאי', 'ביוני', 'ביולי', 'באוגוסט', 'בספטמבר', 'באוקטובר', 'בנובמבר', 'בדצמבר'],
       dateLong: '{weekday}, {day} {month}',
       wmo: WMO_HE,
+      num: { decimal: '.', group: ',' },
       s: {
         'lang.name': 'עברית',
         'city.israel': 'ישראל', 'city.ukraine': 'אוקראינה', 'city.sydney': 'סידני',
@@ -138,7 +155,22 @@ var I18n = (function () {
         'a.banner': 'אזעקה ב{place}', 'a.bannerSince': 'אזעקה ב{place} · מ־{time}',
         'screen.alerts': 'התרעות', 'a.home.quiet': 'אין התרעות', 'a.checked': 'נבדק ב־{time}', 'a.checking': 'בודקים…',
         'a.near.title': 'בסביבה', 'a.near.quiet': 'אין התרעות בסביבה', 'a.recent': 'התרעות אחרונות בישראל',
-        'a.recent.none': 'לא היו התרעות ב־{n} הימים האחרונים', 'a.recent.loading': 'טוענים…', 'a.recent.failed': 'רשימת ההתרעות אינה זמינה'
+        'a.recent.none': 'לא היו התרעות ב־{n} הימים האחרונים', 'a.recent.loading': 'טוענים…', 'a.recent.failed': 'רשימת ההתרעות אינה זמינה',
+        'screen.markets': 'שווקים', 'markets.loading': 'טוען שערים…', 'markets.failed': 'השערים אינם זמינים כרגע',
+        'markets.closed': 'סגור', 'markets.partlyClosed': 'סגור חלקית', 'markets.noData': 'אין נתונים',
+        'markets.group.fx': 'מטבעות', 'markets.group.us': 'מניות בארה״ב', 'markets.group.il': 'מניות בישראל',
+        'markets.group.crypto': 'מטבעות קריפטו', 'markets.group.indices': 'מדדים בארה״ב', 'markets.group.commodities': 'סחורות',
+        'markets.row.USDILS': 'שקלים לדולר', 'markets.row.EURILS': 'שקלים לאירו', 'markets.row.UAHperILS': 'הריבנה לשקל', 'markets.row.RUBperILS': 'רובל לשקל',
+        'markets.row.EURUSD': 'דולר לאירו', 'markets.row.UAHperUSD': 'הריבנה לדולר',
+        'markets.row.NVDA': 'אנבידיה', 'markets.row.MSFT': 'מיקרוסופט', 'markets.row.AAPL': 'אפל', 'markets.row.GOOGL': 'אלפבית',
+        'markets.row.AMZN': 'אמזון', 'markets.row.INTU': 'אינטואיט',
+        'markets.row.LUMI.TA': 'לאומי', 'markets.row.POLI.TA': 'הפועלים', 'markets.row.ESLT.TA': 'אלביט', 'markets.row.TEVA.TA': 'טבע',
+        'markets.row.MZTF.TA': 'מזרחי טפחות',
+        'markets.row.TSEM.TA': 'טאואר',
+        'markets.row.BTC': 'ביטקוין', 'markets.row.ETH': 'את׳ריום', 'markets.row.XRP': 'ריפל', 'markets.row.BNB': 'בינאנס', 'markets.row.SOL': 'סולנה',
+        'markets.row.TRX': 'טרון', 'markets.row.^GSPC': 'S&P 500', 'markets.row.^DJI': 'דאו ג׳ונס', 'markets.row.^IXIC': 'נאסד״ק', 'markets.row.^NDX': 'נאסד״ק 100', 'markets.row.^RUT': 'ראסל 2000',
+        'markets.row.BZ=F': 'נפט ברנט', 'markets.row.NG=F': 'גז טבעי', 'markets.row.GC=F': 'זהב', 'markets.row.SI=F': 'כסף', 'markets.row.HG=F': 'נחושת',
+        'markets.row.^VIX': 'VIX', 'markets.row.CL=F': 'נפט WTI'
       }
     },
     uk: {
@@ -148,6 +180,7 @@ var I18n = (function () {
       monthsGen: ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'],
       dateLong: '{weekday}, {day} {month}',
       wmo: WMO_UK,
+      num: { decimal: ',', group: '\u202f' },
       s: {
         'lang.name': 'Українська',
         'city.israel': 'Ізраїль', 'city.ukraine': 'Україна', 'city.sydney': 'Сідней',
@@ -189,7 +222,22 @@ var I18n = (function () {
         'a.banner': 'Тривога в {place}', 'a.bannerSince': 'Тривога в {place} · з {time}',
         'screen.alerts': 'Тривоги', 'a.home.quiet': 'Тривог немає', 'a.checked': 'Перевірено о {time}', 'a.checking': 'Перевіряємо…',
         'a.near.title': 'Поруч', 'a.near.quiet': 'Поруч тривог немає', 'a.recent': 'Останні тривоги в Ізраїлі',
-        'a.recent.none': 'За останні {n} днів тривог не було', 'a.recent.loading': 'Завантажуємо…', 'a.recent.failed': 'Список тривог недоступний'
+        'a.recent.none': 'За останні {n} днів тривог не було', 'a.recent.loading': 'Завантажуємо…', 'a.recent.failed': 'Список тривог недоступний',
+        'screen.markets': 'Ринки', 'markets.loading': 'Завантажуємо котирування…', 'markets.failed': 'Котирування тимчасово недоступні',
+        'markets.closed': 'закрито', 'markets.partlyClosed': 'частково закрито', 'markets.noData': 'немає даних',
+        'markets.group.fx': 'Валюти', 'markets.group.us': 'Акції США', 'markets.group.il': 'Акції Ізраїлю',
+        'markets.group.crypto': 'Криптовалюти', 'markets.group.indices': 'Індекси США', 'markets.group.commodities': 'Сировина',
+        'markets.row.USDILS': '₪ за 1 $', 'markets.row.EURILS': '₪ за 1 €', 'markets.row.UAHperILS': '₴ за 1 ₪', 'markets.row.RUBperILS': '₽ за 1 ₪',
+        'markets.row.EURUSD': '$ за 1 €', 'markets.row.UAHperUSD': '₴ за 1 $',
+        'markets.row.NVDA': 'NVIDIA', 'markets.row.MSFT': 'Microsoft', 'markets.row.AAPL': 'Apple', 'markets.row.GOOGL': 'Alphabet',
+        'markets.row.AMZN': 'Amazon', 'markets.row.INTU': 'Intuit',
+        'markets.row.LUMI.TA': 'Леумі', 'markets.row.POLI.TA': 'Апоалім', 'markets.row.ESLT.TA': 'Ельбіт', 'markets.row.TEVA.TA': 'Тева',
+        'markets.row.MZTF.TA': 'Мізрахі',
+        'markets.row.TSEM.TA': 'Tower',
+        'markets.row.BTC': 'Біткоїн', 'markets.row.ETH': 'Ефіріум', 'markets.row.XRP': 'XRP', 'markets.row.BNB': 'BNB', 'markets.row.SOL': 'Солана',
+        'markets.row.TRX': 'TRON', 'markets.row.^GSPC': 'S&P 500', 'markets.row.^DJI': 'Dow Jones', 'markets.row.^IXIC': 'Nasdaq', 'markets.row.^NDX': 'Nasdaq 100', 'markets.row.^RUT': 'Russell 2000',
+        'markets.row.BZ=F': 'Нафта Brent', 'markets.row.NG=F': 'Газ', 'markets.row.GC=F': 'Золото', 'markets.row.SI=F': 'Срібло', 'markets.row.HG=F': 'Мідь',
+        'markets.row.^VIX': 'VIX', 'markets.row.CL=F': 'Нафта WTI'
       }
     },
     en: {
@@ -199,6 +247,7 @@ var I18n = (function () {
       monthsGen: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
       dateLong: '{weekday}, {month} {day}',
       wmo: WMO_EN,
+      num: { decimal: '.', group: ',' },
       s: {
         'lang.name': 'English',
         'city.israel': 'Israel', 'city.ukraine': 'Ukraine', 'city.sydney': 'Sydney',
@@ -240,7 +289,22 @@ var I18n = (function () {
         'a.banner': 'Alert in {place}', 'a.bannerSince': 'Alert in {place} · since {time}',
         'screen.alerts': 'Alerts', 'a.home.quiet': 'No alerts', 'a.checked': 'Checked at {time}', 'a.checking': 'Checking…',
         'a.near.title': 'Nearby', 'a.near.quiet': 'No alerts nearby', 'a.recent': 'Recent alerts in Israel',
-        'a.recent.none': 'No alerts in the last {n} days', 'a.recent.loading': 'Loading…', 'a.recent.failed': 'The alert list is unavailable'
+        'a.recent.none': 'No alerts in the last {n} days', 'a.recent.loading': 'Loading…', 'a.recent.failed': 'The alert list is unavailable',
+        'screen.markets': 'Markets', 'markets.loading': 'Loading quotes…', 'markets.failed': 'Quotes are temporarily unavailable',
+        'markets.closed': 'closed', 'markets.partlyClosed': 'partly closed', 'markets.noData': 'no data',
+        'markets.group.fx': 'Currencies', 'markets.group.us': 'US stocks', 'markets.group.il': 'Israeli stocks',
+        'markets.group.crypto': 'Crypto', 'markets.group.indices': 'US indices', 'markets.group.commodities': 'Commodities',
+        'markets.row.USDILS': '₪ per $1', 'markets.row.EURILS': '₪ per €1', 'markets.row.UAHperILS': '₴ per ₪1', 'markets.row.RUBperILS': '₽ per ₪1',
+        'markets.row.EURUSD': '$ per €1', 'markets.row.UAHperUSD': '₴ per $1',
+        'markets.row.NVDA': 'NVIDIA', 'markets.row.MSFT': 'Microsoft', 'markets.row.AAPL': 'Apple', 'markets.row.GOOGL': 'Alphabet',
+        'markets.row.AMZN': 'Amazon', 'markets.row.INTU': 'Intuit',
+        'markets.row.LUMI.TA': 'Bank Leumi', 'markets.row.POLI.TA': 'Bank Hapoalim', 'markets.row.ESLT.TA': 'Elbit Systems', 'markets.row.TEVA.TA': 'Teva',
+        'markets.row.MZTF.TA': 'Mizrahi Tefahot',
+        'markets.row.TSEM.TA': 'Tower',
+        'markets.row.BTC': 'Bitcoin', 'markets.row.ETH': 'Ethereum', 'markets.row.XRP': 'XRP', 'markets.row.BNB': 'BNB', 'markets.row.SOL': 'Solana',
+        'markets.row.TRX': 'TRON', 'markets.row.^GSPC': 'S&P 500', 'markets.row.^DJI': 'Dow Jones', 'markets.row.^IXIC': 'Nasdaq', 'markets.row.^NDX': 'Nasdaq 100', 'markets.row.^RUT': 'Russell 2000',
+        'markets.row.BZ=F': 'Brent oil', 'markets.row.NG=F': 'Natural gas', 'markets.row.GC=F': 'Gold', 'markets.row.SI=F': 'Silver', 'markets.row.HG=F': 'Copper',
+        'markets.row.^VIX': 'VIX', 'markets.row.CL=F': 'WTI oil'
       }
     }
   };
@@ -289,6 +353,13 @@ var I18n = (function () {
     condition: function (code) {
       var w = table().wmo;
       return w[code] !== undefined ? w[code] : (TABLES.en.wmo[code] !== undefined ? TABLES.en.wmo[code] : '');
+    },
+    // A figure with `decimals` places in the interface language's own marks ("67 412", "3,7012", "1,234.50"): a typographic
+    // minus, no Intl (the TV's Intl data is from 2015 and may be missing, see js/tz.js). The sign of a change is the caller's.
+    number: function (value, decimals) {
+      var nf = table().num, parts = Math.abs(value).toFixed(decimals).split('.');
+      var whole = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, nf.group);
+      return (value < 0 && Number(parts.join('.')) !== 0 ? '\u2212' : '') + whole + (parts[1] ? nf.decimal + parts[1] : '');
     },
     languages: function () { var out = []; for (var k in TABLES) if (TABLES.hasOwnProperty(k)) out.push(k); return out; }
   };

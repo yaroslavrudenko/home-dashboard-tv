@@ -8,7 +8,8 @@
     <!-- Least privilege: the app's own files plus exactly the hosts it reads: weather (Open-Meteo), the news feeds of the
          three languages (NEWSru; Ynet, Globes; Ukrainska Pravda, Ekonomichna Pravda), the Israel alert feed and its recent
          alerts (alerts-history), and Mapbox:
-         the routes' live traffic (connect-src) and the live-traffic map image (img-src). Widen it only when a new source
+         the routes' live traffic (connect-src) and the live-traffic map image (img-src), and the markets: Yahoo's quotes and
+         open.er-api's daily rates (connect-src). Widen it only when a new source
          ships. script-src file: covers $WEBAPIS/webapis/webapis.js, which the TV serves from its file system. -->
     <access origin="https://api.open-meteo.com" subdomains="false"/>
     <access origin="https://www.newsru.co.il" subdomains="false"/>
@@ -19,7 +20,9 @@
     <access origin="https://www.oref.org.il" subdomains="false"/>
     <access origin="https://alerts-history.oref.org.il" subdomains="false"/>
     <access origin="https://api.mapbox.com" subdomains="false"/>
-    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://api.mapbox.com; connect-src https://api.open-meteo.com https://www.newsru.co.il https://www.ynet.co.il https://www.globes.co.il https://www.pravda.com.ua https://epravda.com.ua https://www.oref.org.il https://alerts-history.oref.org.il https://api.mapbox.com</tizen:content-security-policy>
+    <access origin="https://query1.finance.yahoo.com" subdomains="false"/>
+    <access origin="https://open.er-api.com" subdomains="false"/>
+    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://api.mapbox.com; connect-src https://api.open-meteo.com https://www.newsru.co.il https://www.ynet.co.il https://www.globes.co.il https://www.pravda.com.ua https://epravda.com.ua https://www.oref.org.il https://alerts-history.oref.org.il https://api.mapbox.com https://query1.finance.yahoo.com https://open.er-api.com</tizen:content-security-policy>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
     <tizen:profile name="tv-samsung"/>

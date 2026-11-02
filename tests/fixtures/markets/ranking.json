@@ -1,0 +1,299 @@
+{
+ "_source": {
+  "capturedAt": "2026-11-02",
+  "us": "https://companiesmarketcap.com/usa/largest-companies-in-the-usa-by-market-cap/ (top 10 rows, as served)",
+  "il": "https://companiesmarketcap.com/israel/largest-companies-in-israel-by-market-cap/ (top 15 rows, as served); taseListed = Yahoo spark answered <ticker>.TA with exchange \"Tel Aviv\"",
+  "crypto": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=15; stablecoin = in coins/markets?category=stablecoins; tokenizedAsset = coins/figure-heloc categories [\"Tokenized Assets\", \"Real World Assets (RWA)\", \"Made in USA\", \"Provenance Ecosystem\", \"Tokenized Private Credit\"]"
+ },
+ "us": [
+  {
+   "rank": 1,
+   "ticker": "AAPL",
+   "name": "Apple",
+   "marketCapUsd": 5029592301568
+  },
+  {
+   "rank": 2,
+   "ticker": "NVDA",
+   "name": "NVIDIA",
+   "marketCapUsd": 4941441662976
+  },
+  {
+   "rank": 3,
+   "ticker": "MSFT",
+   "name": "Microsoft",
+   "marketCapUsd": 3875804807168
+  },
+  {
+   "rank": 4,
+   "ticker": "GOOG",
+   "name": "Alphabet (Google)",
+   "marketCapUsd": 3420436561920
+  },
+  {
+   "rank": 5,
+   "ticker": "AMZN",
+   "name": "Amazon",
+   "marketCapUsd": 2598937821184
+  },
+  {
+   "rank": 6,
+   "ticker": "SPCX",
+   "name": "SpaceX",
+   "marketCapUsd": 1829640994816
+  },
+  {
+   "rank": 7,
+   "ticker": "TSLA",
+   "name": "Tesla",
+   "marketCapUsd": 1580341002240
+  },
+  {
+   "rank": 8,
+   "ticker": "META",
+   "name": "Meta Platforms (Facebook)",
+   "marketCapUsd": 1572426743808
+  },
+  {
+   "rank": 9,
+   "ticker": "AVGO",
+   "name": "Broadcom",
+   "marketCapUsd": 1556585250816
+  },
+  {
+   "rank": 10,
+   "ticker": "LLY",
+   "name": "Eli Lilly",
+   "marketCapUsd": 1262666776576
+  }
+ ],
+ "il": [
+  {
+   "rank": 1,
+   "ticker": "TEVA",
+   "name": "Teva Pharmaceutical Industries",
+   "marketCapUsd": 49089257472,
+   "taseListed": "TEVA.TA"
+  },
+  {
+   "rank": 2,
+   "ticker": "ESLT",
+   "name": "Elbit Systems",
+   "marketCapUsd": 36540784640,
+   "taseListed": "ESLT.TA"
+  },
+  {
+   "rank": 3,
+   "ticker": "LUMI.TA",
+   "name": "Bank Leumi",
+   "marketCapUsd": 34320238240,
+   "taseListed": "LUMI.TA"
+  },
+  {
+   "rank": 4,
+   "ticker": "POLI.TA",
+   "name": "Bank Hapoalim",
+   "marketCapUsd": 30824836269,
+   "taseListed": "POLI.TA"
+  },
+  {
+   "rank": 5,
+   "ticker": "TSEM",
+   "name": "Tower Semiconductor",
+   "marketCapUsd": 18898419712,
+   "taseListed": "TSEM.TA"
+  },
+  {
+   "rank": 6,
+   "ticker": "MZTF.TA",
+   "name": "Mizrahi-Tefahot",
+   "marketCapUsd": 18685480397,
+   "taseListed": "MZTF.TA"
+  },
+  {
+   "rank": 7,
+   "ticker": "CHKP",
+   "name": "Check Point Software",
+   "marketCapUsd": 15530526720,
+   "taseListed": null
+  },
+  {
+   "rank": 8,
+   "ticker": "AZRG.TA",
+   "name": "Azrieli Group",
+   "marketCapUsd": 14313530946,
+   "taseListed": "AZRG.TA"
+  },
+  {
+   "rank": 9,
+   "ticker": "PHOE.TA",
+   "name": "The Phoenix Holdings",
+   "marketCapUsd": 13781190151,
+   "taseListed": "PHOE.TA"
+  },
+  {
+   "rank": 10,
+   "ticker": "DSCT.TA",
+   "name": "Israel Discount Bank",
+   "marketCapUsd": 13095988237,
+   "taseListed": "DSCT.TA"
+  },
+  {
+   "rank": 11,
+   "ticker": "HARL.TA",
+   "name": "Harel Group",
+   "marketCapUsd": 11950157022,
+   "taseListed": "HARL.TA"
+  },
+  {
+   "rank": 12,
+   "ticker": "MMHD.TA",
+   "name": "Menora Mivtachim Holdings",
+   "marketCapUsd": 9969726164,
+   "taseListed": "MMHD.TA"
+  },
+  {
+   "rank": 13,
+   "ticker": "NVMI",
+   "name": "Nova Ltd.",
+   "marketCapUsd": 9931155456,
+   "taseListed": "NVMI.TA"
+  },
+  {
+   "rank": 14,
+   "ticker": "OPCE.TA",
+   "name": "OPC Energy",
+   "marketCapUsd": 9456009699,
+   "taseListed": "OPCE.TA"
+  },
+  {
+   "rank": 15,
+   "ticker": "ENLT",
+   "name": "Enlight Renewable Energy",
+   "marketCapUsd": 9277052928,
+   "taseListed": "ENLT.TA"
+  }
+ ],
+ "crypto": [
+  {
+   "rank": 1,
+   "id": "bitcoin",
+   "symbol": "BTC",
+   "marketCapUsd": 1572437729167,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 2,
+   "id": "ethereum",
+   "symbol": "ETH",
+   "marketCapUsd": 280678271882,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 3,
+   "id": "tether",
+   "symbol": "USDT",
+   "marketCapUsd": 179941954689,
+   "stablecoin": true,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 4,
+   "id": "binancecoin",
+   "symbol": "BNB",
+   "marketCapUsd": 93366446953,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 5,
+   "id": "ripple",
+   "symbol": "XRP",
+   "marketCapUsd": 79382494184,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 6,
+   "id": "usd-coin",
+   "symbol": "USDC",
+   "marketCapUsd": 71283743951,
+   "stablecoin": true,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 7,
+   "id": "solana",
+   "symbol": "SOL",
+   "marketCapUsd": 55847951132,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 8,
+   "id": "tron",
+   "symbol": "TRX",
+   "marketCapUsd": 29981590073,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 9,
+   "id": "figure-heloc",
+   "symbol": "FIGR_HELOC",
+   "marketCapUsd": 27940947746,
+   "stablecoin": false,
+   "tokenizedAsset": true
+  },
+  {
+   "rank": 10,
+   "id": "zcash",
+   "symbol": "ZEC",
+   "marketCapUsd": 21466312829,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 11,
+   "id": "hyperliquid",
+   "symbol": "HYPE",
+   "marketCapUsd": 20722608771,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 12,
+   "id": "dogecoin",
+   "symbol": "DOGE",
+   "marketCapUsd": 11813620677,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 13,
+   "id": "monero",
+   "symbol": "XMR",
+   "marketCapUsd": 11439219809,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 14,
+   "id": "usds",
+   "symbol": "USDS",
+   "marketCapUsd": 9559047170,
+   "stablecoin": true,
+   "tokenizedAsset": false
+  },
+  {
+   "rank": 15,
+   "id": "whitebit",
+   "symbol": "WBT",
+   "marketCapUsd": 8927919859,
+   "stablecoin": false,
+   "tokenizedAsset": false
+  }
+ ]
+}

@@ -9,7 +9,8 @@
  *                                    the feed's shape throws (the round failed, never "no alerts").
  *   AlertsHistory.createController(cfg, deps)   asks only while the Alerts screen is on view AND the TV shows the page,
  *                                    one request at a time: an explicit open (◀ ▶, a language change) at once; otherwise
- *                                    every cfg.refreshMs since the last attempt. A failed round keeps the last list. */
+ *                                    every cfg.refreshMs since the last attempt — the shared gate, js/onview.js. A failed
+ *                                    round keeps the last list. */
 var AlertsHistory = (function () {
   var STAMP = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/, text = Alerts.text;
   // "The threat has been removed" (category 13, like "the event has ended"): an end, never an alert in the list.
@@ -44,42 +45,24 @@ var AlertsHistory = (function () {
   // state(): { kind: 'loading' | 'failed' (no list yet) | 'fresh' | 'stale' (the last round failed or the list is older
   //            than cfg.staleAfterMs), events, updatedAt }
   function createController(cfg, deps) {
-    var docVisible = deps.documentVisible || function () { return true; };
-    var selected = false, inFlight = false, timer = null, lastAttemptAt = 0, events = [], updatedAt = 0, failed = false;
-
-    function stopTimer() { if (timer !== null) deps.clearTimeout(timer); timer = null; }
-    function later(ms) { stopTimer(); timer = deps.setTimeout(function () { timer = null; check(false); }, ms); }
-
-    function send(now) {
-      inFlight = true;
-      lastAttemptAt = now;
+    var events = [], updatedAt = 0, failed = false;
+    // One round: one request; the round is over (the gate schedules the next) before the screen is redrawn.
+    var gate = OnView.create(cfg.refreshMs, deps, function (done) {
       deps.getJson(cfg.url, cfg.timeoutMs, function (err, json) {
-        inFlight = false;
         var list = null;
         if (!err) { try { list = parse(json, cfg.max); } catch (e) { list = null; } }
         failed = list === null;
         if (list) { events = list; updatedAt = deps.now(); }
-        if (selected && docVisible()) later(cfg.refreshMs);
+        done();
         deps.onChange();
       });
-    }
-    function check(explicit) {
-      if (!selected || !docVisible() || inFlight) return;
-      var now = deps.now(), due = lastAttemptAt + cfg.refreshMs;
-      if (!explicit && lastAttemptAt && now < due) { later(due - now); return; }
-      send(now);
-    }
+    });
 
     return {
       // The Alerts screen came into view (explicit: the remote opened it, or the language changed on it) or left it.
-      setVisible: function (v, explicit) {
-        if (!v) { selected = false; stopTimer(); return; }
-        if (selected && !explicit) return;
-        selected = true;
-        check(explicit);
-      },
+      setVisible: gate.setVisible,
       // The TV hid or showed the page: hidden stops the cadence; shown asks the gate again.
-      visibilityChanged: function () { if (!docVisible()) stopTimer(); else check(false); },
+      visibilityChanged: gate.visibilityChanged,
       state: function () {
         var kind = !updatedAt ? (failed ? 'failed' : 'loading') : failed || deps.now() - updatedAt > cfg.staleAfterMs ? 'stale' : 'fresh';
         return { kind: kind, events: events, updatedAt: updatedAt };

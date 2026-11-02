@@ -1,4 +1,4 @@
-/* Boot and timers: six screens (clocks + weather, the weather across Israel, news, traffic, traffic map, alerts) switched
+/* Boot and timers: seven screens (clocks + weather, the weather across Israel, news, markets, traffic, traffic map, alerts) switched
  * with ◀ ▶ and rotated every Config.rotation.intervalMs, burn-in shift, keep the screen on, Back exits, ▼ / ▲ (and the
  * yellow key) switch the interface language (Config.languages; remembered on the TV), the blue key previews the alert
  * (Config.alerts.previewMs; any key ends it; a real alert always wins).
@@ -7,6 +7,8 @@
  * While it is up, every other screen carries the red line «Тревога в <home> · с HH:MM» at the top (js/view-banner.js).
  * Nearby alerts keep their quiet corner line; alerts elsewhere in Israel are only in the Alerts screen's list.
  * A screen opened with ◀ ▶ — or on view when the language changes — refreshes its data at once.
+ * The markets (js/markets.js) are asked only while their screen is on view (js/onview.js): at once on a ◀ ▶ open,
+ * on a rotation arrival when the last attempt is Config.markets.refreshMs old, then every refreshMs while it stays.
  * Only the screen on view is redrawn per minute; a hidden screen is redrawn when it comes into view.
  * The home city (Config.homeCity, or the one chosen on the TV: OK opens the picker, js/view-city.js) is resolved and its
  * routes, map, weather place and alert areas written into Config before anything is made (js/homecity.js); a new choice
@@ -14,7 +16,7 @@
  * Everything platform-specific is guarded so the same files run in desktop Chrome. ES5. */
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
-  var store = null, news = null, traffic = null, map = null, alerts = null, history = null, screens = null, sound = null;
+  var store = null, news = null, traffic = null, map = null, alerts = null, history = null, screens = null, sound = null, markets = null;
   var screenEls = [], dotEls = [];
   var clockTimer = null, shiftIndex = 0, weatherDrawn = '', toastTimer = null;
   var KEY_BACK = 10009, KEY_LEFT = 37, KEY_RIGHT = 39, SLIDE_PX = 48, FADE_MS = 700, TOAST_MS = 1600;
@@ -158,7 +160,21 @@ var App = (function () {
       updated: homeHhmm(h.updatedAt), days: Config.alerts.history.days });
   }
 
-  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, traffic: renderTraffic, map: renderMap, alerts: renderAlertsScreen };
+  // The Markets screen: the last snapshot (none yet: the view's placeholders) and what its header says (the markets
+  // controller decides: js/markets.js state()), its time at home («обновлено 14:32»).
+  function renderMarkets() {
+    var st = markets.state();
+    MarketsView.render(st.snapshot, { kind: st.kind, updated: homeHhmm(st.updatedAt) });
+  }
+  // The Markets screen's cards: one per configured group, with its row count (the view keeps the slots before the data).
+  function marketsLayout() {
+    var out = [], g = Config.markets.groups;
+    for (var i = 0; i < g.length; i++) out.push({ id: g[i].id, rows: g[i].rows.length });
+    return out;
+  }
+
+  var RENDER = { main: renderMain, israel: renderIsrael, news: renderNews, markets: renderMarkets, traffic: renderTraffic, map: renderMap,
+    alerts: renderAlertsScreen };
   function currentId() { return Config.screens[screens ? screens.current() : 0]; }
   function renderCurrent() { RENDER[currentId()](); }
   // A data set changed: redraw it only if one of its screens (the ids given) is on view.
@@ -212,9 +228,10 @@ var App = (function () {
     if (redraw) renderAlerts();
   }
 
-  // Which screen the on-view-only sources (traffic, the map, the recent alerts) serve; explicit: the remote opened it,
-  // or the language changed on it — each then refreshes through its own gate (cadence skipped, caps kept).
+  // Which screen the on-view-only sources (traffic, the map, the recent alerts, the markets) serve; explicit: the remote
+  // opened it, or the language changed on it — each then refreshes through its own gate (cadence skipped, caps kept).
   function select(id, explicit) {
+    markets.setVisible(id === 'markets', explicit);
     if (traffic) traffic.setVisible(id === 'traffic', explicit);
     if (map) map.setVisible(id === 'map', explicit);
     history.setVisible(id === 'alerts', explicit);
@@ -380,6 +397,7 @@ var App = (function () {
   function onVisible() {
     if (map) map.visibilityChanged();              // hidden: no image is loaded; shown: the map asks its gate again
     history.visibilityChanged();
+    markets.visibilityChanged();
     if (document.hidden) return;
     keepScreenOn();
     clearTimeout(clockTimer);
@@ -411,6 +429,7 @@ var App = (function () {
     View.init(document, Config.clocks, { hours: Config.weather.hours, days: Config.weather.days });
     IsraelView.init(document.getElementById('screen-israel'), Config.israel.regions);
     NewsView.init(document.getElementById('screen-news'));
+    MarketsView.init(document.getElementById('screen-markets'), marketsLayout());
     TrafficView.init(document.getElementById('screen-traffic'));
     MapView.init(document.getElementById('screen-map'));
     AlertsScreenView.init(document.getElementById('screen-alerts'), Config.alerts);   // makes the alert layer (#alert)
@@ -418,10 +437,13 @@ var App = (function () {
     AlertBanner.init(document.getElementById('banner'));
     CityView.init(document.getElementById('city'), Cities, withTimers({ choose: chooseCity }));
     buildScreens();
-    screens = Screens.create(Config.screens.length, Config.rotation, withTimers({ onShow: showScreen }));
+    screens = Screens.create(Config.screens.length, Config.rotation, withTimers({ onShow: showScreen,
+      idOf: function (i) { return Config.screens[i]; } }));
 
     store = Weather.createStore(Config.places, Config.weather, withTimers({ getJson: Net.getJson, onChange: onData('main', 'israel') }));
     news = News.createStore(Config.news, withTimers({ getText: Net.getText, onChange: onData('news') }), I18n.lang());
+    markets = Markets.createController(Config.markets, withTimers({ getJson: Net.getJson, documentVisible: function () { return !document.hidden; },
+      onChange: onData('markets') }));
     if (Traffic.hasToken(Config.traffic)) {
       traffic = Traffic.createStore(Config.traffic, withTimers({ getJson: Net.getJson, storage: storage(),
         documentVisible: function () { return !document.hidden; }, onChange: onData('traffic') }));

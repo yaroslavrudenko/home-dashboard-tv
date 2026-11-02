@@ -44,12 +44,27 @@ function loadPuppeteer() {
 // | 'fail' | (round, url) => { status, body } (round: 1 for the first ten GETs, …); `opts.map` (the traffic map image)
 // 'ok' (tests/fixtures/mapbox/static.png, a real traffic-night-v2 image made smaller) | 'fail' | (n, url) => { status, body }
 // | { hang: true }; `opts.traffic` / `opts.map` 'live': straight to the real Mapbox (a measurement with a real token).
+// `opts.markets` (batch 11: Yahoo Finance, open.er-api.com) 'ok' (the recorded answers in tests/fixtures/markets:
+// marketsRecorded) | 'fail' | 'live' (fetched from the real sources by Node at that moment) | (n, url) => { status, body }.
 // Left out: the request is aborted (a network failure), as before these screens existed.
 // Every news feed of every language, the most specific address first (NEWSru serves both of its sections).
 const NEWS_FEEDS = [['https://www.newsru.co.il/il/www/section/finance', 'newsrufin'], ['https://www.newsru.co.il/', 'newsru'],
   ['https://www.ynet.co.il/', 'ynet'], ['https://www.globes.co.il/', 'globes'], ['https://www.pravda.com.ua/', 'pravda'], ['https://epravda.com.ua/', 'epravda']];
 const MAP = /^https:\/\/api\.mapbox\.com\/styles\//;
 const HISTORY = 'https://alerts-history.oref.org.il/';
+// Batch 11: the Markets screen's sources (Yahoo Finance's spark quotes, open.er-api.com's daily rates; js/config.js `markets`).
+// FIX-11B C8: their recorded answers (tests/fixtures/markets, 2026-11-02): each spark request gets the recorded entries of
+// exactly the symbols it asks for, a rates request its base's table.
+export function marketsRecorded(url) {
+  const u = new URL(url);
+  if (u.pathname.startsWith('/v7/finance/spark')) {
+    const want = u.searchParams.get('symbols').split(',');
+    const all = ['spark-1', 'spark-2'].flatMap((f) => JSON.parse(fixtureText('markets/' + f + '.json')).spark.result);
+    return { status: 200, contentType: 'application/json', body: JSON.stringify({ spark: { result: all.filter((r) => want.includes(r.symbol)), error: null } }) };
+  }
+  return { status: 200, contentType: 'application/json', body: fixtureText('markets/rates-' + u.pathname.split('/').pop() + '.json') };
+}
+const MARKETS = /^https:\/\/(query1\.finance\.yahoo\.com|open\.er-api\.com)\//;
 const fixtureText = (rel) => fs.readFileSync(path.join(FIXTURES, rel));
 // The Mapbox answers of one round, in route order (tests/fixtures/mapbox/routes.json), and which route a GET asks for
 // (its destination, lon,lat, is the answer's second waypoint).
@@ -64,6 +79,12 @@ async function answerFor(kind, opts, url, n) {
   const custom = typeof o === 'function' ? o(kind === 'news' ? url : kind === 'traffic' ? Math.ceil(n / 10) : n, url) : null;
   if (custom) return custom;
   if (o === 'fail') return { status: 503, body: '' };
+  if (kind === 'markets') {
+    if (o === 'ok') return marketsRecorded(url);
+    if (o !== 'live') throw new Error('markets: use \'ok\', \'fail\', \'live\' or a function');
+    const r = await fetch(url);
+    return { status: r.status, contentType: r.headers.get('content-type') || 'application/json', body: Buffer.from(await r.arrayBuffer()) };
+  }
   if (kind === 'news') {
     if (o === 'live') { const r = await fetch(url); return { status: r.status, body: Buffer.from(await r.arrayBuffer()) }; }
     return { status: 200, body: fixtureText('news/' + newsSource(url) + '.xml') };   // 'ok', or a function that answered null
@@ -88,7 +109,7 @@ export async function openApp(opts = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080 });
   const weatherRequests = [];
-  const requests = { news: [], alerts: [], history: [], traffic: [], map: [] };
+  const requests = { news: [], alerts: [], history: [], traffic: [], map: [], markets: [] };
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   await page.evaluateOnNewDocument((fixed, lang, configure, init, home) => {
@@ -128,7 +149,7 @@ export async function openApp(opts = {}) {
       done = req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
     } else {
       const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : url.startsWith(HISTORY) ? 'history' : MAP.test(url) ? 'map'
-        : url.startsWith('https://api.mapbox.com/') ? 'traffic' : null;
+        : url.startsWith('https://api.mapbox.com/') ? 'traffic' : MARKETS.test(url) ? 'markets' : null;
       if (kind) requests[kind].push({ url, method: req.method(), headers: req.headers(), body: req.postData() });
       if (!kind || opts[kind] === undefined) done = req.abort();
       else if ((kind === 'map' || kind === 'traffic') && opts[kind] === 'live') done = req.continue();   // the real service

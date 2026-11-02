@@ -14,6 +14,10 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Inter"; font-weight: 400; src: url(../fonts/Inter-400-cyrillic.woff2) format("woff2");
   unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+/* ₪ ₴ ₽ (the Markets screen's names and prices, Regular only): in none of Google's Latin / Cyrillic subsets, so cut from its
+   Inter 4.001 latin-ext Regular — pyftsubset <latin-ext.woff2> --unicodes=U+20AA,U+20B4,U+20BD --layout-features+=tnum
+   --flavor=woff2 — about 1 KB, loaded only when one of them is drawn. */
+@font-face { font-family: "Inter"; font-weight: 400; src: url(../fonts/Inter-400-currency.woff2) format("woff2"); unicode-range: U+20AA, U+20B4, U+20BD; }
 @font-face { font-family: "Inter"; font-weight: 500; src: url(../fonts/Inter-500-latin.woff2) format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Inter"; font-weight: 500; src: url(../fonts/Inter-500-cyrillic.woff2) format("woff2");
@@ -414,6 +418,76 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 .city-msg { display: none; margin-top: 16px; font-size: 28px; color: #ffd59a; text-align: center; }
 .city-msg.is-on { display: block; }
 .city-hint { margin-top: 24px; font-size: 24px; line-height: 32px; color: rgba(255, 255, 255, 0.62); text-align: center; }
+
+/* ---- Markets: six cards on one grid — currencies, US shares, Israeli shares; crypto, US indices, commodities. The ONE
+   setting for the cards per line is .mk-card's width (100% / 3); the body's negative end and bottom margins absorb the
+   last card's gutter, so no nth-child rule depends on the count. The lines share the height (align-content: stretch).
+   The head as on the News / Israel screens (26 px top padding, a 46 px head, a 34 px title). A row: the name, the price
+   (right-aligned, one decimal column per card), the sign in a cell of its own, the change. Six rows per card on ONE
+   pitch, 58 px: the card is 440 px tall = 1 border + 26 top + 46 head + 6 × 58 + 18 bottom + 1 border (name 28 · price
+   30 · change 26 px, as on the other screens). ---- */
+.mk-body { flex-wrap: wrap; align-content: stretch; -webkit-margin-end: -28px; margin-bottom: -28px; }
+.mk-card { width: calc(100% / 3 - 28px); -webkit-margin-end: 28px; margin-bottom: 28px; padding: 26px 40px 18px; display: flex; flex-direction: column;
+  -webkit-font-feature-settings: normal; font-feature-settings: normal; }
+.mk-head { display: flex; align-items: center; height: 46px; flex: 0 0 46px; white-space: nowrap; }
+.mk-title { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
+/* The rows are a table (display: table, Chromium 47): each card sizes its own columns — name · price · sign · change — so
+   every price of a card ends on one line and its decimals stand in one column, in Hebrew as in Russian. */
+.mk-rows { display: table; width: 100%; border-collapse: separate; border-spacing: 0; }
+.mk-row { display: table-row; }
+.mk-row > span { display: table-cell; vertical-align: middle; height: 58px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.mk-row:first-child > span { border-top: 0; }
+.mk-name { width: 100%; font-size: 28px; line-height: 32px; white-space: nowrap; color: rgba(255, 255, 255, 0.92); }
+/* «закрыто» / «частично закрыто»: only in the card's head, at its end, one line; never inside a row */
+.mk-closed { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+/* a card with no price at all: said once, amber like every failure the app says, in its head */
+.mk-failed { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: rgba(255, 214, 150, 0.85); white-space: nowrap; }
+.mk-price, .mk-pct { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; white-space: nowrap; }
+/* the price column: one width per card (B6) — its widest price in any language, measured 2026-11-02 on the recorded and
+   the live quotes — so he / ru / uk match; a cell only grows (a «нет данных» row may widen it), never cuts. Set by a
+   zero-height strut: the name's width: 100% makes the table shrink a cell's own width to its content (and Chromium 47
+   has no min-width on a table cell). */
+.mk-price:before { content: ''; display: block; height: 0; }
+/* direction ltr: a figure is left to right in every language, and its trailing figure-space padding stays at its right
+   (in a right-to-left cell the bidi algorithm would move trailing spaces to the left of the number) */
+.mk-price { -webkit-padding-start: 16px; direction: ltr; text-align: right; font-size: 30px; color: rgba(255, 255, 255, 0.92); }
+/* FIX-11B-B1b: the number AND its sign box, widest in any language (measured on the recorded and the live quotes) */
+#mk-fx .mk-price:before { width: 160px; }
+#mk-us .mk-price:before { width: 140px; }
+#mk-il .mk-price:before { width: 168px; }
+#mk-crypto .mk-price:before { width: 206px; }
+#mk-indices .mk-price:before { width: 153px; }
+#mk-commodities .mk-price:before { width: 168px; }
+/* the sign (FIX-11B-B1b): inside the price cell, in a fixed box right after the number — one gap everywhere, the
+   decimal column untouched; the cell is left to right, so it stays after the number in Hebrew too */
+.mk-sign { display: inline-block; width: 28px; margin-left: 6px; text-align: left; }
+.mk-row.is-closed .mk-price { color: rgba(255, 255, 255, 0.80); }   /* closed: a shade back, the open ones stand out */
+/* the last good value, not refreshed this round: quietly dimmed, never an alarm colour */
+.mk-row.is-stale .mk-price { color: rgba(255, 255, 255, 0.62); }
+.mk-row.is-stale .mk-chg { color: rgba(255, 255, 255, 0.62); }   /* grey keeps 4.5:1; the arrow still says which way */
+/* the change: its own column at the end (a fixed width: Chromium 47 ignores min-width on a table cell); soft
+   Apple-like colours, never neon; a fixed 22 px arrow slot and a fixed-width figure, so every «%» ends on one line */
+.mk-chg { width: 140px; -webkit-padding-start: 8px;   /* 8: the sign box already ends 3–9 px after the sign */
+  text-align: end; font-size: 26px; white-space: nowrap; }
+#mk-indices .mk-chg { -webkit-padding-start: 16px; }   /* no sign box after a level in points: the full gap before the arrow */
+.mk-pct { display: inline-block; min-width: 118px; text-align: right; }   /* + the 22 px arrow slot = the cell's 140 px: «+12,34%» never moves the arrow */
+.mk-chg.is-up { color: #8ce6b4; }
+.mk-chg.is-down { color: #ff9a8c; }
+.mk-chg.is-flat, .mk-chg.is-none { color: rgba(255, 255, 255, 0.62); }   /* no change, or none given (a muted «—») */
+/* the arrow is drawn (no glyph: ▲ ▼ are not in the TV's font subsets): 16 × 12 in a 22 px slot, kept (invisible) when
+   there is no arrow */
+.mk-arrow { display: inline-block; width: 0; height: 0; vertical-align: 0.15em; -webkit-margin-end: 6px;
+  border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 12px solid transparent; }
+.mk-chg.is-up .mk-arrow { border-top: 0; border-bottom: 12px solid #8ce6b4; }
+.mk-chg.is-down .mk-arrow { border-top-color: #ff9a8c; }
+.mk-row.is-stale .mk-chg.is-up .mk-arrow { border-bottom-color: rgba(255, 255, 255, 0.62); }
+.mk-row.is-stale .mk-chg.is-down .mk-arrow { border-top-color: rgba(255, 255, 255, 0.62); }
+.mk-nodata { -webkit-padding-start: 16px; text-align: right; font-size: 26px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+/* before the first data: the same six slots, as plain rows */
+.mk-card.is-empty .mk-rows { display: block; }
+.mk-row.is-empty { display: flex; align-items: center; height: 58px; }
+.mk-row.is-empty .skeleton { flex: 1 1 auto; height: 24px; }
+.status.is-loading .status-dot { background: rgba(255, 255, 255, 0.36); }   /* loading: a quiet dot, never the fresh green */
 
 /* ---- Hebrew: the whole layout right to left. Flex rows, the -webkit-margin-start / -end above and text-align: end
    mirror by themselves; here only what is placed by left / right or drawn from the left. Figures stay left to right
