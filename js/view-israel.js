@@ -47,21 +47,21 @@ var IsraelView = (function () {
   }
 
   // card: { region, view (Weather.forHour, the days cut to the screen's count) or null, kind, retryAt, air (Air.summary or
-  // null), airKind }.
+  // null), airKind, dust (batch 13: the days' dust forecast, View.dailyHtml) }.
   function cardHtml(card, days) {
     var v = card.view;
     if (!v) return headHtml(card.region, card) + Html.emptyState(Icons.weather(3, true), I18n.t(card.kind === 'failed' ? 'w.failed' : 'w.loading'),
       card.kind === 'failed' ? Html.retryText(card.retryAt) : '');
-    return headHtml(card.region, card) + nowHtml(v.current) + '<div class="card-title region-days-title">' + esc(I18n.t('w.days', { n: days })) + '</div>' +
-      '<div class="days">' + View.dailyHtml(v) + '</div>';
+    return headHtml(card.region, card) + nowHtml(v.current) + View.dustTitle(I18n.t('w.days', { n: days }), View.dustLabel('w.dustMax'), View.dustLegend(card.dust, card.dust && card.dust.days)) +
+      '<div class="days">' + View.dailyHtml(v, card.dust) + '</div>';
   }
 
   // cards: in screen order; key: what each card shows as a string (an unchanged card is not rewritten: icons carry
   // unique mask ids, so the HTML itself cannot be compared). status: { kind, updated ("HH:MM") } for the header.
   function render(cards, days, status) {
     for (var i = 0; i < cards.length; i++) {
-      // the chip is part of what the card shows: what it shows (not the raw air numbers) is in the key
-      var c = cards[i], key = c.key + '|' + JSON.stringify(chipOf(c)) + '|' + I18n.lang();
+      // the chip and the days' dust are part of what the card shows: what they show (not the raw air numbers) is in the key
+      var c = cards[i], key = c.key + '|' + JSON.stringify(chipOf(c)) + '|' + JSON.stringify(c.dust) + '|' + I18n.lang();
       if (drawn[c.region.id] === key) continue;
       drawn[c.region.id] = key;
       var el = els.el.querySelector('#region-' + c.region.id);

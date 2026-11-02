@@ -50,6 +50,18 @@ var App = (function () {
   }
   // What a place's air shows (Air.summary) and the state of its data.
   function airOf(placeId) { return { air: Air.summary(air.get(placeId), Config.air), airKind: air.status(placeId).kind }; }
+  // Batch 13: the dust forecast for the cells on screen (Air.forecast, once per render): { loading } before the first air
+  // answer, else the cells and whether the data are stale; the khamsin threshold for the legend either way.
+  function dustOf(placeId, hourKeys, dates) {
+    var model = air.get(placeId), kind = air.status(placeId).kind, cfg = Config.air;
+    if (!model && kind === 'loading') return { loading: true, limit: cfg.dustUgm3 };
+    var f = Air.forecast(model, hourKeys, dates, cfg);
+    return { hours: f.hours, days: f.days, stale: kind === 'stale', limit: cfg.dustUgm3 };
+  }
+  // The «Сейчас» hour's dust: the CURRENT reading (Air.summary), the same value and khamsin flag as the current card (X2).
+  function nowDust(summary) { return summary && summary.dust !== null ? { dust: summary.dust, khamsin: summary.dustHigh } : null; }
+  // The keys of a forecast view's rows (an empty row: null): its hours' keys, its days' dates.
+  function keysOf(rows, field) { var out = []; for (var i = 0; i < rows.length; i++) out.push(rows[i] ? rows[i][field] : null); return out; }
   // When the next attempt runs, rounded up: never "retry at" the minute already shown.
   function retryAt(next) { return next ? homeHhmm(Math.ceil(next / 60000) * 60000) : ''; }
   // "HH:MM" at home, with "DD.MM " before it when that moment is not today at home; '' for none.
@@ -86,14 +98,17 @@ var App = (function () {
   }
 
   // The main screen: the weather card (only when its hour or state changed), the status line and the clocks.
+  // The dust forecast on screen is part of what is drawn (B13-D7): a new forecast redraws, an unchanged one does not.
   function renderMain() {
     var id = mainPlace().id, s = store.status(id), hour = placeHourKey(id), a = airOf(id);
-    var drawn = [hour, s.kind, s.updatedAt, store.nextAt(), I18n.lang(), JSON.stringify(a)].join('|');
+    var data = store.get(id), v = data ? Weather.forHour(data, hour, Config.weather) : null;
+    var dust = dustOf(id, v ? keysOf(v.hourly, 'key') : [], v ? keysOf(v.daily, 'date') : []);
+    if (v && v.nowShown && dust.hours) dust.hours[0] = nowDust(a.air);   // X2: «Сейчас» is the reading the current card shows
+    var drawn = [hour, s.kind, s.updatedAt, store.nextAt(), I18n.lang(), JSON.stringify(a), JSON.stringify(dust)].join('|');
     if (drawn !== weatherDrawn) {
       weatherDrawn = drawn;
-      var data = store.get(id), v = data ? Weather.forHour(data, hour, Config.weather) : null;
       View.renderWeather(v, { name: HomeCity.name(Config.home.city, I18n.lang()), kind: s.kind, retryAt: retryAt(store.nextAt()),
-        uv: v && v.today ? Weather.uv(v.today.uvMax) : null, air: a.air, airKind: a.airKind });
+        uv: v && v.today ? Weather.uv(v.today.uvMax) : null, air: a.air, airKind: a.airKind, dust: dust });
     }
     View.renderStatus(s.kind, homeHhmm(s.updatedAt));
     renderClocks();
@@ -112,7 +127,9 @@ var App = (function () {
         oldest = oldest ? Math.min(oldest, s.updatedAt) : s.updatedAt;
       }
       var ra = airOf(r.place);   // the view keys the card on the air chip it draws (FIX-12B V13), never on the raw numbers
-      cards.push({ region: r, view: v, kind: s.kind, retryAt: retryAt(next), key: [hour, s.kind, s.updatedAt, next].join('|'), air: ra.air, airKind: ra.airKind });
+      // ... and on the days' dust it draws (B13-D7)
+      cards.push({ region: r, view: v, kind: s.kind, retryAt: retryAt(next), key: [hour, s.kind, s.updatedAt, next].join('|'), air: ra.air, airKind: ra.airKind,
+        dust: dustOf(r.place, [], v ? keysOf(v.daily, 'date') : []) });
     }
     IsraelView.render(cards, cfg.days, { kind: kind || 'none', updated: homeHhmm(oldest) });
   }

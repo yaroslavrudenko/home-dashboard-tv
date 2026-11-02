@@ -109,7 +109,9 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .skeleton { border-radius: 12px; background: rgba(255, 255, 255, 0.06); }
 
 /* ---- clocks ----------------------------------------------------------------------------------- */
-/* Vertical budget (984 px inside the page padding): clocks 280 · 24 · current 416 · 24 · hourly 240. */
+/* Vertical budget (984 px inside the page padding): clocks 280 · 24 · current 416 · 24 · hourly 240. Batch 13: the hourly
+   card keeps its 240 px with a dust line under every hour (28 px), taken from its own padding (24/24 → 18/14) and its
+   icons (52 + 8 → 44 + 4): 18 · title 31 · 8 · label 29 · 4 · icon 44 · rain 24 · temperature 38 · dust 28 · 14 = 238. */
 .clocks { display: flex; height: 280px; flex: 0 0 280px; }
 .clock { flex: 1 1 0; -webkit-margin-end: 28px; padding: 24px 40px; display: flex; flex-direction: column; }
 .clock:last-child { -webkit-margin-end: 0; }
@@ -162,15 +164,15 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .empty-sub { font-size: 28px; color: rgba(255, 255, 255, 0.62); margin-top: 8px; }
 
 /* hourly strip */
-.hourly-card { flex: 0 0 240px; margin-top: 24px; padding: 24px 40px; }
+.hourly-card { flex: 0 0 240px; margin-top: 24px; padding: 18px 40px 14px; }
 .hours { display: flex; justify-content: space-between; margin-top: 8px; }
 .hour { display: flex; flex-direction: column; align-items: center; width: 88px; }
 .hour-label { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
 .hour.is-now .hour-label { color: #fff; font-weight: 500; }
-.hour .icon { width: 52px; height: 52px; margin-top: 8px; stroke-width: 3.5; }
+.hour .icon { width: 44px; height: 44px; margin-top: 4px; stroke-width: 3.5; }
 .hour-pop { font-size: 24px; color: #8ec5ff; height: 24px; line-height: 24px; }
 .hour-temp { font-size: 32px; color: rgba(255, 255, 255, 0.92); }
-.hour.is-empty .skeleton { width: 64px; height: 112px; margin-top: 8px; }
+.hour.is-empty .skeleton { width: 64px; height: 104px; margin-top: 4px; }
 .status { position: absolute; right: 40px; top: 24px; font-size: 24px; color: rgba(255, 255, 255, 0.62); display: flex; align-items: center; }
 .status-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; background: rgba(140, 230, 180, 0.7); }
 .status.is-stale { color: rgba(255, 214, 150, 0.85); }
@@ -178,22 +180,46 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .status.is-failed { color: rgba(255, 214, 150, 0.85); }        /* a failure the header says (e.g. both news feeds down): amber like stale */
 .status.is-failed .status-dot { background: #ffcf8a; }
 
+/* ---- Batch 13: the dust forecast. The card title row carries the legend right after the title (the hourly card's inline
+   end is the status line's): «Пыль, мкг/м³» in the dust colour, then the amber pill «хамсин ≥ 100» that explains the amber
+   cells; on a narrow card it wraps under the title, never cut. A cell: the figure in the dust colour; a khamsin: amber on an
+   amber pill; «—» with no value; empty before the first air answer (the room is fixed, so nothing moves); dimmed when
+   stale. Sand for dust, amber (.lv-khamsin) for a khamsin. ---- */
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; }
+.card-head .card-title { -webkit-margin-end: 32px; }
+.dust-legend { display: flex; align-items: baseline; font-size: 24px; line-height: 26px; white-space: nowrap;
+  -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space them apart */
+.dust-legend-key, .hour-dust, .day-dust { color: #e3cfa6; }
+.dust-legend-khamsin.is-active, .dust-num.is-khamsin { color: #ffb38a; background: rgba(255, 179, 138, 0.16); }
+.dust-num.is-khamsin { border-radius: 13px; padding: 0 5px; }
+/* X4: quiet grey text by default, the amber pill only when the card shows a khamsin cell; the box is the same either way */
+.dust-legend-khamsin { -webkit-margin-start: 16px; padding: 0 10px; border-radius: 13px; color: rgba(255, 255, 255, 0.62); }
+/* X5: «—» (no value) muted, never the dust colour; 62 % white is the legibility floor (layout test: 4.5:1) */
+.dust-none { display: inline-block; color: rgba(255, 255, 255, 0.62); }   /* as tall as its line, like .dust-num */
+/* X3: on the narrow cards the wrapped legend sits 6 px under the title and ends above the dust column (no row-gap on Chromium 47) */
+#daily .dust-legend, .region .dust-legend { margin-top: 6px; -webkit-margin-start: auto; }
+.hour-dust { height: 26px; margin-top: 2px; font-size: 24px; line-height: 26px; white-space: nowrap; }
+.dust-num { display: inline-block; }
+.hour-dust.is-stale .dust-num, .day-dust.is-stale .dust-num { opacity: 0.72; }
+
 /* 7-day list */
 .days { margin-top: 8px; }
-.day { display: flex; align-items: center; height: 82px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.day { display: flex; align-items: center; height: 77px; border-top: 1px solid rgba(255, 255, 255, 0.07); }   /* 82 → 77 (batch 13, X3): room for the legend line and its 6 px gap */
 .day:first-child { border-top: 0; }
 .day-name { width: 136px; font-size: 30px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 /* the icon is centred on the row; the chance of rain hangs below it and never moves it */
 /* the weather icon in the upper part of the slot, the chance of rain on its own line under it — an umbrella and the
-   percentage, never over the icon's drops (the owner: «должно быть понятно»); the row keeps its 82 px */
-.day-icon { position: relative; width: 88px; height: 82px; }
+   percentage, never over the icon's drops (the owner: «должно быть понятно»); the row keeps its 77 px (82 before batch 13) */
+.day-icon { position: relative; width: 88px; height: 77px; }
 .day-icon > .icon { position: absolute; left: 22px; top: 4px; width: 44px; height: 44px; stroke-width: 4; }
-.day-pop { position: absolute; left: 0; right: 0; top: 52px; height: 26px; text-align: center; font-size: 24px; line-height: 26px; color: #8ec5ff; white-space: nowrap; }
+.day-pop { position: absolute; left: 0; right: 0; top: 51px; height: 26px; text-align: center; font-size: 24px; line-height: 26px; color: #8ec5ff; white-space: nowrap; }
 .day-pop .icon { display: inline-block; width: 20px; height: 20px; vertical-align: -3px; -webkit-margin-end: 4px; stroke-width: 5; }
 .day-pop .icon g { stroke: #8ec5ff; }
-.day-min { width: 72px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.62); }
-.day-max { width: 72px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.95); }
-.range { position: relative; flex: 1 1 auto; height: 16px; -webkit-margin-start: 16px; -webkit-margin-end: 8px; }
+/* 64 px holds «−9°» and «45°» (53 px): the home cities are Israel's (js/cities.js); 72 → 64 in batch 13 for the dust column */
+.day-min { width: 64px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.62); }
+.day-max { width: 64px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.95); }
+.day-dust { flex: 0 0 72px; width: 72px; -webkit-margin-start: 14px; text-align: end; font-size: 24px; line-height: 26px; white-space: nowrap; }   /* X1: «3400» on its pill: 68 px; 14 px from the high */
+.range { position: relative; flex: 1 1 auto; height: 16px; -webkit-margin-start: 10px; -webkit-margin-end: 6px; }
 .range:before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); }
 /* each fill shows its slice of one week-wide gradient (background-size / -position set per bar) */
 .range-fill { position: absolute; top: 4px; height: 8px; border-radius: 4px; background-repeat: no-repeat;
@@ -316,7 +342,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .region-sub { margin-top: 8px; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
 .region-part { display: inline-block; white-space: nowrap; }   /* «Вітер 14 км/год» whole: the line wraps only between the parts */
 /* the days fill the rest of the card, rows spread evenly: no empty band at the bottom */
-.region-days-title { margin-top: 32px; }
+.region .card-head { margin-top: 24px; }   /* 32 → 24 (batch 13): the legend's line; Ukrainian's two-line sub line still leaves the 5 days their room */
 .region .days { margin-top: 8px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
 
 /* ---- News and Traffic share a header: the screen's name on the left, its status line on the right ------- */

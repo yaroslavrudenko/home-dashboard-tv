@@ -41,6 +41,17 @@ export function airAnswer(url) {
   const n = new URL(url).searchParams.get('latitude').split(',').length;
   return { status: 200, contentType: 'application/json', body: fixtureText('air/aq-' + (n === 1 ? '1place' : '4places') + '.json') };
 }
+// Batch 13: an hourly air recording (tests/fixtures/air/<name>.json, recorded 2026-11-02) answered with its hours moved by
+// `days` whole days, so that its dust forecast lines up with the weather recordings' dates (FIXED_NOW is 2026-10-29: -4);
+// only the time stamps move, every value is the recording's. Use as `air: airForecastAnswer(name, -4)`.
+export function airForecastAnswer(name, days) {
+  const move = (t) => new Date(Date.parse(t + 'Z') + days * 86400000).toISOString().slice(0, 16);
+  return () => {
+    const list = JSON.parse(fixtureText('air/' + name + '.json'));
+    for (const p of list) { p.current.time = move(p.current.time); p.hourly.time = p.hourly.time.map(move); }
+    return { status: 200, contentType: 'application/json', body: JSON.stringify(list) };
+  };
+}
 export function hebcalAnswer(url) {
   const jlm = new URL(url).searchParams.get('geonameid') === '281184';
   return { status: 200, contentType: 'application/json', body: fixtureText('hebcal/hebcal-' + (jlm ? 'jlm' : 'rehovot') + '-2026-11-02-ly.json') };   // captured with the app's own params (leyning, specials, Rosh Chodesh, Omer)
@@ -117,7 +128,7 @@ async function answerFor(kind, opts, url, n) {
   return { status: 200, body: JSON.stringify(trafficFixture()[routeIndexOf(url)]) };
 }
 
-// opts: { weather: 'ok' | 'fail' | 'ok-then-fail' | (n, url) => { status, body }, lang, news, alerts, traffic,
+// opts: { weather: 'ok' | 'fail' | 'ok-then-fail' | (n, url) => { status, body } | { hang: true }, lang, news, alerts, traffic,
 //         now (the app's clock at start; default FIXED_NOW), cpuThrottle (CPU slow-down factor from the first byte),
 //         configure: source of a function(Config) run as js/config.js assigns it,
 //         home: source of a function(Config) run right after the home city is written into Config (HomeCity.apply at
@@ -169,7 +180,8 @@ export async function openApp(opts = {}) {
       const fail = opts.weather === 'fail' || (opts.weather === 'ok-then-fail' && n > 1);
       const answer = typeof opts.weather === 'function' ? opts.weather(n, url)
         : fail ? { status: 503, body: '' } : { status: 200, body: weatherAnswer(url) };
-      done = req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
+      // batch 13: { hang: true } never answers (a refresh still in flight: the weather on screen does not change)
+      done = answer.hang ? null : req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
     } else {
       const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : url.startsWith(HISTORY) ? 'history' : MAP.test(url) ? 'map'
         : url.startsWith('https://api.mapbox.com/') ? 'traffic' : MARKETS.test(url) ? 'markets'

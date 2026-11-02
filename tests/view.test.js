@@ -208,3 +208,114 @@ test('Day rows: the chance of rain carries an umbrella glyph and sits apart from
   assert.match(rows[1], /<span class="day-pop"><\/span>/, 'under 20 %: nothing said, the slot kept');
   assert.match(rows[2], /<span class="day-pop"><\/span>/);
 });
+
+// ---- Batch 13: the dust forecast on screen (the owner, 2026-11-02: «а есть прогноз хамсина на каждый час дня как для
+// температуры и на неделю?» → «делай оба варианта»; and «каждое значение — со своей подписью»). Under every hour's temperature
+// its dust; after every day's high its maximum dust; each card's title row carries the legend at its inline end — «Пыль,
+// мкг/м³» / «Пыль макс., мкг/м³» in the dust colour and the amber pill «хамсин ≥ 100»; «—» without a value; empty slots before
+// the first air answer (nothing moves when it lands); dimmed when stale (B13-D2…D5).
+const hourAt = (h, temp) => ({ key: '2026-11-02T' + h, hour: h, temp, code: 0, isDay: true, pop: 0 });
+const dayAt = (date, weekday, min, max) => ({ date, weekday, code: 0, min, max, pop: 0, sunrise: '06:01', sunset: '16:51', uvMax: 5 });
+const STRIP = Object.assign({}, NOW_VIEW, { hourly: [hourAt('16', 24), hourAt('17', 23), hourAt('18', 22), null], nowShown: true,
+  daily: [dayAt('2026-11-02', 1, 17, 25), dayAt('2026-11-03', 2, 18, 27), null] });
+STRIP.today = STRIP.daily[0];
+const DUST_OK = { hours: [{ dust: 27, khamsin: false }, { dust: 120, khamsin: true }, null, null],
+  days: [{ dust: 38, khamsin: false }, { dust: 185, khamsin: true }, null], stale: false, limit: 100 };
+function stripWith(lang, dust) {
+  const ctx = load(B12); ctx.I18n.setLang(lang);
+  const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 3 });
+  ctx.View.renderWeather(STRIP, { name: 'Реховот', kind: 'fresh', retryAt: '', uv: null, air: FAIR, airKind: 'fresh', dust });
+  return { hourly: doc.nodes.hourly.innerHTML, daily: doc.nodes.daily.innerHTML };
+}
+const slots = (html, cls) => [...html.matchAll(new RegExp('<div class="' + cls + '( is-stale)?">(.*?)</div>', 'g'))].map((m) => m[2]);
+const legendOf = (html) => stripTags(html.slice(html.indexOf('<div class="dust-legend">'), html.indexOf('<div class="hours">') >= 0 ? html.indexOf('<div class="hours">') : html.indexOf('<div class="days">')));
+
+test('B13 hourly: the title row keeps «Почасовой прогноз» and adds the legend «Пыль, мкг/м³ · хамсин ≥ 100» right after the title — ru, he, uk', () => {
+  for (const [lang, title, legend] of [['ru', 'Почасовой прогноз', ['Пыль, мкг/м³', 'хамсин ≥ 100']],
+    ['he', 'תחזית שעתית', ['אבק, מק״ג/מ״ק', 'חמסין ‪≥ 100‬']], ['uk', 'Погодинний прогноз', ['Пил, мкг/м³', 'хамсин ≥ 100']]]) {
+    const h = stripWith(lang, DUST_OK).hourly;
+    assert.match(h, new RegExp('^<div class="card-head"><div class="card-title">' + title + '</div><div class="dust-legend"><span class="dust-legend-key">'), lang);
+    assert.deepEqual(legendOf(h), legend, lang);
+  }
+});
+
+test('B13 hourly: every hour has its own dust line UNDER the temperature — the figure, an amber khamsin pill from 100, «—» with no value', () => {
+  const h = stripWith('ru', DUST_OK).hourly;
+  const hours = h.split(/<div class="hour(?: is-now| is-empty)?">/).slice(1);
+  assert.match(hours[0], /<div class="hour-temp">[^<]*<\/div><div class="hour-dust"><span class="dust-num">27<\/span><\/div><\/div>$/, 'under the temperature, last in the column');
+  assert.deepEqual(slots(h, 'hour-dust'), ['<span class="dust-num">27</span>', '<span class="dust-num is-khamsin">120</span>', '<span class="dust-none">—</span>', ''],   // X5: «—» muted
+    'ordinary, khamsin, no value «—», an empty weather cell: an empty slot');
+  assert.match(hours[3], /^<div class="hour-label">&nbsp;<\/div><div class="skeleton"><\/div>/, 'the 4th hour is the empty placeholder');
+});
+
+test('B13 daily: the title row carries «Пыль макс., мкг/м³ · хамсин ≥ 100»; each day row a dust column after the high, «—» without a value', () => {
+  const d = stripWith('ru', DUST_OK).daily;
+  assert.match(d, /^<div class="card-head"><div class="card-title">Прогноз на 7 дней<\/div><div class="dust-legend">/);
+  assert.deepEqual(legendOf(d), ['Пыль макс., мкг/м³', 'хамсин ≥ 100']);
+  assert.deepEqual(slots(d, 'day-dust'), ['<span class="dust-num">38</span>', '<span class="dust-num is-khamsin">185</span>', '']);
+  assert.match(d, /<div class="day-max">[^<]*<\/div><div class="day-dust"><span class="dust-num">38<\/span><\/div><\/div>/, 'right after the high temperature');
+  const none = stripWith('ru', { hours: [null, null, null, null], days: [null, null, null], stale: false, limit: 100 });
+  assert.deepEqual(slots(none.daily, 'day-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>', ''], 'air failed / no forecast: «—» per day (X5: muted)');
+  assert.deepEqual(slots(none.hourly, 'hour-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>', '<span class="dust-none">—</span>', ''], '… and per hour');
+  assert.deepEqual(legendOf(none.hourly), ['Пыль, мкг/м³', 'хамсин ≥ 100'], 'the legend stays');
+  for (const [lang, legend] of [['he', 'אבק מרבי, מק״ג/מ״ק'], ['uk', 'Пил макс., мкг/м³']]) assert.equal(legendOf(stripWith(lang, DUST_OK).daily)[0], legend, lang);
+});
+
+test('B13 no air yet: every dust slot is there and empty (its room kept), the legend shown; stale: every slot dimmed', () => {
+  const r = stripWith('ru', { loading: true, limit: 100 });
+  assert.deepEqual(slots(r.hourly, 'hour-dust'), ['', '', '', '']);
+  assert.deepEqual(slots(r.daily, 'day-dust'), ['', '', '']);
+  assert.deepEqual(legendOf(r.daily), ['Пыль макс., мкг/м³', 'хамсин ≥ 100']);
+  const stale = stripWith('ru', Object.assign({}, DUST_OK, { stale: true }));
+  assert.equal((stale.hourly.match(/<div class="hour-dust is-stale">/g) || []).length, 3, 'the three drawn hours');
+  assert.equal((stale.daily.match(/<div class="day-dust is-stale">/g) || []).length, 2);
+  assert.equal((stripWith('ru', DUST_OK).hourly.match(/is-stale/g) || []).length, 0);
+  // the weather itself not there yet: the placeholders keep an empty dust slot as well
+  const ctx = load(B12); ctx.I18n.setLang('ru');
+  const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 2, days: 2 });
+  ctx.View.renderWeather(null, { name: 'Реховот', kind: 'loading', retryAt: '', dust: { loading: true, limit: 100 } });
+  assert.deepEqual(slots(doc.nodes.hourly.innerHTML, 'hour-dust'), ['', '']);
+  assert.deepEqual(slots(doc.nodes.daily.innerHTML, 'day-dust'), ['', '']);
+});
+
+test('B13 Israel: each region\'s days carry their dust maximum and the same legend; a new forecast alone redraws the card, the same one does not', () => {
+  const ctx = load(B12); ctx.I18n.setLang('ru');
+  const doc = fakeDoc(), regions = [{ id: 'south', place: 'beersheva' }];
+  ctx.IsraelView.init(doc, regions);
+  const v = Object.assign({}, STRIP, { daily: STRIP.daily.slice(0, 2) });
+  const card = (dust) => ({ region: regions[0], view: v, kind: 'fresh', retryAt: '', key: 'k1', air: FAIR, airKind: 'fresh', dust });
+  const days = (dust) => ({ hours: [], days: dust, stale: false, limit: 100 });
+  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 185, khamsin: true }]))], 5, { kind: 'fresh', updated: '16:00' });
+  const el = doc.nodes['region-south'];
+  assert.match(el.innerHTML, /<div class="card-head"><div class="card-title">Прогноз на 5 дней<\/div><div class="dust-legend">/);
+  assert.deepEqual(legendOf(el.innerHTML), ['Пыль макс., мкг/м³', 'хамсин ≥ 100']);
+  assert.deepEqual(slots(el.innerHTML, 'day-dust'), ['<span class="dust-num">48</span>', '<span class="dust-num is-khamsin">185</span>']);
+  assert.equal(el.writes, 1);
+  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 185, khamsin: true }]))], 5, { kind: 'fresh', updated: '16:00' });
+  assert.equal(el.writes, 1, 'the same forecast: not rewritten');
+  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 90, khamsin: false }]))], 5, { kind: 'fresh', updated: '16:00' });
+  assert.equal(el.writes, 2, 'a new forecast alone redraws the card (B13-D7)');
+});
+
+// ---- FIX-13B (the 4-reviewer panel). X4 (designer D4): the legend's «хамсин ≥ 100» is quiet grey text by default and becomes
+// the amber pill only when its card shows at least one khamsin cell (same box: nothing shifts). X9 (code F4): View.dustTitle
+// takes translated text for the title and the label. X5 (designer D5): «—» is a muted «dust-none», never the dust colour.
+const khamsinKey = (html) => (html.match(/<span class="dust-legend-khamsin[^"]*">/) || [''])[0];
+test('X4: the legend\'s «хамсин ≥ 100» is quiet by default and the amber pill only when the card shows a khamsin cell', () => {
+  const lit = stripWith('ru', DUST_OK);
+  assert.equal(khamsinKey(lit.hourly), '<span class="dust-legend-khamsin is-active">', 'a khamsin hour on the strip');
+  assert.equal(khamsinKey(lit.daily), '<span class="dust-legend-khamsin is-active">', 'a khamsin day in the list');
+  const calm = stripWith('ru', { hours: [{ dust: 27, khamsin: false }, null, null, null], days: [{ dust: 38, khamsin: false }, null, null], stale: false, limit: 100 });
+  assert.equal(khamsinKey(calm.hourly), '<span class="dust-legend-khamsin">');
+  assert.equal(khamsinKey(calm.daily), '<span class="dust-legend-khamsin">');
+  const mixed = stripWith('ru', { hours: [{ dust: 27, khamsin: false }, null, null, null], days: [{ dust: 185, khamsin: true }, null, null], stale: false, limit: 100 });
+  assert.deepEqual([khamsinKey(mixed.hourly), khamsinKey(mixed.daily)], ['<span class="dust-legend-khamsin">', '<span class="dust-legend-khamsin is-active">'], 'each card by its own cells');
+  assert.equal(khamsinKey(stripWith('ru', { loading: true, limit: 100 }).hourly), '<span class="dust-legend-khamsin">', 'no air yet: quiet');
+});
+test('X9: View.dustTitle takes the translated title and label; the legend states the threshold', () => {
+  const ctx = load(B12); ctx.I18n.setLang('ru');
+  assert.equal(ctx.View.dustTitle('Почасовой прогноз', 'Пыль, мкг/м³', { limit: 100, active: false }),
+    '<div class="card-head"><div class="card-title">Почасовой прогноз</div><div class="dust-legend"><span class="dust-legend-key">Пыль, мкг/м³</span>' +
+    '<span class="dust-legend-khamsin">хамсин ≥ 100</span></div></div>');
+  assert.match(ctx.View.dustTitle('A', 'B', { limit: 100, active: true }), /<span class="dust-legend-khamsin is-active">/);
+});

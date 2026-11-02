@@ -69,10 +69,41 @@ var View = (function () {
   }
   function pct(v) { return v === null ? '—' : Math.round(v) + '%'; }
   function popText(pop) { return pop !== null && pop >= 20 ? pop + '%' : ''; }
-  function title(key) { return '<div class="card-title">' + esc(I18n.t(key)) + '</div>'; }
 
-  var EMPTY_HOUR = '<div class="hour is-empty"><div class="hour-label">&nbsp;</div><div class="skeleton"></div></div>';
-  var EMPTY_DAY = '<div class="day is-empty"><div class="skeleton"></div></div>';
+  // An empty weather cell keeps its dust slot too, empty (batch 13), so the strip and the rows keep their size.
+  var EMPTY_HOUR = '<div class="hour is-empty"><div class="hour-label">&nbsp;</div><div class="skeleton"></div><div class="hour-dust"></div></div>';
+  var EMPTY_DAY = '<div class="day is-empty"><div class="skeleton"></div><div class="day-dust"></div></div>';
+
+  // Batch 13: the dust forecast (the owner: «прогноз хамсина на каждый час дня как для температуры и на неделю»). dust (from the
+  // App, Air.forecast): { loading } before the first air answer, else { hours: [cell], days: [cell], stale } — cell { dust
+  // (rounded), khamsin } or null; always { limit } (cfg.dustUgm3). A slot is empty while loading (its room kept), «—» without a
+  // value (muted, X5: never the dust colour), the figure in the dust colour, on an amber pill on a khamsin; dimmed when the
+  // air is stale. No dust object (a caller without it) reads as loading.
+  var DUST_NONE = '<span class="dust-none">—</span>';
+  function dustSlot(cls, dust, c) {
+    var body = !dust || dust.loading ? '' : !c ? DUST_NONE : '<span class="dust-num' + (c.khamsin ? ' is-khamsin' : '') + '">' + c.dust + '</span>';
+    return '<div class="' + cls + (dust && dust.stale ? ' is-stale' : '') + '">' + body + '</div>';
+  }
+  function cellOf(list, i) { return list ? list[i] : null; }
+  // The legend's label: «Пыль, мкг/м³» (labelKey 'w.dustLabel') or «Пыль макс., мкг/м³» ('w.dustMax').
+  function dustLabel(labelKey) { return I18n.t(labelKey) + ', ' + I18n.t('w.dustUnit'); }
+  // What the legend's «хамсин ≥ 100» says for a card showing `cells`: the threshold, and whether any cell is a khamsin
+  // (X4: only then is it the amber pill). null without a threshold.
+  function dustLegend(dust, cells) {
+    if (!dust || !dust.limit) return null;
+    var active = false;
+    for (var i = 0; cells && i < cells.length; i++) if (cells[i] && cells[i].khamsin) active = true;
+    return { limit: dust.limit, active: active };
+  }
+  // The card title with the dust legend right after it on the same row (every value has its own label; the hourly card's
+  // inline end is the status line's): the label in the dust colour, then «хамсин ≥ 100» — quiet grey, the amber pill
+  // that explains the amber cells when the card shows one (same box: nothing shifts). On a narrow card the legend wraps
+  // under the title, never cuts. title, label: translated text (X9); legend: dustLegend.
+  function dustTitle(title, label, legend) {
+    return '<div class="card-head"><div class="card-title">' + esc(title) + '</div><div class="dust-legend"><span class="dust-legend-key">' +
+      esc(label) + '</span>' + (legend ? '<span class="dust-legend-khamsin' + (legend.active ? ' is-active' : '') + '">' +
+      esc(I18n.t('w.air.khamsinWord')) + ' ' + I18n.ltr('≥ ' + legend.limit) + '</span>' : '') + '</div></div>';
+  }
 
   // The air & UV block (batch 12), between the place's text and the big icon, without glyphs. UV comes with the weather
   // (s.uv: { index, level } or null, shown «—»); the air with its own request (s.air: { aqi, level, dust, dustHigh } or
@@ -126,16 +157,18 @@ var View = (function () {
       '</div>';
   }
 
-  function hourHtml(hr, isNow) {
+  // dustCellHtml: the hour's dust slot (dustSlot), under the temperature.
+  function hourHtml(hr, isNow, dustCellHtml) {
     if (!hr) return EMPTY_HOUR;
     return '<div class="hour' + (isNow ? ' is-now' : '') + '"><div class="hour-label">' + esc(isNow ? I18n.t('w.now') : hr.hour) + '</div>' +
       (hr.code === null ? '<div class="icon"></div>' : Icons.weather(hr.code, hr.isDay)) +
-      '<div class="hour-pop">' + (popText(hr.pop) || '&nbsp;') + '</div><div class="hour-temp">' + temp(hr.temp) + '</div></div>';
+      '<div class="hour-pop">' + (popText(hr.pop) || '&nbsp;') + '</div><div class="hour-temp">' + temp(hr.temp) + '</div>' + dustCellHtml + '</div>';
   }
 
   // The day list (7 days on the main card, 5 on the Israel weather screen) with Apple-style range bars: every bar is a window onto ONE cold→warm gradient spanning the
-  // week's min…max, so a bar's colour means its temperature. Today carries a dot at the current temperature.
-  function dailyHtml(v) {
+  // week's min…max, so a bar's colour means its temperature. Today carries a dot at the current temperature. dust: the
+  // dust forecast (dustSlot above): each day's maximum in its own column after the high temperature.
+  function dailyHtml(v, dust) {
     var lo = Infinity, hi = -Infinity, k, day;
     for (k = 0; k < v.daily.length; k++) {
       day = v.daily[k];
@@ -158,13 +191,14 @@ var View = (function () {
       out += '<div class="day"><div class="day-name">' + esc(isToday ? I18n.t('w.today') : I18n.weekdayShort(day.weekday)) + '</div>' +
         '<div class="day-icon">' + (day.code === null ? '' : Icons.weather(day.code, true)) + '<span class="day-pop">' + (popText(day.pop) ? Icons.glyph('umbrella') + popText(day.pop) : '') + '</span></div>' +
         '<div class="day-min">' + temp(day.min) + '</div><div class="range">' + bar + '</div>' +
-        '<div class="day-max">' + temp(day.max) + '</div></div>';
+        '<div class="day-max">' + temp(day.max) + '</div>' + dustSlot('day-dust', dust, cellOf(dust && dust.days, k)) + '</div>';
     }
     return out;
   }
 
   // v: Weather.forHour view or null (no data yet). s: { name (the home city in the interface language), kind ('fresh' |
-  // 'stale' | 'loading' | 'failed'), retryAt ("HH:MM" | ''), uv, air, airKind (batch 12, airBlock above) }.
+  // 'stale' | 'loading' | 'failed'), retryAt ("HH:MM" | ''), uv, air, airKind (batch 12, airBlock above), dust (batch 13,
+  // dustSlot above) }.
   function renderWeather(v, s) {
     var placeName = s.name;
     var hours = '', days = '', i;
@@ -178,11 +212,12 @@ var View = (function () {
     } else {
       els.now.className = 'card now' + (s.kind === 'stale' ? ' is-stale' : '');
       els.now.innerHTML = nowHtml(v, s);
-      for (i = 0; i < v.hourly.length; i++) hours += hourHtml(v.hourly[i], i === 0 && v.nowShown);
-      days = dailyHtml(v);
+      for (i = 0; i < v.hourly.length; i++) hours += hourHtml(v.hourly[i], i === 0 && v.nowShown, dustSlot('hour-dust', s.dust, cellOf(s.dust && s.dust.hours, i)));
+      days = dailyHtml(v, s.dust);
     }
-    els.hourly.innerHTML = title('w.hourly') + '<div class="hours">' + hours + '</div>';
-    els.daily.innerHTML = title('w.daily') + '<div class="days">' + days + '</div>';
+    var d = s.dust;
+    els.hourly.innerHTML = dustTitle(I18n.t('w.hourly'), dustLabel('w.dustLabel'), dustLegend(d, d && d.hours)) + '<div class="hours">' + hours + '</div>';
+    els.daily.innerHTML = dustTitle(I18n.t('w.daily'), dustLabel('w.dustMax'), dustLegend(d, d && d.days)) + '<div class="days">' + days + '</div>';
   }
 
   // The status line speaks only about data on screen: "updated at" or "not updating · data from". Loading
@@ -196,5 +231,5 @@ var View = (function () {
   }
 
   return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, statusText: statusText, temp: temp, diffText: diffText,
-    dailyHtml: dailyHtml };
+    dailyHtml: dailyHtml, dustTitle: dustTitle, dustLabel: dustLabel, dustLegend: dustLegend };
 })();

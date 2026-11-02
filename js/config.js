@@ -65,7 +65,11 @@ var Config = {
     retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
     retryFloorMs: 30 * 1000,
     staleAfterMs: 3 * 60 * 60 * 1000,
-    dustUgm3: 100
+    dustUgm3: 100,
+    // Batch 13: the dust forecast in the same request — hourly for forecastDays days from today's 00:00 (CAMS reaches ~4 to
+    // 5 days, later cells are null); a day's value (its hourly maximum) is shown only with dustDayMinHours of its 24 values.
+    forecastDays: 5,
+    dustDayMinHours: 20
   },
 
   // The Shabbat & holidays screen (js/shabbat.js): ONE Hebcal request (no key) for the home city, from 9 days back (an
