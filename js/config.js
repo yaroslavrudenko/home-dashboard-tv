@@ -133,7 +133,7 @@ var Config = {
       { id: 'econ', feeds: { ru: 'newsrufin', he: 'globes', uk: 'epravda' } }
     ],
     perFeed: 15,                        // items read from each feed (newest first)
-    perColumn: 5,                       // stories in each column; a headline takes at most two lines
+    perColumn: 5,                       // stories in each column; a headline takes at most three lines (the owner, 2026-11-02)
     refreshMs: 10 * 60 * 1000,
     timeoutMs: 20 * 1000,
     retryMs: [60 * 1000, 2 * 60 * 1000, 4 * 60 * 1000, 8 * 60 * 1000],
@@ -207,12 +207,13 @@ var Config = {
     sound: { enabled: true, repeatMs: 30 * 1000, maxPlays: 5 },
     // The Alerts screen's list of recent alerts in Israel (js/alerts-history.js): asked only while that screen is on
     // view. mode=2 is the last 7 days (`days`, said on screen when the list is empty); mode=3 (a month) can run to
-    // megabytes in a busy month, too much for the TV.
+    // megabytes in a busy month, too much for the TV. Its cadence is NOT set here: the 7-day list is downloaded at most
+    // once per rotation cycle (the owner's «б», 2026-11-02) — js/app.js gives it Screens.cycleMs(screens, rotation), 405 s
+    // with the values above (longer than the feed's own 2-minute cache); a ◀ ▶ open still refreshes it at once.
     history: {
       url: 'https://alerts-history.oref.org.il/Shared/Ajax/GetAlarmsHistory.aspx?lang=he&mode=2',
       days: 7,
       max: 7,                           // rows on screen
-      refreshMs: 2 * 60 * 1000,         // the feed itself is cached for 2 minutes (Cache-Control: max-age=120)
       timeoutMs: 15 * 1000,
       staleAfterMs: 10 * 60 * 1000
     }
@@ -260,9 +261,11 @@ var Config = {
         { id: '^GSPC', yahoo: '^GSPC' }, { id: '^DJI', yahoo: '^DJI' }, { id: '^IXIC', yahoo: '^IXIC' }, { id: '^NDX', yahoo: '^NDX' },
         { id: '^RUT', yahoo: '^RUT' }, { id: '^VIX', yahoo: '^VIX' }
       ] },
+      // `unit`: what the price is for (said under the name; the exchanges' contract units: Brent and WTI per barrel, Henry Hub
+      // gas per MMBtu, gold and silver per troy ounce, COMEX copper per pound)
       { id: 'commodities', rows: [
-        { id: 'BZ=F', yahoo: 'BZ=F' }, { id: 'NG=F', yahoo: 'NG=F' }, { id: 'GC=F', yahoo: 'GC=F' }, { id: 'SI=F', yahoo: 'SI=F' },
-        { id: 'HG=F', yahoo: 'HG=F' }, { id: 'CL=F', yahoo: 'CL=F' }
+        { id: 'BZ=F', yahoo: 'BZ=F', unit: 'barrel' }, { id: 'NG=F', yahoo: 'NG=F', unit: 'mmbtu' }, { id: 'GC=F', yahoo: 'GC=F', unit: 'ounce' },
+        { id: 'SI=F', yahoo: 'SI=F', unit: 'ounce' }, { id: 'HG=F', yahoo: 'HG=F', unit: 'pound' }, { id: 'CL=F', yahoo: 'CL=F', unit: 'barrel' }
       ] }
     ]
   },

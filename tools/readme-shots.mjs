@@ -8,12 +8,13 @@
 // the Markets and Shabbat screens and the air quality at theirs (2026-11-02 09:31 in Israel, batch 11 / 12).
 //   PUPPETEER_CORE_DIR=<dir with puppeteer-core> node tools/readme-shots.mjs [--map <png>] [--only a.png,b.png]
 // --only: write just these files (the hero is always composed from the screen shots on disk).
-// --live: the home and Israel weather screens (he-1-main, he-2-israel, ru-1-main) from the real Open-Meteo forecast and air
-// answers fetched once at that moment, at the real time — so the shots carry today's dust, air and rain chances and a full
-// forecast; every other shot keeps its recorded answers.
-// --map: a real Mapbox traffic-night-v2 picture of the map card (1790×910) to show instead of the small fixture image —
-// cropped from a capture of the app on 2026-10-30, so it already carries the home dot and the «© Mapbox © OpenStreetMap»
-// line: the page's own two are hidden for that shot, never drawn twice.
+// --live (needs MAPBOX_TOKEN in the environment): every shot at the real time with the real forecast. The home and Israel
+// weather screens (he-1-main, he-2-israel, ru-1-main) and the banner and city-picker shots over the home screen keep the
+// khamsin air fixture (see LIVE below); every other shot takes every source live (news, markets, Hebcal, Mapbox, Pikud
+// HaOref), except the alert itself in he-alert and he-banner (the recorded Rehovot alert: see DEMO_ALERT).
+// --map: a real Mapbox traffic-night-v2 picture of the map card to show instead of the small fixture image — the raw Static
+// Images answer at the configured centre and zoom (Rehovot's view) at the card's size @2x (1792×880), as the app asks for it;
+// the page draws its own home dot and name, the traffic key and the attribution over it, as on the TV.
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
@@ -31,7 +32,14 @@ const SCREENS = ['main', 'israel', 'news', 'markets', 'shabbat', 'traffic', 'map
 const NOV2 = Date.parse('2026-11-02T07:31:00Z');
 const NOW = { markets: NOV2, shabbat: NOV2 };
 const live = process.argv.includes('--live');
-const LIVE = ['he-1-main.png', 'he-2-israel.png', 'ru-1-main.png'];
+// --live: these shots take the real Open-Meteo forecast at the real time. The weather screens and the two shots drawn over
+// the home screen (the banner, the city picker) show a KHAMSIN (the owner, 2026-11-02: the README must show it): their air is
+// tests/fixtures/air/aq-4places-hourly-khamsin-synthetic-2026-11-02.json — Rehovot's recorded 2026-11-02 forecast with a
+// synthetic khamsin over it (18:00 on 2 November to 15:00 on 3 November), the Israel regions as recorded (Beer Sheva's real
+// 185 µg/m³ day). Taken on 2–3 November so its hours line up with the clock.
+const LIVE = ['he-1-main.png', 'he-2-israel.png', 'ru-1-main.png', 'he-banner.png', 'he-city.png'];
+const KHAMSIN_AIR = () => ({ status: 200, contentType: 'application/json',
+  body: fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'air', 'aq-4places-hourly-khamsin-synthetic-2026-11-02.json')) });
 const fetched = new Map();
 // One real answer per URL, fetched synchronously (the harness answers a request in the same tick).
 function real(url) {
@@ -39,21 +47,36 @@ function real(url) {
   return { status: 200, contentType: 'application/json', body: fetched.get(url) };
 }
 
+// --live, every other shot (FIX-16C, the owner: the README shots are current): every source answers live at the real time —
+// the news feeds, Yahoo Finance / open.er-api, Hebcal, Open-Meteo (weather and air), Pikud HaOref's live feed and history,
+// and Mapbox (the routes and the map, with the real token from the MAPBOX_TOKEN environment variable: never written into a
+// file). The alert itself (he-alert, he-banner) stays the recorded Rehovot alert: a live one exists only during a real alert.
+const TOKEN = process.env.MAPBOX_TOKEN || '';
+if (live && !/^pk\./.test(TOKEN)) throw new Error('--live needs MAPBOX_TOKEN (the public pk. token) in the environment');
+const DEMO_ALERT = ['he-alert.png', 'he-banner.png'];
+// Pikud HaOref answers only with the headers its own site sends; fetched asynchronously, so a slow answer never holds the
+// other sources up.
+const oref = async (n, url) => {
+  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://www.oref.org.il/', 'X-Requested-With': 'XMLHttpRequest' }, signal: AbortSignal.timeout(20000) });
+  return { status: r.status, body: Buffer.from(await r.arrayBuffer()) };
+};
+
 async function shot(file, { lang, alerts = 'empty-bom.txt', screen = 'main', act }) {
   if (only && !only.includes(file)) return;
-  const isLive = live && LIVE.includes(file);
-  const app = await openApp({ lang, news: 'ok', alerts, history: 'history.json', traffic: 'ok', markets: 'ok', hebcal: 'ok',
-    air: isLive ? (n, url) => real(url) : 'ok', weather: isLive ? (n, url) => real(url) : 'ok', now: isLive ? Date.now() : NOW[screen] || FIXED_NOW,
-    map: realMap ? () => ({ status: 200, contentType: 'image/png', body: realMap }) : 'ok',
-    configure: (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; } });
+  const isLive = live && LIVE.includes(file), allLive = live && !LIVE.includes(file);
+  const app = await openApp({ lang, news: allLive ? 'live' : 'ok', alerts: allLive && !DEMO_ALERT.includes(file) ? oref : alerts,
+    history: allLive ? oref : 'history.json', traffic: allLive ? 'live' : 'ok', markets: allLive ? 'live' : 'ok', hebcal: allLive ? 'live' : 'ok',
+    air: isLive ? KHAMSIN_AIR : allLive ? 'live' : 'ok', weather: live ? (n, url) => real(url) : 'ok', now: live ? Date.now() : NOW[screen] || FIXED_NOW,
+    map: allLive ? 'live' : realMap ? () => ({ status: 200, contentType: 'image/png', body: realMap }) : 'ok',
+    // the source of a function the page runs (page.mjs): the token goes in as a literal, never through a closure
+    configure: '(c) => { c.traffic.token = ' + JSON.stringify(allLive ? TOKEN : 'pk.FIXTURE123') + '; c.rotation.enabled = false; }' });
   try {
     const p = app.page;
     await p.waitForSelector('.day', { timeout: 10000 });
     for (let i = 0; i < SCREENS.indexOf(screen); i++) await press(p, RIGHT);
     if (act) await act(p);
-    if (realMap && screen === 'map') await p.addStyleTag({ content: '.map-attribution, .map-home { visibility: hidden !important; }' });
     await p.evaluate(() => document.fonts.ready);
-    await wait(1500);
+    await wait(live ? 8000 : 1500);   // live answers (news, markets, routes, the map) take seconds to arrive
     if (app.errors.length) throw new Error(file + ': ' + app.errors.join('; '));
     await p.screenshot({ path: path.join(OUT, file) });
     console.log(path.join(OUT, file));

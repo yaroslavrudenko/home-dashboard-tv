@@ -1,5 +1,6 @@
 /* News from RSS 2.0 feeds. ES5.
- *   News.parse(xml, sourceId, max)   one feed's items, newest first: [{ key, title, summary, at, source }]
+ *   News.parse(xml, sourceId, max)   one feed's items, newest first: [{ key, title, at, source }] (what the screen shows:
+ *                                    the description is never read)
  *   News.plain(raw)                  an element's raw content as plain text, decoded layer by layer: the XML layer
  *                                    (CDATA sections verbatim, comments dropped, XML entities decoded), then the HTML
  *                                    it carries (scripts and tags dropped, HTML entities decoded), whitespace
@@ -17,7 +18,6 @@ var News = (function () {
     bdquo: '„', lsquo: '‘', rsquo: '’', mdash: '—', ndash: '–', hellip: '…', minus: '−', shy: '' };
   var XML_NAMED = { amp: '&', lt: '<', gt: '>', quot: '"', apos: '\'' };
   var ENTITY = /&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi;
-  var MAX_SUMMARY = 400;                           // a summary is never kept longer than this
   var CDATA_OPEN = '<![CDATA[', CDATA_CLOSE = ']]>', COMMENT_OPEN = '<!--', COMMENT_CLOSE = '-->';
 
   function fromCode(c) {
@@ -98,12 +98,6 @@ var News = (function () {
     return out;
   }
 
-  // Cut at a word boundary (the view clamps to two lines; this only bounds memory).
-  function bounded(s) {
-    if (s.length <= MAX_SUMMARY) return s;
-    var cut = s.lastIndexOf(' ', MAX_SUMMARY);
-    return s.slice(0, cut > 0 ? cut : MAX_SUMMARY);
-  }
   // RSS pubDate (RFC 822: "+0200", "GMT" — what the three feeds send, checked on their live answers), else Dublin
   // Core dc:date (ISO 8601). No zone abbreviation is guessed: an unreadable time skips the story.
   function timeOf(it) {
@@ -117,7 +111,7 @@ var News = (function () {
       var it = list[i], title = it.title !== undefined ? plain(it.title) : '', at = timeOf(it);
       if (!title || isNaN(at)) continue;           // a story without a headline or a time cannot be placed
       var link = (it.link !== undefined ? plain(it.link) : '') || (it.guid !== undefined ? plain(it.guid) : '');
-      out.push({ key: link, title: title, summary: it.description !== undefined ? bounded(plain(it.description)) : '', at: at, source: sourceId });
+      out.push({ key: link, title: title, at: at, source: sourceId });
     }
     out.sort(byNewest);
     return out.slice(0, max);
@@ -167,9 +161,10 @@ var News = (function () {
     return out;
   }
 
-  // deps: { getText(url, timeoutMs, done), now(), setTimeout, clearTimeout, random() (optional), onChange(store) }
+  // deps: { getText(url, timeoutMs, done), now(), setTimeout, clearTimeout, random() (optional), onChange(store), log(message) (optional) }
   // lang: the interface language; only its feeds are fetched (use(lang) switches).
   function createStore(cfg, deps, lang) {
+    var log = deps.log || function () {};
     var feeds = feedsFor(cfg, lang), state = {}, cycle = null;
     for (var i = 0; i < cfg.feeds.length; i++) state[cfg.feeds[i].id] = { top: [], updatedAt: 0, error: null };
 
@@ -178,7 +173,7 @@ var News = (function () {
       var failed = false;
       for (var i = 0; i < round.length; i++) {
         var s = state[round[i].id], a = answers[i], items = null;
-        if (!a.err) { try { items = parse(a.text, round[i].id, cfg.perFeed); } catch (e) { items = null; } }
+        if (!a.err) { try { items = parse(a.text, round[i].id, cfg.perFeed); } catch (e) { items = null; log('news ' + round[i].id + ': ' + e.message); } }
         // An answer with no story at all (an error page served as 200) is a failure, not an empty feed.
         if (items && items.length) { s.top = merge([items]).slice(0, cfg.perColumn); s.updatedAt = deps.now(); s.error = null; }
         else { s.error = a.err || 'parse'; failed = true; }
@@ -186,11 +181,7 @@ var News = (function () {
       return failed;
     }
     // One feed: 'loading' | 'failed' (nothing yet) | 'fresh' | 'stale' (its last answer failed or is old).
-    function kindOf(s, now) {
-      if (!s.top.length) return s.error ? 'failed' : 'loading';
-      var age = now - s.updatedAt;
-      return s.error || age < 0 || age > cfg.staleAfterMs ? 'stale' : 'fresh';
-    }
+    function kindOf(s, now) { return Freshness.kind(s.top.length > 0, !!s.error, s.updatedAt, now, cfg.staleAfterMs); }
 
     // Every feed of the language at once; the answers are applied together, so one refresh renders once.
     function newCycle() {

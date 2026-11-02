@@ -145,7 +145,8 @@ test('a failed row stays, with price null: a symbol missing from the answer, an 
   partial.spark.result = partial.spark.result.filter((x) => x.symbol !== 'INTU');
   partial.spark.result.find((x) => x.symbol === 'AAPL').response[0].meta.regularMarketPrice = null;
   const s = ctx.Markets.snapshot(cfg, { quotes: ctx.Markets.quotes(partial), tables: { ILS: { UAH: 14.5 } }, updatedAt: AT }, AT);
-  const empty = (id) => ({ id, price: null, currency: null, changePct: null, closed: /per(ILS|USD)$/.test(id) ? null : false });   // A12: a rate row null
+  const UNIT = { 'BZ=F': 'barrel', 'CL=F': 'barrel' };   // Codex L1: a commodity row carries its unit, priced or not
+  const empty = (id) => Object.assign({ id, price: null, currency: null, changePct: null, closed: /per(ILS|USD)$/.test(id) ? null : false }, UNIT[id] ? { unit: UNIT[id] } : {});   // A12: a rate row null
   for (const id of ['INTU', 'AAPL', 'RUBperILS', 'UAHperUSD', 'BZ=F', 'CL=F']) assert.deepEqual(plain(rowOf(s, id)), empty(id), id);
   assert.equal(rowOf(s, 'NVDA').price, 204.64);
   assert.equal(rowOf(s, 'UAHperILS').price, 14.5);
@@ -251,7 +252,7 @@ test('failures: a row whose source never answered stays, with price null and no 
   h.c.setVisible(true, true);
   h.answer({ 'TRX-USD': 'timeout', 'latest/USD': 'http 503' });
   const s = h.c.snapshot();
-  for (const id of ['TRX', 'CL=F', '^GSPC', 'UAHperUSD']) assert.deepEqual(plain(rowOf(s, id)), { id, price: null, currency: null, changePct: null, closed: id === 'UAHperUSD' ? null : false }, id);
+  for (const id of ['TRX', 'CL=F', '^GSPC', 'UAHperUSD']) assert.deepEqual(plain(rowOf(s, id)), Object.assign({ id, price: null, currency: null, changePct: null, closed: id === 'UAHperUSD' ? null : false }, id === 'CL=F' ? { unit: 'barrel' } : {}), id);
   for (const id of ['BTC', 'INTU', 'TEVA.TA', 'UAHperILS']) assert.ok(rowOf(s, id).price > 0, id);
   for (const g of s.groups) assert.equal(g.rows.length, 6);
   h.c.setVisible(true, true);
@@ -475,4 +476,56 @@ test('A12: rows from the daily rate tables carry closed: null (no trading hours)
   const ctx = load(FILES), s = recordedSnapshot(ctx, AT);
   for (const id of ['UAHperILS', 'RUBperILS', 'UAHperUSD']) assert.equal(rowOf(s, id).closed, null, id);
   for (const id of ['USDILS', 'EURUSD', 'INTU', 'BTC']) assert.equal(typeof rowOf(s, id).closed, 'boolean', id);
+});
+
+// ---- Batch 16 ---------------------------------------------------------------------------------------------------------
+// Codex A2: the closed mark follows the clock between rounds — recomputed on state() (the minute tick) from each quote's last
+// session, with no request; the snapshot object changes only when a mark does.
+test('A2: INTU answered at 20:59 UTC reads open; at 21:01 (no new request) it reads closed; an unchanged minute keeps the snapshot', () => {
+  const END = 1793653200 * 1000;                     // the recorded INTU session's end
+  const h = controller({ start: END - 60000 });
+  h.c.setVisible(true, true);
+  h.answer();
+  assert.equal(rowOf(h.c.state().snapshot, 'INTU').closed, false);
+  const sent = h.calls.length, before = h.c.state().snapshot;
+  assert.equal(h.c.state().snapshot, before, 'the same minute: the same object (nothing redrawn)');
+  h.t.advance(120000);
+  const after = h.c.state().snapshot;
+  assert.equal(rowOf(after, 'INTU').closed, true, 'closed at 21:01 without a round');
+  assert.equal(h.calls.length, sent, 'no request for it');
+  assert.notEqual(after, before, 'a changed mark: a new snapshot (the view redraws)');
+  assert.equal(h.c.state().snapshot, after, '… once');
+  assert.equal(rowOf(after, 'BTC').closed, rowOf(before, 'BTC').closed, 'a 24-hour market untouched');
+});
+// C-2: the one freshness rule — quotes dated after the clock (it went back) are stale.
+test('C-2: a clock that went back makes the quotes stale', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  h.answer();
+  assert.equal(h.c.state().kind, 'fresh');
+  h.t.advance(-60 * 60000);
+  assert.equal(h.c.state().kind, 'stale');
+});
+// Codex L1: a commodity row carries its unit — priced, kept stale, or never priced.
+test('L1: every commodity row says what its price is for (barrel, MMBtu, troy ounce, pound), stale rows too', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  h.answer();
+  const units = (s) => plain(s.groups.find((g) => g.id === 'commodities').rows.map((r) => r.unit));
+  assert.deepEqual(units(h.c.snapshot()), ['barrel', 'mmbtu', 'ounce', 'ounce', 'pound', 'barrel']);
+  h.t.advance(h.ctx.Config.markets.refreshMs);
+  h.answer({ 'spark?': 'timeout' });
+  assert.ok(rowOf(h.c.snapshot(), 'GC=F').stale, 'kept from the last round');
+  assert.deepEqual(units(h.c.snapshot()), ['barrel', 'mmbtu', 'ounce', 'ounce', 'pound', 'barrel'], 'the unit kept with it');
+  for (const g of h.c.snapshot().groups) if (g.id !== 'commodities') assert.ok(g.rows.every((r) => !('unit' in r)), g.id + ': no unit');
+});
+// C-19: an unreadable answer is said through deps.log, its rows stay empty.
+test('C-19: an unreadable markets answer is logged with its message', () => {
+  const ctx = load(FILES), t = fakeTimers(AT), calls = [], logs = [];
+  const c = ctx.Markets.createController(ctx.Config.markets, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+    onChange: () => {}, getJson: (url, ms, done) => calls.push(done), log: (m) => logs.push(m) });
+  c.setVisible(true, true);
+  for (const done of calls.splice(0)) done(null, { nope: 1 });
+  assert.deepEqual(logs.slice(0, 2), ['markets: unexpected spark shape', 'markets: unexpected spark shape']);
+  assert.equal(c.state().kind, 'failed');
 });

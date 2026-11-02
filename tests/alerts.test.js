@@ -419,3 +419,150 @@ test('stop() wins over a poll in flight: its late answer changes nothing and sch
   assert.equal(changes, 0);
   assert.deepEqual(clock.pending(), []);
 });
+
+// ---- Batch 16: Codex S1 — a restart never forgets an alert still within its hold -----------------------------------------
+function memStore(initial) {
+  const m = new Map(initial ? [['homedash.alerts', initial]] : []), writes = [];
+  return { m, writes, getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { writes.push(k); m.set(k, String(v)); }, removeItem: (k) => { writes.push('-' + k); m.delete(k); } };
+}
+// A monitor over `storage` at `start`, fed by feed(now − T0) → [err, body]; `cfg` patch (another home city).
+function restartable(ctx, storage, start, feed, cfgPatch, logs) {
+  const clock = fakeTimers(start);
+  const cfg = Object.assign({}, ctx.Config.alerts, cfgPatch || {});
+  const m = ctx.Alerts.createMonitor(cfg, { getText: (u, ms, done) => { const a = feed(clock.now() - T0); done(a[0], a[1]); },
+    now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout, onChange: () => {}, storage, log: (x) => (logs || []).push(x) });
+  return { m, clock };
+}
+test('S1: the alert at home (10-min hold) → restart a minute later → the first empty answer does NOT clear it; it clears after its hold', () => {
+  const ctx = load(FILES), storage = memStore();
+  const a = restartable(ctx, storage, T0, () => [null, REHOVOT()]);
+  a.m.poll();
+  assert.ok(a.m.state().active, 'the alert is up');
+  const saved = JSON.parse(storage.m.get('homedash.alerts'));
+  assert.equal(saved.v, 1, 'versioned');
+  a.m.stop();
+  // the TV restarts a minute later; the feed no longer lists Rehovot
+  const b = restartable(ctx, storage, T0 + MIN, () => [null, EMPTY]);
+  const st0 = b.m.state();
+  assert.ok(st0.active, 'restored before the first poll');
+  assert.equal(st0.active.startedAt, T0, '«с 20:34»: the alert\'s own start, not the restart');
+  assert.equal(saved.own.tracks['רחובות'].maxHold, 10 * MIN, 'the longest hold given is kept with it');
+  assert.equal(st0.active.places[0].ru, 'Реховот');
+  b.m.poll();
+  assert.ok(b.m.state().active, 'the first good empty answer: still within the hold, still up');
+  for (let t = 2 * MIN; t < 10 * MIN; t += 5000) { b.clock.advance(5000); assert.ok(b.m.state().active, 'inside the hold at +' + t / 1000 + ' s'); }
+  b.clock.advance(2 * MIN);
+  assert.equal(b.m.state().active, null, 'the hold and the grace over: cleared');
+  assert.equal(storage.m.has('homedash.alerts'), false, 'nothing held: the entry removed');
+});
+test('S1: another home city, a corrupt entry, an expired hold, a clock that went back — never restored blindly', () => {
+  const ctx = load(FILES), storage = memStore();
+  const a = restartable(ctx, storage, T0, () => [null, REHOVOT()]);
+  a.m.poll();
+  const text = storage.m.get('homedash.alerts');
+  // another city: its areas are not Rehovot's
+  const haifa = { areas: [{ he: 'חיפה', ru: 'Хайфа', uk: 'Хайфа', match: ['חיפה'] }], nearby: [] };
+  assert.equal(restartable(ctx, memStore(text), T0 + MIN, () => [null, EMPTY], haifa).m.state().active, null, 'another city');
+  const logs = [];
+  assert.equal(restartable(ctx, memStore('{not json'), T0 + MIN, () => [null, EMPTY], null, logs).m.state().active, null, 'corrupt');
+  assert.match(logs[0], /^alerts: saved state not restored: /, 'said, never silent');
+  const bad = JSON.parse(text); bad.own.tracks['רחובות'].record = { title: '', data: [] };
+  assert.equal(restartable(ctx, memStore(JSON.stringify(bad)), T0 + MIN, () => [null, EMPTY]).m.state().active, null, 'a damaged record');
+  assert.equal(restartable(ctx, memStore(text), T0 + 20 * MIN, () => [null, EMPTY]).m.state().active, null, 'the hold ran out meanwhile');
+  const old = JSON.parse(text); old.v = 0;
+  assert.equal(restartable(ctx, memStore(JSON.stringify(old)), T0 + MIN, () => [null, EMPTY]).m.state().active, null, 'another version');
+  // the clock went back an hour: the hold is never longer than the record's own (10 min) from now
+  const back = restartable(ctx, memStore(text), T0 - 60 * MIN, () => [null, EMPTY]);
+  assert.ok(back.m.state().active);
+  assert.ok(back.m.state().active.startedAt <= T0 - 60 * MIN, 'F-3: a start in the future is never shown («с» a time not yet come)');
+  back.m.poll();
+  back.clock.advance(12 * MIN);
+  assert.equal(back.m.state().active, null, 'cleared within 12 min, never held 70');
+});
+test('S1: the feed unreachable after the restart: the restored alert stays (an outage never clears)', () => {
+  const ctx = load(FILES), storage = memStore();
+  restartable(ctx, storage, T0, () => [null, REHOVOT()]).m.poll();
+  const b = restartable(ctx, storage, T0 + MIN, () => ['http 503']);
+  b.m.poll();
+  b.clock.advance(30 * MIN);
+  assert.ok(b.m.state().active, 'no good answer: never cleared on a guess');
+});
+test('S1: storage is written only when the held state changes; a quiet feed writes nothing', () => {
+  const ctx = load(FILES), storage = memStore();
+  const q = restartable(ctx, storage, T0, () => [null, EMPTY]);
+  q.m.poll();
+  q.clock.advance(5 * MIN);
+  assert.deepEqual(storage.writes, [], 'quiet: no write at all');
+});
+
+// ---- FIX-16B (the review panel): S1 again ------------------------------------------------------------------------------
+const instr = (min) => body({ id: '1', cat: '1', title: 'ירי רקטות וטילים', data: ['רחובות'], desc: 'היכנסו למרחב המוגן ושהו בו ' + min + ' דקות' });
+test('R16-1: a restart never SHORTENS a hold — 30 min at 0, 10 min at +1, restart at +2: still held at +13, cleared after +31', () => {
+  const ctx = load(FILES), storage = memStore();
+  const a = restartable(ctx, storage, T0, (t) => [null, t < MIN ? instr(30) : instr(10)]);
+  a.m.poll();
+  a.clock.advance(MIN);                              // the next polls bring the 10-minute instruction
+  assert.ok(a.m.state().active);
+  a.m.stop();
+  const b = restartable(ctx, storage, T0 + 2 * MIN, () => [null, EMPTY]);
+  b.m.poll();
+  b.clock.advance(11 * MIN);
+  assert.ok(b.m.state().active, 'at +13 the 30-minute hold still holds, as it does without a restart');
+  b.clock.advance(19 * MIN);
+  assert.equal(b.m.state().active, null, 'after +31: the hold (+30, last listed at +1) and the grace over');
+});
+test('R16-2: one refused write never loses the hold — storage throws once, recovers, the feed goes quiet: a restart still holds', () => {
+  const ctx = load(FILES), storage = memStore(), logs = [];
+  let refuse = 1;
+  const real = storage.setItem;
+  storage.setItem = (k, v) => { if (refuse-- > 0) throw new Error('quota'); return real(k, v); };
+  // the alert is seen once only, so every later poll computes the SAME state text: a write marked done when it failed
+  // would never be tried again
+  const a = restartable(ctx, storage, T0, (t) => [null, t < 1000 ? REHOVOT() : EMPTY], null, logs);
+  a.m.poll();                                        // the write of the alert is refused
+  assert.match(logs[0], /^alerts: state not saved \(tried again at the next poll\): quota$/);
+  a.clock.advance(10000);                            // quiet polls: the alert is still held, its state unchanged — and now written
+  assert.ok(storage.m.get('homedash.alerts'), 'the refused write was tried again');
+  a.m.stop();
+  const b = restartable(ctx, storage, T0 + MIN, () => [null, EMPTY]);
+  assert.ok(b.m.state().active, 'the hold survived the refused write');
+});
+test('R16-2 (Codex): a refused write is retried even when every later poll fails — write throws, then 3 × 503, restart: the hold is restored', () => {
+  const ctx = load(FILES), storage = memStore(), logs = [];
+  let refuse = 1, n = 0;
+  const real = storage.setItem;
+  storage.setItem = (k, v) => { if (refuse-- > 0) throw new Error('quota'); return real(k, v); };
+  const a = restartable(ctx, storage, T0, () => (++n === 1 ? [null, REHOVOT()] : ['http 503']), null, logs);
+  a.m.poll();                                        // the alert is seen; its write is refused
+  a.clock.advance(15000);                            // the next polls all fail
+  assert.ok(n >= 4, 'three failed polls followed: ' + n);
+  assert.ok(storage.m.get('homedash.alerts'), 'the refused write was tried again after a failed poll');
+  a.m.stop();
+  const b = restartable(ctx, storage, T0 + MIN, () => [null, EMPTY]);
+  assert.ok(b.m.state().active, 'the hold survived a refused write followed by failed polls');
+});
+test('R16-3: a poisoned or foreign entry (keys like "hasOwnProperty", arrays, strings) never stops the monitor; it is logged', () => {
+  const ctx = load(FILES);
+  for (const bad of [{ v: 1, own: { tracks: { hasOwnProperty: 1 } }, near: null }, { v: 1, own: { tracks: [] }, near: 'x' },
+    { v: 1, own: { tracks: { 'רחובות': { holdUntil: 'x' } } } }, { v: 1, own: [1], near: { tracks: { constructor: {} } } }, [1, 2], 'text']) {
+    const logs = [];
+    let m = null;
+    assert.doesNotThrow(() => { m = restartable(ctx, memStore(JSON.stringify(bad)), T0, () => [null, EMPTY], null, logs).m; }, JSON.stringify(bad));
+    assert.equal(m.state().active, null, JSON.stringify(bad));
+    m.poll();
+    assert.equal(m.state().checkedAt, T0, 'polling goes on');
+  }
+  // a good entry next to foreign keys is still restored: the lookup never calls a method the saved data can shadow
+  const good = memStore(), a = restartable(ctx, good, T0, () => [null, REHOVOT()]);
+  a.m.poll();
+  a.m.stop();
+  const saved = JSON.parse(good.m.get('homedash.alerts'));
+  saved.own.tracks.hasOwnProperty = 1;
+  const mixedLogs = [], b = restartable(ctx, memStore(JSON.stringify(saved)), T0 + MIN, () => [null, EMPTY], null, mixedLogs);
+  assert.ok(b.m.state().active, 'the home hold is restored beside a foreign "hasOwnProperty" key');
+  assert.deepEqual(mixedLogs, []);
+  const logs = [];
+  const st = { getItem: () => { throw new Error('denied'); }, setItem() {}, removeItem() {} };
+  assert.doesNotThrow(() => restartable(ctx, st, T0, () => [null, EMPTY], null, logs));
+  assert.deepEqual(logs, ['alerts: saved state not restored: denied']);
+});

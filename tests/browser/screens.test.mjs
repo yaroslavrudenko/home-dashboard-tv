@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openApp, measure, legibility, FIXED_NOW, trafficFixture, routeIndexOf } from './page.mjs';
+import { openApp, measure, legibility, FIXED_NOW, trafficFixture, routeIndexOf, withoutHeadlineClamp } from './page.mjs';
 
 const orefFixture = (name) => fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'oref', name));
 
@@ -154,7 +154,7 @@ test('FB5-NS: News — one parallel round of two feeds; «Израиль» (Ynet
       injected: document.querySelectorAll('#screen-news script, #screen-news img, #screen-news a, #screen-news p').length }));
     assert.equal(view.injected, 0, 'no element from a feed reached the page');
     assert.deepEqual([view.status, view.statusCls], ['עודכן ב־20:32', 'status screen-status is-fresh']);
-    assert.deepEqual(clean(await p.evaluate(measure, '#screen-news *')), [], 'nothing cut, outside its card or off screen');
+    assert.deepEqual(clean(withoutHeadlineClamp(await p.evaluate(measure, '#screen-news *'))), [], 'nothing cut, outside its card or off screen');
     assert.deepEqual((await p.evaluate(legibility, '#screen-news *')).bad, [], 'every text ≥ 24 px and ≥ 4.5:1');
   } finally { await app.close(); }
 });
@@ -164,7 +164,7 @@ const rssOf = (titles, host) => '<?xml version="1.0" encoding="UTF-8"?><rss vers
   '<pubDate>Thu, 29 Oct 2026 20:' + String(30 - i).padStart(2, '0') + ':00 +0200</pubDate></item>').join('') + '</channel></rss>';
 
 // Five two-line headlines per column fit the 1080-px screen: a headline is a fixed two-line box, rows on one grid.
-test('FB5-NS: long Hebrew and Hebrew/Latin headlines: two lines each, five per column, rows on one grid, nothing off screen', async () => {
+test('FB5-NS: long Hebrew and Hebrew/Latin headlines: three lines each (batch 16), five per column, rows on one grid, nothing off screen', async () => {
   const long = (i) => 'ראש הממשלה הודיע הערב על תוכנית כלכלית חדשה לחיזוק הצפון והדרום, הכוללת מענקים לעסקים קטנים, הקלות במס והשקעה בתשתיות ' + i;
   const mixed = (i) => 'Nvidia ו-Intel מרחיבות את פעילותן בישראל: 2,000 משרות חדשות בחיפה ובקריית גת עד 2028, כך הודיעו החברות ' + i;
   const app = await openApp({ alerts: 'empty-bom.txt', lang: 'he', news: (url) => (url.includes('ynet') ? { status: 200, body: rssOf([0, 1, 2, 3, 4, 5].map(long), 'www.ynet.co.il') }
@@ -178,13 +178,13 @@ test('FB5-NS: long Hebrew and Hebrew/Latin headlines: two lines each, five per c
     const cols = await p.evaluate(NEWS_COLS);
     for (const c of cols) {
       assert.equal(c.rows.length, 5, c.title + ': five, never more');
-      for (const r of c.rows) assert.equal(r.titleH, 80, c.title + ': two lines of 40 px');
+      for (const r of c.rows) assert.equal(r.titleH, 114, c.title + ': three lines of 38 px (the owner, 2026-11-02; FIX-16B N1)');
       // Chromium 47 computes display -webkit-box; current Chrome reports the clamped box as flow-root
-      for (const r of c.rows) assert.ok(['-webkit-box', 'flow-root'].includes(r.clamp[0]) && r.clamp[1] === 'vertical' && r.clamp[2] === '2', c.title + ': FB5B-N8 — a two-line clamp with an ellipsis ' + r.clamp);
+      for (const r of c.rows) assert.ok(['-webkit-box', 'flow-root'].includes(r.clamp[0]) && r.clamp[1] === 'vertical' && r.clamp[2] === '3', c.title + ': FB5B-N8 — a three-line clamp with an ellipsis ' + r.clamp);
       assert.ok(c.box[3] <= 1080 - 48 && c.box[1] >= 0, c.title + ' inside the screen: ' + c.box);
     }
     for (let k = 0; k < 5; k++) assert.equal(cols[0].rows[k].top, cols[1].rows[k].top, 'row ' + k + ' on one grid');
-    assert.deepEqual(clean(await p.evaluate(measure, '#screen-news *')), []);
+    assert.deepEqual(clean(withoutHeadlineClamp(await p.evaluate(measure, '#screen-news *'))), []);
   } finally { await app.close(); }
 });
 
@@ -198,13 +198,16 @@ test('FB5B-N9: one feed down — only its column says so and keeps its stories, 
     await ready(later);
     const p = later.page;
     await toScreen(p, 'news');
+    for (const end = Date.now() + 5000; econ < 3 && Date.now() < end;) await wait(50);
+    // N11: the same minute as the header says nothing; three minutes on, the failed column says its own older minute
+    await p.evaluate(() => { window.__offsetMs = 3 * 60000; });
     await p.waitForSelector('.news-col-state', { timeout: 8000 });
     await wait(300);
     const cols = await p.evaluate(NEWS_COLS);
-    assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 5], ['Экономика', 'Не обновляется · данные от 20:32', 5]],
+    assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 5], ['Экономика', 'данные от 20:32', 5]],   // L1: the short column line
       'the economy feed keeps its last five stories and says it is not updating; the Israel feed is unaffected');
     assert.match(await p.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), /is-fresh \| Обновлено в 20:3\d$/, 'said once: the header stays fresh');
-    assert.deepEqual(clean(await p.evaluate(measure, '#screen-news *')), []);
+    assert.deepEqual(clean(withoutHeadlineClamp(await p.evaluate(measure, '#screen-news *'))), []);
   } finally { await later.close(); }
   const never = await openApp({ alerts: 'empty-bom.txt', news: (url) => (url.includes('section/finance') ? { status: 503, body: '' } : null) });
   try {
@@ -218,10 +221,10 @@ test('FB5B-N9: one feed down — only its column says so and keeps its stories, 
     assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 5], ['Экономика', '', 0]]);
     assert.equal(cols[0].empty, '');
     assert.match(cols[1].empty, /^Не удалось загрузить · повторим в 20:3\d$/);
-    assert.equal(await never.page.$eval('.news-col-empty', (e) => getComputedStyle(e).color), 'rgba(255, 214, 150, 0.85)', 'amber like .news-col-state');
+    assert.equal(await never.page.$eval('.news-col-empty', (e) => getComputedStyle(e).color), 'rgb(255, 207, 138)', 'amber like .news-col-state');
     assert.match(await never.page.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), /is-fresh \| Обновлено в 20:3\d$/, 'the header stays fresh');
     await wait(700);                               // the screen's fade-in is over: legibility is measured on the final opacity
-    assert.deepEqual(clean(await never.page.evaluate(measure, '#screen-news *')), []);
+    assert.deepEqual(clean(withoutHeadlineClamp(await never.page.evaluate(measure, '#screen-news *'))), []);
     assert.deepEqual((await never.page.evaluate(legibility, '#screen-news *')).bad, []);
   } finally { await never.close(); }
 });
@@ -248,13 +251,13 @@ test('FB5B-N7: both feeds pending, then both failed: both configured columns sta
     const cols = await failed.page.evaluate(NEWS_COLS);
     // FB5D-R2: failure wording in both columns (not «Нет данных») and an amber header (not the fresh green dot)
     assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 0], ['Экономика', '', 0]]);
-    for (const c of cols) assert.match(c.empty, /^Не удалось загрузить · повторим в 20:3[3-5]$/, c.title);
-    assert.deepEqual(await failed.page.$$eval('.news-col-empty', (els) => els.map((e) => getComputedStyle(e).color)), ['rgba(255, 214, 150, 0.85)', 'rgba(255, 214, 150, 0.85)']);
+    for (const c of cols) assert.equal(c.empty, 'Не удалось загрузить', c.title + ': N5 — the retry time is said once, in the header');
+    assert.deepEqual(await failed.page.$$eval('.news-col-empty', (els) => els.map((e) => getComputedStyle(e).color)), ['rgb(255, 207, 138)', 'rgb(255, 207, 138)']);
     assert.deepEqual(await failed.page.$eval('#news-status', (e) => [getComputedStyle(e).color, getComputedStyle(e.querySelector('.status-dot')).backgroundColor]),
-      ['rgba(255, 214, 150, 0.85)', 'rgb(255, 207, 138)'], 'the failed header is amber like stale');
+      ['rgb(255, 207, 138)', 'rgb(255, 207, 138)'], 'the failed header is amber like stale');
     // FB5C-OPEN: the ◀ ▶ open adds a second failed round, so the jittered back-off is drawn up to the 2-min ceiling
     assert.match(await failed.page.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), /is-failed \| Новости временно недоступны · повторим в 20:3[3-5]$/, 'said once, in the header, with when it is tried again');
-    assert.deepEqual(clean(await failed.page.evaluate(measure, '#screen-news *')), []);
+    assert.deepEqual(clean(withoutHeadlineClamp(await failed.page.evaluate(measure, '#screen-news *'))), []);
     assert.deepEqual((await failed.page.evaluate(legibility, '#screen-news *')).bad, []);
   } finally { await failed.close(); }
 });
@@ -310,7 +313,7 @@ test('FB5B-T1: Traffic with a token (Mapbox): ten GETs started together, one per
       return [Math.round(tw[1].getBoundingClientRect().top - tw[0].getBoundingClientRect().bottom), Math.round(col[1].getBoundingClientRect().left - col[0].getBoundingClientRect().right)]; });
     assert.equal(gaps[0], gaps[1], 'one rhythm: ' + gaps);
     assert.ok(cols.every((c) => c.items[4][5] <= 1080 - 48), 'the last row inside the screen');
-    assert.equal(await p.$eval('#traffic-status', (e) => e.textContent), 'Обновлено 20:32 · 0 мин назад');
+    assert.equal(await p.$eval('#traffic-status', (e) => e.textContent), 'Обновлено в 20:32');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, []);
   } finally { await app.close(); }
@@ -378,8 +381,8 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
       });
       assert.equal(v.text, 'Данные устарели · обновлено 20:32 · 0 мин назад', status + ': the data-time line');
       assert.match(v.note, /^Mapbox отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:3\d$/, status + ': ' + v.note);
-      assert.equal(v.color, 'rgba(255, 214, 150, 0.85)', status + ': amber');
-      assert.equal(v.noteColor, 'rgba(255, 214, 150, 0.85)');
+      assert.equal(v.color, 'rgb(255, 207, 138)', status + ': amber');
+      assert.equal(v.noteColor, 'rgb(255, 207, 138)');
       for (const bx of [v.box, v.noteBox]) assert.ok(bx[0] >= 0 && bx[1] <= 1920 && bx[2] >= 0 && bx[3] <= 1080, status + ': inside the screen ' + bx);
       assert.ok(!v.cut, 'not cut');
       assert.ok(v.noteBox[2] >= v.box[3] - 0.5 && v.noteBox[3] <= v.title, 'the note under the line, above the columns: ' + v.noteBox + ' / ' + v.title);
@@ -578,7 +581,7 @@ test('A2: an alert, then the feed lost: the overlay stays and says "no connectio
     assert.equal(v.text, 'Тревоги: нет связи · последний ответ 20:32');
     assert.ok(v.box[0] >= 0 && v.box[1] <= 1080 && v.box[2] >= 0 && v.box[3] <= 1920, 'inside the screen: ' + v.box);
     assert.ok(v.top && v.visible === 'visible', 'seen on top, not under anything');
-    assert.deepEqual([v.size, v.color], ['32px', 'rgb(255, 213, 154)']);
+    assert.deepEqual([v.size, v.color], ['32px', 'rgb(255, 207, 138)']);   // D-C1: the one amber
     assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);
     await wait(600);
     assert.equal(await p.$eval('#alert', (e) => e.className), 'alert is-on', 'failures never clear it');

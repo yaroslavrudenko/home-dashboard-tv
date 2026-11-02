@@ -68,7 +68,7 @@ test('B10 (B): the line in Hebrew (right to left: the dot after the words, at th
     assert.equal(await he.p.evaluate(() => getComputedStyle(document.querySelector('.banner-text')).direction), 'rtl');
   } finally { await he.app.close(); }
   const uk = await alertThenLeave('uk');
-  try { assert.equal((await banner(uk.p)).text, 'Тривога в Реховоті · з 20:32'); } finally { await uk.app.close(); }
+  try { assert.equal((await banner(uk.p)).text, 'Тривога в Реховоті · від 20:32'); } finally { await uk.app.close(); }
 });
 
 test('B10 (B): the alert clears — the line is gone', async () => {

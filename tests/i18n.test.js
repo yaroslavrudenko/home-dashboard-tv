@@ -18,7 +18,7 @@ test('every string key exists in both languages and is not empty', () => {
   const ctx = load(FILES);
   const keys = ['city.israel', 'city.ukraine', 'city.sydney', 'place.kyiv', 'place.sydney', 'clock.same', 'clock.ahead',
     'clock.behind', 'clock.unknown', 'w.feels', 'w.high', 'w.low', 'w.wind', 'w.humidity', 'w.rain', 'w.sunrise',
-    'w.sunset', 'w.kmh', 'w.now', 'w.today', 'w.hourly', 'w.daily', 'w.updated', 'w.stale', 'w.loading', 'w.failed', 'w.retry', 'w.retrySoon'];
+    'w.sunset', 'w.kmh', 'w.now', 'w.today', 'w.hourly', 'w.days', 'w.updated', 'w.stale', 'w.loading', 'w.failed', 'w.retry', 'w.retrySoon'];
   for (const lang of ['ru', 'en']) {
     ctx.I18n.setLang(lang);
     for (const k of keys) assert.ok(ctx.I18n.t(k) && ctx.I18n.t(k) !== k, lang + ' ' + k);
@@ -88,7 +88,7 @@ test('"how long ago" for a headline: just now, minutes, hours, days; a time in t
 test('FB5C-7: the traffic copy — updated, updating, failed, future-dated, stale, the daily cap, a Mapbox refusal, storage', () => {
   const ctx = load(FILES);
   const t = (k, p) => ctx.I18n.t(k, p);
-  assert.equal(t('t.updated', { time: '20:32', n: 3 }), 'Обновлено 20:32 · 3 мин назад');
+  assert.equal(t('t.updated', { time: '20:32', n: 3 }), 'Обновлено в 20:32', 'N6: fresh says when, never «0 мин назад»; the age only when stale');
   assert.equal(t('t.updating'), 'Обновляется…');
   assert.equal(t('t.updatingFrom', { time: '20:32' }), 'Обновляется… · данные от 20:32');
   assert.equal(t('t.failed'), 'Не удалось обновить пробки');
@@ -286,4 +286,13 @@ test('Reading: the labels, 9 special Shabbatot and 31 books — own words in Rus
   for (const k of keys) assert.ok(!/[ыэъё]/i.test(I18n.t(k)), 'uk ' + k + ': ' + I18n.t(k));
   I18n.setLang('he');
   for (const k of keys) assert.match(I18n.t(k, { n: 3, month: 'כסלו' }), /[֐-׿]/, 'he ' + k + ' is Hebrew');
+});
+
+// F-5 (FIX-16B): «Прогноз на {n} дней» / «Прогноз на {n} днів» read right only for 5–20 days (no plural forms in the tables):
+// the configured forecasts are pinned to 5 and 7, so a change of either is a change of this test and of the strings.
+test('F-5: the forecast lengths stay where the ru/uk plural «дней»/«днів» is right — 7 days at home, 5 on the Israel screen', () => {
+  const ctx = load(FILES);
+  assert.equal(ctx.Config.weather.days, 7);
+  assert.equal(ctx.Config.israel.days, 5);
+  for (const n of [ctx.Config.weather.days, ctx.Config.israel.days]) assert.ok([5, 7].includes(n), String(n));
 });

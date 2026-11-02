@@ -31,7 +31,7 @@ const WORD = { ru: ['Пыль', '25 мкг/м³', 'хамсин', 'Воздух:
 for (const lang of ['ru', 'he', 'uk']) {
   test('Dust always, ' + lang + ': 25 µg/m³ muted, 240 a khamsin, none no line — the air block the same size in every state, nothing cut', async () => {
     const boxes = {};
-    for (const dust of [25, 240, null]) {
+    for (const dust of [25, 240, 3400, null]) {
       const app = await openApp({ lang, weather: rainy, news: 'ok', alerts: 'empty-bom.txt', air: airWith(dust), now: NOW, configure: (c) => { c.rotation.enabled = false; } });
       try {
         const p = app.page;
@@ -53,7 +53,8 @@ for (const lang of ['ru', 'he', 'uk']) {
         assert.ok(v.inside, lang + ' ' + dust + ': the three items fit the card');
         assert.deepEqual(v.gaps, [20, 20], 'the same gap between the items');
         if (dust === 25) assert.deepEqual([v.cls, v.label, v.value, v.word], ['air-item air-dust', WORD[lang][0], WORD[lang][1], null], lang);
-        if (dust === 240) assert.deepEqual([v.cls, v.label, v.word, v.wordInValue, v.lines], ['air-item air-dust', WORD[lang][0], WORD[lang][2], true, 1], lang + ': «хамсин» in the value line, one line');
+        // N1 (batch 16): a khamsin's amber word on the label's line, so even a 4-digit value and its unit fit the block on one line
+        if (dust >= 240) assert.deepEqual([v.cls, v.label, v.word, v.wordInValue, v.lines], ['air-item air-dust', WORD[lang][0] + ' · ' + WORD[lang][2], WORD[lang][2], false, 1], lang + ' ' + dust + ': «хамсин» on the label line, the value one line');
         if (dust === null) assert.deepEqual([v.cls, v.label, v.value], ['air-item air-dust is-none', null, null], 'no value: no item drawn');
         assert.deepEqual(v.heights, [68, 68, 68], 'every item the same height, the dust slot reserved when empty');
         assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' ' + dust + ' main');
@@ -62,13 +63,16 @@ for (const lang of ['ru', 'he', 'uk']) {
         await press(p, 39); await wait(900);
         const chips = await p.$$eval('#screen-israel .region-air', (c) => c.map((e) => e.textContent.trim()));
         assert.ok(chips.every((t) => t.indexOf(WORD[lang][3]) === 0), lang + ': every air line is labelled: ' + JSON.stringify(chips));
-        if (dust === 240) assert.deepEqual(chips, [0, 1, 2].map(() => WORD[lang][3] + ' ' + WORD[lang][2]), 'a khamsin on every region, labelled');
+        if (dust >= 240) assert.deepEqual(chips, [0, 1, 2].map(() => WORD[lang][3] + ' ' + WORD[lang][2]), 'a khamsin on every region, labelled');
         else assert.ok(chips.every((t) => t.indexOf(WORD[lang][2]) < 0), 'no khamsin below 100 µg/m³');
         // the chance of rain never over the weather icon (the owner: «должно быть понятно»), here and on the main 7-day list
         const overlap = await p.evaluate(() => [...document.querySelectorAll('.day-icon')].filter((s) => {
           const i = s.querySelector(':scope > .icon'), t = s.querySelector('.day-pop'); if (!i || !t || !t.textContent) return false;
           const a = i.getBoundingClientRect(), b = t.getBoundingClientRect(); return b.top < a.bottom - 0.5 && a.top < b.bottom - 0.5; }).length);
         assert.equal(overlap, 0, lang + ': a rain chance overlaps its icon');
+        // dust13 F1 (batch 16): «☂100%» inside its 88 px slot — the line is no wider than the slot, on both screens
+        const spill = await p.evaluate(() => [...document.querySelectorAll('.day-pop')].filter((t) => t.textContent && t.scrollWidth > t.clientWidth).map((t) => t.textContent + ' ' + t.scrollWidth + '>' + t.clientWidth));
+        assert.deepEqual(spill, [], lang + ': a rain chance wider than its slot');
         assert.deepEqual(clean(await p.evaluate(measure, '#screen-israel *')), [], lang + ' ' + dust + ' israel');
         if (process.env.DUST_SHOTS) await p.screenshot({ path: path.join(process.env.DUST_SHOTS, 'israel-' + lang + '-' + dust + '.png') });
         assert.deepEqual(app.errors, []);

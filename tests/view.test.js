@@ -71,10 +71,11 @@ test('B12 air & UV: between the place text and the icon, no glyphs; UV and air e
   assert.match(r.html, /<div class="details">/, 'the details row is still there, unchanged');
 });
 
-test('B12 air: high dust is a khamsin — the dust item «Пыль · 240 мкг/м³ хамсин», amber word; in every language', () => {
-  for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Пыль', '240', 'мкг/м³', 'хамсин']],
-    ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'אבק', '240', 'מק״ג/מ״ק', 'חמסין']],
-    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Пил', '240', 'мкг/м³', 'хамсин']]]) {
+// N1 (batch 16): the khamsin word on the dust item's label line («Пыль · хамсин»), the value line «240 мкг/м³».
+test('B12 air: high dust is a khamsin — the dust item «Пыль · хамсин / 240 мкг/м³», amber word; in every language', () => {
+  for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Пыль ·', 'хамсин', '240', 'мкг/м³']],
+    ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'אבק ·', 'חמסין', '240', 'מק״ג/מ״ק']],
+    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Пил ·', 'хамсин', '240', 'мкг/м³']]]) {
     const r = mainWith(lang, { uv: { index: 9, level: 'veryHigh' }, air: DUSTY, airKind: 'fresh' });
     assert.deepEqual(stripTags(r.block), words, lang);
   }
@@ -140,8 +141,8 @@ test('V4: after sunset the UV level word is dimmed (the day\'s maximum is behind
 });
 
 test('V12: high dust is said even when the AQI is missing — main line and region chip, ru/he/uk, fresh and stale', () => {
-  for (const [lang, none, dust, word] of [['ru', 'Нет данных', ['Пыль', '240', 'мкг/м³', 'хамсин'], 'хамсин'], ['he', 'אין נתונים', ['אבק', '240', 'מק״ג/מ״ק', 'חמסין'], 'חמסין'],
-    ['uk', 'Немає даних', ['Пил', '240', 'мкг/м³', 'хамсин'], 'хамсин']]) {
+  for (const [lang, none, dust, word] of [['ru', 'Нет данных', ['Пыль ·', 'хамсин', '240', 'мкг/м³'], 'хамсин'], ['he', 'אין נתונים', ['אבק ·', 'חמסין', '240', 'מק״ג/מ״ק'], 'חמסין'],
+    ['uk', 'Немає даних', ['Пил ·', 'хамсин', '240', 'мкг/м³'], 'хамсин']]) {
     for (const kind of ['fresh', 'stale']) {
       const r = mainWith(lang, { uv: null, air: DUST_NO_AQI, airKind: kind });
       assert.deepEqual(stripTags(r.block).slice(-5), [none].concat(dust), lang + ' ' + kind + ': «no data» for the AQI, the dust item kept');
@@ -179,12 +180,14 @@ test('Dust: its own item with its own label, the value in the value line — ru,
     assert.ok(!/air-word/.test(d), lang + ': an ordinary day has no level word');
   }
 });
-test('Dust: at 100 µg/m³ and more «хамсин» sits in the value line\'s word slot, amber — like «умеренный» after «5»', () => {
-  for (const [lang, word] of [['ru', 'хамсин'], ['he', 'חמסין'], ['uk', 'хамсин']]) {
+// N1 (batch 16): a 4-digit khamsin («3400 мкг/м³ хамсин») overflowed the 256 px block, so the amber word moved to the label's
+// line («Пыль · хамсин»); the value line keeps the figure and its unit.
+test('Dust: at 100 µg/m³ and more the amber «хамсин» is on the label\'s line («Пыль · хамсин»), the value line the figure and its unit', () => {
+  for (const [lang, label, word] of [['ru', 'Пыль', 'хамсин'], ['he', 'אבק', 'חמסין'], ['uk', 'Пил', 'хамсин']]) {
     const d = dustItem(mainWith(lang, { uv: null, air: DUSTY, airKind: 'fresh' }).block);
-    assert.match(d, new RegExp('<div class="air-value"><span class="air-num">240</span> <span class="air-unit">[^<]+</span> <span class="air-word lv-khamsin">' + word + '</span></div>'), lang);
+    assert.match(d, new RegExp('<div class="air-label">' + label + ' · <span class="air-word lv-khamsin">' + word + '</span></div><div class="air-value"><span class="air-num">240</span> <span class="air-unit">[^<]+</span></div>'), lang);
   }
-  assert.match(dustItem(mainWith('ru', { uv: null, air: { aqi: 41, level: 'moderate', dust: 100, dustHigh: true }, airKind: 'fresh' }).block), />100<[\s\S]*>хамсин</);
+  assert.match(dustItem(mainWith('ru', { uv: null, air: { aqi: 41, level: 'moderate', dust: 100, dustHigh: true }, airKind: 'fresh' }).block), />хамсин<[\s\S]*>100</);
 });
 test('Dust: no dust value — the item is not drawn (no label, no number), its slot reserved', () => {
   const r = mainWith('ru', { uv: null, air: { aqi: 38, level: 'fair', dust: null, dustHigh: false }, airKind: 'fresh' });
@@ -223,7 +226,7 @@ const DUST_OK = { hours: [{ dust: 27, khamsin: false }, { dust: 120, khamsin: tr
   days: [{ dust: 38, khamsin: false }, { dust: 185, khamsin: true }, null], stale: false, limit: 100 };
 function stripWith(lang, dust) {
   const ctx = load(B12); ctx.I18n.setLang(lang);
-  const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 3 });
+  const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 7 });
   ctx.View.renderWeather(STRIP, { name: 'Реховот', kind: 'fresh', retryAt: '', uv: null, air: FAIR, airKind: 'fresh', dust });
   return { hourly: doc.nodes.hourly.innerHTML, daily: doc.nodes.daily.innerHTML };
 }
@@ -241,30 +244,33 @@ test('B13 hourly: the title row keeps «Почасовой прогноз» and 
 
 test('B13 hourly: every hour has its own dust line UNDER the temperature — the figure, an amber khamsin pill from 100, «—» with no value', () => {
   const h = stripWith('ru', DUST_OK).hourly;
-  const hours = h.split(/<div class="hour(?: is-now| is-empty)?">/).slice(1);
+  const hours = h.split(/<div class="hour(?: is-now| is-empty| is-gap)?">/).slice(1);
   assert.match(hours[0], /<div class="hour-temp">[^<]*<\/div><div class="hour-dust"><span class="dust-num">27<\/span><\/div><\/div>$/, 'under the temperature, last in the column');
-  assert.deepEqual(slots(h, 'hour-dust'), ['<span class="dust-num">27</span>', '<span class="dust-num is-khamsin">120</span>', '<span class="dust-none">—</span>', ''],   // X5: «—» muted
-    'ordinary, khamsin, no value «—», an empty weather cell: an empty slot');
-  assert.match(hours[3], /^<div class="hour-label">&nbsp;<\/div><div class="skeleton"><\/div>/, 'the 4th hour is the empty placeholder');
+  assert.deepEqual(slots(h, 'hour-dust'), ['<span class="dust-num">27</span>', '<span class="dust-num is-khamsin">120</span>', '<span class="dust-none">—</span>'],   // X5: «—» muted
+    'ordinary, khamsin, no value «—»');
+  // L5 (batch 16): an hour beyond the data is an empty slot of its own size — no placeholder bar (those are for loading only)
+  assert.match(h, /<div class="hour is-gap"><\/div><\/div>$/, 'the 4th hour: an empty gap, no skeleton');
+  assert.ok(!/skeleton/.test(h), 'no placeholder with data on screen');
 });
 
 test('B13 daily: the title row carries «Пыль макс., мкг/м³ · хамсин ≥ 100»; each day row a dust column after the high, «—» without a value', () => {
   const d = stripWith('ru', DUST_OK).daily;
   assert.match(d, /^<div class="card-head"><div class="card-title">Прогноз на 7 дней<\/div><div class="dust-legend">/);
   assert.deepEqual(legendOf(d), ['Пыль макс., мкг/м³', 'хамсин ≥ 100']);
-  assert.deepEqual(slots(d, 'day-dust'), ['<span class="dust-num">38</span>', '<span class="dust-num is-khamsin">185</span>', '']);
+  assert.deepEqual(slots(d, 'day-dust'), ['<span class="dust-num">38</span>', '<span class="dust-num is-khamsin">185</span>']);
+  assert.match(d, /<div class="day is-gap"><\/div><\/div>$/, 'L5: the day beyond the data an empty gap');
   assert.match(d, /<div class="day-max">[^<]*<\/div><div class="day-dust"><span class="dust-num">38<\/span><\/div><\/div>/, 'right after the high temperature');
   const none = stripWith('ru', { hours: [null, null, null, null], days: [null, null, null], stale: false, limit: 100 });
-  assert.deepEqual(slots(none.daily, 'day-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>', ''], 'air failed / no forecast: «—» per day (X5: muted)');
-  assert.deepEqual(slots(none.hourly, 'hour-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>', '<span class="dust-none">—</span>', ''], '… and per hour');
+  assert.deepEqual(slots(none.daily, 'day-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>'], 'air failed / no forecast: «—» per day (X5: muted)');
+  assert.deepEqual(slots(none.hourly, 'hour-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>', '<span class="dust-none">—</span>'], '… and per hour');
   assert.deepEqual(legendOf(none.hourly), ['Пыль, мкг/м³', 'хамсин ≥ 100'], 'the legend stays');
   for (const [lang, legend] of [['he', 'אבק מרבי, מק״ג/מ״ק'], ['uk', 'Пил макс., мкг/м³']]) assert.equal(legendOf(stripWith(lang, DUST_OK).daily)[0], legend, lang);
 });
 
 test('B13 no air yet: every dust slot is there and empty (its room kept), the legend shown; stale: every slot dimmed', () => {
   const r = stripWith('ru', { loading: true, limit: 100 });
-  assert.deepEqual(slots(r.hourly, 'hour-dust'), ['', '', '', '']);
-  assert.deepEqual(slots(r.daily, 'day-dust'), ['', '', '']);
+  assert.deepEqual(slots(r.hourly, 'hour-dust'), ['', '', '']);
+  assert.deepEqual(slots(r.daily, 'day-dust'), ['', '']);
   assert.deepEqual(legendOf(r.daily), ['Пыль макс., мкг/м³', 'хамсин ≥ 100']);
   const stale = stripWith('ru', Object.assign({}, DUST_OK, { stale: true }));
   assert.equal((stale.hourly.match(/<div class="hour-dust is-stale">/g) || []).length, 3, 'the three drawn hours');
@@ -276,6 +282,16 @@ test('B13 no air yet: every dust slot is there and empty (its room kept), the le
   ctx.View.renderWeather(null, { name: 'Реховот', kind: 'loading', retryAt: '', dust: { loading: true, limit: 100 } });
   assert.deepEqual(slots(doc.nodes.hourly.innerHTML, 'hour-dust'), ['', '']);
   assert.deepEqual(slots(doc.nodes.daily.innerHTML, 'day-dust'), ['', '']);
+});
+
+// Codex CC1 (batch 16): the forecast's title says the configured number of days (w.days {n}), never a fixed «7».
+test('CC1: the daily card\'s title follows Config.weather.days — 5 days read «5» in ru, he, uk', () => {
+  for (const [lang, title] of [['ru', 'Прогноз на 5 дней'], ['he', 'תחזית ל־5 ימים'], ['uk', 'Прогноз на 5 днів']]) {
+    const ctx = load(B12); ctx.I18n.setLang(lang);
+    const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 5 });
+    ctx.View.renderWeather(STRIP, { name: 'Реховот', kind: 'fresh', retryAt: '', uv: null, air: FAIR, airKind: 'fresh', dust: DUST_OK });
+    assert.match(doc.nodes.daily.innerHTML, new RegExp('^<div class="card-head"><div class="card-title">' + title + '</div>'), lang);
+  }
 });
 
 test('B13 Israel: each region\'s days carry their dust maximum and the same legend; a new forecast alone redraws the card, the same one does not', () => {
@@ -323,9 +339,22 @@ test('X9: View.dustTitle takes the translated title and label; the legend states
 // Batch 15 (M4): while MET Norway's data are shown the weather status says so, in every language; Open-Meteo's says nothing more.
 test('B15: the status line names MET Norway when its data are shown (fresh and stale); nothing added for Open-Meteo', () => {
   const ctx = load(['js/config.js', 'js/i18n.js', 'js/tz.js', 'js/html.js', 'js/icons.js', 'js/view.js']);
-  const say = (lang, kind, source) => { ctx.I18n.setLang(lang); return ctx.View.statusText(kind, '02.11 17:30', source); };
+  const say = (lang, kind, source) => { ctx.I18n.setLang(lang); return ctx.Html.statusText(kind, '02.11 17:30', source); };
   assert.deepEqual([say('ru', 'fresh', 'met'), say('ru', 'stale', 'met'), say('ru', 'fresh', undefined), say('ru', 'loading', 'met')],
     ['Обновлено в 02.11 17:30 · MET Norway', 'Не обновляется · данные от 02.11 17:30 · MET Norway', 'Обновлено в 02.11 17:30', '']);
   assert.equal(say('uk', 'fresh', 'met'), 'Оновлено о 02.11 17:30 · MET Norway');
   assert.equal(say('he', 'fresh', 'met'), 'עודכן ב־02.11 17:30 · MET נורווגיה');
+});
+
+// N8 (FIX-16B): with no weather and the last try failed, the cards have no rows — so no dust legend explains them.
+test('N8: failed with no data — the hourly and daily cards keep their titles, no dust legend; loading keeps the legend', () => {
+  const ctx = load(B12); ctx.I18n.setLang('ru');
+  const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 7 });
+  ctx.View.renderWeather(null, { name: 'Реховот', kind: 'failed', retryAt: '20:40', dust: { hours: [], days: [], stale: false, limit: 100 } });
+  for (const id of ['hourly', 'daily']) {
+    assert.ok(!/dust-legend/.test(doc.nodes[id].innerHTML), id + ': no legend');
+    assert.match(doc.nodes[id].innerHTML, /<div class="wx-none">Нет данных<\/div>/);
+  }
+  ctx.View.renderWeather(null, { name: 'Реховот', kind: 'loading', retryAt: '', dust: { loading: true, limit: 100 } });
+  assert.match(doc.nodes.daily.innerHTML, /dust-legend/, 'loading: the placeholder rows keep their legend');
 });

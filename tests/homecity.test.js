@@ -162,7 +162,7 @@ test('C/T8 (F1): the traffic row cache carries its routes\' signature — anothe
     const m = new Map([['tt-cache', text]]);
     const storage = { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) };
     const s = app.Traffic.createStore(cfg, { getJson: () => {}, now: () => T0 + 60000, setTimeout: () => 0, clearTimeout: () => {}, storage, onChange: () => {} });
-    return s.routes().filter((r) => r.data).length;
+    return s.status().routes.filter((r) => r.data).length;
   };
   const sigR = app.Traffic.signature(rehovot.routes), sigH = app.Traffic.signature(haifa.routes);
   assert.notEqual(sigR, sigH);

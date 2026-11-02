@@ -75,3 +75,29 @@ test('C6: leaving the screen (or the TV hiding the page) during a round leaves n
   m.page(true);
   assert.equal(m.runs.length, 3, 'shown again on view, past the cadence: at once');
 });
+
+// Codex A1 / C-2 (batch 16): a clock that went back (NTP, a TV that lost its time) never freezes the cadence: an arrival
+// after the jump is due at once, and no wait is ever longer than refreshMs.
+test('A1: the clock goes back an hour — a rotation arrival is due at once, never an hour\'s wait', () => {
+  const m = make();
+  m.gate.setVisible(true, true);
+  m.end(0);
+  m.gate.setVisible(false);
+  m.t.advance(-60 * 60000);
+  m.gate.setVisible(true, false);
+  assert.equal(m.runs.length, 2, 'the attempt "in the future" does not hold it back');
+});
+test('A1: the clock goes back during a round — the next wait is at most refreshMs', () => {
+  const m = make();
+  m.gate.setVisible(true, true);
+  m.t.advance(-60 * 60000);
+  m.end(0);
+  assert.deepEqual(m.t.pending(), [EVERY], 'capped at refreshMs, never 65 min');
+});
+test('N1 (b11): a plain leave after a finished round leaves no timer', () => {
+  const m = make();
+  m.gate.setVisible(true, true);
+  m.end(0);
+  m.gate.setVisible(false);
+  assert.deepEqual(m.t.pending(), []);
+});

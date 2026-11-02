@@ -1,7 +1,7 @@
 /* Small HTML helpers every view shares. ES5. Text from the network only ever reaches the page through esc(). */
 var Html = (function () {
   function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   // A fixed label: its string key rides on the element, so a language switch rewrites it in place (relabel) and the
@@ -13,11 +13,12 @@ var Html = (function () {
   }
 
   // The calm status line: a dot and one sentence, coloured by kind ('fresh' green, 'stale' amber); no text = empty.
-  // Rewritten only when what it says changes.
+  // Rewritten only when what it says changes: the html last written is remembered on the element (C-21: the page's own
+  // serialisation of it is never read back and compared).
   function setStatus(el, base, kind, text) {
     var cls = base + ' is-' + kind, html = text ? '<span class="status-dot"></span>' + esc(text) : '';
     if (el.className !== cls) el.className = cls;
-    if (el.innerHTML !== html) el.innerHTML = html;
+    if (el.statusHtml !== html) { el.statusHtml = html; el.innerHTML = html; }
   }
 
   // A screen's header: its title (the string `titleKey`) at the start, its status line at the end (and under it, with
@@ -34,8 +35,15 @@ var Html = (function () {
   }
   // A screen's one calm card when it has nothing to show.
   function emptyCard(cls, glyph, text, sub) { return '<div class="card ' + cls + '">' + emptyState(glyph, text, sub) + '</div>'; }
+  // Every screen's status sentence: "Обновлено в 20:32" / "Не обновляется · данные от 20:32" / nothing (loading and failure
+  // are said where the data would be); with the source's name after it when the data are not the usual source's (batch 15:
+  // «… · MET Norway»).
+  function statusText(kind, time, source) {
+    var text = kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
+    return text && source ? I18n.t('w.source', { text: text, source: I18n.t('src.' + source) }) : text;
+  }
   // "Повторим в 20:33" / "Повторим позже": when a failed source is tried again.
   function retryText(retryAt) { return retryAt ? I18n.t('w.retry', { time: retryAt }) : I18n.t('w.retrySoon'); }
 
-  return { esc: esc, label: label, relabel: relabel, setStatus: setStatus, screenHead: screenHead, emptyState: emptyState, emptyCard: emptyCard, retryText: retryText };
+  return { esc: esc, relabel: relabel, setStatus: setStatus, statusText: statusText, screenHead: screenHead, emptyState: emptyState, emptyCard: emptyCard, retryText: retryText };
 })();

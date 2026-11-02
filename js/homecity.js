@@ -7,7 +7,8 @@
  *   HomeCity.derive(cities, id)     { id, city, place, routes, columns, map, alerts: { areas, nearby }, names,
  *                                   shabbat: { geo (GeoNames id or null), lat, lon, candleMins (or null), shushanPurim } }
  *   HomeCity.apply(config, derived) writes the derived sections into Config
- *   HomeCity.name(entry, lang)      the entry's name in the interface language (English where it has none)
+ *   HomeCity.name(entry, lang, form)  the entry's name in the interface language (form 'In': its "in <place>" form where
+ *                                   the language has one); English, then Russian, where it has none
  * An entry may carry its own `near` (route ids), `alertsNearby` (city ids) and `map` ({ center, zoom }): Rehovot does,
  * the owner's hand-tuned setup. Every other city derives them by the rules below. */
 var HomeCity = (function () {
@@ -103,7 +104,9 @@ var HomeCity = (function () {
     config.home = { id: d.id, city: d.city, names: d.names };
   }
 
-  function name(entry, lang) { return entry[lang] || entry.en; }
+  // C-4, the one place-name rule of every screen: the entry's name in the interface language — in its "in <place>" form
+  // (form 'In': ruIn / ukIn) where the language has one — else English, else Russian.
+  function name(entry, lang, form) { return (form && entry[lang + form]) || entry[lang] || entry.en || entry.ru; }
 
   return { resolve: resolve, find: find, derive: derive, apply: apply, name: name, km: km };
 })();

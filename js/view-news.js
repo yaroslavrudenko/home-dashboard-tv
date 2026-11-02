@@ -1,11 +1,11 @@
 /* The News screen: two columns side by side («Израиль», «Экономика»; the interface language picks the feeds, so the
  * headlines read in the page's own direction), each one feed's top stories, newest first:
  * the time and the headline. Both columns have the same five row slots, so row n on the left and row n on the right
- * share one line. A headline takes at most two lines (a fixed two-line box, clamped with an ellipsis: nothing is
- * measured). Both configured columns are always drawn, and each carries its own state: loading inside it; a feed that
- * fails says so in its own column only, amber — in its body with when it is tried again when it has no story yet, in
- * its head ("not updating") over its last stories. Feed text reaches the page only through
- * Html.esc. */
+ * share one line. A headline takes at most three lines (a fixed three-line box of 3 × 38 px, clamped with an ellipsis:
+ * nothing is measured; the owner, 2026-11-02: «3 строки»), with at least 16 px under its third line (N1). Both configured columns are always drawn, and each carries its own state:
+ * loading inside it; a feed that fails says so in its own column only, amber — in its body with when it is tried again
+ * when it has no story yet, in its head over its last stories («данные от 09:31», short: L1) unless the header already
+ * says exactly that. Feed text reaches the page only through Html.esc. */
 var NewsView = (function () {
   var esc = Html.esc;
   var els = {}, drawn = '';
@@ -27,14 +27,16 @@ var NewsView = (function () {
   }
 
   // c: { id, source, items, kind, updated ("HH:MM") }; rows: the slot count, so a short column keeps the grid;
-  // retryAt: "HH:MM" of the next attempt or ''.
-  function columnHtml(c, now, rows, retryAt) {
+  // retryAt: "HH:MM" of the next attempt or ''; head: the header's { kind, time, retry } — a stale column's own line is left
+  // out when it would show the header's minute (L1, N11: never one time twice on one screen); a failed column leaves the
+  // retry time to the header when the header says it (N5).
+  function columnHtml(c, now, rows, retryAt, head) {
     var body = '', i;
-    if (!c.items.length) body = emptyHtml(c, retryAt);
+    if (!c.items.length) body = emptyHtml(c, head.retry ? '' : retryAt);
     else for (i = 0; i < rows; i++) body += c.items[i] ? rowHtml(c.items[i], now) : '<div class="news-row"></div>';
     return '<section class="card news-col"><div class="news-col-head"><span class="src-dot src-' + esc(c.source) + '"></span>' +
       '<span class="news-col-title">' + esc(I18n.t('n.col.' + c.id)) + '</span><span class="src-name">' + esc(I18n.t('n.src.' + c.source)) + '</span>' +
-      (c.kind === 'stale' ? '<span class="news-col-state">' + esc(I18n.t('w.stale', { time: c.updated })) + '</span>' : '') + '</div>' +
+      (c.kind === 'stale' && head.time !== c.updated ? '<span class="news-col-state">' + esc(I18n.t('n.colStale', { time: c.updated })) + '</span>' : '') + '</div>' +
       '<div class="news-rows">' + body + '</div></section>';
   }
 
@@ -43,28 +45,28 @@ var NewsView = (function () {
   function statusOf(columns, s) {
     var fresh = false, any = false;
     for (var i = 0; i < columns.length; i++) { fresh = fresh || columns[i].kind === 'fresh'; any = any || columns[i].items.length > 0; }
-    if (!any) return { kind: s.kind, text: s.kind === 'failed' ? (s.retryAt ? I18n.t('n.failedRetry', { time: s.retryAt }) : I18n.t('n.failed')) : '' };
+    if (!any) return { kind: s.kind, time: '', retry: s.kind === 'failed' && !!s.retryAt, text: s.kind === 'failed' ? (s.retryAt ? I18n.t('n.failedRetry', { time: s.retryAt }) : I18n.t('n.failed')) : '' };
     var kind = fresh ? 'fresh' : 'stale';
-    return { kind: kind, text: View.statusText(kind, s.updated) };
+    return { kind: kind, time: s.updated, text: Html.statusText(kind, s.updated) };
   }
 
   // columns: [{ id, source, items (newest first, at most `rows`), kind, updated }].
   // s: { kind, updated ("HH:MM", the newest answer), retryAt ("HH:MM"|'') }.
   // Redrawn only when the stories, their "… ago" texts or a state changed.
   function render(columns, s, now, rows) {
-    var key = [s.kind, s.retryAt, I18n.lang()], i, j;
+    var key = [s.kind, s.retryAt, s.updated, I18n.lang()], i, j;
     for (i = 0; i < columns.length; i++) {
       key.push(columns[i].source, columns[i].kind, columns[i].updated);
       for (j = 0; j < columns[i].items.length; j++) key.push(columns[i].items[j].key + columns[i].items[j].title + I18n.ago(now - columns[i].items[j].at));
     }
     key = key.join('|');
+    var st = statusOf(columns, s);
     if (key !== drawn) {
       drawn = key;
       var html = '';
-      for (i = 0; i < columns.length; i++) html += columnHtml(columns[i], now, rows, s.retryAt);
+      for (i = 0; i < columns.length; i++) html += columnHtml(columns[i], now, rows, s.retryAt, st);
       els.body.innerHTML = html;
     }
-    var st = statusOf(columns, s);
     Html.setStatus(els.status, 'status screen-status', st.kind, st.text);
   }
 

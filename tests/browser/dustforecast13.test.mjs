@@ -226,6 +226,9 @@ for (const [lang, v, shots] of [['ru', 1250, ['b13b-main-ru-1250']], ['ru', 3400
       });
       assert.deepEqual(fit, { hours: true, days: true, text: String(v), hour1: String(v) }, lang + ' ' + v);
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' ' + v + ' main');
+      // batch 16 («3400» spare): the daily pill leaves room in its 72 px column on the TV's font, never 0 px
+      const spare = await p.evaluate(() => Math.min.apply(null, [...document.querySelectorAll('#daily .day-dust .dust-num')].map((n) => n.parentNode.getBoundingClientRect().width - n.getBoundingClientRect().width)));
+      assert.ok(spare >= 4, lang + ' ' + v + ': ' + spare.toFixed(1) + ' px spare in the day column');
       if (shots.includes('b13b-main-' + lang + '-' + v)) await shot(p, 'b13b-main-' + lang + '-' + v);
       await press(p, 39); await wait(1200);
       const isr = await p.evaluate(() => [...document.querySelectorAll('#screen-israel .day-dust .dust-num')].every((n) => {

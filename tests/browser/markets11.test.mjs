@@ -112,6 +112,7 @@ for (const [lang, dir] of [['ru', 'ltr'], ['he', 'rtl'], ['uk', 'ltr']]) {
         assert.deepEqual(c.rows.map((r) => r[1]), pitch.slice(0, c.rows.length), c.id + ' row heights');
         assert.deepEqual(c.rows.map((r) => r[0]), cards[0].rows.slice(0, c.rows.length).map((r) => r[0]), c.id + ' row tops');
         assert.ok(Math.max(...c.priceEnds) - Math.min(...c.priceEnds) <= 1, c.id + ': every price ends on one line ' + c.priceEnds);
+        // FIX-16B N2: a commodity's unit is a quiet suffix of its name on the same line — every row and every head one line
         assert.deepEqual(c.rowLines, c.rowLines.map(() => 1), c.id + ': every row and the head on one line ' + c.rowLines);
       }
       assert.ok(cards[0].rows[5][0] + cards[0].rows[5][1] <= cards[0].box[3] - cards[0].box[1], 'the sixth row fits its card');
@@ -124,7 +125,7 @@ for (const [lang, dir] of [['ru', 'ltr'], ['he', 'rtl'], ['uk', 'ltr']]) {
         assert.ok(c.signGaps.every((g) => g === null || (g >= 0 && g <= 8)), lang + ' ' + c.id + ': every sign right after its number (≤ 8 px): ' + c.signGaps);
         // B6 [D6]: one price-column width per card, the same in every language (16 px gap + the card's set width); a card
         // showing «нет данных» may be wider (the text is longer in Ukrainian) and is left out
-        if (!c.nodata) assert.equal(c.priceW, { 'mk-fx': 176, 'mk-us': 156, 'mk-il': 184, 'mk-crypto': 222, 'mk-indices': 169, 'mk-commodities': 184 }[c.id], lang + ' ' + c.id + ' price column');
+        if (!c.nodata) assert.equal(c.priceW, { 'mk-fx': 176, 'mk-us': 156, 'mk-il': 184, 'mk-crypto': 222, 'mk-indices': 169, 'mk-commodities': 152 }[c.id], lang + ' ' + c.id + ' price column');
         assert.deepEqual(c.rows.map((r) => r[1]), c.rows.map(() => 58), c.id + ' row pitch');
         assert.ok(c.seps.every((x) => x !== null), c.id + ': every price has its decimals');
         // FIX-11B-B1a: every row of every card, crypto included (crypto always 2 places), on one decimal column

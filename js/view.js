@@ -73,9 +73,13 @@ var View = (function () {
   function pct(v) { return v === null ? '—' : Math.round(v) + '%'; }
   function popText(pop) { return pop !== null && pop >= 20 ? pop + '%' : ''; }
 
-  // An empty weather cell keeps its dust slot too, empty (batch 13), so the strip and the rows keep their size.
-  var EMPTY_HOUR = '<div class="hour is-empty"><div class="hour-label">&nbsp;</div><div class="skeleton"></div><div class="hour-dust"></div></div>';
-  var EMPTY_DAY = '<div class="day is-empty"><div class="skeleton"></div><div class="day-dust"></div></div>';
+  // Before the first answer each cell is a placeholder bar (it keeps its dust slot too, empty: batch 13), so the strip and
+  // the rows keep their size. L5: placeholders only while loading — a cell beyond the data on screen is an empty slot, and a
+  // failure with no data says so once, quietly, in each card (the current card says when it is tried again).
+  var LOADING_HOUR = '<div class="hour is-empty"><div class="hour-label">&nbsp;</div><div class="skeleton"></div><div class="hour-dust"></div></div>';
+  var LOADING_DAY = '<div class="day is-empty"><div class="skeleton"></div><div class="day-dust"></div></div>';
+  var GAP_HOUR = '<div class="hour is-gap"></div>', GAP_DAY = '<div class="day is-gap"></div>';
+  function noData() { return '<div class="wx-none">' + esc(I18n.t('w.noData')) + '</div>'; }
 
   // Batch 13: the dust forecast (the owner: «прогноз хамсина на каждый час дня как для температуры и на неделю»). dust (from the
   // App, Air.forecast): { loading } before the first air answer, else { hours: [cell], days: [cell], stale } — cell { dust
@@ -102,10 +106,11 @@ var View = (function () {
   // inline end is the status line's): the label in the dust colour, then «хамсин ≥ 100» — quiet grey, the amber pill
   // that explains the amber cells when the card shows one (same box: nothing shifts). On a narrow card the legend wraps
   // under the title, never cuts. title, label: translated text (X9); legend: dustLegend.
+  // label null: no legend at all (N8: a card with no rows explains nothing).
   function dustTitle(title, label, legend) {
-    return '<div class="card-head"><div class="card-title">' + esc(title) + '</div><div class="dust-legend"><span class="dust-legend-key">' +
+    return '<div class="card-head"><div class="card-title">' + esc(title) + '</div>' + (label === null ? '' : '<div class="dust-legend"><span class="dust-legend-key">' +
       esc(label) + '</span>' + (legend ? '<span class="dust-legend-khamsin' + (legend.active ? ' is-active' : '') + '">' +
-      esc(I18n.t('w.air.khamsinWord')) + ' ' + I18n.ltr('≥ ' + legend.limit) + '</span>' : '') + '</div></div>';
+      esc(I18n.t('w.air.khamsinWord')) + ' ' + I18n.ltr('≥ ' + legend.limit) + '</span>' : '') + '</div>') + '</div>';
   }
 
   // The air & UV block (batch 12), between the place's text and the big icon, without glyphs. UV comes with the weather
@@ -123,13 +128,14 @@ var View = (function () {
       extra + '</div>';
   }
   // The dust: a third item of its own (the owner, 2026-11-02: «должно быть понятно а не вкучу слеплено») — its label «Пыль»,
-  // then «27 мкг/м³» in the value style; a khamsin (≥ 100 µg/m³) adds the amber word «хамсин» in the level-word slot, as
-  // «умеренный» after «5». No value: the item is not drawn, its slot stays (nothing moves).
+  // then «27 мкг/м³» in the value style; a khamsin (≥ 100 µg/m³) adds the amber word «хамсин» on the label's line («Пыль ·
+  // хамсин»: N1 — a 4-digit value and its unit then keep the value line to themselves inside the 256 px block). No value:
+  // the item is not drawn, its slot stays (nothing moves).
   function dustHtml(a) {
     if (!a || typeof a.dust !== 'number') return '<div class="air-item air-dust is-none"></div>';
-    var value = '<span class="air-num">' + esc(String(a.dust)) + '</span> <span class="air-unit">' + esc(I18n.t('w.dustUnit')) + '</span>' +
-      (a.dustHigh ? ' <span class="air-word lv-khamsin">' + esc(I18n.t('w.air.khamsinWord')) + '</span>' : '');
-    return airItem('air-dust', 'w.dustLabel', value, '');
+    var label = esc(I18n.t('w.dustLabel')) + (a.dustHigh ? ' · <span class="air-word lv-khamsin">' + esc(I18n.t('w.air.khamsinWord')) + '</span>' : '');
+    return '<div class="air-item air-dust"><div class="air-label">' + label + '</div><div class="air-value"><span class="air-num">' + esc(String(a.dust)) +
+      '</span> <span class="air-unit">' + esc(I18n.t('w.dustUnit')) + '</span></div></div>';
   }
   function airBlock(s, isDay) {
     var a = s.air || null, loading = !a && (s.airKind === 'loading' || s.airKind === undefined);
@@ -162,7 +168,7 @@ var View = (function () {
 
   // dustCellHtml: the hour's dust slot (dustSlot), under the temperature.
   function hourHtml(hr, isNow, dustCellHtml) {
-    if (!hr) return EMPTY_HOUR;
+    if (!hr) return GAP_HOUR;
     return '<div class="hour' + (isNow ? ' is-now' : '') + '"><div class="hour-label">' + esc(isNow ? I18n.t('w.now') : hr.hour) + '</div>' +
       (hr.code === null ? '<div class="icon"></div>' : Icons.weather(hr.code, hr.isDay)) +
       '<div class="hour-pop">' + (popText(hr.pop) || '&nbsp;') + '</div><div class="hour-temp">' + temp(hr.temp) + '</div>' + dustCellHtml + '</div>';
@@ -180,7 +186,7 @@ var View = (function () {
     var span = Math.max(hi - lo, 1), out = '';
     for (k = 0; k < v.daily.length; k++) {
       day = v.daily[k];
-      if (!day) { out += EMPTY_DAY; continue; }
+      if (!day) { out += GAP_DAY; continue; }
       var isToday = day === v.today, bar = '';
       if (day.min !== null && day.max !== null) {
         var left = (day.min - lo) / span * 100, width = Math.max((day.max - day.min) / span * 100, 4);
@@ -192,7 +198,8 @@ var View = (function () {
         if (isToday) bar += '<div class="range-dot" style="left:calc((100% - 16px) * ' + Math.max(0, Math.min(1, (v.current.temp - lo) / span)).toFixed(3) + ')"></div>';
       }
       out += '<div class="day"><div class="day-name">' + esc(isToday ? I18n.t('w.today') : I18n.weekdayShort(day.weekday)) + '</div>' +
-        '<div class="day-icon">' + (day.code === null ? '' : Icons.weather(day.code, true)) + '<span class="day-pop">' + (popText(day.pop) ? Icons.glyph('umbrella') + popText(day.pop) : '') + '</span></div>' +
+        '<div class="day-icon' + (popText(day.pop) ? '' : ' is-dry') + '">' + (day.code === null ? '' : Icons.weather(day.code, true)) +
+        '<span class="day-pop">' + (popText(day.pop) ? Icons.glyph('umbrella') + popText(day.pop) : '') + '</span></div>' +
         '<div class="day-min">' + temp(day.min) + '</div><div class="range">' + bar + '</div>' +
         '<div class="day-max">' + temp(day.max) + '</div>' + dustSlot('day-dust', dust, cellOf(dust && dust.days, k)) + '</div>';
     }
@@ -210,17 +217,17 @@ var View = (function () {
       els.now.className = 'card now is-empty';
       els.now.innerHTML = '<div class="now-place">' + esc(placeName) + '</div>' + Html.emptyState(Icons.weather(3, true),
         I18n.t(failed ? 'w.failed' : 'w.loading'), failed ? Html.retryText(s.retryAt) : '');
-      hours = repeat(EMPTY_HOUR, sizes.hours);
-      days = repeat(EMPTY_DAY, sizes.days);
+      hours = failed ? noData() : repeat(LOADING_HOUR, sizes.hours);
+      days = failed ? noData() : repeat(LOADING_DAY, sizes.days);
     } else {
       els.now.className = 'card now' + (s.kind === 'stale' ? ' is-stale' : '');
       els.now.innerHTML = nowHtml(v, s);
       for (i = 0; i < v.hourly.length; i++) hours += hourHtml(v.hourly[i], i === 0 && v.nowShown, dustSlot('hour-dust', s.dust, cellOf(s.dust && s.dust.hours, i)));
       days = dailyHtml(v, s.dust);
     }
-    var d = s.dust;
-    els.hourly.innerHTML = dustTitle(I18n.t('w.hourly'), dustLabel('w.dustLabel'), dustLegend(d, d && d.hours)) + '<div class="hours">' + hours + '</div>';
-    els.daily.innerHTML = dustTitle(I18n.t('w.daily'), dustLabel('w.dustMax'), dustLegend(d, d && d.days)) + '<div class="days">' + days + '</div>';
+    var d = s.dust, rows = !!v || s.kind !== 'failed';   // N8: failed with no data — no rows, so no legend
+    els.hourly.innerHTML = dustTitle(I18n.t('w.hourly'), rows ? dustLabel('w.dustLabel') : null, dustLegend(d, d && d.hours)) + '<div class="hours">' + hours + '</div>';
+    els.daily.innerHTML = dustTitle(I18n.t('w.days', { n: sizes.days }), rows ? dustLabel('w.dustMax') : null, dustLegend(d, d && d.days)) + '<div class="days">' + days + '</div>';
   }
 
   // The status line speaks only about data on screen: "updated at" or "not updating · data from". Loading
@@ -238,7 +245,7 @@ var View = (function () {
     if (key === statusDrawn) return;
     statusDrawn = key;
     statusArgs = [kind, time, source];
-    Html.setStatus(els.status, 'status', kind, statusText(kind, time, source));
+    Html.setStatus(els.status, 'status', kind, Html.statusText(kind, time, source));
     for (var i = 1; i < forms.length && !statusClear(); i++) {
       var text = I18n.t(forms[i][0], { time: time });
       Html.setStatus(els.status, 'status', kind, source ? I18n.t('w.source', { text: text, source: I18n.t(forms[i][1]) }) : text);
@@ -252,13 +259,7 @@ var View = (function () {
     var s = els.status.getBoundingClientRect(), t = head.firstChild.getBoundingClientRect(), l = head.lastChild.getBoundingClientRect();
     return I18n.dir() === 'rtl' ? Math.min(t.left, l.left) - s.right >= STATUS_GAP : s.left - Math.max(t.right, l.right) >= STATUS_GAP;
   }
-  // "Обновлено в 20:32" / "Не обновляется · данные от 20:32" / nothing (loading and failure are said in the card); with the
-  // source's name after it when the data are not the usual source's (batch 15: «… · MET Norway»).
-  function statusText(kind, time, source) {
-    var text = kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
-    return text && source ? I18n.t('w.source', { text: text, source: I18n.t('src.' + source) }) : text;
-  }
 
-  return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, statusText: statusText, temp: temp, diffText: diffText,
+  return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, temp: temp, diffText: diffText,
     dailyHtml: dailyHtml, dustTitle: dustTitle, dustLabel: dustLabel, dustLegend: dustLegend };
 })();

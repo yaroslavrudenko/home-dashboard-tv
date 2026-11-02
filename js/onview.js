@@ -5,7 +5,8 @@
  *   Returns { setVisible(visible, explicit), visibilityChanged() }:
  *     an explicit open (◀ ▶, a language change on the screen) runs at once; a rotation arrival, staying on view and the
  *     TV showing the page again run only when refreshMs has passed since the last ATTEMPT; one round at a time; leaving
- *     the screen or the TV hiding the page stops the cadence (nothing is asked off view).
+ *     the screen or the TV hiding the page stops the cadence (nothing is asked off view). A clock that went back (now
+ *     before the last attempt) never makes it wait: the attempt is due at once, and no wait is ever longer than refreshMs.
  * Shared by the Markets screen (js/markets.js) and the Alerts screen's recent alerts (js/alerts-history.js). */
 var OnView = (function () {
   function create(refreshMs, deps, run) {
@@ -21,13 +22,13 @@ var OnView = (function () {
       run(function () {
         inFlight = false;
         // the next attempt is due refreshMs after this one BEGAN: a slow round never stretches the cadence
-        if (selected && docVisible()) later(Math.max(0, lastAttemptAt + refreshMs - deps.now()));
+        if (selected && docVisible()) later(Math.max(0, Math.min(refreshMs, lastAttemptAt + refreshMs - deps.now())));
       });
     }
     function check(explicit) {
       if (!selected || !docVisible() || inFlight) return;
       var now = deps.now(), due = lastAttemptAt + refreshMs;
-      if (!explicit && lastAttemptAt && now < due) { later(due - now); return; }
+      if (!explicit && lastAttemptAt && now >= lastAttemptAt && now < due) { later(due - now); return; }
       send(now);
     }
 

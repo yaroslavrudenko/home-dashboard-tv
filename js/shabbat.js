@@ -106,7 +106,7 @@ var Shabbat = (function () {
       var it = json.items[i];
       if (!it || typeof it.date !== 'string') throw shapeError();
       if (it.category === 'hebdate') { var h = hebrewDate(it); if (h) hebDates[it.date] = h; }
-      else if (it.category === 'parashat') { parashot[it.date] = { id: it.title.replace(PARASHAT, ''), he: it.hebrew }; if (leyning(it)) readings[it.date] = leyning(it); }
+      else if (it.category === 'parashat') { parashot[it.date] = { id: it.title.replace(PARASHAT, ''), he: it.hebrew }; var read = leyning(it); if (read) readings[it.date] = read; }
       else if (it.category === 'mevarchim') mevarchim[dateOf(it)] = month(it.title, MEVARCHIM);
       else if (it.category === 'roshchodesh') {
         var rm = month(it.title, ROSH_CHODESH), last = roshChodesh[roshChodesh.length - 1];

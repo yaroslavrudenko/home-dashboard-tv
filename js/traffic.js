@@ -8,7 +8,8 @@
  *   Traffic.level(summary, cfg)    'ok' | 'slow' | 'jam': travel time against the typical time
  *   Traffic.decide(cfg, facts)     'due', or why a round may not be sent now (THE gate; see below)
  *   Traffic.correct(record, now)   the accounting record after a clock correction, or null when none is needed
- *   Traffic.createStore(cfg, deps) the store: asks decide() on every path, keeps the accounting record and the row cache
+ *   Traffic.createStore(cfg, deps) the store: asks decide() on every path, keeps the accounting record and the row cache;
+ *                                  status() is the whole screen (its routes included) from one read of that record
  *   Traffic.signature(routes)      which routes a cached row belongs to (a short hash of every id, from and to)
  * When a round is sent (the judges' COMMON DECISION 2026-10-30 and the owner's explicit-open rule; cfg.schedule):
  * only while the traffic screen is the one on view AND the TV shows it (document visible), one round at a time, with a
@@ -40,7 +41,7 @@ var Traffic = (function () {
     return out;
   }
 
-  function seconds(v) { return typeof v === 'number' && isFinite(v) && v >= 0 ? v : null; }
+  function seconds(v) { return Num.finite(v) && v >= 0 ? v : null; }
 
   // One answer: { travel, free (the typical time at this hour; the travel time when Mapbox has none), delay, length }.
   function summary(json) {
@@ -62,8 +63,7 @@ var Traffic = (function () {
 
   var VERSION = 1, QUOTA = 'tt-quota', CACHE = 'tt-cache', MINUTE = 60000;
   var ROW_ERRORS = { key: 1, busy: 1, route: 1, item: 1, timeout: 1, shape: 1 };
-  var usedOn = Ledger.usedOn, utcDate = Ledger.utcDate, copyRecord = Ledger.copy;   // the accounting: js/ledger.js
-  function count(v) { return typeof v === 'number' && isFinite(v) && v >= 0 && Math.floor(v) === v; }
+  var usedOn = Ledger.usedOn, utcDate = Ledger.utcDate, copyRecord = Ledger.copy, count = Num.count;   // the accounting: js/ledger.js
 
   // A Retry-After header (delta seconds or an HTTP date) as a moment, or 0 when absent, malformed or already past.
   function retryAfterAt(value, now) {
@@ -122,10 +122,10 @@ var Traffic = (function () {
   }
 
   // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, storage (localStorage or null),
-  //         documentVisible() (optional: the TV shows the page; default true), onChange(store) }
+  //         documentVisible() (optional: the TV shows the page; default true), onChange(store), log(message) (optional) }
   function createStore(cfg, deps) {
     var n = cfg.routes.length, storage = deps.storage || null, rows = [], i;
-    var docVisible = deps.documentVisible || function () { return true; };
+    var docVisible = deps.documentVisible || function () { return true; }, log = deps.log || function () {};
     var selected = false, inFlight = false, failed = false, problem = null, answeredFor = 0, paused = false;
     var timer = null, generation = 0;
 
@@ -141,7 +141,7 @@ var Traffic = (function () {
     function persist(r) { paused = !ledger.write(r); return !paused; }
     function saveCache() {
       try { storage.setItem(CACHE, JSON.stringify({ v: VERSION, sig: sig, rows: rows, failed: failed, problem: problem, attemptAt: answeredFor })); }
-      catch (e) { /* the rows on screen still hold for this run */ }
+      catch (e) { log('traffic: rows not cached: ' + e.message); }   // the rows on screen still hold for this run
     }
 
     function facts(now, r, explicit) {
@@ -230,11 +230,10 @@ var Traffic = (function () {
 
     // A row Mapbox cannot route shows "no data", never its old value: a retry cannot change that answer.
     function view(i, now, wasFailed) {
-      var s = rows[i], age = now - s.updatedAt;
+      var s = rows[i];
       if (!s.data || s.error === 'route') return { kind: s.error ? 'failed' : 'loading', data: null };
-      var future = age < 0;
-      return { kind: wasFailed || s.error || future || age > cfg.staleAfterMs ? 'stale' : 'fresh', data: s.data, level: level(s.data, cfg),
-        updatedAt: s.updatedAt, future: future };
+      return { kind: Freshness.kind(true, wasFailed || !!s.error, s.updatedAt, now, cfg.staleAfterMs), data: s.data, level: level(s.data, cfg),
+        updatedAt: s.updatedAt, future: now < s.updatedAt };
     }
 
     var api = {
@@ -252,19 +251,16 @@ var Traffic = (function () {
       },
       // The TV woke up: asked again at once (the same gate).
       wake: function () { if (selected) check(false); },
-      routes: function () {
-        var now = deps.now(), f = lastFailed(account(now)), out = [];
-        for (var i = 0; i < n; i++) out.push(view(i, now, f));
-        return out;
-      },
-      // The whole screen: kind 'loading' (nothing to show, a round in flight) | 'failed' (nothing to show) | 'fresh' |
+      // The whole screen, from ONE read of the accounting record (PERF-4): routes (every route's view, in cfg.routes
+      // order); kind 'loading' (nothing to show, a round in flight) | 'failed' (nothing to show) | 'fresh' |
       // 'stale' (a row on screen is old, future-dated, failed, or the last attempt failed); updating (a round in flight);
       // future (a row's time is ahead of the clock); updatedAt: the OLDEST row with data; problem: 'storage' | 'cap' |
       // 'refused' | null; resumeAt: when the cap or the refusal lets the next attempt go.
       status: function () {
-        var now = deps.now(), r = account(now), f = lastFailed(r), any = false, stale = false, future = false, oldest = Infinity;
+        var now = deps.now(), r = account(now), f = lastFailed(r), any = false, stale = false, future = false, oldest = Infinity, routes = [];
         for (var i = 0; i < n; i++) {
           var v = view(i, now, f);
+          routes.push(v);
           if (!v.data) continue;
           any = true;
           oldest = Math.min(oldest, v.updatedAt);
@@ -272,7 +268,7 @@ var Traffic = (function () {
           if (v.future) future = true;
         }
         var p = !r || paused ? 'storage' : usedOn(r, now) + n > cfg.schedule.dailyRequestCap ? 'cap' : problem;
-        return { kind: any ? (stale ? 'stale' : 'fresh') : inFlight ? 'loading' : 'failed', updating: inFlight, future: future,
+        return { routes: routes, kind: any ? (stale ? 'stale' : 'fresh') : inFlight ? 'loading' : 'failed', updating: inFlight, future: future,
           updatedAt: any ? oldest : 0, problem: p, resumeAt: p === 'cap' || p === 'refused' ? earliest(cfg, r, n, now) : 0 };
       },
       stop: function () {
@@ -285,6 +281,6 @@ var Traffic = (function () {
     return api;
   }
 
-  return { hasToken: hasToken, urls: urls, summary: summary, level: level, decide: decide, correct: Ledger.correct, validDate: Ledger.validDate, createStore: createStore,
+  return { hasToken: hasToken, urls: urls, summary: summary, level: level, decide: decide, correct: Ledger.correct, createStore: createStore,
     signature: signature };
 })();

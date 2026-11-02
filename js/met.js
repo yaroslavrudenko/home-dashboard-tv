@@ -74,7 +74,7 @@ var Met = (function () {
     var t = key.slice(11, 13) + ':00';
     return !(sun && sun.date === key.slice(0, 10) && sun.rise && sun.set) || (t >= sun.rise && t < sun.set);
   }
-  function dateOf(w) { return w.year + '-' + Tz.pad2(w.month + 1) + '-' + Tz.pad2(w.day); }
+  var dateOf = Tz.wallDate;
   // One sun event ("2026-10-25T07:40+03:00") as an instant on the place's clock (Y5: the offset MET wrote it in may not be
   // the place's offset at that moment, on the day the clocks change): { date, hhmm } or null.
   function eventOf(time, wall) {

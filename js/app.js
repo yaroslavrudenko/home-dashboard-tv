@@ -21,7 +21,7 @@
 var App = (function () {
   var resolved = [];          // per clock: Tz.resolve result (built once; formatters are reused)
   var store = null, news = null, traffic = null, map = null, alerts = null, history = null, screens = null, sound = null, markets = null;
-  var air = null, shabbat = null;
+  var air = null, shabbat = null, player = null;
   var screenEls = [], dotEls = [];
   var clockTimer = null, shiftIndex = 0, weatherDrawn = '', toastTimer = null;
   var KEY_BACK = 10009, KEY_LEFT = 37, KEY_RIGHT = 39, SLIDE_PX = 48, FADE_MS = 700, TOAST_MS = 1600;
@@ -41,7 +41,7 @@ var App = (function () {
   // "HH:MM" at home (the first clock) for a moment; '' for none.
   function homeHhmm(ms) { return ms ? Tz.hhmm(Tz.wallTime(resolved[0], ms)) : ''; }
   // The home date 'YYYY-MM-DD' now (the first clock's wall time): what the Shabbat calendar is asked for and viewed at.
-  function homeDate() { var w = wallNow(0); return w.year + '-' + Tz.pad2(w.month + 1) + '-' + Tz.pad2(w.day); }
+  function homeDate() { return Tz.wallDate(wallNow(0)); }
   // The air quality's places: the home city's and the Israel regions', in one request.
   function airPlaces() {
     var out = [mainPlace()], regions = Config.israel.regions, i, j;
@@ -69,13 +69,18 @@ var App = (function () {
     if (!ms) return '';
     var w = Tz.wallTime(resolved[0], ms), today = wallNow(0);
     var other = w.ok && today.ok && (w.year !== today.year || w.month !== today.month || w.day !== today.day);
-    return (other ? Tz.pad2(w.day) + '.' + Tz.pad2(w.month + 1) + ' ' : '') + Tz.hhmm(w);
+    return (other ? Tz.ddmm(w) + ' ' : '') + Tz.hhmm(w);
   }
+  // Every source's deps start with the clock, the timers and the log (C-19: a failure caught is said, never swallowed).
+  function log(message) { console.error(message); }
   function timers() {
     return { now: function () { return Date.now(); }, setTimeout: function (f, ms) { return setTimeout(f, ms); },
-      clearTimeout: function (t) { clearTimeout(t); } };
+      clearTimeout: function (t) { clearTimeout(t); }, log: log };
   }
-  function withTimers(extra) { var d = timers(); for (var k in extra) if (extra.hasOwnProperty(k)) d[k] = extra[k]; return d; }
+  var copyWith = Obj.copyWith;   // js/obj.js
+  function withTimers(extra) { return copyWith(timers(), extra); }
+  // Whether the TV shows the page (C-10: one predicate for every source that pauses off screen).
+  function documentVisible() { return !document.hidden; }
 
   // The index of the clock linked to a weather place, or -1.
   function clockOf(placeId) {
@@ -158,9 +163,9 @@ var App = (function () {
     NewsView.render(cols, { kind: st.kind, updated: homeHhmm(st.updatedAt), retryAt: retryAt(news.nextAt()) }, Date.now(), Config.news.perColumn);
   }
 
-  // The traffic screen's columns (Config.traffic.columns) filled with each route's current view.
-  function trafficColumns() {
-    var t = Config.traffic, legs = {}, routes = traffic.routes(), cols = [], i, j;
+  // The traffic screen's columns (Config.traffic.columns) filled with each route's current view (routes: status().routes).
+  function trafficColumns(routes) {
+    var t = Config.traffic, legs = {}, cols = [], i, j;
     for (i = 0; i < t.routes.length; i++) {
       var id = t.routes[i].id;
       legs[id] = { id: id, name: HomeCity.name(Config.home.names[id], I18n.lang()), view: routes[i] };
@@ -176,7 +181,7 @@ var App = (function () {
   function renderTraffic() {
     if (!traffic) { TrafficView.renderNoKey(); return; }
     var st = traffic.status();
-    TrafficView.render({ columns: trafficColumns(), kind: st.kind, updating: st.updating, future: st.future, problem: st.problem,
+    TrafficView.render({ columns: trafficColumns(st.routes), kind: st.kind, updating: st.updating, future: st.future, problem: st.problem,
       updated: homeStamp(st.updatedAt), ago: Math.floor((Date.now() - st.updatedAt) / 60000),
       resumeAt: homeStamp(st.resumeAt ? Math.ceil(st.resumeAt / 60000) * 60000 : 0) });
   }
@@ -188,22 +193,28 @@ var App = (function () {
   function renderMap() {
     if (!map) { MapView.renderNoKey(); return; }
     var st = map.state();
-    MapView.render(st, homeHhmm(st.updatedAt));
+    MapView.render(st, homeHhmm(st.updatedAt), HomeCity.name(Config.home.city, I18n.lang()));
   }
-  // The live-traffic image, its size from the card's (read once), the home dot placed on it.
+  // The live-traffic image, its size from the card's (read once), the home dot placed on it. The image is loaded here
+  // (A3: the view only shows it): one Net.getImage with the map's deadline; done(ok) exactly once unless cancelled.
   function createMap() {
     var m = Config.map, box = MapView.size(), size = TrafficMap.size(m, box.width, box.height);
     MapView.home(TrafficMap.place(m, size, m.home[0], m.home[1]));
-    return TrafficMap.createController(m, withTimers({ storage: storage(), documentVisible: function () { return !document.hidden; },
-      load: function (stamp, done) { return MapView.load(TrafficMap.url(m, Config.traffic.token, size, stamp), m.timeoutMs, done); },
-      onChange: onData('map') }));
+    function load(stamp, done) {
+      return Net.getImage(TrafficMap.url(m, Config.traffic.token, size, stamp), m.timeoutMs, function (err, img) {
+        if (err === 'cancelled') return;
+        if (!err) MapView.showImage(img);
+        done(!err);
+      }).cancel;
+    }
+    return TrafficMap.createController(m, withTimers({ storage: storage(), documentVisible: documentVisible, load: load, onChange: onData('map') }));
   }
 
   // The Alerts screen: the monitor's real state (never the preview), the recent alerts, today's date at home.
   function renderAlertsScreen() {
     var st = alerts.state(), h = history.state(), w = wallNow(0);
     AlertsScreenView.render(st, h, { homes: Config.alerts.areas, nearby: Config.alerts.nearby, since: st.active ? homeHhmm(st.active.startedAt) : '',
-      checked: homeHhmm(st.checkedAt), today: w.ok ? Tz.pad2(w.day) + '.' + Tz.pad2(w.month + 1) + '.' + w.year : '',
+      checked: homeHhmm(st.checkedAt), today: w.ok ? Tz.ddmmyyyy(w) : '',
       updated: homeHhmm(h.updatedAt), days: Config.alerts.history.days });
   }
 
@@ -362,7 +373,7 @@ var App = (function () {
     }
     if (e.keyCode === KEY_BACK) {
       e.preventDefault();
-      try { tizen.application.getCurrentApplication().exit(); } catch (err) { /* desktop preview */ }
+      try { tizen.application.getCurrentApplication().exit(); } catch (err) { log('exit: ' + err.message); }   // desktop preview: no tizen
       return;
     }
     if (e.keyCode === KEY_LEFT || e.keyCode === KEY_RIGHT) { e.preventDefault(); screens.step(e.keyCode === KEY_RIGHT ? 1 : -1); return; }
@@ -434,9 +445,10 @@ var App = (function () {
   // cold start as switching the TV on, so nothing built for the old city survives.
   function chooseCity(id) {
     var st = storage(), ok = false;
-    try { st.setItem(CITY_STORE, id); ok = st.getItem(CITY_STORE) === id; } catch (e) { console.error('city not saved: ' + e.message); }
+    if (!st) { log('city not saved: the TV gives no storage'); return false; }   // C-18: the real cause, not a TypeError
+    try { st.setItem(CITY_STORE, id); ok = st.getItem(CITY_STORE) === id; } catch (e) { log('city not saved: ' + e.message); }
     if (!ok) return false;
-    try { sessionStore().setItem(CITY_TOAST, '1'); } catch (e) { /* no toast after the reload */ }
+    try { sessionStore().setItem(CITY_TOAST, '1'); } catch (e) { log('city toast not kept: ' + e.message); }   // no toast after the reload
     location.reload();
     return true;
   }
@@ -451,6 +463,7 @@ var App = (function () {
   function refreshIfOld(s, refreshMs, refresh) { if (s.kind !== 'fresh' || Date.now() - s.updatedAt >= refreshMs) refresh(); }
 
   function onVisible() {
+    player.visibilityChanged();                    // hidden: the player stops behind; shown: it plays behind again
     if (map) map.visibilityChanged();              // hidden: no image is loaded; shown: the map asks its gate again
     history.visibilityChanged();
     markets.visibilityChanged();
@@ -491,7 +504,7 @@ var App = (function () {
     ShabbatView.init(document.getElementById('screen-shabbat'), { upcoming: Config.shabbat.upcoming });
     TrafficView.init(document.getElementById('screen-traffic'));
     MapView.init(document.getElementById('screen-map'));
-    AlertsScreenView.init(document.getElementById('screen-alerts'), Config.alerts);   // makes the alert layer (#alert)
+    AlertsScreenView.init(document.getElementById('screen-alerts'));   // makes the alert layer (#alert)
     AlertView.init(document.getElementById('alert'), document.getElementById('corner'));
     AlertBanner.init(document.getElementById('banner'));
     CityView.init(document.getElementById('city'), Cities, withTimers({ choose: chooseCity }));
@@ -506,19 +519,21 @@ var App = (function () {
     air = Air.createStore(airPlaces(), Config.air, withTimers({ getJson: Net.getJson, storage: storage(), onChange: onData('main', 'israel') }));
     shabbat = Shabbat.createStore(Config.shabbat, withTimers({ getJson: Net.getJson, onChange: onData('shabbat'), today: homeDate }));
     news = News.createStore(Config.news, withTimers({ getText: Net.getText, onChange: onData('news') }), I18n.lang());
-    markets = Markets.createController(Config.markets, withTimers({ getJson: Net.getJson, documentVisible: function () { return !document.hidden; },
-      onChange: onData('markets') }));
+    markets = Markets.createController(Config.markets, withTimers({ getJson: Net.getJson, documentVisible: documentVisible, onChange: onData('markets') }));
     if (Traffic.hasToken(Config.traffic)) {
-      traffic = Traffic.createStore(Config.traffic, withTimers({ getJson: Net.getJson, storage: storage(),
-        documentVisible: function () { return !document.hidden; }, onChange: onData('traffic') }));
+      traffic = Traffic.createStore(Config.traffic, withTimers({ getJson: Net.getJson, storage: storage(), documentVisible: documentVisible, onChange: onData('traffic') }));
       map = createMap();
     }
     var chime = Chime.create(withTimers({ AudioContext: window.AudioContext || window.webkitAudioContext,
-      makeAudio: function () { return new Audio(CHIME_URL); }, log: function (m) { console.error(m); } }));
+      makeAudio: function () { return new Audio(CHIME_URL); } }));
     sound = AlertSound.create(Config.alerts.sound, withTimers({ play: chime.play }));
-    alerts = Alerts.createMonitor(Config.alerts, withTimers({ getText: Net.getText, onChange: renderAlerts }));
-    history = AlertsHistory.createController(Config.alerts.history, withTimers({ getJson: Net.getJson,
-      documentVisible: function () { return !document.hidden; }, onChange: onData('alerts') }));
+    // S1: the alert holds survive a restart (kept on the TV, restored before the first poll)
+    alerts = Alerts.createMonitor(Config.alerts, withTimers({ getText: Net.getText, storage: storage(), onChange: renderAlerts }));
+    // The 7-day list at most once per rotation cycle (the owner's «б»: its cadence IS the cycle, Screens.cycleMs); its
+    // areas named by the city catalogue (L13).
+    history = AlertsHistory.createController(copyWith(Config.alerts.history, { refreshMs: Screens.cycleMs(Config.screens, Config.rotation) }),
+      withTimers({ getJson: Net.getJson, documentVisible: documentVisible, places: Cities.list, onChange: onData('alerts') }));
+    player = PlayerBehind.create(withTimers({ send: PlayerBehind.port(log), documentVisible: documentVisible }));
 
     tick();
     // One parallel round at boot: every data set and the alert feed start together (traffic and the map load only while
@@ -531,6 +546,7 @@ var App = (function () {
     renderAlerts();
 
     cityToast();
+    player.start();                                // the player's music plays on behind the dashboard
     setInterval(shift, Config.burnIn.shiftMs);
     keepScreenOn();
     registerKeys();

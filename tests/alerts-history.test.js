@@ -7,7 +7,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { load, fakeTimers } = require('./harness');
 
-const FILES = ['js/config.js', 'js/alerts.js', 'js/onview.js', 'js/alerts-history.js'];   // FIX-11B A4: the gate is js/onview.js
+const FILES = ['js/config.js', 'js/alerts.js', 'js/onview.js', 'js/alerts-history.js', 'js/screens.js'];   // FIX-11B A4: the gate is js/onview.js
+// The history's config as js/app.js gives it (PERF-2, the owner's «б»): its cadence is the rotation cycle (Screens.cycleMs).
+const historyCfg = (ctx) => Object.assign({}, ctx.Config.alerts.history, { refreshMs: ctx.Screens.cycleMs(ctx.Config.screens, ctx.Config.rotation) });
 const T0 = Date.parse('2026-10-29T18:34:00Z');
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const recorded = () => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'oref', 'history.json'), 'utf8'));
@@ -17,8 +19,8 @@ const rec = (o) => Object.assign({ data: 'רחובות', date: '29.10.2026', tim
 test('B1: the recorded answer: end messages dropped, one event per moment and title, newest first, kind from the title', () => {
   const ctx = load(FILES);
   assert.deepEqual(plain(ctx.AlertsHistory.parse(recorded(), 8)), [
-    { date: '19.10.2026', time: '19:38', title: 'חדירת מחבלים', kind: 'infiltration', areas: ['אביתר'] },
-    { date: '10.10.2026', time: '19:57', title: 'חדירת כלי טיס עוין', kind: 'aircraft', areas: ['ערב אל עראמשה'] }
+    { date: '19.10.2026', time: '19:38', title: 'חדירת מחבלים', kind: 'infiltration', areas: ['אביתר'], places: [{ area: 'אביתר', place: null }] },
+    { date: '10.10.2026', time: '19:57', title: 'חדירת כלי טיס עוין', kind: 'aircraft', areas: ['ערב אל עראמשה'], places: [{ area: 'ערב אל עראמשה', place: null }] }
   ]);
   assert.deepEqual(plain(ctx.AlertsHistory.parse([], 8)), [], 'a quiet week: no event');
 });
@@ -45,11 +47,11 @@ test('B1: a foreign shape (a block page object, a record without area / date / t
 function controller(answer) {
   const ctx = load(FILES), t = fakeTimers(T0), calls = [];
   let pending = null, visible = true, changes = 0;
-  const c = ctx.AlertsHistory.createController(ctx.Config.alerts.history, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
-    documentVisible: () => visible, onChange: () => { changes++; },
+  const c = ctx.AlertsHistory.createController(historyCfg(ctx), { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+    documentVisible: () => visible, onChange: () => { changes++; }, places: ctx.Cities.list,
     getJson: (url, ms, done) => { calls.push(url); pending = done; } });
   const reply = (err, body) => { const d = pending; pending = null; d(err, body); };
-  return { ctx, t, c, calls, reply, hide: () => { visible = false; c.visibilityChanged(); }, show: () => { visible = true; c.visibilityChanged(); }, changes: () => changes };
+  return { ctx, t, c, calls, reply, busy: () => pending !== null, hide: () => { visible = false; c.visibilityChanged(); }, show: () => { visible = true; c.visibilityChanged(); }, changes: () => changes };
 }
 
 test('B1: hidden screen: no request at all; an explicit open asks once; a second open while in flight asks nothing', () => {
@@ -67,7 +69,7 @@ test('B1: hidden screen: no request at all; an explicit open asks once; a second
 });
 
 test('B1: on view it refreshes every refreshMs; leaving the screen or the TV hiding the page stops it; a rotation arrival waits for the cadence', () => {
-  const h = controller(), every = h.ctx.Config.alerts.history.refreshMs;
+  const h = controller(), every = historyCfg(h.ctx).refreshMs;
   h.c.setVisible(true, false);
   h.reply(null, recorded());
   h.t.advance(every);
@@ -133,8 +135,79 @@ test('A4: the recent alerts are asked through the shared on-view gate (OnView.cr
   const ctx = load(FILES), t = fakeTimers(T0), made = [];
   const create = ctx.OnView.create;
   ctx.OnView.create = function (refreshMs) { made.push(refreshMs); return create.apply(this, arguments); };
-  ctx.AlertsHistory.createController(ctx.Config.alerts.history, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+  ctx.AlertsHistory.createController(historyCfg(ctx), { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
     getJson: () => {}, onChange: () => {} });
-  assert.deepEqual(made, [ctx.Config.alerts.history.refreshMs]);
+  assert.deepEqual(made, [historyCfg(ctx).refreshMs]);
   assert.ok(!/lastAttemptAt/.test(require('node:fs').readFileSync(require('node:path').join(require('./harness').ROOT, 'js', 'alerts-history.js'), 'utf8')), 'no gate of its own left');
+});
+
+// ---- Batch 16 ---------------------------------------------------------------------------------------------------------
+// PERF-2 (the owner's «б», 2026-11-02): the 7-day list (mode=2 kept) is downloaded at most once per rotation cycle — its
+// cadence IS the cycle, derived from the rotation config (SSOT), never a literal of its own.
+test('PERF-2: the history cadence is the rotation cycle (405 s: seven screens × 45 s + Markets 90 s), longer than the feed\'s 2-min cache', () => {
+  const ctx = load(FILES), c = ctx.Config;
+  assert.equal(c.alerts.history.refreshMs, undefined, 'no cadence of its own in config.js');
+  assert.equal(ctx.Screens.cycleMs(c.screens, c.rotation), 405000);
+  assert.equal(historyCfg(ctx).refreshMs, c.screens.reduce((ms, id) => ms + (c.rotation.dwellMs[id] || c.rotation.intervalMs), 0));
+  assert.ok(historyCfg(ctx).refreshMs >= 2 * 60000);
+  assert.match(fs.readFileSync(path.join(require('./harness').ROOT, 'js', 'app.js'), 'utf8'),
+    /AlertsHistory\.createController\(copyWith\(Config\.alerts\.history, \{ refreshMs: Screens\.cycleMs\(Config\.screens, Config\.rotation\) \}\)/, 'the App gives it the cycle');
+});
+test('PERF-2: parked on the Alerts screen, one download per cycle (213 a day), not one per 2 minutes (720)', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  while (h.t.now() < T0 + 86400000) { if (h.busy()) h.reply(null, recorded()); h.t.advance(60000); }
+  assert.equal(h.calls.length, Math.ceil(86400 / 405), 'a day parked on the screen: 214 (one every 405 s), never 720');
+});
+
+// PERF-1: the areas of an event are de-duplicated with a seen-map (one lookup per record, never a scan of the list) — the
+// same output, and a 10× event no longer costs 100× (the quadratic indexOf).
+function bigEvent(n) {
+  const out = [];
+  for (let j = 0; j < n; j++) out.push(rec({ data: 'אזור ' + (j % (n / 2)), rid: j }));   // every area twice
+  return out;
+}
+test('PERF-1: each area once, in the feed order, whatever the duplicates', () => {
+  const ctx = load(FILES);
+  const e = ctx.AlertsHistory.parse(bigEvent(2000), 7)[0];
+  assert.equal(e.areas.length, 1000);
+  assert.equal(new Set(e.areas).size, 1000, 'each area once');
+  assert.deepEqual(plain(e.areas.slice(0, 3)), ['אזור 0', 'אזור 1', 'אזור 2'], 'the feed order');
+});
+// F-4 (FIX-16B): the cost pinned by an operation count, never by wall-clock time: every array scan (indexOf) during a parse
+// is counted by the elements it walks. Per record only the three end messages are scanned (Alerts.isEnd); the
+// de-duplication scans nothing, so the count is linear (the old indexOf walked ~n²/2: 2,000 records, ~1,000,000 elements).
+test('PERF-1: the parse walks a constant per record — 3 elements (the end messages), whatever the number of areas', () => {
+  const ctx = load(FILES), proto = Object.getPrototypeOf(ctx.AlertsHistory.parse([], 7)), real = proto.indexOf;   // the app's own realm
+  let walked = 0;
+  proto.indexOf = function (x) { walked += this.length; return real.apply(this, arguments); };
+  try {
+    for (const n of [2000, 20000]) { walked = 0; ctx.AlertsHistory.parse(bigEvent(n), 7); assert.equal(walked, 3 * n, n + ' records'); }
+  } finally { proto.indexOf = real; }
+});
+
+// C-7 / L13: the history names its areas at parse time from the city catalogue: a catalogue city in the interface language
+// (once, however many of its districts are listed), an area no city covers as the feed writes it.
+test('C-7 / L13: places at parse time — a catalogue city once (its districts folded), an unknown area kept as written', () => {
+  const ctx = load(FILES), placeOf = ctx.Alerts.placeLookup(ctx.Cities.list);
+  const list = [rec({ data: 'תל אביב - מרכז העיר' }), rec({ data: 'תל אביב - יפו' }), rec({ data: 'רחובות' }), rec({ data: 'אביתר' })];
+  const e = plain(ctx.AlertsHistory.parse(list, 7, placeOf))[0];
+  assert.deepEqual(e.places.map((p) => [p.area, p.place && p.place.id]), [['תל אביב - מרכז העיר', 'tlv'], ['רחובות', 'rehovot'], ['אביתר', null]]);
+  assert.deepEqual(e.areas.length, 4, 'the feed\'s own list is kept whole');
+  // the index agrees with Alerts.coversPlace on every catalogue name and its districts, and never matches a mere prefix
+  for (const c of ctx.Cities.list) for (const m of c.match || [c.he]) {
+    assert.equal(placeOf(m), c, m);
+    assert.equal(placeOf(m + ' - צפון'), c, m + ' district');
+  }
+  assert.equal(placeOf('רחובותיים'), null, 'a different name that starts with the same letters');
+});
+
+// C-2 (the one freshness rule): the list from the future (a clock that went back) is never fresh.
+test('C-2: a clock that went back makes the recent list stale, not fresh', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  h.reply(null, recorded());
+  assert.equal(h.c.state().kind, 'fresh');
+  h.t.advance(-60 * 60000);
+  assert.equal(h.c.state().kind, 'stale', 'the list is dated an hour ahead of the clock');
 });

@@ -11,7 +11,7 @@
  *             and whether it came back from the TV: stale until a live answer); restore (optional) refills the fallback after
  *             a restart; cancel (optional) is called on stop(). A fetch that throws ends the round as failed.
  *     deps:   { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, onChange(store), random() (optional),
- *               storage (optional: localStorage or null) }
+ *               storage (optional: localStorage or null), log(message) (optional) }
  *   Returns { refresh, get(id), status(id) → { kind, updatedAt, source }, nextAt, failures, stop }; the cycle (one request in
  *   flight, jittered back-off, stop()) is the shared Refresher. One answer of a single place may be an object, not a list.
  *   A source.url() that throws ends the hop as a failure of every place: the normal back-off follows.
@@ -26,29 +26,31 @@
 var PlaceStore = (function () {
   var VERSION = 1;
 
-  // The saved entry, or null: no storage or key, a storage that throws, broken JSON, another version, no time.
-  function readSaved(storage, key) {
+  // The saved entry, or null: no storage or key, a storage that throws or broken JSON (said through log), another version,
+  // no time.
+  function readSaved(storage, key, log) {
     try {
       var e = JSON.parse(storage.getItem(key));
       return e && e.v === VERSION && typeof e.at === 'number' ? e : null;
-    } catch (err) { return null; }
+    } catch (err) { log(key + ': not restored: ' + err.message); return null; }
   }
 
   function create(places, source, deps) {
-    var cfg = source.cfg, state = {}, storage = deps.storage || null, fallback = source.fallback || null, epoch = 0;
+    var cfg = source.cfg, state = {}, storage = deps.storage || null, fallback = source.fallback || null, epoch = 0, log = deps.log || function () {};
     var key = storage && source.persistKey ? source.persistKey + '.v' + VERSION : null;
     for (var i = 0; i < places.length; i++) state[places[i].id] = { data: null, updatedAt: 0, error: null, restored: false, source: undefined };
 
-    function parseOrNull(src, json, place) { try { return src.parse(json, cfg, place); } catch (e) { return null; } }
+    // A place whose answer does not parse fails alone (its state says so) — and the reason is logged (C-19).
+    function parseOrNull(src, json, place) { try { return src.parse(json, cfg, place); } catch (e) { log((src.id || 'source') + ' ' + place.id + ': ' + e.message); return null; } }
     // The source an entry or an answer came from: the primary (no id), or the fallback by its id.
     function sourceOf(id) { return !id ? source : fallback && fallback.id === id ? fallback : null; }
     function listOf(json) { return Array.isArray(json) ? json : [json]; }
-    function urlOrNull() { try { return source.url(places, cfg); } catch (e) { return null; } }
+    function urlOrNull() { try { return source.url(places, cfg); } catch (e) { log('url: ' + e.message); return null; } }
 
     // The last good answer of an earlier run, parsed by today's parse: kept no longer than keepMaxMs (a clock that went
     // back makes the age negative: kept, and stale like any restored place).
     function restore() {
-      var e = key ? readSaved(storage, key) : null;
+      var e = key ? readSaved(storage, key, log) : null;
       var src = e ? sourceOf(e.src) : null;
       if (!src || !(deps.now() - e.at <= cfg.keepMaxMs) || e.url !== urlOrNull()) return;
       var models = modelsOf(src, null, e.json), list = listOf(e.json);
@@ -63,7 +65,7 @@ var PlaceStore = (function () {
       return { at: st && typeof st.at === 'number' ? st.at : at, restored: !!(st && st.restored) };
     }
     function save(url, json, src) {
-      try { storage.setItem(key, JSON.stringify({ v: VERSION, at: deps.now(), url: url, src: src.id, json: json })); } catch (e) { /* quota: the refresh goes on */ }
+      try { storage.setItem(key, JSON.stringify({ v: VERSION, at: deps.now(), url: url, src: src.id, json: json })); } catch (e) { log(key + ': not saved: ' + e.message); }   // quota: the refresh goes on
     }
     function set(s, model, at, src, restored) { s.data = model; s.updatedAt = at; s.error = null; s.source = src.id; s.restored = restored; }
     // One answer → one model per place (null: that place did not come or does not parse).
@@ -109,9 +111,8 @@ var PlaceStore = (function () {
       status: function (id) {
         var s = state[id];
         if (!s) return { kind: 'none' };
-        if (!s.data) return { kind: s.error ? 'failed' : 'loading' };
-        var age = deps.now() - s.updatedAt;
-        return { kind: s.error || s.restored || age < 0 || age > cfg.staleAfterMs ? 'stale' : 'fresh', updatedAt: s.updatedAt, source: s.source };
+        var kind = Freshness.kind(!!s.data, !!s.error || s.restored, s.updatedAt, deps.now(), cfg.staleAfterMs);
+        return s.data ? { kind: kind, updatedAt: s.updatedAt, source: s.source } : { kind: kind };
       },
       nextAt: cycle.nextAt,
       failures: cycle.failures,

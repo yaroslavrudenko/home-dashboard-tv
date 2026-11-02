@@ -17,6 +17,10 @@ function applyHomeCity(ctx) {
   ctx.HomeCity.apply(ctx.Config, ctx.HomeCity.derive(ctx.Cities, ctx.HomeCity.resolve(ctx.Cities, null, ctx.Config.homeCity)));
 }
 
+// The dependency-free helpers every module may use (js/num.js, js/obj.js, js/freshness.js): index.html loads them first, so every load
+// here starts with them too.
+const BASE = ['js/num.js', 'js/obj.js', 'js/freshness.js'];
+
 // globals: extra names visible to the scripts (e.g. a fake Intl). Pass Intl: undefined to remove it.
 // Loading js/config.js (without js/homecity.js) also loads the city catalogue and applies the home city, as App.start does.
 function load(files, globals) {
@@ -25,7 +29,7 @@ function load(files, globals) {
   if (globals) for (const k of Object.keys(globals)) ctx[k] = globals[k];
   vm.createContext(ctx);
   const city = files.includes('js/config.js') && !files.includes('js/homecity.js');
-  const all = city ? files.flatMap((f) => (f === 'js/config.js' ? [f, ...CITY] : [f])) : files;
+  const all = BASE.filter((f) => !files.includes(f)).concat(city ? files.flatMap((f) => (f === 'js/config.js' ? [f, ...CITY] : [f])) : files);
   for (const f of all) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
   if (city) applyHomeCity(ctx);
   return ctx;

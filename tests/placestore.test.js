@@ -350,3 +350,13 @@ test('FIX-15B Y1: a fallback that throws ends the round as failed — back-off, 
   assert.deepEqual([h.s.status('a').kind, h.s.failures(), h.t.pending()], ['failed', 1, [30000]]);
   assert.equal(h.s.refresh(), true, 'not stuck in flight');
 });
+
+// C-2 (batch 16): the one freshness rule (js/freshness.js) — data dated after the clock are stale, never fresh.
+test('C-2: a clock that went back makes a place stale', () => {
+  const h = make([{ id: 'a' }]);
+  h.s.refresh();
+  h.calls[0].done(null, [{ v: 1 }]);
+  assert.equal(h.s.status('a').kind, 'fresh');
+  h.t.advance(-60000);
+  assert.equal(h.s.status('a').kind, 'stale');
+});

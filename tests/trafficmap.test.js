@@ -168,3 +168,13 @@ test('MAP-M7: a clock that went back is corrected without loading; 31 days of â—
   assert.ok(counts.every((n) => n <= 600) && counts.some((n) => n === 600), JSON.stringify(per).slice(0, 80));
   assert.ok(32 * 600 < 50000);
 });
+
+// C-2 (batch 16): one freshness rule â€” an image dated after the clock (it went back) is stale, never fresh.
+test('C-2: a clock that went back makes the map image stale', () => {
+  const ctx = load(FILES), s = makeMap(ctx);
+  s.map.setVisible(true, true);
+  s.answer(true);
+  assert.equal(s.map.state().kind, 'fresh');
+  s.clock.advance(-60 * 60000);
+  assert.equal(s.map.state().kind, 'stale');
+});

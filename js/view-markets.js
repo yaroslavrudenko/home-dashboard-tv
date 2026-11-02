@@ -6,7 +6,10 @@
  * A quote without a price says «нет данных» in its own row, never dropped; a card with no price at all says it once,
  * amber, in its head, and «—» in its rows. A closed market is said in the card's head, never in a row: «закрыто» when
  * every priced quote with trading hours is closed, «частично закрыто» when some are (a daily rate has no hours: it never
- * counts); each closed price is dimmed. Until the first snapshot every card keeps its row slots as placeholders, so
+ * counts); each closed price is dimmed. A commodity says what its price is for as a quiet suffix of its name, on the
+ * same line («Brent · баррель», N2). When no
+ * card has a price at all, the screen says it once, calmly, in one card in their place (L8); a partial failure keeps the
+ * per-card note. Until the first snapshot every card keeps its row slots as placeholders, so
  * nothing moves when the data arrives. A quote the last round could not refresh (row.stale) keeps its last value,
  * quietly dimmed. The sign is the row's currency (indices come with none). A card is rewritten only when what it shows
  * changed; the same snapshot again (the minute tick) is not even compared. Prices and changes stay left to right inside
@@ -26,17 +29,18 @@ var MarketsView = (function () {
   function init(el, groups) {
     var cards = '';
     for (var i = 0; i < groups.length; i++) cards += '<section class="card mk-card" id="mk-' + esc(groups[i].id) + '"></section>';
-    el.innerHTML = Html.screenHead('screen.markets', 'markets-status') + '<div class="screen-body mk-body">' + cards + '</div>';
-    els = { status: el.querySelector('#markets-status'), cards: {} };
+    el.innerHTML = Html.screenHead('screen.markets', 'markets-status') + '<div class="screen-body mk-body" id="mk-body">' + cards +
+      '<section class="card mk-none" id="mk-none"></section></div>';
+    els = { status: el.querySelector('#markets-status'), body: el.querySelector('#mk-body'), none: el.querySelector('#mk-none'), cards: {} };
     for (i = 0; i < groups.length; i++) els.cards[groups[i].id] = el.querySelector('#mk-' + groups[i].id);
     layout = groups;
     drawn = {};
     lastSnapshot = null;
   }
 
-  function priced(row) { return typeof row.price === 'number' && isFinite(row.price); }
+  function priced(row) { return Num.finite(row.price); }
   // A symbol the strings do not name yet is shown as itself, never as the raw key.
-  function rowName(id) { var key = 'markets.row.' + id, name = I18n.t(key); return name === key ? id : name; }
+  function rowName(id) { return I18n.tOr('markets.row.' + id, id); }
   function decimals(groupId, price) {
     var a = Math.abs(price);
     if (groupId === 'indices' || groupId === 'crypto') return NARROW;
@@ -53,13 +57,13 @@ var MarketsView = (function () {
     var text = (r > 0 ? '+' : r < 0 ? '−' : '') + I18n.number(Math.abs(r), 2) + '%';
     return '<span class="mk-chg is-' + dir + '"><span class="mk-arrow"></span><span class="mk-pct">' + esc(I18n.ltr(text)) + '</span></span>';
   }
-  // c: { id (group), none (no price in the whole card) }
+  // c: { id (group), none (no price in the whole card), sign (the card's one currency, said in its head: no sign per row) }
   function rowHtml(c, row) {
-    var name = '<span class="mk-name">' + esc(rowName(row.id)) + '</span>';
+    var name = '<span class="mk-name">' + esc(rowName(row.id)) + (row.unit ? '<span class="mk-per"> · ' + esc(I18n.t('markets.unit.' + row.unit)) + '</span>' : '') + '</span>';
     if (!priced(row)) return '<div class="mk-row is-nodata">' + name + '<span class="mk-nodata">' + esc(c.none ? DASH : I18n.t('markets.noData')) + '</span>' +
       '<span class="mk-chg"></span></div>';
     return '<div class="mk-row' + (row.closed === true ? ' is-closed' : '') + (row.stale ? ' is-stale' : '') + '">' + name +
-      '<span class="mk-price">' + esc(I18n.ltr(I18n.number(row.price, decimals(c.id, row.price)))) + signHtml(row.currency) + '</span>' +
+      '<span class="mk-price">' + esc(I18n.ltr(I18n.number(row.price, decimals(c.id, row.price)))) + (c.sign ? '' : signHtml(row.currency)) + '</span>' +
       changeHtml(row.changePct) + '</div>';
   }
   // The head's closed mark: the key of «закрыто» when every priced quote with trading hours is closed, of «частично
@@ -69,15 +73,27 @@ var MarketsView = (function () {
     for (var i = 0; i < rows.length; i++) if (priced(rows[i]) && typeof rows[i].closed === 'boolean') { hours++; if (rows[i].closed) closed++; }
     return !closed ? '' : closed === hours ? 'markets.closed' : 'markets.partlyClosed';
   }
-  function headHtml(id, markKey, none) {
-    return '<div class="mk-head"><span class="mk-title">' + esc(I18n.t('markets.group.' + id)) + '</span>' +
+  function headHtml(id, markKey, none, sign) {
+    return '<div class="mk-head"><span class="mk-title">' + esc(I18n.t('markets.group.' + id)) + '</span>' + (sign ? '<span class="mk-head-sign"> · ' + esc(sign) + '</span>' : '') +
       (none ? '<span class="mk-failed">' + esc(I18n.t('markets.noData')) + '</span>' : markKey ? '<span class="mk-closed">' + esc(I18n.t(markKey)) + '</span>' : '') + '</div>';
   }
+  // A card whose rows say what they are priced per (the commodities: «Brent · барр.») and all in one currency says that
+  // currency once, in its head («Сырьё · $»), so each name has the room for its unit on one line (N2).
+  function cardSign(rows) {
+    var cur = null;
+    for (var i = 0; i < rows.length; i++) {
+      if (!rows[i].unit) return '';
+      if (!priced(rows[i])) continue;
+      if (cur !== null && rows[i].currency !== cur) return '';
+      cur = rows[i].currency;
+    }
+    return cur && SYMBOL[cur] ? SYMBOL[cur] : '';
+  }
   function cardHtml(group) {
-    var c = { id: group.id, none: true }, rows = '', i;
+    var c = { id: group.id, none: true, sign: cardSign(group.rows) }, rows = '', i;
     for (i = 0; i < group.rows.length; i++) if (priced(group.rows[i])) c.none = false;
     for (i = 0; i < group.rows.length; i++) rows += rowHtml(c, group.rows[i]);
-    return headHtml(group.id, closedKey(group.rows), c.none) + '<div class="mk-rows">' + rows + '</div>';
+    return headHtml(group.id, closedKey(group.rows), c.none, c.sign) + '<div class="mk-rows">' + rows + '</div>';
   }
   function placeholderHtml(slot) {
     var rows = '';
@@ -85,16 +101,25 @@ var MarketsView = (function () {
     return headHtml(slot.id, '', false) + '<div class="mk-rows">' + rows + '</div>';
   }
 
-  // The header says the controller's kind: loading; failed (amber, whatever time comes with it); stale or fresh with the
-  // time of the newest data shown (the shared wording of every screen, View.statusText).
-  function statusOf(s) {
-    if (s.kind === 'failed') return { kind: 'failed', text: I18n.t('markets.failed') };
+  // The header says the controller's kind: loading; failed (amber; in words only when the one empty card does not say it
+  // already, L8); stale or fresh with the time of the newest data shown (the shared wording of every screen,
+  // Html.statusText).
+  function statusOf(s, none) {
+    if (s.kind === 'failed') return { kind: 'failed', text: none ? '' : I18n.t('markets.failed') };
     if (s.kind === 'loading') return { kind: 'loading', text: I18n.t('markets.loading') };
-    return { kind: s.kind, text: s.updated ? View.statusText(s.kind, s.updated) : '' };
+    return { kind: s.kind, text: s.updated ? Html.statusText(s.kind, s.updated) : '' };
   }
 
+  // No price in any card (L8): the one calm card instead of six that each say it.
+  function nothingAt(snapshot) {
+    if (!snapshot) return false;
+    for (var i = 0; i < snapshot.groups.length; i++) for (var j = 0; j < snapshot.groups[i].rows.length; j++) if (priced(snapshot.groups[i].rows[j])) return false;
+    return true;
+  }
   function drawCards(snapshot) {
-    var byId = {}, i;
+    var byId = {}, i, none = nothingAt(snapshot), cls = 'screen-body mk-body' + (none ? ' is-none' : '');
+    if (els.body.className !== cls) els.body.className = cls;
+    if (none) { els.none.innerHTML = Html.emptyState(Icons.glyph('chart'), I18n.t('markets.failed'), ''); return; }
     if (snapshot) for (i = 0; i < snapshot.groups.length; i++) byId[snapshot.groups[i].id] = snapshot.groups[i];
     for (i = 0; i < layout.length; i++) {
       var slot = layout[i], group = byId[slot.id], key = (group ? JSON.stringify(group.rows) : 'none') + '|' + I18n.lang();
@@ -113,7 +138,7 @@ var MarketsView = (function () {
       lastLang = I18n.lang();
       drawCards(snapshot);
     }
-    var st = statusOf(s);
+    var st = statusOf(s, nothingAt(snapshot));
     Html.setStatus(els.status, 'status screen-status', st.kind, st.text);
   }
 

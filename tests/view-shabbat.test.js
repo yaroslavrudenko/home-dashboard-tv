@@ -158,10 +158,15 @@ test('Before the first data every slot is there as a placeholder; no data at all
   assert.equal((list().innerHTML.match(/sh-row is-empty/g) || []).length, 6);
   assert.equal(text(status().innerHTML).join(''), '', 'the header says nothing while loading');
   render(null, { kind: 'failed', updated: '', retryAt: '10:12' });
-  assert.deepEqual(text(week().innerHTML.slice(week().innerHTML.indexOf('<div class="empty-text">'))), ['Календарь временно недоступен', 'Повторим в 10:12']);
+  // N5 (FIX-16B): the header says when it is tried again, so the card says the short statement only
+  assert.deepEqual(text(week().innerHTML.slice(week().innerHTML.indexOf('<div class="empty-text">'))), ['Календарь временно недоступен']);
   assert.match(week().innerHTML, /<svg class="icon g-candles"/, 'the calm glyph over the message');
   assert.ok(!/skeleton/.test(list().innerHTML), 'failed: the list does not pretend to be loading');
-  assert.equal((list().innerHTML.match(/<div class="sh-row"><\/div>/g) || []).length, 6, 'six empty slots');
+  // L6 (batch 16): the list card says it, once, never a blank card; the header says when it is tried again
+  assert.deepEqual(text(list().innerHTML), ['Праздники и посты', 'Календарь временно недоступен']);
+  assert.match(list().innerHTML, /<div class="sh-list-failed">Календарь временно недоступен<\/div>/);
+  assert.equal(text(status().innerHTML).join(''), 'Повторим в 10:12', 'the header: when it is tried again');
+  assert.match(status().className, /is-failed/);
   const old = snap('weekday'); old.window = null; old.upcoming = [];
   render(old, { kind: 'stale', updated: '01.11 09:31', retryAt: '10:12' });
   assert.match(week().innerHTML, /Календарь временно недоступен/, 'nothing coming in the data: the failed state, never past dates');

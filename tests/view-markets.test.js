@@ -57,7 +57,7 @@ test('Markets: six cards in the snapshot order (currencies first), six rows each
   const { ctx, scr } = setup('ru');
   ctx.MarketsView.render(fixture('markets-view-snapshot'), { kind: 'fresh', updated: '14:32' });
   assert.deepEqual(ORDER.map((id) => text(head(scr.card(id).innerHTML).replace(/<span class="mk-closed">.*?<\/span>/, ''))),
-    ['Валюты', 'Акции США', 'Акции Израиля', 'Криптовалюты', 'Индексы США', 'Сырьё']);
+    ['Валюты', 'Акции США', 'Акции Израиля', 'Криптовалюты', 'Индексы США', 'Сырьё · $']);   // N2: the card's one $ in its head
   for (const id of ORDER) assert.equal(rows(scr.card(id).innerHTML).length, ROWS[id], id);
   assert.deepEqual(rows(scr.card('fx').innerHTML).map((r) => r.name), ['₪ за 1 $', '₪ за 1 €', '₴ за 1 ₪', '₽ за 1 ₪', '$ за 1 €', '₴ за 1 $']);
   assert.deepEqual(rows(scr.card('us').innerHTML).map((r) => r.name), ['Apple', 'NVIDIA', 'Microsoft', 'Alphabet', 'Amazon', 'Intuit']);
@@ -181,9 +181,20 @@ test('Markets: a snapshot with updatedAt 0 (nothing ever arrived) shows no «О�
   snap.updatedAt = 0;
   for (const g of snap.groups) for (const r of g.rows) Object.assign(r, { price: null, changePct: null, closed: false });
   ctx.MarketsView.render(snap, { kind: 'failed', updated: '02:00' });
-  assert.equal(text(scr.nodes['markets-status'].innerHTML), 'Котировки временно недоступны', 'A2: failed is honoured, whatever time comes with it');
-  assert.equal(scr.nodes['markets-status'].className, 'status screen-status is-failed');
+  // L8 (batch 16): nothing at all — ONE calm card says it (never «нет данных» ×6 and «—» ×36); the header stays amber, no
+  // second sentence
+  assert.equal(scr.nodes['markets-status'].className, 'status screen-status is-failed', 'A2: failed is honoured, whatever time comes with it');
+  assert.equal(text(scr.nodes['markets-status'].innerHTML), '', 'the empty card says it: not twice');
+  assert.equal(scr.nodes['mk-body'].className, 'screen-body mk-body is-none');
+  assert.equal(text(scr.nodes['mk-none'].innerHTML), 'Котировки временно недоступны');
+  assert.match(scr.nodes['mk-none'].innerHTML, /<svg class="icon g-chart"/);
+  // a partial failure keeps the per-card note (B8): one card with no price, the others priced
+  const part = fixture('markets-view-snapshot');
+  for (const r of part.groups[1].rows) Object.assign(r, { price: null, changePct: null });
+  ctx.MarketsView.render(part, { kind: 'stale', updated: '02:00' });
+  assert.equal(scr.nodes['mk-body'].className, 'screen-body mk-body', 'some prices: the six cards');
   assert.ok(rows(scr.card('us').innerHTML).every((r) => r.nodata === '—'), 'B8: a card with no price at all: «—» in its rows');
+  assert.match(head(scr.card('us').innerHTML), /mk-failed/, '… and its head says it once');
   const fresh = fixture('markets-view-snapshot');
   assert.ok(fresh.groups[0].rows.every((r) => !('stale' in r)), 'the fixture mirrors js/markets.js: fresh rows have no stale key');
 });
@@ -242,8 +253,9 @@ test('Markets strings: every group, every row of the fixture and the screen\'s o
       seen[lang + k] = v;
     }
   }
-  // own strings, not the English fallback, for every key that names words (brand and index names may stay Latin)
-  for (const k of ['screen.markets', 'markets.closed', 'markets.partlyClosed', 'markets.noData', 'markets.group.fx', 'markets.row.UAHperILS', 'markets.row.BZ=F'])
+  // own strings, not the English fallback, for every key that names words (brand, benchmark and index names — Brent, WTI,
+  // VIX — may stay Latin; FIX-16B N2 shortened «Нефть Brent» to the benchmark's name with its unit after it)
+  for (const k of ['screen.markets', 'markets.closed', 'markets.partlyClosed', 'markets.noData', 'markets.group.fx', 'markets.row.UAHperILS', 'markets.row.GC=F', 'markets.unit.barrel'])
     for (const lang of ['ru', 'he', 'uk']) { ctx.I18n.setLang('en'); assert.notEqual(seen[lang + k], ctx.I18n.t(k), lang + ' ' + k + ' is its own'); }
   for (const gone of ['GBPILS', 'RUBperUSD', '^NYA', 'PL=F']) assert.equal(ctx.I18n.t('markets.row.' + gone), 'markets.row.' + gone, gone + ': not on the screen (M4-FINAL-5)');
 });
@@ -313,3 +325,27 @@ test('B8: a card with no price at all: one amber «нет данных» in its 
   assert.doesNotMatch(head(scr.card('il').innerHTML), /mk-failed/, 'one missing row: no head mark');
   assert.equal(rows(scr.card('il').innerHTML)[5].nodata, 'нет данных');
 });
+
+// N2 (FIX-16B): a commodity's unit is a quiet suffix of its name on the same line — «Brent · баррель» — never a second line.
+test('N2: commodity units on the name\'s own line, «· unit», in ru, he and uk', () => {
+  for (const [lang, brent, gold] of [['ru', 'Brent · барр.', 'Золото · унц.'], ['he', 'ברנט · חבית', 'זהב · אונקיה'], ['uk', 'Brent · бар.', 'Золото · унц.']]) {
+    const { ctx, scr } = setup(lang);
+    ctx.MarketsView.render(fixture('markets-view-snapshot'), { kind: 'fresh', updated: '14:32' });
+    const names = [...scr.card('commodities').innerHTML.matchAll(/<span class="mk-name">([^<]*)<span class="mk-per">([^<]*)<\/span><\/span>/g)].map((m) => m[1] + m[2]);
+    assert.equal(names.length, 6, lang);
+    assert.equal(names[0], brent, lang);
+    assert.equal(names[2], gold, lang);
+  }
+});
+// N2 (FIX-16B): the commodities card — every row priced per a unit, all in $ — says its $ once in its head («Сырьё · $»), and
+// its rows carry no sign box, so each name and its unit stay on one line; every other card keeps its signs.
+test('N2: the commodities card says «· $» once in its head and no sign in its rows; the other cards keep theirs', () => {
+  const { ctx, scr } = setup('ru');
+  ctx.MarketsView.render(fixture('markets-view-snapshot'), { kind: 'fresh', updated: '14:32' });
+  const html = scr.card('commodities').innerHTML;
+  assert.match(head(html), /<span class="mk-title">Сырьё<\/span><span class="mk-head-sign"> · \$<\/span>/);
+  assert.ok(!/mk-sign/.test(html), 'no sign per row');
+  assert.ok(rows(scr.card('us').innerHTML).every((r) => r.signInPrice), 'US shares keep their $ per row');
+  assert.ok(!/mk-head-sign/.test(scr.card('us').innerHTML));
+});
+

@@ -10,8 +10,16 @@
  *                 hold changed (true with on: the alert has just come up)
  *   .open(i)      show screen i as the remote would (auto false), with its own dwell (pauses and holds still count);
  *                 false when it is already on view
+ *   Screens.dwellMs(cfg, id)          how long the rotation keeps screen `id` on view (null id: the common interval)
+ *   Screens.cycleMs(ids, cfg)         one full turn of the rotation through the screens `ids` (the sum of their dwells)
  * The rotation timer is the only timer: nothing runs per screen while a screen is hidden. */
 var Screens = (function () {
+  function dwellMs(cfg, id) {
+    var own = cfg.dwellMs && id !== null ? cfg.dwellMs[id] : undefined;
+    return typeof own === 'number' ? own : cfg.intervalMs;
+  }
+  function cycleMs(ids, cfg) { var ms = 0; for (var i = 0; i < ids.length; i++) ms += dwellMs(cfg, ids[i]); return ms; }
+
   function create(count, cfg, deps) {
     var index = 0, pausedUntil = 0, held = false, timer = null;
 
@@ -22,10 +30,7 @@ var Screens = (function () {
     }
     function show(dir, auto) { go((index + dir + count) % count, dir, auto); }
     // How long the rotation keeps the screen on view: its own dwell, else the common interval.
-    function dwell() {
-      var id = deps.idOf ? deps.idOf(index) : null, own = cfg.dwellMs && id !== null ? cfg.dwellMs[id] : undefined;
-      return typeof own === 'number' ? own : cfg.intervalMs;
-    }
+    function dwell() { return dwellMs(cfg, deps.idOf ? deps.idOf(index) : null); }
     function pauseFor(ms) {
       pausedUntil = Math.max(pausedUntil, deps.now() + ms);
       schedule();
@@ -64,5 +69,5 @@ var Screens = (function () {
       rotating: function () { return timer !== null; }
     };
   }
-  return { create: create };
+  return { create: create, dwellMs: dwellMs, cycleMs: cycleMs };
 })();

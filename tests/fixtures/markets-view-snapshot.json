@@ -245,42 +245,48 @@
           "price": 64.82,
           "currency": "USD",
           "changePct": -1.12,
-          "closed": false
+          "closed": false,
+          "unit": "barrel"
         },
         {
           "id": "NG=F",
           "price": 3.947,
           "currency": "USD",
           "changePct": 2.65,
-          "closed": true
+          "closed": true,
+          "unit": "mmbtu"
         },
         {
           "id": "GC=F",
           "price": 4012.3,
           "currency": "USD",
           "changePct": 0.41,
-          "closed": false
+          "closed": false,
+          "unit": "ounce"
         },
         {
           "id": "SI=F",
           "price": 48.62,
           "currency": "USD",
           "changePct": 0.96,
-          "closed": false
+          "closed": false,
+          "unit": "ounce"
         },
         {
           "id": "HG=F",
           "price": 5.0815,
           "currency": "USD",
           "changePct": -0.21,
-          "closed": false
+          "closed": false,
+          "unit": "pound"
         },
         {
           "id": "CL=F",
           "price": 61.04,
           "currency": "USD",
           "changePct": -1.05,
-          "closed": false
+          "closed": false,
+          "unit": "barrel"
         }
       ]
     }

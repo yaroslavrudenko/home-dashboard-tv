@@ -68,6 +68,18 @@ export function hebcalAnswer(url) {
   return { status: 200, contentType: 'application/json', body: fixtureText('hebcal/hebcal-' + (jlm ? 'jlm' : 'rehovot') + '-2026-11-02-ly.json') };   // captured with the app's own params (leyning, specials, Rosh Chodesh, Omer)
 }
 
+// T-1: under --test-concurrency=4 Chrome now and then fails to start ("Failed to launch the browser process"): one more
+// try, said on stderr — a second failure is the test's failure.
+async function launch(puppeteer, profile) {
+  const go = () => puppeteer.launch({ executablePath: process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    headless: 'new', userDataDir: profile, args: ['--window-size=1920,1080', '--hide-scrollbars'] });
+  try { return await go(); } catch (e) {
+    console.error('page.mjs: Chrome did not start (' + String(e.message).split('\n')[0] + '); trying once more');
+    await new Promise((r) => setTimeout(r, 1000));
+    return go();
+  }
+}
+
 function loadPuppeteer() {
   const dir = process.env.PUPPETEER_CORE_DIR;
   const req = createRequire(dir ? path.join(dir, 'noop.js') : import.meta.url);
@@ -81,8 +93,10 @@ function loadPuppeteer() {
 // alerts, alerts-history.oref.org.il) a file in tests/fixtures/oref | 'fail' |
 // (n) => { status, body }; `opts.traffic` (one GET per route) 'ok' (that route's answer in tests/fixtures/mapbox/routes.json)
 // | 'fail' | (round, url) => { status, body } (round: 1 for the first ten GETs, …); `opts.map` (the traffic map image)
-// 'ok' (tests/fixtures/mapbox/static.png, a real traffic-night-v2 image made smaller) | 'fail' | (n, url) => { status, body }
-// | { hang: true }; `opts.traffic` / `opts.map` 'live': straight to the real Mapbox (a measurement with a real token).
+// 'ok' (tests/fixtures/mapbox/static.png: a real traffic-night-v2 image at the configured centre and zoom — Rehovot's view —
+// recorded 2026-11-02 at the card's size and made smaller) | 'fail' | (n, url) => { status, body } | { hang: true } (never
+// answered, for any source but the weather's own form below: D-T4); `opts.traffic` / `opts.map` 'live': straight to the
+// real Mapbox (a measurement with a real token).
 // `opts.met` (batch 15: MET Norway, the weather's fallback) 'ok' (metAnswer) | 'fail' | 'live' | (n, url) => { status, body }.
 // `opts.markets` (batch 11: Yahoo Finance, open.er-api.com) 'ok' (the recorded answers in tests/fixtures/markets:
 // marketsRecorded) | 'fail' | 'live' (fetched from the real sources by Node at that moment) | (n, url) => { status, body }.
@@ -118,6 +132,7 @@ async function answerFor(kind, opts, url, n) {
   const o = opts[kind];
   const custom = typeof o === 'function' ? o(kind === 'news' ? url : kind === 'traffic' ? Math.ceil(n / 10) : n, url) : null;
   if (custom) return custom;
+  if (o && o.hang) return o;                       // D-T4: the documented { hang: true } form, honoured for every source
   if (o === 'fail') return { status: 503, body: '' };
   if (kind === 'markets') {
     if (o === 'ok') return marketsRecorded(url);
@@ -150,8 +165,7 @@ async function answerFor(kind, opts, url, n) {
 export async function openApp(opts = {}) {
   const puppeteer = loadPuppeteer();
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'dashboard-browser-'));
-  const browser = await puppeteer.launch({ executablePath: process.env.CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    headless: 'new', userDataDir: profile, args: ['--window-size=1920,1080', '--hide-scrollbars'] });
+  const browser = await launch(puppeteer, profile);
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080 });
   const weatherRequests = [];
@@ -190,7 +204,7 @@ export async function openApp(opts = {}) {
       weatherRequests.push(url);
       const n = weatherRequests.length;
       const fail = opts.weather === 'fail' || (opts.weather === 'ok-then-fail' && n > 1);
-      const answer = typeof opts.weather === 'function' ? opts.weather(n, url)
+      const answer = typeof opts.weather === 'function' ? opts.weather(n, url) : opts.weather && opts.weather.hang ? opts.weather
         : fail ? { status: 503, body: '' } : { status: 200, body: weatherAnswer(url) };
       // batch 13: { hang: true } never answers (a refresh still in flight: the weather on screen does not change)
       done = answer.hang ? null : req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
@@ -216,7 +230,9 @@ export async function openApp(opts = {}) {
   return { browser, page, weatherRequests, requests, errors, close: async () => { await browser.close(); fs.rmSync(profile, { recursive: true, force: true }); } };
 }
 
-// Every visible element matching `selector` (default: everything inside #stage): its box, and whether its text is cut (scrollWidth > clientWidth).
+// Every visible element matching `selector` (default: everything inside #stage): its box, and whether its text is cut —
+// across (scrollWidth > clientWidth) or, D-T1, down: a box that clips (overflow not visible: a line clamp, a fixed height)
+// holding more than it shows (scrollHeight > clientHeight). A glyph's ascender above a line-height: 1 box clips nothing.
 export function measure(selector = '#stage *') {
   const out = [];
   for (const el of document.querySelectorAll(selector)) {
@@ -226,13 +242,17 @@ export function measure(selector = '#stage *') {
     const pr = el.parentElement.getBoundingClientRect();
     const cr = card ? card.getBoundingClientRect() : null;
     out.push({ cls: el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className, text: (el.textContent || '').trim().slice(0, 40),
-      l: r.left, t: r.top, r: r.right, b: r.bottom, cut: el.children.length === 0 && el.scrollWidth > el.clientWidth + 1,
+      l: r.left, t: r.top, r: r.right, b: r.bottom, cut: el.children.length === 0 && (el.scrollWidth > el.clientWidth + 1 || (el.scrollHeight > el.clientHeight + 1 && getComputedStyle(el).overflowY !== 'visible')),
       // a text leaf wider or taller than the box it sits in (e.g. a label wider than its column)
       overflowsParent: el.children.length === 0 && (r.left < pr.left - 0.5 || r.right > pr.right + 0.5 || r.top < pr.top - 0.5 || r.bottom > pr.bottom + 0.5),
       outsideCard: cr && el !== card ? (r.left < cr.left - 0.5 || r.right > cr.right + 0.5 || r.top < cr.top - 0.5 || r.bottom > cr.bottom + 0.5) : false });
   }
   return out;
 }
+
+// The one vertical clamp the app means (the owner, 2026-11-02, «3 строки»): a headline longer than three lines ends with «…»
+// in its three-line, 114 px box (3 × 38, FIX-16B N1). measure()'s boxes without those (a clamped headline of any other height stays a defect).
+export function withoutHeadlineClamp(boxes) { return boxes.filter((b) => !(b.cls === 'news-title' && b.cut && Math.round(b.b - b.t) === 114)); }
 
 // Text legibility over the lightest card: every own-text element matching `selector` at ≥ 24 px and ≥ 4.5:1, Inter
 // loaded with tabular figures. Runs in the page (page.evaluate(legibility, selector)).

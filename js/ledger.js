@@ -9,10 +9,9 @@
  *   Ledger.correct(r, now)      the record after a clock that went back, or null when nothing needs correcting
  *   Ledger.utcDate(ms) · Ledger.nextUtcMidnight(ms) · Ledger.validDate(d) · Ledger.copy(r) */
 var Ledger = (function () {
-  var VERSION = 1, DAY_MS = 86400000, utcDate = Tz.isoDate;     // calendar dates: js/tz.js
+  var VERSION = 1, DAY_MS = 86400000, utcDate = Tz.isoDate, count = Num.count;     // calendar dates: js/tz.js; counts: js/num.js
 
   function nextUtcMidnight(ms) { return (Math.floor(ms / DAY_MS) + 1) * DAY_MS; }
-  function count(v) { return typeof v === 'number' && isFinite(v) && v >= 0 && Math.floor(v) === v; }
   // A real calendar date "YYYY-MM-DD": it survives the round trip through Date.UTC (2026-02-31 and 0000-00-00 do not).
   function validDate(d) {
     if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;

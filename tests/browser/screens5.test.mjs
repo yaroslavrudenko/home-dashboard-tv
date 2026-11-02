@@ -17,6 +17,7 @@ const REGIONS = () => [...document.querySelectorAll('.region')].map((c) => ({
   cls: c.className, name: c.querySelector('.region-name').textContent, city: c.querySelector('.region-city').textContent,
   temp: c.querySelector('.region-temp') ? c.querySelector('.region-temp').textContent : '', icon: !!c.querySelector('.region-now .icon'),
   sub: c.querySelector('.region-sub') ? c.querySelector('.region-sub').textContent : '',
+  subLines: [...c.querySelectorAll('.region-sub .region-part')].map((e) => e.textContent),
   days: [...c.querySelectorAll('.day')].map((d) => d.querySelector('.day-name').textContent),
   bars: c.querySelectorAll('.range-fill').length, box: (() => { const b = c.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)]; })() }));
 
@@ -34,7 +35,7 @@ test('FB5-WX: «Погода в Израиле» — Север, Центр, Ю�
     assert.deepEqual(r.map((c) => [c.cls, c.name, c.city, c.icon, c.days.length, c.bars]), [
       ['card region', 'Север', 'Хайфа', true, 5, 5], ['card region', 'Центр', 'Тель-Авив', true, 5, 5], ['card region', 'Юг', 'Беэр-Шева', true, 5, 5]]);
     assert.deepEqual(r.map((c) => c.temp), ['18°', '21°', '23°']);
-    assert.match(r[0].sub, /^Ощущается как 19° · Ветер 14 км\/ч$/);
+    assert.deepEqual(r[0].subLines, ['Ощущается как 19°', 'Ветер 14 км/ч'], 'L10: feels-like and the wind, each on its own line, no «·»');
     assert.equal(r[0].days[0], 'Сегодня');
     assert.deepEqual(r.map((c) => c.box[1]), [r[0].box[1], r[0].box[1], r[0].box[1]], 'one line of cards');
     assert.deepEqual(r.map((c) => c.box[3]), [r[0].box[3], r[0].box[3], r[0].box[3]]);

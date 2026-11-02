@@ -36,14 +36,16 @@ var IsraelView = (function () {
     return '<div class="region-head"><span class="region-name">' + esc(I18n.t('r.' + r.id)) + '</span><span class="region-city">' + esc(I18n.t('place.' + r.place)) + '</span>' +
       '</div>' + airLine(chipOf(card));
   }
-  // The sub line's parts never break inside ("км/год" is one word); a line too long for the card wraps between them.
-  function part(text) { return '<span class="region-part">' + esc(text) + '</span>'; }
+  // The sub lines (L10): feels-like and the wind, each on its own line in every language (a two-line box of fixed height,
+  // so the days below start on one line across the cards, and no «·» is left hanging at a line's end); a part never breaks
+  // inside ("км/год" is one word).
+  function part(text) { return '<div class="region-part">' + esc(text) + '</div>'; }
   function nowHtml(c) {
     var sub = [];
     if (c.feels !== null) sub.push(part(I18n.t('w.feels', { t: View.temp(c.feels) })));
     if (c.wind !== null) sub.push(part(I18n.t('w.wind') + ' ' + Math.round(c.wind) + ' ' + I18n.t('w.kmh')));
     return '<div class="region-now"><div class="region-temp">' + View.temp(c.temp) + '</div><div class="region-icon">' + Icons.weather(c.code, c.isDay) + '</div></div>' +
-      '<div class="region-cond">' + esc(I18n.condition(c.code)) + '</div><div class="region-sub">' + sub.join(' · ') + '</div>';
+      '<div class="region-cond">' + esc(I18n.condition(c.code)) + '</div><div class="region-sub">' + sub.join('') + '</div>';
   }
 
   // card: { region, view (Weather.forHour, the days cut to the screen's count) or null, kind, retryAt, air (Air.summary or
@@ -69,7 +71,7 @@ var IsraelView = (function () {
       el.innerHTML = cardHtml(c, days);
       el.className = 'card region' + (c.kind === 'stale' ? ' is-stale' : c.view ? '' : ' is-empty');
     }
-    Html.setStatus(els.status, 'status screen-status', status.kind, View.statusText(status.kind, status.updated, status.source));
+    Html.setStatus(els.status, 'status screen-status', status.kind, Html.statusText(status.kind, status.updated, status.source));
   }
 
   return { init: init, render: render };

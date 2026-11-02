@@ -28,7 +28,7 @@ var Chime = (function () {
       }
       return ctx;
     }
-    function disconnect(nodes) { for (var i = 0; i < nodes.length; i++) { try { nodes[i].disconnect(); } catch (e) { /* already gone */ } } }
+    function disconnect(nodes) { for (var i = 0; i < nodes.length; i++) { try { nodes[i].disconnect(); } catch (e) { logError('disconnect')(e); } } }   // C-19: said, never silent
 
     // A sine at `freq` through a gain of `level` into `into`, from `at` to `end`.
     function partial(c, into, freq, level, at, end, nodes) {

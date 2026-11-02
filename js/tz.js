@@ -15,6 +15,7 @@
  * Calendar dates "YYYY-MM-DD" (the one home of this arithmetic: weather, the Shabbat calendar, the request ledger) are
  * whole UTC days, so no zone, DST or leap second ever enters it:
  *   Tz.dateMs(date) · Tz.isoDate(ms) · Tz.addDays(date, n) · Tz.weekdayOf(date) (0 = Sunday) · Tz.daysBetween(from, to)
+ * and a wall time's own date: Tz.wallDate(w) ("2026-10-29") · Tz.ddmm(w) ("29.10") · Tz.ddmmyyyy(w) ("29.10.2026").
  */
 var Tz = (function () {
   var HOUR = 3600000, DAY = 24 * HOUR;
@@ -59,10 +60,7 @@ var Tz = (function () {
   var OPTIONS = { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
 
   function makeFormatter(intl, zone) {
-    var o = {};
-    for (var k in OPTIONS) if (OPTIONS.hasOwnProperty(k)) o[k] = OPTIONS[k];
-    o.timeZone = zone;
-    try { return new intl.DateTimeFormat('en-US', o); } catch (e) { return null; }
+    try { return new intl.DateTimeFormat('en-US', Obj.copyWith(OPTIONS, { timeZone: zone })); } catch (e) { return null; }
   }
 
   // Offset in minutes for `utc` read through an en-US formatter ("10/29/2026, 20:30:05"), or null.
@@ -114,8 +112,13 @@ var Tz = (function () {
   function pad2(n) { return n < 10 ? '0' + n : String(n); }
   // "20:32" of a wall time, "--:--" when the zone is unknown.
   function hhmm(w) { return w.ok ? pad2(w.hours) + ':' + pad2(w.minutes) : '--:--'; }
+  // A wall time's calendar date (C-8, one home for these strings): "2026-10-29" (Open-Meteo's and Hebcal's dates), "29.10"
+  // and "29.10.2026" (on screen).
+  function wallDate(w) { return w.year + '-' + pad2(w.month + 1) + '-' + pad2(w.day); }
+  function ddmm(w) { return pad2(w.day) + '.' + pad2(w.month + 1); }
+  function ddmmyyyy(w) { return ddmm(w) + '.' + w.year; }
   // "2026-10-29T20": the wall time's hour in the format of Open-Meteo's local times, null when unknown.
-  function hourKey(w) { return w.ok ? w.year + '-' + pad2(w.month + 1) + '-' + pad2(w.day) + 'T' + pad2(w.hours) : null; }
+  function hourKey(w) { return w.ok ? wallDate(w) + 'T' + pad2(w.hours) : null; }
 
   // ---- calendar dates ----------------------------------------------------------------------------
   function dateMs(date) { return Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)); }
@@ -125,5 +128,6 @@ var Tz = (function () {
   function daysBetween(from, to) { return Math.round((dateMs(to) - dateMs(from)) / DAY); }
 
   return { resolve: resolve, wallTime: wallTime, intlOffset: intlOffset, rules: RULES, pad2: pad2, hhmm: hhmm, hourKey: hourKey,
+    wallDate: wallDate, ddmm: ddmm, ddmmyyyy: ddmmyyyy,
     dateMs: dateMs, isoDate: isoDate, addDays: addDays, weekdayOf: weekdayOf, daysBetween: daysBetween };
 })();

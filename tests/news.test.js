@@ -19,10 +19,9 @@ test('each feed\'s shape parses: CDATA (NEWSru, BBC), escaped text (Pravda), "+0
   assert.equal(nr[0].title, 'Ракетная тревога в центре страны: перехваты над Шфелой, пострадавших нет');
   assert.equal(nr[0].at, Date.parse('2026-10-29T18:28:00Z'));
   assert.equal(nr[0].key, 'https://www.newsru.co.il/rest/29oct2026/shfela_alert.html');
-  assert.match(nr[0].summary, /^Сирены прозвучали в Реховоте/);
+  assert.deepEqual(Object.keys(nr[0]).sort(), ['at', 'key', 'source', 'title'], 'only what the screen shows: no summary (PERF-3)');
   const pr = ctx.News.parse(feed('pravda-rus'), 'pravda', 15);
   assert.equal(pr.length, 5);
-  assert.equal(pr[0].summary, '', 'no description: no summary (the article body in content:encoded is never read)');
   const bbc = ctx.News.parse(feed('bbc'), 'bbc', 15);
   assert.equal(bbc[0].at, Date.parse('2026-10-29T18:22:00Z'));
   assert.equal(bbc[0].key, 'https://www.bbc.com/russian/articles/c0xyz?at_medium=RSS&at_campaign=rss', 'the XML-escaped link decoded');
@@ -39,9 +38,12 @@ test('a story without a time is skipped; the list is newest first and limited to
 
 test('feed text is sanitised: tags and scripts dropped, entities decoded, whitespace collapsed — plain text only', () => {
   const ctx = load(FILES);
-  const item = ctx.News.parse(feed('bbc'), 'bbc', 15).find((i) => /искусственном/.test(i.title));
-  assert.equal(item.summary, 'Брюссель утвердил правила «высокого риска» & штрафы до 7% оборота.');
-  assert.ok(!/[<>]|script|onerror/.test(item.summary));
+  // PERF-3: the headline is the only feed text shown, so the sanitising is proven on it
+  const rss = '<rss><channel><item><title><![CDATA[<p>Брюссель утвердил правила &laquo;высокого риска&raquo; &amp; штрафы<script>alert(1)</script> ' +
+    '<img src=x onerror=y> до 7% оборота.</p>]]></title><link>https://x.test/1</link><pubDate>Thu, 29 Oct 2026 20:30:00 +0200</pubDate></item></channel></rss>';
+  const item = ctx.News.parse(rss, 'bbc', 15)[0];
+  assert.equal(item.title, 'Брюссель утвердил правила «высокого риска» & штрафы до 7% оборота.');
+  assert.ok(!/[<>]|script|onerror/.test(item.title));
   assert.equal(ctx.News.plain('<![CDATA[<p>A&nbsp;&amp;&#160;B &#x41;&#1046;</p>]]>'), 'A & B AЖ');
   assert.equal(ctx.News.plain('&lt;b&gt;bold&lt;/b&gt; &amp;amp;'), 'bold &', 'escaped HTML: unescaped, then its tags dropped');
   assert.equal(ctx.News.plain('a &unknown; &#0; b'), 'a &unknown; b', 'unknown entities stay literal, invalid code points vanish');
@@ -249,7 +251,9 @@ test('B1: CDATA holding "</item>", mixed CDATA, comments and nested markup do no
   const one = ctx.News.parse(rss(item('<![CDATA[Что означает тег </item> в RSS]]>')), 's', 15);
   assert.deepEqual(plain(one.map((i) => [i.title, i.at])), [['Что означает тег в RSS', Date.parse('2026-10-29T18:30:00Z')]], 'the headline and its date survive');
   const mixed = ctx.News.parse(rss(item('<![CDATA[A]]> tail', '<description>x <tags><tag>a</tag></tags> <br> y</description>')), 's', 15);
-  assert.deepEqual(plain(mixed.map((i) => [i.title, i.summary])), [['A tail', 'x a y']]);
+  assert.deepEqual(plain(mixed.map((i) => i.title)), ['A tail'], 'a description with nested markup never cuts the item');
+  const nested = ctx.News.parse(rss(item('x <tags><tag>a</tag></tags> <br> y')), 's', 15);
+  assert.deepEqual(plain(nested.map((i) => i.title)), ['x a y'], 'nested markup inside the headline: its text only');
   assert.equal(ctx.News.parse(rss(item('a <!-- hidden --> b')), 's', 15)[0].title, 'a b', 'a comment inside an element is dropped');
   assert.equal(ctx.News.plain('<![CDATA[A]]> tail'), 'A tail');
   assert.equal(ctx.News.plain('a &amp;lt;b&amp;gt; c'), 'a <b> c', 'XML-escaped "&lt;b&gt;" is the text "<b>", never a tag');
@@ -265,4 +269,26 @@ test('B3: dc:date when there is no pubDate; an unknown zone abbreviation is not 
   assert.equal(ctx.News.parse(rss('<pubDate>Thu, 29 Oct 2026 20:30:00 IDT</pubDate>'), 's', 15).length, 0, 'IDT is not guessed');
   assert.equal(ctx.News.parse(rss('<pubDate>Thu, 29 Oct 2026 20:30:00 IDT</pubDate><dc:date>2026-10-29T20:30:00+03:00</dc:date>'), 's', 15)[0].at,
     Date.parse('2026-10-29T17:30:00Z'), 'an unreadable pubDate falls back to dc:date');
+});
+
+// C-2 (batch 16): the one freshness rule — stories dated after the clock (it went back) are stale, never fresh.
+test('C-2: a clock that went back makes a feed\'s stories stale, not fresh', () => {
+  const ctx = load(FILES), s = makeStore(ctx);
+  s.store.refresh();
+  s.answer();
+  assert.equal(s.store.column('il').kind, 'fresh');
+  s.clock.advance(-60 * 60000);
+  assert.equal(s.store.column('il').kind, 'stale');
+});
+// C-19 (batch 16): a feed that does not parse is said through deps.log (never a silent catch) and is a failure of its column.
+test('C-19: a feed whose parse throws is logged with its message', () => {
+  const ctx = load(FILES), logs = [];
+  const t = fakeTimers(T0), calls = [];
+  const store = ctx.News.createStore(ctx.Config.news, { getText: (u, ms, done) => calls.push(done), now: t.now, setTimeout: t.setTimeout,
+    clearTimeout: t.clearTimeout, onChange: () => {}, log: (m) => logs.push(m) }, 'he');
+  store.refresh();
+  calls[0](null, { toString() { throw new Error('boom'); } });
+  calls[1](null, feed('globes'));
+  assert.deepEqual(logs, ['news ynet: boom']);
+  assert.equal(store.column('il').kind, 'failed');
 });

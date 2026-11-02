@@ -354,9 +354,9 @@ test('FB5C-6: cached rows show at once after a restart — their own times and f
   assert.equal(b.calls.length, 0, 'nothing sent: hidden');
   const st = b.store.status();
   assert.deepEqual([st.kind, st.updatedAt, st.problem], ['stale', T0, 'refused'], 'the refusal and the oldest row kept');
-  assert.equal(b.store.routes()[0].updatedAt, T0 + 11 * MIN, 'answered at +11 min (sent at +10)');
-  assert.equal(b.store.routes()[4].updatedAt, T0, 'the refused row keeps its own time');
-  assert.equal(b.store.routes()[2].data.travel, 5922.3);
+  assert.equal(b.store.status().routes[0].updatedAt, T0 + 11 * MIN, 'answered at +11 min (sent at +10)');
+  assert.equal(b.store.status().routes[4].updatedAt, T0, 'the refused row keeps its own time');
+  assert.equal(b.store.status().routes[2].data.travel, 5922.3);
 });
 
 // FB5D-CE-V1: an attempt with no recorded answer (a crash mid-flight) is a failed attempt — pinned where nothing else
@@ -385,7 +385,7 @@ test('FB5C-6: a future-dated row is stale, its time never rewritten, never a neg
   const b = makeStore(ctx, { storage, start: T0 });            // the clock went back an hour
   const st = b.store.status();
   assert.deepEqual([st.kind, st.future, st.updatedAt], ['stale', true, T0 + 60 * MIN]);
-  assert.ok(b.store.routes().every((v) => v.kind === 'stale' && v.updatedAt === T0 + 60 * MIN));
+  assert.ok(b.store.status().routes.every((v) => v.kind === 'stale' && v.updatedAt === T0 + 60 * MIN));
 });
 
 test('FB5C-6: stale after 30 min (30:00 fresh, 30:00.001 stale) or when the last attempt failed; with no cache a failure says failed', () => {
@@ -410,11 +410,11 @@ test('C5: no row is ever "loading" once any answer arrived (the whole screen sho
   const ctx = load(FILES);
   for (const x of ['timeout', 'http 429', MALFORMED, withItems({ 0: 'http 503' }), withItems({ 0: NO_ROUTE }), ok()]) {
     const s = makeStore(ctx);
-    assert.ok(s.store.routes().every((v) => v.kind === 'loading'), 'before: all rows loading together');
+    assert.ok(s.store.status().routes.every((v) => v.kind === 'loading'), 'before: all rows loading together');
     s.store.setVisible(true);
     assert.equal(s.store.status().kind, 'loading');
     answer(s, x);
-    const kinds = s.store.routes().map((v) => v.kind);
+    const kinds = s.store.status().routes.map((v) => v.kind);
     assert.ok(!kinds.includes('loading'), JSON.stringify(x).slice(0, 30) + ': ' + kinds);
   }
 });
@@ -427,8 +427,8 @@ test('C1 / FB4-C7: a malformed answer, any request 5xx or 422 InvalidInput is a 
     s.clock.advance(11 * MIN);
     answer(s, x);
     assert.equal(s.store.status().kind, 'stale', JSON.stringify(x).slice(0, 30));
-    assert.equal(s.store.routes()[2].data.travel, 5922.3, 'last good value kept');
-    assert.equal(s.store.routes()[2].updatedAt, T0, 'with its time');
+    assert.equal(s.store.status().routes[2].data.travel, 5922.3, 'last good value kept');
+    assert.equal(s.store.status().routes[2].updatedAt, T0, 'with its time');
   }
 });
 
@@ -440,7 +440,7 @@ test('FB5-N1: the header time is the oldest row with data', () => {
   assert.deepEqual([s.store.status().kind, s.store.status().updatedAt], ['fresh', T0 + 10 * MIN], 'fresh: the round on screen');
   s.clock.advance(10 * MIN);
   answer(s, withItems({ 6: 'http 422' }));
-  assert.equal(s.store.routes()[0].updatedAt, T0 + 20 * MIN, 'the good rows are current');
+  assert.equal(s.store.status().routes[0].updatedAt, T0 + 20 * MIN, 'the good rows are current');
   assert.deepEqual([s.store.status().kind, s.store.status().updatedAt], ['stale', T0 + 10 * MIN], 'stale: the oldest row on screen');
 });
 
@@ -450,13 +450,13 @@ test('FB5-N3: NO_ROUTE after good data shows that row as no data and leaves the 
   s.store.setVisible(true); answer(s, ok());
   s.clock.advance(10 * MIN);
   answer(s, withItems({ 3: NO_ROUTE }));
-  assert.deepEqual(plain(s.store.routes()[3]), { kind: 'failed', data: null }, 'the unroutable row: no data, not its old value');
+  assert.deepEqual(plain(s.store.status().routes[3]), { kind: 'failed', data: null }, 'the unroutable row: no data, not its old value');
   assert.equal(s.store.status().kind, 'fresh', 'the screen stays fresh');
   assert.equal(s.store.status().updatedAt, T0 + 10 * MIN);
   s.clock.advance(10 * MIN);
   assert.equal(s.calls.length, 3, 'a successful round: the regular 10 min');
   answer(s, ok());
-  assert.equal(s.store.routes()[3].kind, 'fresh', 'routable again: back with data');
+  assert.equal(s.store.status().routes[3].kind, 'fresh', 'routable again: back with data');
 });
 
 test('FB5B-T1: columns «Города» and «Рядом» — five routes each, every route exactly once, all from Rehovot', () => {
@@ -484,8 +484,8 @@ test('FB5D-V2: impossible accounting dates (2026-00-00, 2026-02-31, 0000-00-00) 
   const ok = makeStore(ctx, { preset: JSON.stringify({ v: 1, utcDate: '2026-10-28', used: 580, lastAttemptAt: 0, retryNotBefore: 0 }) });
   ok.store.setVisible(true, true);
   assert.equal(ok.calls.length, 1, 'a real earlier date: a new UTC date, sent');
-  assert.equal(ctx.Traffic.validDate('2028-02-29'), true, 'a leap day is real');
-  assert.equal(ctx.Traffic.validDate('2026-02-29'), false);
+  assert.equal(ctx.Ledger.validDate('2028-02-29'), true, 'a leap day is real');
+  assert.equal(ctx.Ledger.validDate('2026-02-29'), false);
 });
 
 // FB5D-V1 (Codex V1), batch 6 (Mapbox): a Retry-After on 429 / 403 / 503 (seconds or an HTTP date) is read through Net,
@@ -555,4 +555,41 @@ test('FB5D-V1: Retry-After as an HTTP date on 403 and as seconds on 503; a short
   const m = memoryStorage(), good = retryAfterStore(ctx, m, T0, [{ status: 200, retryAfter: '7200' }]);
   good.store.setVisible(true, true);
   assert.equal(rec(m).retryNotBefore, 0, 'a good answer sets no deadline');
+});
+
+// ---- Batch 16 ---------------------------------------------------------------------------------------------------------
+// C-2: one freshness rule — a row dated after the clock (it went back) is stale (and says it is future-dated), never fresh.
+test('C-2: a clock that went back makes every row stale and future-dated', () => {
+  const ctx = load(FILES), s = makeStore(ctx);
+  s.store.setVisible(true, true);
+  answer(s, ok());
+  assert.equal(s.store.status().kind, 'fresh');
+  s.clock.advance(-60 * 60000);
+  const st = s.store.status();
+  assert.deepEqual([st.kind, st.future, st.routes.every((v) => v.kind === 'stale' && v.future)], ['stale', true, true]);
+});
+// PERF-4: the screen's state comes from ONE read of the accounting record per render (status() carries the routes).
+test('PERF-4: one status() reads the ledger once and carries every route\'s view', () => {
+  const ctx = load(FILES), s = makeStore(ctx);
+  s.store.setVisible(true, true);
+  answer(s, ok());
+  s.storage.log.length = 0;
+  const st = s.store.status();
+  assert.equal(s.storage.log.filter((l) => l === 'get tt-quota').length, 1, 'one read');
+  assert.equal(st.routes.length, 10);
+  assert.equal(st.routes[2].data.travel, 5922.3);
+  assert.equal(s.store.routes, undefined, 'no second way to read the rows');
+  assert.equal(ctx.Traffic.validDate, undefined, 'C-14: the re-export is gone (Ledger.validDate is the one)');
+});
+// C-19: a cache write that fails is said through deps.log.
+test('C-19: the row cache not written is logged, the rows stay for this run', () => {
+  const ctx = load(FILES), logs = [], storage = memoryStorage();
+  storage.setItem = (k, v) => { if (k === 'tt-cache') throw new Error('quota'); storage.map.set(k, String(v)); };
+  const clock = fakeTimers(T0), calls = [];
+  const store = ctx.Traffic.createStore(withToken(ctx), { getJson: (u, ms, done) => calls.push(done), now: clock.now, setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout, storage, onChange: () => {}, log: (m) => logs.push(m) });
+  store.setVisible(true, true);
+  ok().forEach((a, i) => calls[i](null, a));
+  assert.deepEqual(logs, ['traffic: rows not cached: quota']);
+  assert.equal(store.status().kind, 'fresh');
 });

@@ -90,7 +90,9 @@ var Icons = (function () {
     havdalah: '<g class="ic-havdalah"><path d="M20 12h24l-3 20a9 9 0 0 1-18 0z"/><path d="M32 41v11M23 54h18"/><path d="M47 10l2 4 4 1-4 1-2 4-2-4-4-1 4-1z"/></g>',
     fast: '<g class="ic-fast"><circle cx="32" cy="34" r="18"/><circle cx="32" cy="34" r="9"/><path d="M15 51l34-34"/></g>',
     air: '<g class="ic-air"><path d="M10 22c6-6 12-6 18 0s12 6 18 0c3-3 5-4 8-4"/><path d="M10 34c6-6 12-6 18 0s12 6 18 0c3-3 5-4 8-4"/>' +
-      '<path d="M10 46c6-6 12-6 18 0s12 6 18 0c3-3 5-4 8-4"/></g>'
+      '<path d="M10 46c6-6 12-6 18 0s12 6 18 0c3-3 5-4 8-4"/></g>',
+    // batch 16: the markets (a rising line over its base), for the Markets screen's one calm empty state
+    chart: '<g class="ic-chart"><path d="M10 52h44"/><path d="M14 44l10-12 9 7 15-19"/><path d="M41 20h7v7"/></g>'
   };
   function glyph(name) { return svg('g-' + name, GLYPHS[name] || ''); }
 

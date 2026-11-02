@@ -2,7 +2,16 @@
  * Chromium 47: no CSS custom properties, no grid, no backdrop-filter, no font-variant-numeric, no variable
  * fonts — flexbox, semi-transparent fills, static font files and -webkit-font-feature-settings instead.
  * Spacing scale: 8 · 16 · 24 · 32 · 40 (card gutter) · 28 (between cards) · 48/64 (page). Radius: 32 (cards).
- * Type: nothing below 24 px; secondary text never below 62 % white (≥ 4.5:1 on the lightest card). */
+ * Type: nothing below 24 px; secondary text never below 62 % white (≥ 4.5:1 on the lightest card).
+ * Palette — one shade per role (D-C1); a role's colour always comes with its word, never alone:
+ *   muted   rgba(255, 255, 255, 0.62)  every quiet secondary text and mark (one grouped rule, below)
+ *   quiet-strong rgba(255, 255, 255, 0.85)  secondary text that must read at a glance (the closed price, the alert's time and
+ *           original title, the recent areas, the Shabbat note lines, the detail glyphs, the attribution, the empty text)
+ *   amber   #ffcf8a                    stale, a failure, a warning, «soon»
+ *   green   #8ce6b4                    fresh, clear, up, the current choice
+ *   red     #ff9a8c                    an alert nearby, a jam, down
+ * Scales with their own steps (the UV and air levels .lv-*, the khamsin #ffb38a, the dust #e3cfa6, the rain #8ec5ff) and
+ * the alert's own deep-red surface are not roles: each keeps its value. */
 
 /* Inter (SIL OFL 1.1, fonts/OFL.txt): static Light / Regular / Medium, Latin + Cyrillic subsets, plus "≈". */
 @font-face { font-family: "Inter"; font-weight: 300; src: url(../fonts/Inter-300-latin.woff2) format("woff2");
@@ -45,6 +54,19 @@ html, body {
 body { position: relative; }   /* contains and clips the shifted #stage: the document never grows, the root never repaints */
 * { box-sizing: border-box; }
 
+/* The muted role (D-C1): every quiet secondary text and mark, in ONE shade — 62 % white, the legibility floor (≥ 4.5:1 on the
+   lightest card). Placed first, so a state class further down (stale, soon, now, khamsin) still overrides it. */
+.alerts-offline, .card-title, .clock-time .approx, .clock-time.is-unknown, .clock-date, .clock-diff,
+.clock-weather.is-stale .clock-temp, .now.is-stale .now-temp, .now-sub, .detail-label, .empty-sub, .hour-label,
+.status, .dust-legend-khamsin, .dust-none, .day-min, .air-label, .air-none,
+.air-unit, .air-uv.is-night .air-word, .region-air-label, .sh-date, .sh-tile-date, .sh-tile-in,
+.sh-row-date, .sh-row-in, .sh-read-label, .region-city, .region.is-stale .region-temp, .region-sub,
+.news-col-head .src-name, .news-time, .news-col-empty, .tw-time .unit, .tw.is-stale .tw-time, .tw-time.is-none,
+.tw-km, .tnodata, .tw.is-stale .chip, .al-home-sub, .al-near-places, .al-time, .al-recent-empty,
+.city-sub, .city-alt, .city-hint, .mk-closed, .mk-row.is-stale .mk-price, .mk-row.is-stale .mk-chg,
+.mk-chg.is-flat, .mk-chg.is-none, .mk-nodata,
+.al-heads .al-time, .al-heads .al-kind, .al-heads .al-areas, .wx-none, .mk-per, .mk-head-sign { color: rgba(255, 255, 255, 0.62); }
+
 /* The burn-in shift moves this layer; will-change keeps it composited, so a shift repaints nothing. */
 #stage {
   position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
@@ -77,10 +99,9 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .corner { position: absolute; left: 1024px; right: 64px; bottom: 0; height: 48px; display: flex; align-items: center; justify-content: flex-end; font-size: 24px; white-space: nowrap; overflow: hidden; }
 .corner-line, .nearby, .alerts-offline { display: flex; align-items: center; flex: 0 0 auto; }
 .nearby + .alerts-offline { -webkit-margin-start: 32px; }
-.nearby { color: #ffc9c2; }
-.nearby-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; background: #ff8f85; }
-.alerts-offline { color: rgba(255, 255, 255, 0.62); }
-.offline-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; border: 2px solid rgba(255, 207, 138, 0.9); }
+.nearby { color: #ff9a8c; }
+.nearby-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; background: #ff9a8c; }
+.offline-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; border: 2px solid #ffcf8a; }
 
 /* ---- cards ------------------------------------------------------------------------------------ */
 .card {
@@ -89,13 +110,12 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
   background: rgba(255, 255, 255, 0.065);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.085) 0%, rgba(255, 255, 255, 0.045) 100%);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 8px 24px rgba(0, 0, 0, 0.25);   /* glass edge + soft lift */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);   /* the glass edge (D-P1: no outer shadow — a 24 px blur under every card cost paint on each switch) */
   overflow: hidden;
 }
 .card-title {
   font-size: 26px; font-weight: 500; letter-spacing: 0.02em;
   -webkit-font-feature-settings: normal; font-feature-settings: normal;   /* tabular punctuation spaces "7-DAY" apart */
-  color: rgba(255, 255, 255, 0.62);
   text-transform: uppercase;
 }
 .icon { display: block; fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
@@ -119,15 +139,14 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .clock-head { display: flex; align-items: center; height: 40px; }
 .clock-city { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
 .clock-time { font-size: 104px; font-weight: 300; line-height: 1; height: 104px; margin-top: 8px; letter-spacing: -0.01em; white-space: nowrap; }
-.clock-time .approx { font-size: 40px; color: rgba(255, 255, 255, 0.62); margin-right: 8px; vertical-align: 0.9em; }
-.clock-time.is-unknown { font-size: 40px; font-weight: 400; line-height: 104px; color: rgba(255, 255, 255, 0.62); }
-.clock-date { font-size: 28px; color: rgba(255, 255, 255, 0.62); margin-top: 8px; white-space: nowrap; }
+.clock-time .approx { font-size: 40px; margin-right: 8px; vertical-align: 0.9em; }
+.clock-time.is-unknown { font-size: 40px; font-weight: 400; line-height: 104px; }
+.clock-date { font-size: 28px; margin-top: 8px; white-space: nowrap; }
 .clock-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; min-height: 36px; }
-.clock-diff { font-size: 26px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.clock-diff { font-size: 26px; white-space: nowrap; }
 .clock-weather { display: flex; align-items: center; }
 .clock-weather .icon { width: 40px; height: 40px; -webkit-margin-end: 8px; stroke-width: 4.5; }
 .clock-temp { font-size: 30px; font-weight: 400; color: rgba(255, 255, 255, 0.85); }
-.clock-weather.is-stale .clock-temp { color: rgba(255, 255, 255, 0.62); }
 .clock-weather.is-stale .icon { opacity: 0.62; }
 
 /* ---- main area: the daily card is exactly one clock column wide, so the column seams line up ---- */
@@ -140,45 +159,44 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .now-top { display: flex; justify-content: space-between; }
 .now-main { min-width: 0; }
 .now-place { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
-.now-temp { font-size: 136px; font-weight: 300; line-height: 1; margin-top: 4px; text-indent: -6px; }   /* optical alignment of the big digits */
-.now.is-stale .now-temp { color: rgba(255, 255, 255, 0.62); }
+.now-temp, .region-temp { font-size: 136px; font-weight: 300; line-height: 1; text-indent: -6px; }   /* the big figure; text-indent: optical alignment of its digits */
+.now-temp { margin-top: 4px; }
 .now-cond { font-size: 36px; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
-.now-sub { font-size: 28px; color: rgba(255, 255, 255, 0.62); margin-top: 4px; white-space: nowrap; }
+.now-sub { font-size: 28px; margin-top: 4px; white-space: nowrap; }
 .now-sub span { display: inline-block; }
 .now-sub span + span { -webkit-margin-start: 24px; }
 .now-icon .icon { width: 210px; height: 210px; margin: 8px 0 0 0; stroke-width: 1.6; }
-.now-icon .ic-cloud { fill: rgba(227, 233, 243, 0.1); }
-.now-icon .ic-sun circle { fill: rgba(255, 213, 143, 0.18); }
-.now-icon .ic-moon path { fill: rgba(216, 220, 255, 0.14); }
+.now-icon .ic-cloud, .region-icon .ic-cloud { fill: rgba(227, 233, 243, 0.1); }   /* the big icons: a soft fill */
+.now-icon .ic-sun circle, .region-icon .ic-sun circle { fill: rgba(255, 213, 143, 0.18); }
+.now-icon .ic-moon path, .region-icon .ic-moon path { fill: rgba(216, 220, 255, 0.14); }
 .details { display: flex; margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .detail { flex: 1 1 0; display: flex; align-items: center; }
 .detail .icon { width: 44px; height: 44px; -webkit-margin-end: 16px; flex: 0 0 44px; stroke-width: 4; }
-.detail .icon g { stroke: rgba(255, 255, 255, 0.72); }                  /* one quiet tint for detail glyphs */
+.detail .icon g { stroke: rgba(255, 255, 255, 0.85); }                  /* one quiet tint for detail glyphs */
 .detail-text { display: flex; flex-direction: column; }
-.detail-label { font-size: 24px; color: rgba(255, 255, 255, 0.62); }
+.detail-label { font-size: 24px; }
 .detail-value { font-size: 30px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 /* no data yet / unavailable: one calm message in the middle of the card */
 .empty-state { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .empty-state .icon { width: 120px; height: 120px; stroke-width: 2.4; opacity: 0.4; }
 .empty-text { font-size: 34px; color: rgba(255, 255, 255, 0.85); margin-top: 16px; }
-.empty-sub { font-size: 28px; color: rgba(255, 255, 255, 0.62); margin-top: 8px; }
+.empty-sub { font-size: 28px; margin-top: 8px; }
 
 /* hourly strip */
 .hourly-card { flex: 0 0 240px; margin-top: 24px; padding: 18px 40px 14px; }
 .hours { display: flex; justify-content: space-between; margin-top: 8px; }
 .hour { display: flex; flex-direction: column; align-items: center; width: 88px; }
-.hour-label { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.hour-label { font-size: 24px; white-space: nowrap; }
 .hour.is-now .hour-label { color: #fff; font-weight: 500; }
 .hour .icon { width: 44px; height: 44px; margin-top: 4px; stroke-width: 3.5; }
 .hour-pop { font-size: 24px; color: #8ec5ff; height: 24px; line-height: 24px; }
 .hour-temp { font-size: 32px; color: rgba(255, 255, 255, 0.92); }
 .hour.is-empty .skeleton { width: 64px; height: 104px; margin-top: 4px; }
-.status { position: absolute; right: 40px; top: 24px; font-size: 24px; color: rgba(255, 255, 255, 0.62); display: flex; align-items: center; }
-.status-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; background: rgba(140, 230, 180, 0.7); }
-.status.is-stale { color: rgba(255, 214, 150, 0.85); }
-.status.is-stale .status-dot { background: #ffcf8a; }
-.status.is-failed { color: rgba(255, 214, 150, 0.85); }        /* a failure the header says (e.g. both news feeds down): amber like stale */
-.status.is-failed .status-dot { background: #ffcf8a; }
+.status { position: absolute; right: 40px; top: 24px; font-size: 24px; display: flex; align-items: center; }
+.status-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; background: #8ce6b4; }
+/* stale, or a failure the header says (e.g. both news feeds down): amber */
+.status.is-stale, .status.is-failed { color: #ffcf8a; }
+.status.is-stale .status-dot, .status.is-failed .status-dot { background: #ffcf8a; }
 
 /* ---- Batch 13: the dust forecast. The card title row carries the legend right after the title (the hourly card's inline
    end is the status line's): «Пыль, мкг/м³» in the dust colour, then the amber pill «хамсин ≥ 100» that explains the amber
@@ -191,11 +209,11 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space them apart */
 .dust-legend-key, .hour-dust, .day-dust { color: #e3cfa6; }
 .dust-legend-khamsin.is-active, .dust-num.is-khamsin { color: #ffb38a; background: rgba(255, 179, 138, 0.16); }
-.dust-num.is-khamsin { border-radius: 13px; padding: 0 5px; }
+.dust-num.is-khamsin { border-radius: 13px; padding: 0 2px; }   /* 2 px: «3400» on its pill leaves the 72 px column ~6 px to spare on the TV font (it had 0) */
 /* X4: quiet grey text by default, the amber pill only when the card shows a khamsin cell; the box is the same either way */
-.dust-legend-khamsin { -webkit-margin-start: 16px; padding: 0 10px; border-radius: 13px; color: rgba(255, 255, 255, 0.62); }
+.dust-legend-khamsin { -webkit-margin-start: 16px; padding: 0 10px; border-radius: 13px; }
 /* X5: «—» (no value) muted, never the dust colour; 62 % white is the legibility floor (layout test: 4.5:1) */
-.dust-none { display: inline-block; color: rgba(255, 255, 255, 0.62); }   /* as tall as its line, like .dust-num */
+.dust-none { display: inline-block; }   /* as tall as its line, like .dust-num */
 /* X3: on the narrow cards the wrapped legend sits 6 px under the title and ends above the dust column (no row-gap on Chromium 47) */
 #daily .dust-legend, .region .dust-legend { margin-top: 6px; -webkit-margin-start: auto; }
 .hour-dust { height: 26px; margin-top: 2px; font-size: 24px; line-height: 26px; white-space: nowrap; }
@@ -206,17 +224,20 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .days { margin-top: 8px; }
 .day { display: flex; align-items: center; height: 77px; border-top: 1px solid rgba(255, 255, 255, 0.07); }   /* 82 → 77 (batch 13, X3): room for the legend line and its 6 px gap */
 .day:first-child { border-top: 0; }
+.day.is-gap { border-top-color: transparent; }   /* N9: no rule over a row past the data */
 .day-name { width: 136px; font-size: 30px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 /* the icon is centred on the row; the chance of rain hangs below it and never moves it */
 /* the weather icon in the upper part of the slot, the chance of rain on its own line under it — an umbrella and the
    percentage, never over the icon's drops (the owner: «должно быть понятно»); the row keeps its 77 px (82 before batch 13) */
 .day-icon { position: relative; width: 88px; height: 77px; }
 .day-icon > .icon { position: absolute; left: 22px; top: 4px; width: 44px; height: 44px; stroke-width: 4; }
-.day-pop { position: absolute; left: 0; right: 0; top: 51px; height: 26px; text-align: center; font-size: 24px; line-height: 26px; color: #8ec5ff; white-space: nowrap; }
-.day-pop .icon { display: inline-block; width: 20px; height: 20px; vertical-align: -3px; -webkit-margin-end: 4px; stroke-width: 5; }
+.day-icon.is-dry > .icon { top: 16px; }   /* L12: no rain line under it — the icon on the row's centre (77 − 44) / 2 */
+.day-pop { position: absolute; left: 0; right: 0; top: 51px; height: 26px; text-align: center; font-size: 24px; line-height: 26px; color: #8ec5ff; white-space: nowrap;
+  -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* F1: proportional figures — «☂100%» stays inside its 88 px slot */
+.day-pop .icon { display: inline-block; width: 18px; height: 18px; vertical-align: -2px; -webkit-margin-end: 2px; stroke-width: 5; }
 .day-pop .icon g { stroke: #8ec5ff; }
 /* 64 px holds «−9°» and «45°» (53 px): the home cities are Israel's (js/cities.js); 72 → 64 in batch 13 for the dust column */
-.day-min { width: 64px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.62); }
+.day-min { width: 64px; text-align: end; font-size: 30px; }
 .day-max { width: 64px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.95); }
 .day-dust { flex: 0 0 72px; width: 72px; -webkit-margin-start: 14px; text-align: end; font-size: 24px; line-height: 26px; white-space: nowrap; }   /* X1: «3400» on its pill: 68 px; 14 px from the high */
 .range { position: relative; flex: 1 1 auto; height: 16px; -webkit-margin-start: 10px; -webkit-margin-end: 6px; }
@@ -226,13 +247,16 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
   background-image: linear-gradient(90deg, #8fd0ff 0%, #b9e6c9 50%, #ffcf8a 100%); }
 .range-dot { position: absolute; top: 0; width: 16px; height: 16px; border-radius: 8px; background: #fff; border: 3px solid #1c2440; }
 .day.is-empty .skeleton { flex: 1 1 auto; height: 24px; }
+/* L5: no weather and the last try failed: one quiet line in the strip and in the list (the current card says when it is
+   tried again); a cell beyond the data is an empty slot of its own size, no placeholder */
+.wx-none { flex: 1 1 auto; padding-top: 48px; text-align: center; font-size: 28px; }
 
 /* ---- Batch 12. The air & UV block in the "now" card: in the free gap between the place's text and the big icon, no
    glyphs; a label, then the figure and the level word (atomic, a line wraps only between them); the dust line only
    when the dust is high. .now-top keeps its height. Level colours are soft and always come with the word. ---- */
 .now-air { flex: 0 0 256px; width: 256px; -webkit-margin-start: auto; -webkit-margin-end: 32px; display: flex; flex-direction: column; justify-content: flex-start; }   /* fixed and top-aligned: the dust line moves nothing */
 .air-item + .air-item { margin-top: 20px; }
-.air-label { height: 30px; font-size: 24px; line-height: 30px; color: rgba(255, 255, 255, 0.62); white-space: nowrap;
+.air-label { height: 30px; font-size: 24px; line-height: 30px; white-space: nowrap;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space «УФ-индекс» apart */
 .air-value { height: 38px; font-size: 24px; line-height: 38px; white-space: nowrap; }
 .air-num, .air-word, .air-none { display: inline-block; white-space: nowrap; }
@@ -240,16 +264,14 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* the figure and its words on one baseline, each box only as tall as its text, so the line stays inside its 38 px */
 .air-num { line-height: 34px; }
 .air-word, .air-unit, .air-none { line-height: 28px; }
-.air-none { color: rgba(255, 255, 255, 0.62); }
 .air-skeleton { display: inline-block; width: 140px; height: 24px; vertical-align: middle; }
 /* the dust: a third item like the other two (label, then value); its height is the same with or without a value, so
    nothing moves; the unit in the label's quiet grey */
 .air-item { height: 68px; }   /* label 30 + value 38, fixed: the dust item takes the same room with or without a value */
-.air-unit { display: inline-block; white-space: nowrap; color: rgba(255, 255, 255, 0.62); }
+.air-unit { display: inline-block; white-space: nowrap; }
 .lv-khamsin { color: #ffb38a; }
 .now.is-stale .air-uv .air-num, .now.is-stale .air-uv .air-word, .now-air.is-stale .air-aq .air-num,
 .now-air.is-stale .air-aq .air-word, .now-air.is-stale .air-dust .air-num, .now-air.is-stale .air-dust .air-word { opacity: 0.72; }
-.air-uv.is-night .air-word { color: rgba(255, 255, 255, 0.62); }   /* after sunset: the day's peak is behind */
 .lv-low, .lv-good { color: #8ce6b4; }
 .lv-fair { color: #b9e6c9; }
 .lv-moderate { color: #ffd58f; }
@@ -260,7 +282,6 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* the Israel cards: the air on its own line under the head, labelled («Воздух:» grey, the level word in its colour); the
    line keeps its height when empty */
 .region-air { height: 34px; margin-top: 4px; font-size: 28px; line-height: 34px; white-space: nowrap; -webkit-font-feature-settings: normal; font-feature-settings: normal; }
-.region-air-label { color: rgba(255, 255, 255, 0.62); }
 .region-air.is-stale .region-air-word { opacity: 0.72; }
 
 /* the new glyphs' quiet default (as .ic-car, .ic-news): the empty state's candles; places that tint them say so below */
@@ -271,9 +292,9 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .sh-week { flex: 1 1 auto; min-width: 0; -webkit-margin-end: 28px; padding: 32px 40px; display: flex; flex-direction: column; }
 .sh-list { flex: 0 0 auto; width: calc((100% - 56px) / 3); padding: 32px 40px 24px; display: flex; flex-direction: column; }
 .sh-place { font-size: 34px; font-weight: 500; line-height: 41px; color: rgba(255, 255, 255, 0.92); }
-.sh-date { margin-top: 8px; font-size: 28px; line-height: 34px; min-height: 34px; color: rgba(255, 255, 255, 0.62); }
+.sh-date { margin-top: 8px; font-size: 28px; line-height: 34px; min-height: 34px; }
 .sh-hdate { margin-top: 8px; font-size: 72px; font-weight: 300; line-height: 86px; min-height: 86px; white-space: nowrap; color: rgba(255, 255, 255, 0.95); }
-.sh-note { display: flex; align-items: center; height: 36px; margin-top: 16px; font-size: 28px; color: rgba(255, 255, 255, 0.72); white-space: nowrap; }
+.sh-note { display: flex; align-items: center; height: 36px; margin-top: 16px; font-size: 28px; color: rgba(255, 255, 255, 0.85); white-space: nowrap; }
 .sh-note .icon { width: 32px; height: 32px; -webkit-margin-end: 12px; stroke-width: 4; }
 .sh-note .ic-fast { stroke: currentColor; }
 .sh-note.is-active { color: #ffcf8a; }
@@ -285,10 +306,10 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .sh-tile-head { display: flex; align-items: center; font-size: 30px; font-weight: 500; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 .sh-tile-head .icon { width: 44px; height: 44px; -webkit-margin-end: 12px; stroke-width: 3.5; }
 .sh-tile-head .ic-candles, .sh-calm-line .ic-havdalah, .sh-tile-head .ic-havdalah { stroke: #ffd58f; }
-.sh-tile-date { margin-top: 12px; font-size: 28px; line-height: 34px; min-height: 34px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.sh-tile-date { margin-top: 12px; font-size: 28px; line-height: 34px; min-height: 34px; white-space: nowrap; }
 .sh-tile-time { margin-top: 24px; font-size: 136px; font-weight: 300; line-height: 1; min-height: 136px; white-space: nowrap; }
-.sh-tile-in { margin-top: 12px; height: 34px; font-size: 28px; line-height: 34px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
-.sh-tile-in.is-soon, .sh-row-in.is-soon { color: #ffd58f; }   /* a week or less: amber; further away: quiet */
+.sh-tile-in { margin-top: 12px; height: 34px; font-size: 28px; line-height: 34px; white-space: nowrap; }
+.sh-tile-in.is-soon, .sh-row-in.is-soon { color: #ffcf8a; }   /* a week or less: amber; further away: quiet */
 .sh-tile-time, .sh-tile-in, .sh-row-in, .sh-note { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
 .sh-skel { display: inline-block; vertical-align: middle; }
 .sh-skel-date { width: 340px; height: 26px; }
@@ -303,7 +324,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .sh-calm { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .sh-calm-greet { font-size: 96px; font-weight: 300; line-height: 1.1; color: #ffe2b8; }
 .sh-calm-name { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.9); }
-.sh-calm-line { display: flex; align-items: center; margin-top: 32px; font-size: 30px; color: rgba(255, 255, 255, 0.72); white-space: nowrap; }
+.sh-calm-line { display: flex; align-items: center; margin-top: 32px; font-size: 30px; color: rgba(255, 255, 255, 0.85); white-space: nowrap; }
 .sh-calm-time { font-weight: 500; color: rgba(255, 255, 255, 0.95); }
 .sh-calm-line .icon { width: 40px; height: 40px; -webkit-margin-end: 12px; stroke-width: 3.5; }
 /* card C: six rows on one pitch, from the top; a name may take two lines, the date and the count one */
@@ -313,11 +334,23 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .sh-row:empty { border-top-color: transparent; }
 .sh-row-name { font-size: 32px; font-weight: 500; line-height: 40px; color: rgba(255, 255, 255, 0.92); }
 .sh-row-sub { display: flex; justify-content: space-between; margin-top: 6px; font-size: 26px; line-height: 32px; white-space: nowrap; }
-.sh-row-date { color: rgba(255, 255, 255, 0.62); }
-.sh-row-in { -webkit-padding-start: 16px; color: rgba(255, 255, 255, 0.62); }
+.sh-row-in { -webkit-padding-start: 16px; }
 .sh-row-in.is-ongoing { color: #8ce6b4; }
 .sh-row-name .icon { display: inline-block; width: 32px; height: 32px; vertical-align: -5px; -webkit-margin-end: 10px; stroke-width: 4; }   /* a fast: its glyph */
 .sh-row.is-empty { justify-content: center; }
+.sh-list-failed { margin-top: 24px; font-size: 28px; line-height: 34px; color: #ffcf8a; }   /* L6: the calendar failed — said, never a blank card */
+/* The weekly reading (card A, the band between the Hebrew date and the rule): every value under its own label.
+   Worst case, a note above and a reference on two lines: 52 + 8 + 148 = 208 of the 220 px band. */
+.sh-ref-part { white-space: nowrap; }
+.sh-read { margin-top: 8px; }
+.sh-read-row { display: flex; }
+/* the portion column is as wide as its text (names are short); the haftarah and the extra line take the rest */
+.sh-read-row > .sh-read-item { flex: 0 1 auto; max-width: 50%; -webkit-padding-end: 64px; }
+.sh-read-col { flex: 1 1 0; min-width: 0; }
+.sh-read-extra { margin-top: 8px; }
+.sh-read-label { font-size: 26px; line-height: 32px; }
+.sh-read-name { font-size: 36px; line-height: 44px; font-weight: 500; color: rgba(255, 255, 255, 0.95); }
+.sh-read-ref, .sh-read-value { font-size: 28px; line-height: 36px; color: rgba(255, 255, 255, 0.85); }
 
 /* ---- News, Traffic and the alert are mostly words: proportional figures (tabular ones space out hyphens, as in
    "Тель-Авив"); only the figures that change in place stay tabular. */
@@ -330,17 +363,13 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .region:last-child { -webkit-margin-end: 0; }
 .region-head { display: flex; align-items: baseline; white-space: nowrap; -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: no spaced hyphens */
 .region-name { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
-.region-city { -webkit-margin-start: 16px; font-size: 26px; color: rgba(255, 255, 255, 0.62); }
+.region-city { -webkit-margin-start: 16px; font-size: 26px; }
 .region-now { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
-.region-temp { font-size: 136px; font-weight: 300; line-height: 1; margin-top: 8px; text-indent: -6px; }   /* the main card's figure */
-.region.is-stale .region-temp { color: rgba(255, 255, 255, 0.62); }
+.region-temp { margin-top: 8px; }   /* the main card's figure (.now-temp) */
 .region-cond { margin-top: 8px; font-size: 34px; color: rgba(255, 255, 255, 0.9); white-space: nowrap; }   /* its own line: «Преимущественно ясно» never meets the icon */
 .region-icon .icon { width: 168px; height: 168px; stroke-width: 1.7; }
-.region-icon .ic-cloud { fill: rgba(227, 233, 243, 0.1); }
-.region-icon .ic-sun circle { fill: rgba(255, 213, 143, 0.18); }
-.region-icon .ic-moon path { fill: rgba(216, 220, 255, 0.14); }
-.region-sub { margin-top: 8px; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
-.region-part { display: inline-block; white-space: nowrap; }   /* «Вітер 14 км/год» whole: the line wraps only between the parts */
+.region-sub { margin-top: 8px; height: 68px; font-size: 28px; line-height: 34px; }   /* L10: two lines in every language (feels-like, wind) */
+.region-part { white-space: nowrap; }   /* «Вітер 14 км/год» whole, a line of its own */
 /* the days fill the rest of the card, rows spread evenly: no empty band at the bottom */
 .region .card-head { margin-top: 24px; }   /* 32 → 24 (batch 13): the legend's line; Ukrainian's two-line sub line still leaves the 5 days their room */
 .region .days { margin-top: 8px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
@@ -352,10 +381,10 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .screen-title { margin: 0; height: 48px; line-height: 48px; font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); letter-spacing: -0.005em; }
 .status.screen-status { position: static; height: 48px; }
 .head-side { display: flex; flex-direction: column; align-items: flex-end; }   /* the status line, and under it the note */
-.status-note { display: none; font-size: 24px; line-height: 24px; color: rgba(255, 214, 150, 0.85); white-space: nowrap; }
+.status-note { display: none; font-size: 24px; line-height: 24px; color: #ffcf8a; white-space: nowrap; }
 .status-note.is-on { display: block; }
 .screen-body { display: flex; flex: 1 1 auto; min-height: 0; }
-.ic-car, .ic-news, .ic-warning { stroke: rgba(255, 255, 255, 0.85); }
+.ic-car, .ic-news, .ic-warning, .ic-chart { stroke: rgba(255, 255, 255, 0.85); }
 
 /* ---- News: two columns («Израиль», «Экономика Израиля»), five row slots each; the slots of both columns have one
    height, so row n on the left and on the right start on one line. A headline is a fixed two-line box. ---------- */
@@ -367,18 +396,19 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .src-dot.src-newsru, .src-dot.src-ynet, .src-dot.src-pravda { background: #8ec5ff; }        /* the news column */
 .src-dot.src-newsrufin, .src-dot.src-globes, .src-dot.src-epravda { background: #c9b8ff; }  /* the economy column: a source colour, never the fresh status green */
 .news-col-title { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
-.news-col-head .src-name { -webkit-margin-start: 16px; font-size: 24px; color: rgba(255, 255, 255, 0.62); }
-.news-col-state { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: rgba(255, 214, 150, 0.85); }
+.news-col-head .src-name { -webkit-margin-start: 16px; font-size: 24px; }
+.news-col-state { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: #ffcf8a; }
 .news-rows { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin-top: 8px; }
-.news-row { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; justify-content: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.news-row { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; padding-top: 4px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
 .news-row:first-child { border-top: 0; }
-.news-time { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
-/* Two lines at most, always two lines tall: no measuring, and row n lines up across the columns; a longer headline ends
-   with an ellipsis (on the left in Hebrew). */
-.news-title { margin-top: 6px; height: 80px; overflow: hidden; font-size: 32px; line-height: 40px; color: rgba(255, 255, 255, 0.92);
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.news-col-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
-.news-col-empty.is-failed { color: rgba(255, 214, 150, 0.85); }   /* a failure, amber like .news-col-state — never a neutral "no data" */
+.news-time { font-size: 24px; line-height: 24px; white-space: nowrap; }
+/* Three lines at most (the owner, 2026-11-02: «3 строки»), always three lines tall: no measuring, and row n lines up across
+   the columns; a longer headline ends with an ellipsis (on the left in Hebrew). N1: 3 × 38 = 114 px at 30 px, from the
+   row's top (4 + 24 + 3 + 114 = 145 of its 162 px), so at least 16 px stay under the third line. */
+.news-title { margin-top: 3px; height: 114px; overflow: hidden; font-size: 30px; line-height: 38px; color: rgba(255, 255, 255, 0.92);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.news-col-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+.news-col-empty.is-failed { color: #ffcf8a; }   /* a failure, amber like .news-col-state — never a neutral "no data" */
 .news-empty, .traffic-empty { flex: 1 1 auto; display: flex; }
 
 /* ---- Traffic: two columns of five widgets (routes «Города», «Рядом»; the main roads are on the map screen), one
@@ -387,28 +417,27 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .traffic-body { flex-direction: row; }
 .tcol { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; -webkit-margin-end: 28px; }
 .tcol:last-child { -webkit-margin-end: 0; }
-.tcol-title { height: 32px; flex: 0 0 32px; line-height: 32px; padding: 0 24px; white-space: nowrap; }
-.tw { flex: 1 1 0; min-height: 0; margin-top: 28px; padding: 18px 24px 20px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 28px; }
+/* L15: the column titles and the widgets' text start on the screen title's edge (41 px: 40 + the card's border) */
+.tcol-title { height: 32px; flex: 0 0 32px; line-height: 32px; padding: 0 41px; white-space: nowrap; }
+.tw { flex: 1 1 0; min-height: 0; margin-top: 28px; padding: 18px 40px 20px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 28px; }
 .tw-top { display: flex; justify-content: space-between; align-items: center; }
 .tw-name { min-width: 0; font-size: 28px; font-weight: 500; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 .tw-mid { display: flex; justify-content: space-between; align-items: baseline; }
 .tw-time { font-size: 52px; font-weight: 300; line-height: 1; white-space: nowrap; letter-spacing: -0.01em; }
-.tw-time .unit { font-size: 30px; color: rgba(255, 255, 255, 0.62); }   /* "38 мин": the figure leads */
-.tw.is-stale .tw-time { color: rgba(255, 255, 255, 0.62); }
-.tw-time.is-none { color: rgba(255, 255, 255, 0.62); }   /* no time: a quiet dash keeps the slot (62 % = the legibility floor) */
-.tw-km, .tnodata { font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.tw-time .unit { font-size: 30px; }   /* "38 мин": the figure leads */
+.tw-km, .tnodata { font-size: 24px; white-space: nowrap; }
 .chip { flex: 0 0 auto; -webkit-margin-start: 12px; padding: 2px 12px; border-radius: 18px; font-size: 24px; font-weight: 500; white-space: nowrap; }
-.chip.lv-ok { color: #a3eac4; background: rgba(140, 230, 180, 0.13); }
-.chip.lv-slow { color: #ffd59a; background: rgba(255, 207, 138, 0.13); }
-.chip.lv-jam { color: #ffaaa1; background: rgba(255, 140, 128, 0.15); }
-.tw.is-stale .chip { color: rgba(255, 255, 255, 0.62); background: rgba(255, 255, 255, 0.08); }   /* quiet, not faded: 62 % white is the legibility floor */
+.chip.lv-ok { color: #8ce6b4; background: rgba(140, 230, 180, 0.13); }
+.chip.lv-slow { color: #ffcf8a; background: rgba(255, 207, 138, 0.13); }
+.chip.lv-jam { color: #ff9a8c; background: rgba(255, 140, 128, 0.15); }
+.tw.is-stale .chip { background: rgba(255, 255, 255, 0.08); }   /* quiet, not faded: 62 % white is the legibility floor */
 /* the time bar: the free-flow part quiet, the delay in the level's colour */
 .tbar { position: relative; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
 .tbar-free { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: rgba(255, 255, 255, 0.3); }
 .tbar-delay { position: absolute; top: 0; bottom: 0; border-radius: 0 4px 4px 0; }
 .tbar-delay.lv-ok { background: #8ce6b4; }
 .tbar-delay.lv-slow { background: #ffcf8a; }
-.tbar-delay.lv-jam { background: #ff8f80; }
+.tbar-delay.lv-jam { background: #ff9a8c; }
 
 /* ---- Traffic map: one Mapbox live-traffic image filling the glass card, a home dot on Rehovot, the attribution ---- */
 .map-card { flex: 1 1 auto; background: #0e1424; }   /* the night map's own ground until the image is in */
@@ -417,11 +446,23 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* Rehovot: a small white dot with a soft halo, placed by js (Web Mercator); hidden until there is an image under it */
 .map-home { display: none; position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 8px;
   background: #fff; box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.18); }
-.map-card.no-image .map-home, .map-card.no-image .map-attribution { visibility: hidden; }
+.map-home-name { display: none; position: absolute; margin: -16px 0 0 24px; padding: 2px 12px; border-radius: 14px; background: rgba(14, 20, 36, 0.82);
+  font-size: 24px; line-height: 28px; font-weight: 500; color: #fff; white-space: nowrap; }   /* L16: the dot says whose it is */
+/* the traffic colours of the picture (sampled from traffic-night-v2 on 2026-11-02), with the words of the traffic chips */
+/* stacked in the top-left corner (over the sea at Rehovot's view; a row would cover Tel Aviv's label) */
+.map-key { position: absolute; left: 24px; top: 20px; display: flex; flex-direction: column; padding: 10px 16px; border-radius: 16px; background: rgba(14, 20, 36, 0.82);
+  font-size: 24px; line-height: 28px; color: rgba(255, 255, 255, 0.85); white-space: nowrap; }
+.map-key-item { display: flex; align-items: center; }
+.map-key-item + .map-key-item { margin-top: 6px; }
+.map-key-line { width: 28px; height: 6px; border-radius: 3px; -webkit-margin-end: 10px; }
+.map-key-line.lv-ok { background: #2f8a5a; }
+.map-key-line.lv-slow { background: #c27a2c; }
+.map-key-line.lv-jam { background: #c23434; }
+.map-card.no-image .map-home, .map-card.no-image .map-home-name, .map-card.no-image .map-attribution, .map-card.no-image .map-key { visibility: hidden; }
 /* the attribution Mapbox requires, small and quiet in the corner over the sea (bottom-left in every language: Jerusalem's
    label sits in the bottom-right corner) */
 .map-attribution { position: absolute; left: 24px; bottom: 16px; padding: 4px 12px; border-radius: 12px; background: rgba(14, 20, 36, 0.7);
-  font-size: 24px; color: rgba(255, 255, 255, 0.72); direction: ltr; white-space: nowrap; }
+  font-size: 24px; color: rgba(255, 255, 255, 0.85); direction: ltr; white-space: nowrap; }
 .map-note { display: none; }
 .map-note.is-on { position: absolute; left: 0; right: 0; top: 50%; margin-top: -32px; display: flex; justify-content: center; }
 .map-note-text { padding: 12px 32px; border-radius: 32px; background: rgba(14, 20, 36, 0.82); font-size: 32px; color: rgba(255, 255, 255, 0.85); }
@@ -445,14 +486,14 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .alert-body .icon { width: 128px; height: 128px; stroke-width: 2.6; }
 .alert-body .ic-warning { stroke: #ffd9d5; }
 .alert-kind { margin-top: 32px; font-size: 104px; font-weight: 500; line-height: 1.1; letter-spacing: -0.015em; color: #fff; }
-.alert-orig { margin-top: 16px; font-size: 40px; line-height: 48px; color: rgba(255, 255, 255, 0.8); }   /* a sub-line of the title: the 16 px of .alert-since under .alert-areas; its own right-to-left block (js/view-alert.js) */
+.alert-orig { margin-top: 16px; font-size: 40px; line-height: 48px; color: rgba(255, 255, 255, 0.85); }   /* a sub-line of the title: the 16 px of .alert-since under .alert-areas; its own right-to-left block (js/view-alert.js) */
 .alert-areas { margin-top: 32px; font-size: 64px; color: #ffe6e3; line-height: 1.2; }
 .alert-areas.is-many { font-size: 48px; }
 .alert-area { display: inline-block; white-space: nowrap; }   /* a name never breaks at its hyphen; lines break between names */
-.alert-since { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.75); }
+.alert-since { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.85); }
 /* The feed lost while the alert is up: said inside the alert, in warm amber (about 8:1 on the deep red). */
-.alert-offline { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 32px; color: #ffd59a; }
-.alert-offline .offline-dot { width: 14px; height: 14px; border-radius: 7px; -webkit-margin-end: 12px; border: 2px solid #ffd59a; }
+.alert-offline { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 32px; color: #ffcf8a; }
+.alert-offline .offline-dot { width: 14px; height: 14px; border-radius: 7px; -webkit-margin-end: 12px; border: 2px solid #ffcf8a; }
 .alert-instr { margin-top: 48px; padding: 16px 40px; border-radius: 40px; font-size: 40px; line-height: 48px; color: #fff; background: rgba(255, 255, 255, 0.1); }
 /* The owner's preview (the blue key): the same alert under a white band that cannot be mistaken for the alert. */
 .alert-preview { position: absolute; left: 0; right: 0; top: 0; height: 104px; z-index: 1; display: flex; align-items: center; justify-content: center;
@@ -473,35 +514,41 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 @keyframes banner-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
 /* ---- The Alerts screen: home and nearby at the start, the recent alerts in Israel at the end ---------------- */
-.al-body { -webkit-align-items: stretch; align-items: stretch; }
+.al-body { align-items: stretch; }
 .al-side { display: flex; flex-direction: column; width: 720px; flex: 0 0 720px; }
 .al-home { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 32px 40px; }
 .al-home .icon { width: 112px; height: 112px; stroke-width: 2.6; }
 .ic-shield { stroke: #8ce6b4; }
-.al-home .ic-warning { stroke: #ffb4ab; }
+.al-home.is-checking .ic-shield { stroke: rgba(255, 255, 255, 0.62); }   /* L2: no answer yet — a neutral shield, never «all clear» */
+.al-home.is-checking .ic-shield path + path { display: none; }        /* … and without its check mark */
+.al-home .ic-warning { stroke: #ff9a8c; }
 .al-home.is-offline .ic-warning { stroke: #ffcf8a; }
 .al-home.is-alert { background: linear-gradient(180deg, rgba(200, 40, 52, 0.42) 0%, rgba(120, 20, 30, 0.32) 100%); }
 .al-home-main { margin-top: 24px; font-size: 64px; font-weight: 500; line-height: 1.15; color: #fff; }
-.al-home.is-offline .al-home-main { font-size: 40px; color: #ffd59a; }
+.al-home.is-offline .al-home-main { font-size: 40px; color: #ffcf8a; }
 .al-home-place { margin-top: 16px; font-size: 40px; color: rgba(255, 255, 255, 0.85); }
-.al-home-sub { margin-top: 16px; font-size: 28px; color: rgba(255, 255, 255, 0.62); }
+.al-home-sub { margin-top: 16px; font-size: 28px; }
 .al-near { flex: 0 0 auto; margin-top: 28px; padding: 28px 40px 32px; }
 .al-near-text { margin-top: 12px; font-size: 34px; line-height: 1.25; color: rgba(255, 255, 255, 0.92); }
-.al-near.is-alert .al-near-text { color: #ffc9c2; }
-.al-near-places { margin-top: 12px; font-size: 24px; line-height: 1.35; color: rgba(255, 255, 255, 0.62); }
+.al-near.is-alert .al-near-text { color: #ff9a8c; }
+.al-near-places { margin-top: 12px; font-size: 24px; line-height: 1.35; }
 .al-recent { flex: 1 1 auto; min-width: 0; -webkit-margin-start: 28px; padding: 28px 40px 16px; display: flex; flex-direction: column; }
 .al-rows { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; margin-top: 8px; }
 .al-row { flex: 0 0 104px; display: flex; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
 .al-row:first-child { border-top: 0; }
-.al-time { flex: 0 0 200px; font-size: 28px; color: rgba(255, 255, 255, 0.62); white-space: nowrap;
+/* the column labels (L13): when, what, where — quiet, on a short row of their own; the first alert's row has no rule over it */
+.al-row.al-heads { flex: 0 0 40px; align-items: baseline; padding-top: 8px; }   /* N7: the three labels on one baseline */
+.al-heads .al-time, .al-heads .al-kind, .al-heads .al-areas { font-size: 24px; font-weight: 400; line-height: 28px; }
+.al-heads + .al-row { border-top: 0; }
+.al-time { flex: 0 0 200px; font-size: 28px; white-space: nowrap;
   -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
 .al-kind { flex: 0 0 360px; -webkit-padding-end: 24px; font-size: 30px; font-weight: 500; line-height: 38px; color: rgba(255, 255, 255, 0.92); }
-.al-areas { flex: 1 1 auto; min-width: 0; font-size: 28px; line-height: 38px; color: rgba(255, 255, 255, 0.8); }
+.al-areas { flex: 1 1 auto; min-width: 0; font-size: 28px; line-height: 38px; color: rgba(255, 255, 255, 0.85); }
 /* Untranslated Hebrew in a left-to-right row: read right to left, but lined up with its column's left edge. */
 html[dir="ltr"] .al-kind[dir="rtl"], html[dir="ltr"] .al-areas[dir="rtl"] { text-align: left; }
 .al-name { white-space: nowrap; }   /* a place name never breaks at its hyphen */
-.al-recent-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 32px; color: rgba(255, 255, 255, 0.62); }
-.al-recent-empty.is-failed { color: rgba(255, 214, 150, 0.85); }
+.al-recent-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 32px; }
+.al-recent-empty.is-failed { color: #ffcf8a; }
 
 /* ---- The language toast: the new language's name in its own words, a moment in the lower middle, then gone ---- */
 .toast { position: fixed; left: 50%; bottom: 120px; z-index: 20; width: 480px; margin-left: -240px; padding: 20px 0; border-radius: 40px;
@@ -522,24 +569,24 @@ html[dir="ltr"] .al-kind[dir="rtl"], html[dir="ltr"] .al-areas[dir="rtl"] { text
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }
 .city.is-on .city-sheet { -webkit-transform: none; transform: none; }
 .city-title { font-size: 48px; line-height: 56px; font-weight: 500; color: #fff; }
-.city-sub { margin-top: 8px; font-size: 28px; line-height: 36px; color: rgba(255, 255, 255, 0.62); }
+.city-sub { margin-top: 8px; font-size: 28px; line-height: 36px; }
 .city-window { position: relative; height: 648px; margin-top: 24px; overflow: hidden; }   /* 9 rows of 72 px */
 .city-list { will-change: transform; }
 .city-row { display: flex; align-items: center; height: 72px; padding: 0 24px; border-radius: 18px; white-space: nowrap; }
 .city-row.is-focus { background: rgba(255, 255, 255, 0.16); }
 .city-name { -webkit-padding-end: 20px; font-size: 40px; line-height: 48px; color: #fff; }
-.city-alt { font-size: 28px; line-height: 36px; color: rgba(255, 255, 255, 0.62); }
+.city-alt { font-size: 28px; line-height: 36px; }
 /* the current city: a green check at the row's end (left in Hebrew), drawn with two borders (no glyph to miss on the TV) */
-.city-check { -webkit-margin-start: auto; width: 14px; height: 26px; margin-top: -6px; border: solid #30d158; border-width: 0 4px 4px 0;
+.city-check { -webkit-margin-start: auto; width: 14px; height: 26px; margin-top: -6px; border: solid #8ce6b4; border-width: 0 4px 4px 0;
   -webkit-transform: rotate(45deg); transform: rotate(45deg); }
 html[dir="rtl"] .city-check { margin-left: 8px; }
 .city-badge { position: absolute; top: 276px; width: 96px; height: 96px; border-radius: 48px; display: flex; align-items: center; justify-content: center;
   font-size: 48px; font-weight: 500; color: #fff; background: rgba(255, 255, 255, 0.22); opacity: 0;
   -webkit-transition: opacity 0.2s ease; transition: opacity 0.2s ease; left: 50%; margin-left: -48px; }
 .city-badge.is-on { opacity: 1; }
-.city-msg { display: none; margin-top: 16px; font-size: 28px; color: #ffd59a; text-align: center; }
+.city-msg { display: none; margin-top: 16px; font-size: 28px; color: #ffcf8a; text-align: center; }
 .city-msg.is-on { display: block; }
-.city-hint { margin-top: 24px; font-size: 24px; line-height: 32px; color: rgba(255, 255, 255, 0.62); text-align: center; }
+.city-hint { margin-top: 24px; font-size: 24px; line-height: 32px; text-align: center; }
 
 /* ---- Markets: six cards on one grid — currencies, US shares, Israeli shares; crypto, US indices, commodities. The ONE
    setting for the cards per line is .mk-card's width (100% / 3); the body's negative end and bottom margins absorb the
@@ -553,6 +600,7 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }
 .mk-head { display: flex; align-items: center; height: 46px; flex: 0 0 46px; white-space: nowrap; }
 .mk-title { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
+.mk-head-sign { font-size: 34px; font-weight: 500; white-space: pre; }   /* N2: the card's one currency, a muted suffix of the title (its own box in the head, the space kept) */
 /* The rows are a table (display: table, Chromium 47): each card sizes its own columns — name · price · sign · change — so
    every price of a card ends on one line and its decimals stand in one column, in Hebrew as in Russian. */
 .mk-rows { display: table; width: 100%; border-collapse: separate; border-spacing: 0; }
@@ -560,10 +608,16 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 .mk-row > span { display: table-cell; vertical-align: middle; height: 58px; border-top: 1px solid rgba(255, 255, 255, 0.07); }
 .mk-row:first-child > span { border-top: 0; }
 .mk-name { width: 100%; font-size: 28px; line-height: 32px; white-space: nowrap; color: rgba(255, 255, 255, 0.92); }
+/* what a commodity's price is for (Codex L1, N2): a quiet suffix of its name on the same line, «Brent · баррель» */
+.mk-per { font-size: 24px; }
+/* L8: no price in any card — one calm card in their place */
+.mk-none { display: none; }
+.mk-body.is-none .mk-card { display: none; }
+.mk-body.is-none .mk-none { display: flex; flex: 1 1 auto; -webkit-margin-end: 28px; margin-bottom: 28px; }
 /* «закрыто» / «частично закрыто»: only in the card's head, at its end, one line; never inside a row */
-.mk-closed { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.mk-closed { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; white-space: nowrap; }
 /* a card with no price at all: said once, amber like every failure the app says, in its head */
-.mk-failed { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: rgba(255, 214, 150, 0.85); white-space: nowrap; }
+.mk-failed { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: #ffcf8a; white-space: nowrap; }
 .mk-price, .mk-pct { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; white-space: nowrap; }
 /* the price column: one width per card (B6) — its widest price in any language, measured 2026-11-02 on the recorded and
    the live quotes — so he / ru / uk match; a cell only grows (a «нет данных» row may widen it), never cuts. Set by a
@@ -579,23 +633,23 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 #mk-il .mk-price:before { width: 168px; }
 #mk-crypto .mk-price:before { width: 206px; }
 #mk-indices .mk-price:before { width: 153px; }
-#mk-commodities .mk-price:before { width: 168px; }
+#mk-commodities .mk-price:before { width: 136px; }   /* N2: the $ is said once in the head — «3 907,10» needs 133 px */
 /* the sign (FIX-11B-B1b): inside the price cell, in a fixed box right after the number — one gap everywhere, the
    decimal column untouched; the cell is left to right, so it stays after the number in Hebrew too */
 .mk-sign { display: inline-block; width: 28px; margin-left: 6px; text-align: left; }
-.mk-row.is-closed .mk-price { color: rgba(255, 255, 255, 0.80); }   /* closed: a shade back, the open ones stand out */
+/* closed: a shade back, the open ones stand out; a closed price that is also stale keeps the stale grey (R16-5) */
+.mk-row.is-closed:not(.is-stale) .mk-price { color: rgba(255, 255, 255, 0.85); }
 /* the last good value, not refreshed this round: quietly dimmed, never an alarm colour */
-.mk-row.is-stale .mk-price { color: rgba(255, 255, 255, 0.62); }
-.mk-row.is-stale .mk-chg { color: rgba(255, 255, 255, 0.62); }   /* grey keeps 4.5:1; the arrow still says which way */
+
 /* the change: its own column at the end (a fixed width: Chromium 47 ignores min-width on a table cell); soft
    Apple-like colours, never neon; a fixed 22 px arrow slot and a fixed-width figure, so every «%» ends on one line */
 .mk-chg { width: 140px; -webkit-padding-start: 8px;   /* 8: the sign box already ends 3–9 px after the sign */
   text-align: end; font-size: 26px; white-space: nowrap; }
 #mk-indices .mk-chg { -webkit-padding-start: 16px; }   /* no sign box after a level in points: the full gap before the arrow */
+#mk-commodities .mk-chg { -webkit-padding-start: 10px; }   /* N2: no sign box in its rows (the $ is in the head): 10 px clear of the arrow, the rest for the unit */
 .mk-pct { display: inline-block; min-width: 118px; text-align: right; }   /* + the 22 px arrow slot = the cell's 140 px: «+12,34%» never moves the arrow */
 .mk-chg.is-up { color: #8ce6b4; }
 .mk-chg.is-down { color: #ff9a8c; }
-.mk-chg.is-flat, .mk-chg.is-none { color: rgba(255, 255, 255, 0.62); }   /* no change, or none given (a muted «—») */
 /* the arrow is drawn (no glyph: ▲ ▼ are not in the TV's font subsets): 16 × 12 in a 22 px slot, kept (invisible) when
    there is no arrow */
 .mk-arrow { display: inline-block; width: 0; height: 0; vertical-align: 0.15em; -webkit-margin-end: 6px;
@@ -604,7 +658,7 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 .mk-chg.is-down .mk-arrow { border-top-color: #ff9a8c; }
 .mk-row.is-stale .mk-chg.is-up .mk-arrow { border-bottom-color: rgba(255, 255, 255, 0.62); }
 .mk-row.is-stale .mk-chg.is-down .mk-arrow { border-top-color: rgba(255, 255, 255, 0.62); }
-.mk-nodata { -webkit-padding-start: 16px; text-align: right; font-size: 26px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.mk-nodata { -webkit-padding-start: 16px; text-align: right; font-size: 26px; white-space: nowrap; }
 /* before the first data: the same six slots, as plain rows */
 .mk-card.is-empty .mk-rows { display: block; }
 .mk-row.is-empty { display: flex; align-items: center; height: 58px; }
@@ -621,16 +675,3 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 /* a range bar and a time bar fill from the right: the coldest end next to the low temperature, the trip from the start */
 [dir="rtl"] .range, [dir="rtl"] .tbar { -webkit-transform: scaleX(-1); transform: scaleX(-1); }
 
-
-/* The weekly reading (card A, the band between the Hebrew date and the rule): every value under its own label.
-   Worst case, a note above and a reference on two lines: 52 + 8 + 148 = 208 of the 220 px band. */
-.sh-ref-part { white-space: nowrap; }
-.sh-read { margin-top: 8px; }
-.sh-read-row { display: -webkit-flex; display: flex; }
-/* the portion column is as wide as its text (names are short); the haftarah and the extra line take the rest */
-.sh-read-row > .sh-read-item { -webkit-flex: 0 1 auto; flex: 0 1 auto; max-width: 50%; -webkit-padding-end: 64px; }
-.sh-read-col { -webkit-flex: 1 1 0; flex: 1 1 0; min-width: 0; }
-.sh-read-extra { margin-top: 8px; }
-.sh-read-label { font-size: 26px; line-height: 32px; color: rgba(255, 255, 255, 0.62); }
-.sh-read-name { font-size: 36px; line-height: 44px; font-weight: 500; color: rgba(255, 255, 255, 0.95); }
-.sh-read-ref, .sh-read-value { font-size: 28px; line-height: 36px; color: rgba(255, 255, 255, 0.85); }

@@ -64,6 +64,7 @@ function trafficDays(opts) {
   // the app's own wiring (js/app.js showScreen): the screen tells traffic whether it is on view, and whether the
   // remote opened it (◀ ▶) or the rotation did
   const screens = ctx.Screens.create(C.screens.length, C.rotation, Object.assign({}, deps, {
+    idOf: (i) => C.screens[i],                   // Codex T1: the app's own dwell per screen (Markets 90 s), as js/app.js wires it
     onShow(i, from, dir, auto) { onTraffic = C.screens[i] === 'traffic'; traffic.setVisible(onTraffic, !auto); } }));
   const toTraffic = () => { for (let i = C.screens.indexOf('traffic'); i > 0; i--) screens.step(1); };
   if (opts.park || opts.visits) { clock.advance(1000); toTraffic(); }

@@ -10,7 +10,7 @@ var OpenMeteo = (function () {
     for (var i = 0; i < places.length; i++) { lat.push(places[i].lat); lon.push(places[i].lon); }
     return 'latitude=' + lat.join(',') + '&longitude=' + lon.join(',');
   }
-  function num(v) { return typeof v === 'number' && isFinite(v) ? v : null; }
+  function num(v) { return Num.finite(v) ? v : null; }
   function band(value, ceilings, top) {
     if (value === null) return null;
     for (var i = 0; i < ceilings.length; i++) if (value <= ceilings[i][0]) return ceilings[i][1];

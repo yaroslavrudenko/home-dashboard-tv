@@ -91,9 +91,8 @@ var TrafficMap = (function () {
       // The TV hid or showed the page: hidden stops everything; shown asks the gate again.
       visibilityChanged: function () { if (!docVisible()) hide(); else check(false); },
       state: function () {
-        var now = deps.now();
-        if (!updatedAt) return { kind: failed || problem ? 'failed' : 'loading', updatedAt: 0, problem: problem };
-        return { kind: failed || now - updatedAt > cfg.staleAfterMs || now < updatedAt ? 'stale' : 'fresh', updatedAt: updatedAt, problem: problem };
+        // without an image a reason not to load (cap, storage) is a failure too; over an image only a failed load is
+        return { kind: Freshness.kind(!!updatedAt, failed || (!updatedAt && !!problem), updatedAt, deps.now(), cfg.staleAfterMs), updatedAt: updatedAt, problem: problem };
       }
     };
   }

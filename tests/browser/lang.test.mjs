@@ -3,7 +3,7 @@
 // sources (L2); Hebrew mirrors the whole layout with figures kept left to right (L3); alerts speak the language.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openApp, measure, newsSource } from './page.mjs';
+import { openApp, measure, newsSource, withoutHeadlineClamp } from './page.mjs';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); return e.defaultPrevented; }, code);
@@ -113,12 +113,12 @@ test('L2: the news screen in each language — Russian NEWSru, Hebrew Ynet + Glo
     const he = await cols();
     assert.deepEqual(he.map((c) => c.slice(0, 4)), [['ישראל', 'Ynet', 5, 'rtl'], ['כלכלה', 'Globes', 5, 'rtl']]);
     assert.ok(he[0][4] > he[1][4], '«ישראל» on the right: mirrored');
-    assert.deepEqual(clean(await p.evaluate(measure, '#screen-news *')), []);
+    assert.deepEqual(clean(withoutHeadlineClamp(await p.evaluate(measure, '#screen-news *'))), []);
     await press(p, YELLOW);
     await p.waitForFunction(() => document.querySelectorAll('.news-title').length === 10 && /[іїєґ]/i.test(document.querySelector('.news-title').textContent), { timeout: 8000, polling: 50 });
     const uk = await cols();
     assert.deepEqual(uk.map((c) => c.slice(0, 4)), [['Україна', 'Українська правда', 5, 'ltr'], ['Економіка', 'Економічна правда', 5, 'ltr']]);
-    assert.deepEqual(clean(await p.evaluate(measure, '#screen-news *')), []);
+    assert.deepEqual(clean(withoutHeadlineClamp(await p.evaluate(measure, '#screen-news *'))), []);
   } finally { await app.close(); }
 });
 
@@ -193,7 +193,7 @@ test('L3: the alert in each language — Hebrew: the feed\'s own words as the ma
     assert.deepEqual(await p.evaluate(ALERT_VIEW), { kind: 'ירי רקטות וטילים', orig: 0, areas: ['רחובות'], instr: 'היכנסו למרחב המוגן ושהו בו 10 דקות', since: 'מ־20:32' });
     assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);
     await press(p, YELLOW); await wait(300);
-    assert.deepEqual(await p.evaluate(ALERT_VIEW), { kind: 'Ракетний обстріл', orig: 0, areas: ['Реховот'], instr: 'Увійдіть до захищеного приміщення й залишайтеся там 10 хв', since: 'З 20:32' });
+    assert.deepEqual(await p.evaluate(ALERT_VIEW), { kind: 'Ракетний обстріл', orig: 0, areas: ['Реховот'], instr: 'Увійдіть до захищеного приміщення й залишайтеся там 10 хв', since: 'Від 20:32' });   // L3: «З» read as «3»
   } finally { await app.close(); }
   const odd = await openApp({ ...QUIET, lang: 'uk', alerts: () => ({ status: 200, body: ODD }) });
   try {
@@ -248,7 +248,11 @@ test('L3: every screen in every language: nothing cut, outside its card or off t
         if (i) { await press(p, RIGHT); await wait(900); }
         if (SCREENS[i] === 'news') await p.waitForSelector('.news-title');
         if (SCREENS[i] === 'traffic') await p.waitForSelector('.tw-time');
-        assert.deepEqual(clean(await p.evaluate(measure, '#screen-' + SCREENS[i] + ' *')), [], lang + ' ' + SCREENS[i]);
+        const boxes = await p.evaluate(measure, '#screen-' + SCREENS[i] + ' *'), kept = withoutHeadlineClamp(boxes);
+        // D-T1 (batch 16) sees a vertical clamp too; the one allowed is a headline past three lines (the owner's «3 строки») —
+        // at most one per screen in the recordings
+        assert.ok(boxes.length - kept.length <= 1, lang + ': clamped headlines ' + (boxes.length - kept.length));
+        assert.deepEqual(clean(kept), [], lang + ' ' + SCREENS[i]);
       }
       assert.deepEqual(app.errors, [], lang);
     } finally { await app.close(); }

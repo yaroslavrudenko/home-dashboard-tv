@@ -140,7 +140,8 @@ test('B1: the Alerts screen is the eighth (◀ from the main screen), quiet: «�
     assert.equal(v.title, 'Тревоги');
     assert.match(v.home, /^Тревог нетРеховотПроверено в 20:3\d$/);
     assert.match(v.near, /^РядомРядом тревог нет/);
-    assert.deepEqual(v.rows, [['19.10 19:38', 'Проникновение террористов', 'אביתר'], ['10.10 19:57', 'Вражеский беспилотник', 'ערב אל עראמשה']]);
+    // L13 (batch 16): the column labels first; the two areas no catalogue city covers stay Hebrew, and the label says so
+    assert.deepEqual(v.rows, [['Время', 'Тревога', 'Районы (на иврите)'], ['19.10 19:38', 'Проникновение террористов', 'אביתר'], ['10.10 19:57', 'Вражеский беспилотник', 'ערב אל עראמשה']]);
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-alerts *')), []);
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
@@ -157,7 +158,7 @@ test('B1: the Alerts screen in Hebrew and Ukrainian, nothing cut; a quiet week s
       const v = await app.page.evaluate(ALERTS_VIEW);
       assert.equal(v.title, title);
       assert.match(v.home, quiet);
-      assert.equal(v.rows.length, 2);
+      assert.equal(v.rows.length, 3, 'the column labels and the two alerts');
       assert.deepEqual(clean(await app.page.evaluate(measure, '#screen-alerts *')), [], lang);
     } finally { await app.close(); }
   }

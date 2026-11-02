@@ -13,17 +13,19 @@
  *   Markets.snapshot(cfg, data, nowMs)   the MarketsSnapshot of data = { quotes, tables: { base: rates }, updatedAt }
  *   Markets.createController(cfg, deps)  asked only while the screen is on view (js/onview.js); snapshot() is null until
  *                                   the first answers, then the latest snapshot; state() says what the header says
- * MarketsSnapshot: { updatedAt, groups: [{ id, rows: [{ id, price, currency, changePct, closed, stale? }] }] } — every
+ * MarketsSnapshot: { updatedAt, groups: [{ id, rows: [{ id, price, currency, changePct, closed, stale?, unit? }] }] } — every
  * configured row in the configured order. A row its source did not give this round keeps its last good values with
  * stale: true (as weather and news keep theirs); one that never had a value has price null (never dropped, never made up).
  * closed: a quote's market is outside its regular session (true / false); null for a daily rate, which has no trading
- * hours. updatedAt is the arrival time of the newest usable data shown (0: none). */
+ * hours, and it follows the clock between rounds (A2: state() recomputes it each minute from the row's last session, no
+ * request). unit: what a commodity's price is for (the configured row's unit: 'barrel', 'ounce', …). updatedAt is the
+ * arrival time of the newest usable data shown (0: none). */
 var Markets = (function () {
   var CURRENCIES = { USD: true, ILS: true, UAH: true, RUB: true, EUR: true };
   var LAST_MINUTE_S = 60;                          // a 24-hour session's `end` is its last minute, not its end
   var DAY_SESSION_S = 24 * 3600 - LAST_MINUTE_S;   // 00:00–23:59: how Yahoo names a 24-hour market's session
 
-  function finite(v) { return typeof v === 'number' && isFinite(v); }
+  var finite = Num.finite;
   function eachRow(cfg, f) {
     for (var i = 0; i < cfg.groups.length; i++) for (var j = 0; j < cfg.groups[i].rows.length; j++) f(cfg.groups[i].rows[j]);
   }
@@ -84,13 +86,16 @@ var Markets = (function () {
     return { id: row.id, price: v, currency: row.code, changePct: null, closed: null };
   }
 
+  // A row with some of its fields changed (every other field kept, the unit and the stale mark included).
+  var copyRow = Obj.copyWith;
+
   function snapshot(cfg, data, nowMs) {
     var nowS = Math.floor(nowMs / 1000), groups = [];
     for (var i = 0; i < cfg.groups.length; i++) {
       var g = cfg.groups[i], rows = [];
       for (var j = 0; j < g.rows.length; j++) {
-        var r = g.rows[j];
-        rows.push(r.yahoo ? quoteRow(r.id, data.quotes[r.yahoo], nowS) : rateRow(r, data.tables[r.base]));
+        var r = g.rows[j], row = r.yahoo ? quoteRow(r.id, data.quotes[r.yahoo], nowS) : rateRow(r, data.tables[r.base]);
+        rows.push(r.unit ? copyRow(row, { unit: r.unit }) : row);
       }
       groups.push({ id: g.id, rows: rows });
     }
@@ -109,11 +114,13 @@ var Markets = (function () {
       }
     }
     if (!priced) return 'failed';
-    return kept || gaps || now - snap.updatedAt > cfg.staleAfterMs ? 'stale' : 'fresh';
+    return Freshness.kind(true, kept > 0 || gaps > 0, snap.updatedAt, now, cfg.staleAfterMs);
   }
 
-  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, documentVisible() (optional), onChange(snapshot) }
+  // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, documentVisible() (optional), onChange(snapshot),
+  //         log(message) (optional) }
   function createController(cfg, deps) {
+    var log = deps.log || function () {};
     var requests = plan(cfg), kept = {}, lastGood = {}, lastMeta = {}, current = null;   // kept: base → { table, receivedAt, until }
     var bySymbol = {}, needs = {};                 // Yahoo symbol → row id; base → the codes its rows read
     eachRow(cfg, function (r) {
@@ -142,8 +149,7 @@ var Markets = (function () {
           var r = rows[j], g = lastGood[r.id];
           if (r.price !== null) lastGood[r.id] = r;
           else if (g) {
-            rows[j] = { id: g.id, price: g.price, currency: g.currency, changePct: g.changePct,
-              closed: lastMeta[g.id] ? closedAt(lastMeta[g.id], nowS) : g.closed, stale: true };
+            rows[j] = copyRow(g, { closed: lastMeta[g.id] ? closedAt(lastMeta[g.id], nowS) : g.closed, stale: true });
             anyStale = true;
           }
         }
@@ -184,13 +190,31 @@ var Markets = (function () {
       if (!left) { finish(); return; }
       for (i = 0; i < jobs.length; i++) (function (job) {
         deps.getJson(job.url, cfg.timeoutMs, function (err, json) {
-          if (!err) { try { job.take(json, deps.now()); } catch (e) { /* an unreadable or incomplete answer: its rows stay empty */ } }
+          if (!err) { try { job.take(json, deps.now()); } catch (e) { log(e.message); } }   // unreadable or incomplete: its rows stay empty
           left--;
           if (job.spark) sparkLeft--;
           if (!left) finish();
           else if (job.spark && !sparkLeft) { current = build(); deps.onChange(current); }
         });
       })(jobs[i]);
+    }
+
+    // A2: the closed marks for `now`, from each priced quote's last session (no request); the same snapshot object while no
+    // mark changes, so the minute tick redraws nothing.
+    function closedNow(snap, now) {
+      if (!snap) return snap;
+      var nowS = Math.floor(now / 1000), groups = null;
+      for (var i = 0; i < snap.groups.length; i++) {
+        var rows = snap.groups[i].rows, out = null;
+        for (var j = 0; j < rows.length; j++) {
+          var r = rows[j], m = lastMeta[r.id], c = m && r.price !== null && typeof r.closed === 'boolean' ? closedAt(m, nowS) : r.closed;
+          if (c === r.closed) continue;
+          out = out || rows.slice();
+          out[j] = copyRow(r, { closed: c });
+        }
+        if (out) { groups = groups || snap.groups.slice(); groups[i] = { id: snap.groups[i].id, rows: out }; }
+      }
+      return groups ? { updatedAt: snap.updatedAt, groups: groups } : snap;
     }
 
     var gate = OnView.create(cfg.refreshMs, deps, round);
@@ -201,7 +225,11 @@ var Markets = (function () {
       visibilityChanged: gate.visibilityChanged,
       snapshot: function () { return current; },
       // { kind: 'loading' | 'failed' | 'stale' | 'fresh', snapshot, updatedAt } — what the header says (kindOf).
-      state: function () { return { kind: kindOf(cfg, current, deps.now()), snapshot: current, updatedAt: current ? current.updatedAt : 0 }; }
+      state: function () {
+        var now = deps.now();
+        current = closedNow(current, now);
+        return { kind: kindOf(cfg, current, now), snapshot: current, updatedAt: current ? current.updatedAt : 0 };
+      }
     };
   }
 

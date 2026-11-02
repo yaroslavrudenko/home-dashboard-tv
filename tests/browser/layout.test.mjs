@@ -5,9 +5,20 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { openApp, measure, legibility } from './page.mjs';
 
+// T-4: waits for a condition, never a fixed sleep: the weather drawn and the fonts in (every box measured is final).
 async function ready(app) {
   await app.page.waitForSelector('.day', { timeout: 10000 });
-  await new Promise((r) => setTimeout(r, 200));
+  await app.page.evaluate(() => document.fonts.ready);
+}
+// Every request the page sent before this call has reached the harness (its answer to a later request proves it): a
+// barrier for "no request was sent", instead of a sleep.
+const barrier = (p) => p.evaluate(() => fetch('/__barrier').then(() => 0, () => 0));
+// A condition on the Node side (e.g. a request count), polled until true or `ms` passed (then it throws).
+async function until(fn, ms = 5000) {
+  for (const end = Date.now() + ms; !fn();) {
+    if (Date.now() > end) throw new Error('timed out waiting for ' + fn);
+    await new Promise((r) => setTimeout(r, 20));
+  }
 }
 
 test('1920×1080, Russian: clocks, current weather, 12-hour strip, 7 days; everything on screen and uncut', async () => {
@@ -68,7 +79,7 @@ test('no network: clocks still run, the weather card says it is unavailable and 
   const app = await openApp({ weather: 'fail' });
   try {
     await app.page.waitForSelector('#status.is-failed', { timeout: 10000 });
-    await new Promise((r) => setTimeout(r, 200));
+    await app.page.evaluate(() => document.fonts.ready);
     const p = app.page;
     assert.deepEqual(app.errors, []);
     assert.equal(app.weatherRequests.length, 1, 'one attempt, no burst of retries');
@@ -76,8 +87,9 @@ test('no network: clocks still run, the weather card says it is unavailable and 
     assert.equal(await p.$eval('.empty-text', (e) => e.textContent), 'Погода временно недоступна');
     assert.match(await p.$eval('.empty-sub', (e) => e.textContent), /^Повторим в 20:3\d$/);
     assert.equal(await p.$eval('#status', (e) => e.textContent), '', 'the status line does not repeat the message');
-    assert.equal(await p.$$eval('.hour.is-empty', (e) => e.length), 12, 'placeholder hours keep the composition');
-    assert.equal(await p.$$eval('.day.is-empty', (e) => e.length), 7, 'placeholder days');
+    // L5 (batch 16): placeholders only while loading — a failure says so once, quietly, in the strip and in the list
+    assert.equal(await p.$$eval('.hour.is-empty, .day.is-empty, .skeleton', (e) => e.length), 0, 'no placeholder after a failure');
+    assert.deepEqual(await p.$$eval('.wx-none', (e) => e.map((x) => x.textContent)), ['Нет данных', 'Нет данных'], 'one quiet line in each card');
     const boxes = await p.evaluate(measure);
     assert.deepEqual(boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.r > 1920 || b.b > 1080), []);
     const [msg, card] = await p.evaluate(() => [document.querySelector('.empty-state').getBoundingClientRect(), document.querySelector('#now').getBoundingClientRect()]
@@ -168,7 +180,7 @@ test('a failed refresh marks the temperature stale on every clock card and on th
     await p.evaluate(() => { window.__offsetMs = 16 * 60000; });
     await wake(p);
     await p.waitForSelector('#status.is-stale', { timeout: 10000 });
-    await new Promise((r) => setTimeout(r, 200));
+    await p.waitForFunction(() => document.querySelectorAll('.clock-weather.is-stale').length === 3, { timeout: 5000 });
     assert.equal(app.weatherRequests.length, 2);
     // FB5-N6: dimmed and said once by the amber status line; no unexplained amber dot next to the temperatures.
     assert.equal(await p.$$eval('.clock-weather.is-stale', (e) => e.length), 3, 'marked on all three clock cards');
@@ -192,11 +204,12 @@ test('waking the TV refreshes the weather when it is older than the refresh inte
     const p = app.page;
     await p.evaluate(() => { window.__offsetMs = 5 * 60000; });
     await wake(p);
-    await new Promise((r) => setTimeout(r, 300));
+    await barrier(p);
     assert.equal(app.weatherRequests.length, 1, 'recent data: no request');
     await p.evaluate(() => { window.__offsetMs = 16 * 60000; });
     await wake(p);
-    await new Promise((r) => setTimeout(r, 300));
+    await until(() => app.weatherRequests.length >= 2);
+    await barrier(p);
     assert.equal(app.weatherRequests.length, 2, 'data older than 15 min: one new request');
   } finally { await app.close(); }
 });

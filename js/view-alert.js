@@ -20,8 +20,8 @@ var AlertView = (function () {
 
   // A block of the feed's Hebrew, right to left, in its own box.
   function heBlock(cls, text) { return '<div class="' + cls + '" dir="rtl" lang="he">' + esc(text) + '</div>'; }
-  // A configured area in the interface language ({ he, ru, uk }; Russian for a language it has no name in).
-  function nameOf(place) { return place[I18n.lang()] || place.ru; }
+  // A configured area in the interface language (HomeCity.name, the one place-name rule).
+  function nameOf(place) { return HomeCity.name(place, I18n.lang()); }
   function namesOf(places) { var out = []; for (var i = 0; i < places.length; i++) out.push(nameOf(places[i])); return out; }
   // "Тревоги: нет связи", with "· последний ответ HH:MM" once the feed has answered well at least once.
   function offlineLine(checked) {

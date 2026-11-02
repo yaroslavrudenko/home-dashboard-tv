@@ -25,7 +25,7 @@ var ShabbatView = (function () {
   }
 
   // A name from our tables by the source's id; the id itself when we have none (never a blank).
-  function named(prefix, id) { var key = prefix + id, s = I18n.t(key); return s === key ? id : s; }
+  function named(prefix, id) { return I18n.tOr(prefix + id, id); }
   function holiday(slug) { return named('sh.h.', slug); }
   function isCalm(state) { return state === STATE.SHABBAT || state === STATE.YOMTOV; }
   // m: a Moment-like { date: 'YYYY-MM-DD', weekday } → "Пятница, 6 ноября"
@@ -147,7 +147,9 @@ var ShabbatView = (function () {
     return '<div class="sh-calm"><div class="sh-calm-greet">' + esc(I18n.t(greet)) + '</div>' + (w.reading ? '' : '<div class="sh-calm-name">' + esc(windowName(w)) + '</div>') +
       '<div class="sh-calm-line">' + Icons.glyph('havdalah') + '<span>' + esc(I18n.t('sh.havdalah')) + when + '</span></div></div>';
   }
-  function failedHtml(s) { return Html.emptyState(Icons.glyph('candles'), I18n.t('sh.failed'), Html.retryText(s.retryAt)); }
+  // With no data the header says when it is tried again (L6), so the card says the short statement only (N5); the window
+  // past its data (stale, the header shows its time) still says when.
+  function failedHtml(s, withRetry) { return Html.emptyState(Icons.glyph('candles'), I18n.t('sh.failed'), withRetry ? Html.retryText(s.retryAt) : ''); }
 
   // Before the first data: the same slots, each a placeholder bar the size of what will stand there (V10).
   function bar(kind) { return '<span class="skeleton sh-skel sh-skel-' + kind + '"></span>'; }
@@ -158,11 +160,11 @@ var ShabbatView = (function () {
       tile('sh-candles', 'candles', 'sh.candles') + tile('sh-havdalah', 'havdalah', 'sh.havdalah') + '</div>';
   }
   function weekHtml(snap, s) {
-    if (!snap) return s.kind === 'failed' ? '<div class="sh-place">' + esc(s.place) + '</div>' + failedHtml(s) : placeholderWeek(s.place);
+    if (!snap) return s.kind === 'failed' ? '<div class="sh-place">' + esc(s.place) + '</div>' + failedHtml(s, false) : placeholderWeek(s.place);
     var calm = isCalm(snap.state);
     // the calm card names the holiday itself: «Сегодня: Песах» under «Хаг самеах · Песах» would say it twice (V8)
     var top = todayHtml(snap.today, s.place) + noteHtml(calm && snap.note && snap.note.kind === 'holiday' ? null : snap.note);
-    if (!snap.window) return top + failedHtml(s);                         // data older than its range: nothing to show as coming
+    if (!snap.window) return top + failedHtml(s, true);                         // data older than its range: nothing to show as coming
     return top + readingHtml(snap) + (calm ? calmHtml(snap) : '<div class="sh-rule"></div>' + tilesHtml(snap));
   }
 
@@ -175,11 +177,13 @@ var ShabbatView = (function () {
       '<div class="sh-row-sub"><span class="sh-row-date">' + esc(shortDate(o)) + '</span>' +
       '<span class="sh-row-in' + cls + '">' + esc(ongoing ? I18n.t('sh.ongoing') : countDays(o.daysUntil)) + '</span></div></div>';
   }
-  // No data yet: placeholder bars; failed with no data: the rows stay empty (a failure never looks like loading).
+  // No data yet: placeholder bars; failed with no data: one quiet amber line instead of the rows (L6: a failure never looks
+  // like loading, nor like a blank card).
   function listHtml(snap, failed) {
     var out = '', i, list = snap ? snap.upcoming : [], note = snap && snap.note;
     var runningFast = note && note.kind === 'fast' && note.active ? note.holiday : null;
-    for (i = 0; i < rows; i++) out += snap || failed ? rowHtml(list[i], runningFast) : '<div class="sh-row is-empty">' + bar('name') + bar('sub') + '</div>';
+    if (failed) out = '<div class="sh-list-failed">' + esc(I18n.t('sh.failed')) + '</div>';
+    else for (i = 0; i < rows; i++) out += snap ? rowHtml(list[i], runningFast) : '<div class="sh-row is-empty">' + bar('name') + bar('sub') + '</div>';
     return '<div class="card-title">' + esc(I18n.t('sh.upcoming')) + '</div><div class="sh-rows">' + out + '</div>';
   }
 
@@ -201,8 +205,9 @@ var ShabbatView = (function () {
       cls: 'card sh-week' + (calm ? ' is-calm' : '') + (snapshot ? '' : ' is-empty') });
     draw({ name: 'list', el: els.list, build: function () { return listHtml(snapshot, failed); },
       key: JSON.stringify([snapshot && snapshot.upcoming, snapshot && snapshot.note, failed, lang]), cls: 'card sh-list' + (snapshot ? '' : ' is-empty') });
+    // the header: the data's time; with no data at all, failed says when it is tried again (L6), loading says nothing
     var kind = !snapshot ? '' : s.kind === 'fresh' ? 'fresh' : 'stale';
-    Html.setStatus(els.status, 'status screen-status', kind || s.kind, kind ? View.statusText(kind, s.updated) : '');
+    Html.setStatus(els.status, 'status screen-status', kind || s.kind, kind ? Html.statusText(kind, s.updated) : failed ? Html.retryText(s.retryAt) : '');
   }
 
   return { init: init, render: render };
