@@ -8,10 +8,14 @@
 // the Markets and Shabbat screens and the air quality at theirs (2026-11-02 09:31 in Israel, batch 11 / 12).
 //   PUPPETEER_CORE_DIR=<dir with puppeteer-core> node tools/readme-shots.mjs [--map <png>] [--only a.png,b.png]
 // --only: write just these files (the hero is always composed from the screen shots on disk).
+// --live: the home and Israel weather screens (he-1-main, he-2-israel, ru-1-main) from the real Open-Meteo forecast and air
+// answers fetched once at that moment, at the real time — so the shots carry today's dust, air and rain chances and a full
+// forecast; every other shot keeps its recorded answers.
 // --map: a real Mapbox traffic-night-v2 picture of the map card (1790×910) to show instead of the small fixture image —
 // cropped from a capture of the app on 2026-10-30, so it already carries the home dot and the «© Mapbox © OpenStreetMap»
 // line: the page's own two are hidden for that shot, never drawn twice.
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { openApp, ROOT, FIXED_NOW } from '../tests/browser/page.mjs';
 
@@ -26,10 +30,20 @@ const RIGHT = 39, BLUE = 406, OK = 13;
 const SCREENS = ['main', 'israel', 'news', 'markets', 'shabbat', 'traffic', 'map', 'alerts'];
 const NOV2 = Date.parse('2026-11-02T07:31:00Z');
 const NOW = { markets: NOV2, shabbat: NOV2 };
+const live = process.argv.includes('--live');
+const LIVE = ['he-1-main.png', 'he-2-israel.png', 'ru-1-main.png'];
+const fetched = new Map();
+// One real answer per URL, fetched synchronously (the harness answers a request in the same tick).
+function real(url) {
+  if (!fetched.has(url)) fetched.set(url, execFileSync('curl', ['-sS', '--max-time', '20', '-A', 'Mozilla/5.0', url], { maxBuffer: 1 << 24 }));
+  return { status: 200, contentType: 'application/json', body: fetched.get(url) };
+}
 
 async function shot(file, { lang, alerts = 'empty-bom.txt', screen = 'main', act }) {
   if (only && !only.includes(file)) return;
-  const app = await openApp({ lang, news: 'ok', alerts, history: 'history.json', traffic: 'ok', markets: 'ok', air: 'ok', hebcal: 'ok', now: NOW[screen] || FIXED_NOW,
+  const isLive = live && LIVE.includes(file);
+  const app = await openApp({ lang, news: 'ok', alerts, history: 'history.json', traffic: 'ok', markets: 'ok', hebcal: 'ok',
+    air: isLive ? (n, url) => real(url) : 'ok', weather: isLive ? (n, url) => real(url) : 'ok', now: isLive ? Date.now() : NOW[screen] || FIXED_NOW,
     map: realMap ? () => ({ status: 200, contentType: 'image/png', body: realMap }) : 'ok',
     configure: (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; } });
   try {

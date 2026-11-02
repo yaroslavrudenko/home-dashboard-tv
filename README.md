@@ -88,8 +88,8 @@ leaves the front it sends `stop-behind`. If the player is not installed or not r
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with the UV index and air quality, a 12-hour strip, and a 7-day forecast, mirrored right to left"></td>
-    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with an air-quality chip, the weather now and a 5-day forecast"></td>
+    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with three labelled items (UV maximum, air quality, dust in µg/m³), a 12-hour strip, and a 7-day forecast with the chance of rain under an umbrella, mirrored right to left"></td>
+    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with a labelled air-quality line, the weather now and a 5-day forecast with the chance of rain under an umbrella"></td>
   </tr>
   <tr><td align="center"><b>1 · Home</b> — clocks, the weather, air and UV at home</td><td align="center"><b>2 · Weather in Israel</b> — North, Centre, South</td></tr>
   <tr>
