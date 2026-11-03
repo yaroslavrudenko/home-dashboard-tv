@@ -57,12 +57,12 @@
   </tr>
   <tr><td align="center"><b>7 · Traffic map</b> — a real Mapbox picture</td><td align="center"><b>8 · Alerts</b> — home, nearby, recent alerts in Israel</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 01:32, enter the protected space and stay 10 minutes"></td>
+    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 11:37, enter the protected space and stay 10 minutes"></td>
     <td><img src="docs/screenshots/he-alert-preview.png" alt="The alert preview in Hebrew: the same overlay under a white band saying this is an alert test, not a real alert"></td>
   </tr>
   <tr><td align="center"><b>The alert</b> — the Alerts screen opens by itself</td><td align="center"><b>The alert preview</b> — the blue key, clearly not real</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-banner.png" alt="The home screen in Hebrew during an alert at home: a slim red banner at the top says alert in Rehovot since 10:22"></td>
+    <td><img src="docs/screenshots/he-banner.png" alt="The home screen in Hebrew during an alert at home: a slim red banner at the top says alert in Rehovot since 11:38"></td>
     <td><img src="docs/screenshots/he-city.png" alt="The home-city picker in Hebrew: a list of Israeli cities with their English names, Rehovot ticked, arrows to move and OK to choose"></td>
   </tr>
   <tr><td align="center"><b>Alert banner</b> — stays on top of every other screen</td><td align="center"><b>Home city</b> — OK opens the picker</td></tr>
@@ -83,12 +83,12 @@
   <tr><td align="center">Русский · Рынки</td><td align="center">Українська · Ринки</td></tr>
 </table>
 
-<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs --live</code>), taken on 3 November 2026: at 01:31–01:33, and at 10:21–10:22 for the five shots that show the home or Israel weather (below).
-<b>Live</b> (the real answers at that moment): the news (Ynet, Globes, Українська правда, Економічна правда, at 01:32–01:33),
+<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs --live</code>), taken on 3 November 2026 at 11:36–11:38.
+<b>Live</b> (the real answers at that moment): the news (Ynet, Globes, Українська правда, Економічна правда, at 11:36–11:37),
 the Markets (Yahoo Finance and open.er-api), Shabbat and holidays (Hebcal), the traffic routes and the traffic map (Mapbox), the
-Alerts screen (Pikud HaOref's live feed and its recent-alerts history, both empty at 01:32: no alerts in the last 7 days), and the
+Alerts screen (Pikud HaOref's live feed and its recent-alerts history, both empty at 11:37: no alerts in the last 7 days), and the
 weather on every screen (Open-Meteo). <b>Recorded and demo air</b> on the home and Israel weather screens and on the banner and
-city-picker shots over the home screen (taken at 10:21–10:22, with their live weather), so they show a khamsin: Rehovot's dust is a synthetic khamsin laid over
+city-picker shots over the home screen (with their live weather), so they show a khamsin: Rehovot's dust is a synthetic khamsin laid over
 its recorded forecast (khamsin pills in the hours and in the 7-day dust band, each in its grade's colour, the one key — the grades «100 121 196 271» — lit on the current card, whose reading sits on its own grade's pill), and Beer Sheva's
 185 µg/m³ day is its real recorded forecast. <b>Demo alert:</b> there was no real alert, so the full-screen alert and the red
 banner show Pikud HaOref's recorded Rehovot alert drawn at the shot's time; the blue-key preview is the app's own built-in
