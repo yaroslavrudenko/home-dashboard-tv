@@ -121,7 +121,7 @@ test('A3: the feed lost after good answers: the corner says «Тревоги: н
 const ALERTS_VIEW = () => {
   const t = (s) => { const e = document.querySelector(s); return e ? e.textContent : null; };
   return { title: t('#screen-alerts .screen-title'), home: t('.al-home'), near: t('.al-near'),
-    rows: [...document.querySelectorAll('.al-row')].map((r) => [...r.children].map((c) => c.textContent)), empty: t('.al-recent-empty') };
+    rows: [...document.querySelectorAll('.al-row')].map((r) => [...r.children].map((c) => c.textContent)), empty: t('.al-recent .state.is-none .state-text') };   // B17-V1: the one state block (kind none)
 };
 test('B1: the Alerts screen is the eighth (◀ from the main screen), quiet: «Тревог нет · Реховот», checked time, nearby, the recorded recent alerts', async () => {
   const app = await openApp(QUIET);
@@ -166,7 +166,7 @@ test('B1: the Alerts screen in Hebrew and Ukrainian, nothing cut; a quiet week s
   try {
     await ready(none);
     await press(none.page, LEFT);
-    await none.page.waitForSelector('.al-recent-empty', { timeout: 5000 });
+    await none.page.waitForSelector('.al-recent .state.is-none', { timeout: 5000 });   // B17-V1
     assert.equal((await none.page.evaluate(ALERTS_VIEW)).empty, 'За последние 7 дней тревог не было');
   } finally { await none.close(); }
 });

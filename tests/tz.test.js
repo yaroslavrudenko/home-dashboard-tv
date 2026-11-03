@@ -162,3 +162,27 @@ test('calendar dates: "YYYY-MM-DD" arithmetic in whole UTC days — no time zone
   assert.deepEqual([Tz.daysBetween('2026-11-02', '2026-12-04'), Tz.daysBetween('2027-03-27', '2027-03-26')], [32, -1]);
 });
 
+
+// FIX-BATCH-18 part B (MET sun times on ES5): ONE by-hand parser of an instant written with its offset — Hebcal's
+// "…T16:27:00+02:00", MET's sun times without seconds "…T07:40+03:00" and its steps "…T12:00:00Z" — never Date.parse on the TV's
+// 2015 engine. The expected instants are the same strings read by Node's Date.parse (a modern engine) as an oracle.
+test('B18: Tz.instant reads an offset or Z, with or without seconds; anything else is NaN', () => {
+  const { Tz } = load(['js/tz.js']);
+  for (const s of ['2026-11-06T16:27:00+02:00', '2026-10-25T07:40+03:00', '2026-11-02T12:00:00Z', '2026-11-02T12:00Z', '2026-03-29T01:59:30-05:30'])
+    assert.equal(Tz.instant(s), Date.parse(s), s);
+  assert.equal(Tz.instant('2026-03-29T01:59:30.5-05:30'), Date.parse('2026-03-29T01:59:30-05:30'), 'a fraction of a second is read and dropped (as before)');
+  for (const bad of [undefined, null, '', '2026-11-02', '2026-11-02T12:00', '2026-11-02 12:00:00Z', 'Mon, 02 Nov 2026 16:00:00 GMT']) assert.ok(Number.isNaN(Tz.instant(bad)), String(bad));
+});
+// FIX-18B 5 (Codex P2): out-of-range parts are NaN, as Date.parse says (the oracle); valid edges agree with it to the ms.
+test('FIX-18B: Tz.instant refuses what Date.parse refuses, and agrees on the edges (24:00, leap days, years 0000–0099, fractions)', () => {
+  const { Tz } = load(['js/tz.js']);
+  const invalid = ['2026-13-01T00:00Z', '2026-00-10T00:00Z', '2026-02-32T00:00Z', '2026-11-02T25:00Z', '2026-11-02T12:60Z',
+    '2026-11-02T12:00:60Z', '2026-11-02T24:01Z', '2026-11-02T24:00:00.5Z', '2026-11-02T12:00+24:00', '2026-11-02T12:00+03:60', '2026-11-00T00:00Z'];
+  for (const s of invalid) { assert.ok(Number.isNaN(Date.parse(s)), 'oracle refuses ' + s); assert.ok(Number.isNaN(Tz.instant(s)), s); }
+  // a day past its month's end: invalid by the spec (ES5.1 15.9.1.15 «illegal element values»); V8 rolls it into the next month
+  for (const s of ['2026-02-29T00:00Z', '2026-02-30T00:00Z', '2026-04-31T00:00Z', '1900-02-29T00:00Z']) assert.ok(Number.isNaN(Tz.instant(s)), s);
+  const valid = ['2024-02-29T12:00Z', '2000-02-29T00:00Z', '2026-11-02T24:00Z', '2026-11-02T24:00:00Z', '0050-06-15T10:30:00Z', '0000-01-01T00:00Z',
+    '0099-12-31T23:59:59+02:00', '2026-11-02T23:59:59-11:30', '2026-11-02T12:00+23:59'];
+  for (const s of valid) assert.equal(Tz.instant(s), Date.parse(s), s);
+  assert.equal(Tz.instant('2026-11-02T12:00:00.999Z'), Date.parse('2026-11-02T12:00:00Z'), 'a fraction is dropped (truncated), never rounded up');
+});

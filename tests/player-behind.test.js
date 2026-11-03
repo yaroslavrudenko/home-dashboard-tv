@@ -66,8 +66,9 @@ test('the port: no tizen → nothing; the player not running → logged (C-19), 
 test('C-17: no side effect at load — no listener, no global wiring; the App wires it (start + visibilityChanged)', () => {
   const src = fs.readFileSync(path.join(ROOT, 'js', 'player-behind.js'), 'utf8');
   assert.ok(!/addEventListener/.test(src), 'no listener of its own');
-  const app = fs.readFileSync(path.join(ROOT, 'js', 'app.js'), 'utf8');
+  // B17-A-SRC: the App's wiring spans its root (js/app.js) and the wake module that owns the visibility listener (C-1)
+  const app = fs.readFileSync(path.join(ROOT, 'js', 'app.js'), 'utf8'), wake = fs.readFileSync(path.join(ROOT, 'js', 'app-wake.js'), 'utf8');
   assert.match(app, /player = PlayerBehind\.create\(/);
   assert.match(app, /player\.start\(\)/);
-  assert.match(app, /player\.visibilityChanged\(\)/);
+  assert.match(wake, /player\.visibilityChanged\(\)/);
 });

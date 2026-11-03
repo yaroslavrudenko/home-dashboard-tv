@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="613 automated tests passing" src="https://img.shields.io/badge/tests-613%20passing-brightgreen?style=for-the-badge">
+  <img alt="685 automated tests passing" src="https://img.shields.io/badge/tests-685%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -37,8 +37,8 @@
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with three labelled items (UV maximum, air quality, dust in µg/m³), a 12-hour strip, and a 7-day forecast with the chance of rain under an umbrella, mirrored right to left"></td>
-    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with a labelled air-quality line, the weather now and a 5-day forecast with the chance of rain under an umbrella"></td>
+    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with three labelled items (UV maximum, air quality, dust in µg/m³), a 12-hour strip with each hour's dust, and a 7-day forecast on one line per day (the chance of rain beside the icon) with the days' dust in a band under it, mirrored right to left"></td>
+    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with a labelled air-quality line, the temperature now with its icon, feels-like and wind on one line (an icon for each), and a 7-day forecast (the chance of rain beside the icon) with the days' dust in a band under it"></td>
   </tr>
   <tr><td align="center"><b>1 · Home</b> — clocks, the weather, air and UV at home</td><td align="center"><b>2 · Weather in Israel</b> — North, Centre, South</td></tr>
   <tr>
@@ -57,12 +57,12 @@
   </tr>
   <tr><td align="center"><b>7 · Traffic map</b> — a real Mapbox picture</td><td align="center"><b>8 · Alerts</b> — home, nearby, recent alerts in Israel</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 23:13, enter the protected space and stay 10 minutes"></td>
+    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 01:32, enter the protected space and stay 10 minutes"></td>
     <td><img src="docs/screenshots/he-alert-preview.png" alt="The alert preview in Hebrew: the same overlay under a white band saying this is an alert test, not a real alert"></td>
   </tr>
   <tr><td align="center"><b>The alert</b> — the Alerts screen opens by itself</td><td align="center"><b>The alert preview</b> — the blue key, clearly not real</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-banner.png" alt="The home screen in Hebrew during an alert at home: a slim red banner at the top says alert in Rehovot since 21:13"></td>
+    <td><img src="docs/screenshots/he-banner.png" alt="The home screen in Hebrew during an alert at home: a slim red banner at the top says alert in Rehovot since 10:22"></td>
     <td><img src="docs/screenshots/he-city.png" alt="The home-city picker in Hebrew: a list of Israeli cities with their English names, Rehovot ticked, arrows to move and OK to choose"></td>
   </tr>
   <tr><td align="center"><b>Alert banner</b> — stays on top of every other screen</td><td align="center"><b>Home city</b> — OK opens the picker</td></tr>
@@ -83,13 +83,13 @@
   <tr><td align="center">Русский · Рынки</td><td align="center">Українська · Ринки</td></tr>
 </table>
 
-<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs --live</code>), taken on 2 November 2026.
-<b>Live</b> (the real answers at that moment): the news (Ynet, Globes, Українська правда, Економічна правда, at 23:12–23:13),
+<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs --live</code>), taken on 3 November 2026: at 01:31–01:33, and at 10:21–10:22 for the five shots that show the home or Israel weather (below).
+<b>Live</b> (the real answers at that moment): the news (Ynet, Globes, Українська правда, Економічна правда, at 01:32–01:33),
 the Markets (Yahoo Finance and open.er-api), Shabbat and holidays (Hebcal), the traffic routes and the traffic map (Mapbox), the
-Alerts screen (Pikud HaOref's live feed and its recent-alerts history, both empty at 23:13: no alerts in the last 7 days), and the
+Alerts screen (Pikud HaOref's live feed and its recent-alerts history, both empty at 01:32: no alerts in the last 7 days), and the
 weather on every screen (Open-Meteo). <b>Recorded and demo air</b> on the home and Israel weather screens and on the banner and
-city-picker shots over the home screen (taken at 21:13), so they show a khamsin: Rehovot's dust is a synthetic khamsin laid over
-its recorded forecast (amber dust pills, the lit «хамсин ≥ 100» legend, «Пыль · хамсин» on the current card), and Beer Sheva's
+city-picker shots over the home screen (taken at 10:21–10:22, with their live weather), so they show a khamsin: Rehovot's dust is a synthetic khamsin laid over
+its recorded forecast (khamsin pills in the hours and in the 7-day dust band, each in its grade's colour, the one key — the grades «100 121 196 271» — lit on the current card, whose reading sits on its own grade's pill), and Beer Sheva's
 185 µg/m³ day is its real recorded forecast. <b>Demo alert:</b> there was no real alert, so the full-screen alert and the red
 banner show Pikud HaOref's recorded Rehovot alert drawn at the shot's time; the blue-key preview is the app's own built-in
 test alert.</sub>
@@ -155,7 +155,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 613 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 685 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -212,18 +212,32 @@ language, Hebcal and the alert feed (measured on 2026-11-02 with live answers, a
   time with the weekday, the date, the difference to Israel and each city's current temperature. A card is
   tinted for the night from that city's sunrise and sunset.
 - **Weather** for the home city (Rehovot by default; see [Home city](#home-city)) from [Open-Meteo](https://open-meteo.com/) (free, no API key): temperature, feels-like,
-  condition, wind, humidity, today's high/low, chance of rain, sunrise/sunset, a 12-hour strip and a 7-day list.
+  condition, wind, humidity, today's high/low, chance of rain, sunrise/sunset, a 12-hour strip (each hour's dust under its temperature, the row labelled «Пыль» on the card's title line) and a 7-day list: one line per day — the day, its icon with the
+  chance of rain beside it, the low, the range bar, the high — and under the list the dust band: «Пыль», then each day's short
+  name over its maximum, on a pill from 100 µg/m³ coloured by the khamsin's grade (below).
 - **Air and UV**, between the city and the big weather icon. «УФ макс.» is today's highest UV index with its level
   (низкий, умеренный, высокий, очень высокий, экстремальный); after sunset the level word is dimmed, because the day's peak
   is past. «Качество воздуха» is the European air-quality index with its level (хорошее up to 20, приемлемое to 40,
   умеренное to 60, плохое to 80, очень плохое to 100, опасное above). When the dust reaches 100 µg/m³ — twice the EU daily
-  PM10 limit from dust alone, a khamsin — the dust's label says it in amber, «Пыль · хамсин», over «240 мкг/м³» (so even a
-  four-digit value fits), even when the index itself is missing. Before the first answer the slot holds a placeholder; with no index it says «Нет данных», never a made-up level;
+  PM10 limit from dust alone, a khamsin — the dust's label line carries the screen's one dust key: «Пыль», then the khamsin grades «100 121 196 271» as ONE segmented bar (each grade a segment
+  in its colour), always shown — quiet grey, lit in the grades' colours when a khamsin is on screen (also when an hour or a day on screen is a khamsin; with no current reading but a forecast on screen
+  the key stays and the value reads «—»), over «240 мкг/м³» (so even a four-digit value fits), even when the index itself is missing.
+  **The redder, the more dangerous** (the owner): a khamsin value — the reading, an hour, a day, an Israel region's day, and the «хамсин»
+  word of every Israel region's air chip — sits on a
+  solid pill under dark ink in its grade's colour: amber 100–120, orange 121–195, red-orange 196–270, red above 270 µg/m³. The
+  bounds are the European Air Quality Index's PM10 bands (Poor 121–195, Very poor 196–270, Extremely poor > 270; hourly;
+  [EEA](https://airindex.eea.europa.eu/AQI/index.html), the 2024 band revision, read 2026-11-03 — the Israeli ministry's own PM10
+  table could not be read: gov.il answered 403). 100 itself is this app's khamsin threshold, not an EEA bound. One function grades
+  every reading (`Air.grade`, js/air.js); the main screen says the grades once, in the one key on the current card (above). Ink
+  on each fill is at least 5:1. A day cell of the dust band is 70 px wide, so from 1000 µg/m³ on a day's value is said in
+  thousands there («1,5к», «1.5K» in Hebrew); the hours keep the whole figure.
+  Before the first answer the slot holds a placeholder; with no index it says «нет данных», never a made-up level;
   old air data is dimmed. The block has a fixed width, so nothing moves when the dust line appears.
-- **Status**: "Updated at HH:MM". When a refresh fails, the last good data stays on screen and is marked as
+- **Status**: "Updated at HH:MM", in the screen's top corner — the same status line, size and side as on every other
+  screen (mirrored in Hebrew), never inside a card. When a refresh fails, the last good data stays on screen and is marked as
   not updating, with the time it is from; every temperature from that data (the main card and each clock
-  card) is dimmed, and the amber status line says it once. With no data at all, the weather card says so once, with
-  the time of the next attempt, and the hourly strip and the 7-day list each say «Нет данных» in one quiet line
+  card) is dimmed, and the amber status line says it once. With no data at all, the weather card says «Временно недоступно»
+  once, with «Повторим в HH:MM», and the hourly strip and the 7-day list each say «нет данных» in one quiet line
   (placeholder bars only while the first answer is awaited; a day past the data is an empty row).
 
 ### Behaviour worth knowing
@@ -252,8 +266,10 @@ language, Hebcal and the alert feed (measured on 2026-11-02 with live answers, a
 - **Languages**: Russian, Hebrew and Ukrainian, switched with ▲ / ▼ (see [Languages](#languages)).
 
 **2 · Weather in Israel**: three cards side by side — North (Haifa), Centre (Tel Aviv), South (Beer Sheva) — each
-with the temperature now, its condition, feels-like and wind, and a 5-day list with the same range bars as the
-main card. The head of each card ends with an air chip: the air glyph and the level word in its colour, or «пыль» when the
+with the temperature now and its condition icon (no condition words: the icon says it), feels-like and wind on ONE
+line with no words — a «feels like» glyph (a thermometer with a person) and the wind glyph label the two values, the units kept («19°  14 км/ч», each after its glyph) — and a
+7-day list (today and six days, no title over it) with the same range bars as the main card, the days' dust in a band
+under it («Пыль» on its own line, then one cell per day). The head of each card ends with an air chip: the air glyph and the level word in its colour, or «пыль» when the
 dust is high (even with no index). The regions ride the main weather's single Open-Meteo request (six places, one
 request) and the home screen's air request (four places, one request), so this screen costs no request of its own; a
 failed refresh dims every card and the header says it once.
@@ -266,12 +282,11 @@ and Economy sections), in Hebrew «ישראל» from [Ynet](https://www.ynet.co.
 (every feed checked live on 2026-10-30). Only the language's two feeds are fetched, in one parallel round every 10 minutes;
 a story a feed repeats is shown once, and feed text is reduced to plain text (no feed HTML ever reaches the screen). A
 headline takes at most three lines (a fixed three-line box; a longer one ends with an ellipsis), and row n of both columns
-sits on one line. Both columns are always there: while a feed loads its own column says «Загружаем новости…»; a feed that
-fails with nothing yet says so in amber in its own column, with when it is tried again («Не удалось загрузить · повторим в
+sits on one line. Both columns are always there: while a feed loads its own column says «Загрузка…»; a feed that
+fails with nothing yet says so in amber in its own column, with when it is tried again («Временно недоступно», «Повторим в
 HH:MM»). A feed that fails keeps its last stories and says how old they are in its own column only («данные от
 HH:MM»), while the header stays "Updated at" (when no column is current the header says it, and a column whose time is
-the header's minute says nothing more); when nothing came at all the header says «Новости временно недоступны · повторим
-в HH:MM» and the columns only «Не удалось загрузить». Hebrew is drawn in a bundled Noto Sans Hebrew (Regular, the Hebrew block only, about 7 KB, OFL) so the TV does not
+the header's minute says nothing more); when nothing came at all the header says nothing and each column says it once. Hebrew is drawn in a bundled Noto Sans Hebrew (Regular, the Hebrew block only, about 7 KB, OFL) so the TV does not
 depend on its system fonts for it.
 
 **4 · Markets**: six glass cards in a 3 × 2 grid, six rows each, all the same height. Top row: currencies, US shares,
@@ -300,9 +315,9 @@ The lists were checked on 2026-11-02 (`tests/fixtures/markets/ranking.json`); th
   «Золото · унц.», «Медь · фунт» (the exchanges' contract units: Brent and WTI per barrel, gas per MMBtu, gold and silver
   per troy ounce, copper per pound) — and the card says its one currency once in its head, «Сырьё · $».
 - **When a source fails**, a row keeps its last good price, dimmed, until the next good round. A row that never had a value
-  says «нет данных»; when a whole card has nothing, its head says «нет данных» in amber and its rows show «—». The header
+  says «нет данных»; when a whole card has nothing, its head says «нет данных» (muted: a part, not an alarm) and its rows show «—». The header
   says «Обновлено в HH:MM»; «Не обновляется · данные от HH:MM» after a failed round or 15 minutes without new data. When
-  no price came at all, one calm card in place of the six says «Котировки временно недоступны». The «закрыто» mark
+  no price came at all, one calm card in place of the six says «Временно недоступно» in amber over «Повторим позже». The «закрыто» mark
   follows the clock between rounds (a market that closes at 21:00 reads closed at 21:01, with no request).
 
 Sources, both without a key (checked 2026-11-02): [Yahoo Finance](https://finance.yahoo.com/)'s spark endpoint for 33
@@ -332,8 +347,8 @@ the rate tables.
   това», the week's reading above (or its name said once when there is no reading), and havdalah («Авдала · 17:24» when it is today). A Shabbat next to a yom tov is shown
   as Shabbat on Shabbat and as the holiday on the holiday.
 - **Holidays and fasts** (the narrow card): the next six, each with its short date and a day count, quiet until a week or
-  less is left, then amber (when the calendar has never answered, the card says «Календарь временно недоступен» and the
-  header when it is tried again); «идёт» while one runs; a fast carries the fast glyph. Shown: the festivals, Yom HaShoah, Yom
+  less is left, then amber (when the calendar has never answered, the card says «Временно недоступно», and the week card
+  says it too, with when it is tried again); «идёт» while one runs; a fast carries the fast glyph. Shown: the festivals, Yom HaShoah, Yom
   HaZikaron, Yom HaAtzmaut and Yom Yerushalayim, and the public fasts. In Jerusalem the list shows Shushan Purim instead of
   Purim.
 
@@ -377,13 +392,12 @@ Directions requests a **month**, so one rule decides when a round is sent (`Conf
   сохранить счётчик запросов».
 
 The rows and their times are kept in localStorage (`tt-cache`) and shown at once after a restart. The header says when the
-data on screen is from, always the OLDEST row: «Обновлено в 20:32» (the age only once it is out of date), while a round runs «Обновляется… · данные
-от 20:32», after 30 minutes or a failed update «Данные устарели · обновлено 20:32 · 41 мин назад» (a date «29.10» before
-the time when it is not today), and data timed in the future «Данные устарели · время данных требует проверки» (never a
-negative age). Why it cannot update is a second line under it, never in its place: «Дневной лимит запросов пробок исчерпан
+data on screen is from, always the OLDEST row: «Обновлено в 20:32 · 12 мин назад», after 30 minutes or a failed update «Не обновляется · данные от 20:32 ·
+41 мин назад» (a date «29.10» before the time when it is not today), and data timed in the future «Не обновляется · данные
+от 20:32 · время данных требует проверки» (never a negative age) — the same words as every other screen. Why it cannot update is a second line under it, never in its place: «Дневной лимит запросов пробок исчерпан
 · обновление после 30.10 02:00», «Mapbox отклонил запрос (доступ или лимит) · автоматический повтор не раньше 20:42» (401/403/429), or the
-storage pause. With nothing to show, the card says «Обновляется…», «Не удалось обновить пробки» or the same message. A
-place Mapbox cannot route (NoRoute / NoSegment) says «Нет данных» in its own widget and never marks the screen as not
+storage pause. With nothing to show, the card says «Загрузка…», «Временно недоступно» or the same message. A
+place Mapbox cannot route (NoRoute / NoSegment) says «нет данных» in its own widget and never marks the screen as not
 current. It needs a Mapbox token (see Build); without one the screen says how to connect it and sends nothing. The routes
 were checked live by the coordinator on 2026-10-30 16:28 (e.g. Tel Aviv 32.0 min vs a usual 39.3, Jerusalem 44.9 vs 56.4);
 the tests run on Mapbox's documented answer shape.
@@ -398,7 +412,7 @@ carries the attribution Mapbox requires, «© Mapbox © OpenStreetMap». The pic
 It is refreshed while it is shown (the same one-gate rule as the routes, `Config.map`): at once on every ◀ ▶ open, every
 5 minutes while the map is on view and the TV shows it, never while hidden (leaving the screen or the TV hiding the page stops
 the image in flight), one image at a time with a 20-second deadline. A failed image keeps the last one on screen and the
-header says «Карта недоступна · данные от HH:MM». Each image is reserved in the TV's localStorage (`map-quota`) before it is
+header says «Не обновляется · данные от HH:MM». Each image is reserved in the TV's localStorage (`map-quota`) before it is
 asked for and never refunded, at most 600 a UTC date: Static Images' free tier is 50,000 a month, and any 31 days touch at
 most 32 UTC dates, so ≤ 32 × 600 = 19,200. The map's place names come from Mapbox, in English.
 
@@ -509,7 +523,7 @@ in the config is only the first start's language, `languages` the order of the s
 
 - **News follows the language**: Russian — Israeli news in Russian (NEWSru.co.il); Hebrew — the top Hebrew outlets (Ynet,
   Globes); Ukrainian — news about Ukraine in Ukrainian (Українська правда, Економічна правда). Only the active language's
-  two feeds are fetched; a switch fetches the new ones at once (the columns say «Загружаем новости…» until they answer),
+  two feeds are fetched; a switch fetches the new ones at once (the columns say «Загрузка…» until they answer),
   plus the refresh of the screen on view.
 - **Everything else is translated and laid out for the language**: clocks, dates and weekdays, weather words, the UV and
   air-quality levels, the Israel regions, the market names and currency directions («₴ за 1 ₪», «הריבנה לשקל»), routes,
@@ -571,6 +585,8 @@ have no dependencies in this repo:
 ```sh
 tests/run.sh                         # unit tests: time zones, weather, air quality, news, markets, the Shabbat calendar, traffic, alerts, screens, refresh/stale/back-off, i18n (three languages), packaging, build.sh / find-tv.sh
 PUPPETEER_CORE_DIR=<dir with puppeteer-core> tests/run.sh --browser   # + every screen in every language and the alert in headless Chrome at 1920×1080
+#   one browser run at a time: a second one exits 3 at once (the lock is a symlink in $TMPDIR whose target is the running pid;
+#   a dead run's lock is taken over; a lock with no readable pid is reported with the rm command that clears it)
 ACORN=<path to acorn> tools/es5-gate.sh                               # every script must parse as ES5
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
 PUPPETEER_CORE_DIR=... node tools/readme-shots.mjs [--map <png>]      # the README gallery and hero (docs/screenshots/)
@@ -588,6 +604,22 @@ the requests: 4 on a cold round, 2 on a warm one. The Shabbat browser test (`tes
 Shabbat screen from the recorded calendar, pins the boot round, and checks the air & UV block on Home and the air chip on
 every Israel card in all three languages; `tests/shabbat-contract.test.js` feeds the calendar code's own output into the
 Shabbat view.
+
+### How the code is organised
+
+Plain ES5, one global per file, no bundler and no dependency: `index.html` loads every script in order (config first, the
+App last; a unit test checks that every `js/*.js` file is listed). Modules define functions only: nothing runs until
+`App.start` on `load`.
+
+| Layer | Files | What each one does |
+|---|---|---|
+| Sources (network, kept answers, cadence) | `net.js`, `refresher.js`, `placestore.js`, `weather.js` + `openmeteo.js` + `met.js`, `air.js`, `news.js`, `markets.js`, `shabbat.js`, `traffic.js` + `ledger.js`, `trafficmap.js`, `alerts.js`, `alerts-history.js`, `onview.js` | ask, keep the last good answer, say `fresh` / `stale` / `loading` / `failed` (`freshness.js`) |
+| Views (DOM only, never the network) | `view.js` (Home), `view-israel.js`, `view-news.js`, `view-markets.js`, `view-shabbat.js`, `view-traffic.js`, `view-map.js`, `view-alerts.js`, `view-alert.js`, `view-banner.js`, `view-city.js`, `view-toast.js` | draw one screen or layer; redraw only what changed |
+| One state vocabulary | `view-state.js` | the header line (fresh / stale with the time), the one block for a container with nothing to show (loading, or failed with when it is tried again), the part word («данные от …», «нет данных») — every screen says it the same way |
+| App (composition) | `app.js` builds and wires; `app-env.js` (the TV platform: storage, visibility, screen saver, keys), `home-clock.js` (time at home and at each clock), `app-render-weather.js` / `app-render-feeds.js` (what each source's data looks like on its screen), `app-nav.js` (which screen is on view, rotation, ◀ ▶), `app-alerts.js` (the alert layer, banner, preview), `app-lang.js`, `app-city.js`, `app-keys.js` (the remote), `app-wake.js` (the minute tick, waking the TV, burn-in) | each file one job, all under 200 lines (a unit test checks it) |
+
+Type sizes come from one scale — 24 · 28 · 34 · 40 · 52 · 72 · 104 · 136 px — and a unit test rejects any other size in
+`css/app.css`.
 
 ## Roadmap
 

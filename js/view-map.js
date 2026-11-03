@@ -2,8 +2,8 @@
  * a small home dot on the home city with the city's name beside it, a key of the traffic colours (the same words as the
  * traffic screen's chips) and the attribution Mapbox requires («© Mapbox © OpenStreetMap»). The image is loaded by the
  * App (js/app.js createMap: Net.getImage with a deadline — this view never touches the network, A3) and handed to
- * showImage() once it has loaded, so a failed refresh keeps the last one on screen and the header says «Карта недоступна
- * · данные от HH:MM». Until the first image is in, a quiet line in the middle of the card says it is loading (or
+ * showImage() once it has loaded, so a failed refresh keeps the last one on screen and the header says «Не обновляется
+ * · данные от HH:MM». Until the first image is in, the one state block in the middle of the card says it is loading (or
  * unavailable); the dot, its name and the key wait for the image.
  * Without a Mapbox token: the same calm invitation as the traffic screen. ES5. */
 var MapView = (function () {
@@ -13,10 +13,10 @@ var MapView = (function () {
   function init(el) {
     el.innerHTML = Html.screenHead('screen.map', 'map-status') + '<div class="screen-body map-body" id="map-body"><div class="card map-card no-image" id="map-card">' +
       '<div class="map-layer" id="map-image"></div><div class="map-home" id="map-home"></div><div class="map-home-name" id="map-home-name"></div>' +
-      '<div class="map-key" id="map-key"></div><div class="map-attribution">© Mapbox © OpenStreetMap</div><div class="map-note" id="map-note"></div></div></div>';
+      '<div class="map-key" id="map-key"></div><div class="map-attribution">© Mapbox © OpenStreetMap</div><div class="map-state" id="map-state"></div></div></div>';
     els = { body: el.querySelector('#map-body'), card: el.querySelector('#map-card'), image: el.querySelector('#map-image'),
       home: el.querySelector('#map-home'), homeName: el.querySelector('#map-home-name'), key: el.querySelector('#map-key'),
-      note: el.querySelector('#map-note'), status: el.querySelector('#map-status') };
+      note: el.querySelector('#map-state'), status: el.querySelector('#map-status') };
     drawn = '';
   }
 
@@ -51,7 +51,7 @@ var MapView = (function () {
   function renderNoKey() {
     if (drawn === 'nokey' + I18n.lang()) return;
     drawn = 'nokey' + I18n.lang();
-    els.body.innerHTML = Html.emptyCard('map-empty', Icons.glyph('car'), I18n.t('t.noKey'), I18n.t('t.noKeySub'));
+    els.body.innerHTML = ViewState.noKeyCard();
     Html.setStatus(els.status, 'status screen-status', 'none', '');
   }
 
@@ -59,17 +59,18 @@ var MapView = (function () {
   // city in the interface language (the dot's label). With no image yet the card says it is loading or unavailable; with
   // one, a failed or old refresh turns the header amber.
   function render(st, updated, homeName) {
-    var note = st.kind === 'loading' ? I18n.t('m.loading') : st.kind === 'failed' ? I18n.t('m.unavailable') : '';
+    var note = st.kind === 'loading' || st.kind === 'failed' ? st.kind : '';
     var key = [note, homeName, I18n.lang()].join('|');
     if (key !== drawn) {
       drawn = key;
-      els.note.innerHTML = note ? '<span class="map-note-text">' + esc(note) + '</span>' : '';
-      els.note.className = note ? 'map-note is-on' : 'map-note';
+      // the one state block, over the card; failed: the car glyph like every large card (FIX-17B 8) and «Повторим позже» (the
+      // map asks again on its own cadence while on view)
+      els.note.innerHTML = note ? ViewState.block(note, { retryAt: '', glyph: note === 'failed' ? Icons.glyph('car') : '' }) : '';
+      els.note.className = note ? 'map-state is-on' : 'map-state';
       els.homeName.textContent = homeName;
       els.key.innerHTML = keyHtml();
     }
-    Html.setStatus(els.status, 'status screen-status', st.kind,
-      st.kind === 'stale' ? I18n.t('m.staleFrom', { time: updated }) : Html.statusText(st.kind, updated));
+    ViewState.head(els.status, st.kind, updated);
   }
 
   return { init: init, size: size, home: home, showImage: showImage, render: render, renderNoKey: renderNoKey };

@@ -29,21 +29,5 @@ var Html = (function () {
       (noteId ? '<div class="head-side">' + status + '<div class="status-note" id="' + noteId + '"></div></div>' : status) + '</header>';
   }
 
-  // Nothing to show: a glyph, what is wrong, and (optionally) what happens next, calm in the middle of its box.
-  function emptyState(glyph, text, sub) {
-    return '<div class="empty-state">' + glyph + '<div class="empty-text">' + esc(text) + '</div>' + (sub ? '<div class="empty-sub">' + esc(sub) + '</div>' : '') + '</div>';
-  }
-  // A screen's one calm card when it has nothing to show.
-  function emptyCard(cls, glyph, text, sub) { return '<div class="card ' + cls + '">' + emptyState(glyph, text, sub) + '</div>'; }
-  // Every screen's status sentence: "Обновлено в 20:32" / "Не обновляется · данные от 20:32" / nothing (loading and failure
-  // are said where the data would be); with the source's name after it when the data are not the usual source's (batch 15:
-  // «… · MET Norway»).
-  function statusText(kind, time, source) {
-    var text = kind === 'fresh' ? I18n.t('w.updated', { time: time }) : kind === 'stale' ? I18n.t('w.stale', { time: time }) : '';
-    return text && source ? I18n.t('w.source', { text: text, source: I18n.t('src.' + source) }) : text;
-  }
-  // "Повторим в 20:33" / "Повторим позже": when a failed source is tried again.
-  function retryText(retryAt) { return retryAt ? I18n.t('w.retry', { time: retryAt }) : I18n.t('w.retrySoon'); }
-
-  return { esc: esc, relabel: relabel, setStatus: setStatus, statusText: statusText, screenHead: screenHead, emptyState: emptyState, emptyCard: emptyCard, retryText: retryText };
+  return { esc: esc, relabel: relabel, setStatus: setStatus, screenHead: screenHead };
 })();

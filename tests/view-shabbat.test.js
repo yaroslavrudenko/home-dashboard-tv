@@ -148,7 +148,7 @@ test('Chanukah today: «Сегодня: Ханука» in the note slot, the lis
   assert.match(list().innerHTML, /sh-row-in is-ongoing/);
 });
 
-test('Before the first data every slot is there as a placeholder; no data at all: «Календарь временно недоступен» and the retry', () => {
+test('Before the first data every slot is there as a placeholder; no data at all: the one state block, «Временно недоступно» and the retry once (B17-V1)', () => {
   const { render, week, list, status } = setup('ru');
   render(null, { kind: 'loading', updated: '' });
   assert.equal(week().className, 'card sh-week is-empty');
@@ -158,18 +158,18 @@ test('Before the first data every slot is there as a placeholder; no data at all
   assert.equal((list().innerHTML.match(/sh-row is-empty/g) || []).length, 6);
   assert.equal(text(status().innerHTML).join(''), '', 'the header says nothing while loading');
   render(null, { kind: 'failed', updated: '', retryAt: '10:12' });
-  // N5 (FIX-16B): the header says when it is tried again, so the card says the short statement only
-  assert.deepEqual(text(week().innerHTML.slice(week().innerHTML.indexOf('<div class="empty-text">'))), ['Календарь временно недоступен']);
+  // B17-V1: card A holds the state block with when it is tried again; the header says nothing (nothing on screen)
+  assert.deepEqual(text(week().innerHTML.slice(week().innerHTML.indexOf('<div class="state-text">'))), ['Временно недоступно', 'Повторим в 10:12']);
   assert.match(week().innerHTML, /<svg class="icon g-candles"/, 'the calm glyph over the message');
   assert.ok(!/skeleton/.test(list().innerHTML), 'failed: the list does not pretend to be loading');
-  // L6 (batch 16): the list card says it, once, never a blank card; the header says when it is tried again
-  assert.deepEqual(text(list().innerHTML), ['Праздники и посты', 'Календарь временно недоступен']);
-  assert.match(list().innerHTML, /<div class="sh-list-failed">Календарь временно недоступен<\/div>/);
-  assert.equal(text(status().innerHTML).join(''), 'Повторим в 10:12', 'the header: when it is tried again');
+  // L6 (batch 16): the list card says it, never a blank card; its retry is said once on the screen (card A)
+  assert.deepEqual(text(list().innerHTML), ['Праздники и посты', 'Временно недоступно']);
+  assert.match(list().innerHTML, /<div class="state is-failed"><div class="state-text">Временно недоступно<\/div><\/div>/);
+  assert.equal(text(status().innerHTML).join(''), '', 'B17: the header speaks only for data on screen');
   assert.match(status().className, /is-failed/);
   const old = snap('weekday'); old.window = null; old.upcoming = [];
   render(old, { kind: 'stale', updated: '01.11 09:31', retryAt: '10:12' });
-  assert.match(week().innerHTML, /Календарь временно недоступен/, 'nothing coming in the data: the failed state, never past dates');
+  assert.match(week().innerHTML, /Временно недоступно/, 'nothing coming in the data: the failed state, never past dates');
   assert.equal(text(status().innerHTML).join(''), 'Не обновляется · данные от 01.11 09:31');
 });
 
@@ -216,6 +216,16 @@ test('V8: the eve of a fast (Tisha B\'Av begins at sunset): the list says it is 
   const quiet = snap('fastEve'); quiet.note.active = false;
   render(quiet);
   assert.deepEqual(rowsOf(list().innerHTML)[0], ['Девятое ава', 'Чт, 12 августа', 'Завтра'], 'before it starts: tomorrow, as it is');
+});
+
+// N8 (FIX-BATCH-18 part B): Tisha B'Av begins on Wednesday at sunset and ends on Thursday — the end time names its day; a
+// one-day fast (10 Tevet above) keeps the bare time.
+test('N8: a fast that ends on the next day says that day before its end time, in every language', () => {
+  for (const [lang, end] of [['ru', /^Девятое ава · начало 19:29 · конец Чт 19:56$/], ['uk', / · кінець Чт 19:56$/], ['he', / · סיום חמישי 19:56$/]]) {
+    const { render, week } = setup(lang);
+    render(snap('fastEve'));
+    assert.match(part(week().innerHTML, 'sh-note is-fast'), end, lang);
+  }
 });
 
 test('V7: a countdown is quiet, amber only at 7 days or fewer; an ongoing one is green', () => {

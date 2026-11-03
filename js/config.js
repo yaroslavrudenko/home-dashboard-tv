@@ -35,10 +35,11 @@ var Config = {
     { id: 'beersheva', lat: 31.2518, lon: 34.7913 }
   ],
 
-  // The Israel weather screen: one card per region (left to right), each a place above, with a `days`-day forecast.
+  // The Israel weather screen: one card per region (left to right), each a place above, with a `days`-day forecast (batch 18,
+  // the owner: 7 days, as the main card).
   israel: {
     regions: [{ id: 'north', place: 'haifa' }, { id: 'center', place: 'telaviv' }, { id: 'south', place: 'beersheva' }],
-    days: 5
+    days: 7
   },
 
   weather: {
@@ -75,6 +76,14 @@ var Config = {
     staleAfterMs: 3 * 60 * 60 * 1000,
     keepMaxMs: 12 * 60 * 60 * 1000,     // batch 14: the last good answer kept on the TV, shown (stale) after a restart
     dustUgm3: 100,
+    // FIX-18B 13 (the owner: «Чем опаснее, тем краснее»): a khamsin's grade, from the lower bounds of the European Air Quality
+    // Index's PM10 bands above it — Poor 121–195, Very poor 196–270, Extremely poor > 270 µg/m³ (hourly; EEA,
+    // https://airindex.eea.europa.eu/AQI/index.html, the 2024 band revision, ETC HE Report 2024/17; read 2026-11-03). The
+    // Israeli ministry's own PM10 table could not be read (gov.il answered 403). Grade 1: dustUgm3 … 120; 2: 121 …; 3: 196 …; 4: 271 ….
+    // The source's PM10 row, verbatim: "Particles less than 10 µm (PM10)" | "0-15" | "16-45" | "46-120" | "121-195" | "196-270" | ">270"
+    // (Good · Fair · Moderate · Poor · Very poor · Extremely poor, µg/m³). The values are rounded, so "> 270" starts at 271;
+    // 100 is not an EEA bound: it is this app's khamsin threshold (dustUgm3 above), inside the EEA's Moderate band.
+    dustGradesUgm3: [121, 196, 271],
     // Batch 13: the dust forecast in the same request — hourly for forecastDays days from today's 00:00 (CAMS reaches ~4 to
     // 5 days, later cells are null); a day's value (its hourly maximum) is shown only with dustDayMinHours of its 24 values.
     forecastDays: 5,

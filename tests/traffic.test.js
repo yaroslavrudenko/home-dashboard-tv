@@ -399,9 +399,9 @@ test('FB5C-6: stale after 30 min (30:00 fresh, 30:00.001 stale) or when the last
   assert.equal(s.store.status().kind, 'stale', '30:00.001');
   const f = makeStore(ctx);
   f.store.setVisible(true);
-  assert.deepEqual([f.store.status().kind, f.store.status().updating], ['loading', true], 'in flight with no cache');
+  assert.deepEqual([f.store.status().kind, 'updating' in f.store.status()], ['loading', false], 'in flight with no cache: loading (FIX-17B 10: no updating flag)');
   answer(f, 'http 503');
-  assert.deepEqual([f.store.status().kind, f.store.status().updating, f.store.status().problem], ['failed', false, null]);
+  assert.deepEqual([f.store.status().kind, f.store.status().problem], ['failed', null]);
 });
 
 // C5 (designer D13): the batch is applied whole, so before the first answer the whole screen says "updating" and after

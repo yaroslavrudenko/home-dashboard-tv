@@ -47,21 +47,24 @@ test('L2: before the alert feed\'s first answer the shield is grey with no check
   } finally { await quiet.close(); }
 });
 
-test('D-T2 / L1 / N11: Ukrainian, one feed not updating — said only when its minute is not the header\'s; «дані від 20:32» on one line, nothing cut; both stale — said once', async () => {
+test('D-T2 / L1 / N11 / FIX-17B 4: Ukrainian, one feed not updating — always said under a fresh header (its minute too); «дані від 20:32» on one line, nothing cut; both stale — said once', async () => {
   let econ = 0;
   const one = await openApp({ lang: 'uk', alerts: 'empty-bom.txt', configure: (c) => { c.news.refreshMs = 400; c.rotation.enabled = false; },
     news: (url) => (url.includes('epravda') && ++econ > 1 ? { status: 503, body: '' } : null) });
   try {
     const p = one.page;
     await toScreen(p, 'news');
-    // N11: failed, but its stories are from the header's own minute (20:32): the column says nothing
+    // FIX-17B 4 (Codex F2): failed, its stories from the FRESH header's own minute (20:32) — the column still says it is not
+    // updating (the header speaks for the current column, never for a stale one); only a stale header at the same minute
+    // makes it say nothing (N11, the both-stale case below)
     await p.waitForFunction(() => /^Оновлено о 20:32$/.test(document.getElementById('news-status').textContent), { timeout: 8000 });
     for (const end = Date.now() + 5000; econ < 3 && Date.now() < end;) await wait(50);
     assert.ok(econ >= 3, 'the economy feed has failed since');
-    assert.equal(await p.$$eval('.news-col-state', (e) => e.length), 0, 'the same minute as the header: nothing more');
+    await p.waitForSelector('.news-col-state', { timeout: 8000 });
+    assert.deepEqual(await p.$$eval('.news-col-state', (e) => e.map((x) => x.textContent)), ['дані від 20:32'], 'a stale column under a fresh header at its minute: said');
     // three minutes on: the Ukraine feed is current at 20:35, the economy column says its own older minute
     await p.evaluate(() => { window.__offsetMs = 3 * 60000; });
-    await p.waitForSelector('.news-col-state', { timeout: 8000 });
+    await p.waitForFunction(() => /^Оновлено о 20:3[5-9]$/.test(document.getElementById('news-status').textContent), { timeout: 8000 });
     await p.evaluate(() => document.fonts.ready);
     const v = await p.evaluate(() => { const s = document.querySelector('.news-col-state'), h = s.parentNode;
       return { text: s.textContent, fits: s.scrollWidth <= s.clientWidth && h.scrollWidth <= h.clientWidth, head: Math.round(h.getBoundingClientRect().height),
@@ -134,15 +137,17 @@ test('D-C4 / Codex L1: every Markets card holds its pinned number of digits — 
   }
 });
 
-test('L8: no price anywhere — one calm card says it, the header stays amber without a second sentence; nothing cut', async () => {
+test('L8 / B17-V1: no price anywhere — one calm card holds the state block «Временно недоступно · Повторим позже», the header stays amber without a sentence; nothing cut', async () => {
   const app = await openApp({ markets: 'fail', alerts: 'empty-bom.txt', configure: STILL });
   try {
     const p = app.page;
     await toScreen(p, 'markets');
     await p.waitForSelector('.mk-body.is-none', { timeout: 10000 });
     const v = await p.evaluate(() => ({ cards: [...document.querySelectorAll('.mk-card')].filter((c) => c.getBoundingClientRect().width).length,
-      none: document.querySelector('.mk-none .empty-text').textContent, header: document.getElementById('markets-status').className + '|' + document.getElementById('markets-status').textContent }));
-    assert.deepEqual(v, { cards: 0, none: 'Котировки временно недоступны', header: 'status screen-status is-failed|' });
+      none: [...document.querySelectorAll('#mk-none .state.is-failed > *')].map((e) => e.tagName === 'svg' ? 'glyph' : e.className + ':' + e.textContent),
+      header: document.getElementById('markets-status').className + '|' + document.getElementById('markets-status').textContent }));
+    // B17-V1: the one block — the chart glyph, the state word and «Повторим позже» (markets has no next attempt to name)
+    assert.deepEqual(v, { cards: 0, none: ['glyph', 'state-text:Временно недоступно', 'state-sub:Повторим позже'], header: 'status screen-status is-failed|' });
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-markets .card, #screen-markets .card *, #screen-markets .screen-head *')), []);
     await shot(p, 'l8-ru-markets-none');
   } finally { await app.close(); }
@@ -168,16 +173,20 @@ test('L16: the map — the home dot named beside it, the traffic colours keyed w
   }
 });
 
-test('L6: the calendar fails — the holidays card says it (never blank) and the header says when it is tried again', async () => {
+test('L6 / B17-V1 / B17-V2: the calendar fails — the holidays card says «Временно недоступно» (never blank), the retry is said once, in the week card; the header says nothing', async () => {
   const app = await openApp({ hebcal: 'fail', alerts: 'empty-bom.txt', configure: STILL });
   try {
     const p = app.page;
     await toScreen(p, 'shabbat');
-    await p.waitForSelector('.sh-list-failed', { timeout: 10000 });
-    const v = await p.evaluate(() => ({ list: document.querySelector('.sh-list-failed').textContent, header: document.getElementById('shabbat-status').textContent,
-      cls: document.getElementById('shabbat-status').className }));
-    assert.equal(v.list, 'Календарь временно недоступен');
-    assert.match(v.header, /^Повторим (в \d\d:\d\d|позже)$/);
+    await p.waitForSelector('.sh-list .state.is-failed', { timeout: 10000 });
+    const v = await p.evaluate(() => { const t = (s) => { const e = document.querySelector(s); return e ? e.textContent : null; };
+      return { list: t('.sh-list .state.is-failed .state-text'), listSub: t('.sh-list .state-sub'), week: t('.sh-week .state.is-failed .state-text'),
+        weekSub: t('.sh-week .state.is-failed .state-sub'), glyph: !!document.querySelector('.sh-week .state.is-failed > svg'),
+        header: document.getElementById('shabbat-status').textContent, cls: document.getElementById('shabbat-status').className }; });
+    assert.deepEqual([v.list, v.listSub], ['Временно недоступно', null], 'B17-V1: card C says it, no retry line');
+    assert.deepEqual([v.week, v.glyph], ['Временно недоступно', true], 'B17-V1: card A, the candles glyph');
+    assert.match(v.weekSub, /^Повторим (в \d\d:\d\d|позже)$/, 'the retry said once, in card A');
+    assert.equal(v.header, '', 'B17-V2: no data, no header sentence');
     assert.match(v.cls, /is-failed/);
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-shabbat *')), []);
     await shot(p, 'l6-ru-shabbat-failed');
@@ -198,7 +207,7 @@ test('L10 / L12 / L15 / D-P1: the Israel cards\' days start on one line (uk), a 
     const isr = await p.evaluate(() => [...document.querySelectorAll('#screen-israel .region')].map((c) => ({ day: Math.round(c.querySelector('.day').getBoundingClientRect().top),
       sub: Math.round(c.querySelector('.region-sub').getBoundingClientRect().height), text: c.querySelector('.region-sub').textContent })));
     assert.equal(new Set(isr.map((c) => c.day)).size, 1, 'L10: the first day on one line across the cards ' + JSON.stringify(isr.map((c) => c.day)));
-    assert.ok(isr.every((c) => c.sub === 68 && !/·/.test(c.text)), 'L10: two lines, no «·»');
+    assert.ok(isr.every((c) => c.sub === 34 && !/·/.test(c.text)), 'L10 → batch 18: ONE line (34 px), no «·»');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-israel *')), []);
     await shot(p, 'l10-uk-israel');
     for (let i = 0; i < 4; i++) await press(p, RIGHT);
@@ -227,7 +236,7 @@ test('N1: a three-line headline is 3 × 38 = 114 px, and at least 16 px stay und
         return { h: Math.round(b.height), below: Math.round((r.bottom - b.bottom) * 10) / 10, font: cs.fontSize, lh: cs.lineHeight };
       }).filter(Boolean));
       assert.equal(v.length, 10, lang);
-      for (const x of v) assert.deepEqual([x.h, x.font, x.lh], [114, '30px', '38px'], lang);
+      for (const x of v) assert.deepEqual([x.h, x.font, x.lh], [114, '28px', '38px'], lang);   // B17-T1: the type scale (30 → 28), the 38 px line box kept
       assert.ok(v.every((x) => x.below >= 16), lang + ': space under the third line ' + v.map((x) => x.below));
       await shot(p, 'n1-' + lang + '-news');
     } finally { await app.close(); }
@@ -249,7 +258,7 @@ test('R16-5: a closed price that is also stale keeps the stale grey; a closed fr
   } finally { await app.close(); }
 });
 
-test('N6 / N7 / N9 / N8: Traffic says «Оновлено о 20:32» (no «0 хв тому»); the alert column labels one line, one baseline; no rule over a day past the data; no legend over a failed card', async () => {
+test('N6 / B17-V3 / N7 / N9 / N8: Traffic says «Оновлено о 20:32 · Щойно» (never «0 хв тому»); the alert column labels one line, one baseline; no rule over a day past the data; no legend over a failed card', async () => {
   // N9: the forecast answers five days, so the 7-day card ends with two gap rows
   const fiveDays = (n, url) => ({ status: 200, body: JSON.stringify(JSON.parse(weatherAnswer(url)).map((w) => {
     for (const k of Object.keys(w.daily)) w.daily[k] = w.daily[k].slice(0, 5);
@@ -263,7 +272,8 @@ test('N6 / N7 / N9 / N8: Traffic says «Оновлено о 20:32» (no «0 хв
     assert.ok(gaps.every((c) => c === 'rgba(0, 0, 0, 0)'), 'N9: ' + gaps);
     await toScreen(p, 'traffic');
     await p.waitForSelector('.tw-name');
-    assert.equal(await p.$eval('#traffic-status', (e) => e.textContent), 'Оновлено о 20:32');
+    // B17-V3: fresh with its age; under a minute I18n.ago says «Щойно» — never «0 хв тому» (N6)
+    assert.equal(await p.$eval('#traffic-status', (e) => e.textContent), 'Оновлено о 20:32 · Щойно');
     for (let i = 0; i < 2; i++) await press(p, RIGHT);
     await settled(p, 'alerts');
     await p.waitForSelector('.al-heads');

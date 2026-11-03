@@ -101,3 +101,16 @@ test('N1 (b11): a plain leave after a finished round leaves no timer', () => {
   m.gate.setVisible(false);
   assert.deepEqual(m.t.pending(), []);
 });
+
+// N5 (FIX-BATCH-18 part B): a round that hangs until its timeout must end before the next is due — otherwise OnView (and
+// every other refresher) starts the next round right after a hung one. Every Config section with both values, found by walking it.
+test('N5: in every Config section timeoutMs < refreshMs (a hung round ends before the next one is due)', () => {
+  const cfg = load(['js/config.js']).Config, found = [];
+  (function walk(o, at) {
+    if (!o || typeof o !== 'object') return;
+    if ('refreshMs' in o && 'timeoutMs' in o) found.push([at, o.timeoutMs, o.refreshMs]);
+    for (const k of Object.keys(o)) walk(o[k], at + '.' + k);
+  })(cfg, 'Config');
+  assert.ok(found.length >= 6, 'the sections are found: ' + found.map((f) => f[0]).join(', '));
+  for (const [at, timeout, refresh] of found) assert.ok(timeout > 0 && timeout < refresh, at + ': timeoutMs ' + timeout + ' < refreshMs ' + refresh);
+});

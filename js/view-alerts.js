@@ -95,8 +95,8 @@ var AlertsScreenView = (function () {
     var body = '', i;
     if (h.events.length) for (body = headsHtml(h.events), i = 0; i < h.events.length; i++) body += rowHtml(h.events[i], m.today);
     else {
-      var text = h.kind === 'loading' ? I18n.t('a.recent.loading') : h.kind === 'failed' ? I18n.t('a.recent.failed') : I18n.t('a.recent.none', { n: m.days });
-      body = '<div class="al-recent-empty' + (h.kind === 'failed' ? ' is-failed' : '') + '">' + esc(text) + '</div>';
+      // the one state block; «no alerts in N days» is content, said in the same calm block (kind 'none')
+      body = h.kind === 'loading' || h.kind === 'failed' ? ViewState.block(h.kind, { retryAt: '' }) : ViewState.block('none', { text: I18n.t('a.recent.none', { n: m.days }) });
     }
     return '<section class="card al-recent">' + block('card-title', I18n.t('a.recent')) + '<div class="al-rows">' + body + '</div></section>';
   }
@@ -114,7 +114,7 @@ var AlertsScreenView = (function () {
       drawn = key;
       els.body.innerHTML = '<div class="al-side">' + homeHtml(st, m) + nearHtml(st, m) + '</div>' + recentHtml(h, m);
     }
-    Html.setStatus(els.status, 'status screen-status', h.kind, h.kind === 'fresh' ? '' : Html.statusText(h.kind, m.updated));
+    Html.setStatus(els.status, 'status screen-status', h.kind, h.kind === 'fresh' ? '' : ViewState.headText(h.kind, m.updated));
   }
 
   return { init: init, render: render };

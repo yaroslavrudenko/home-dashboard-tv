@@ -60,7 +60,7 @@ var MarketsView = (function () {
   // c: { id (group), none (no price in the whole card), sign (the card's one currency, said in its head: no sign per row) }
   function rowHtml(c, row) {
     var name = '<span class="mk-name">' + esc(rowName(row.id)) + (row.unit ? '<span class="mk-per"> · ' + esc(I18n.t('markets.unit.' + row.unit)) + '</span>' : '') + '</span>';
-    if (!priced(row)) return '<div class="mk-row is-nodata">' + name + '<span class="mk-nodata">' + esc(c.none ? DASH : I18n.t('markets.noData')) + '</span>' +
+    if (!priced(row)) return '<div class="mk-row is-nodata">' + name + '<span class="mk-nodata">' + esc(c.none ? DASH : ViewState.partText('none')) + '</span>' +
       '<span class="mk-chg"></span></div>';
     return '<div class="mk-row' + (row.closed === true ? ' is-closed' : '') + (row.stale ? ' is-stale' : '') + '">' + name +
       '<span class="mk-price">' + esc(I18n.ltr(I18n.number(row.price, decimals(c.id, row.price)))) + (c.sign ? '' : signHtml(row.currency)) + '</span>' +
@@ -75,7 +75,7 @@ var MarketsView = (function () {
   }
   function headHtml(id, markKey, none, sign) {
     return '<div class="mk-head"><span class="mk-title">' + esc(I18n.t('markets.group.' + id)) + '</span>' + (sign ? '<span class="mk-head-sign"> · ' + esc(sign) + '</span>' : '') +
-      (none ? '<span class="mk-failed">' + esc(I18n.t('markets.noData')) + '</span>' : markKey ? '<span class="mk-closed">' + esc(I18n.t(markKey)) + '</span>' : '') + '</div>';
+      (none ? '<span class="mk-state">' + esc(ViewState.partText('none')) + '</span>' : markKey ? '<span class="mk-closed">' + esc(I18n.t(markKey)) + '</span>' : '') + '</div>';
   }
   // A card whose rows say what they are priced per (the commodities: «Brent · барр.») and all in one currency says that
   // currency once, in its head («Сырьё · $»), so each name has the room for its unit on one line (N2).
@@ -101,14 +101,6 @@ var MarketsView = (function () {
     return headHtml(slot.id, '', false) + '<div class="mk-rows">' + rows + '</div>';
   }
 
-  // The header says the controller's kind: loading; failed (amber; in words only when the one empty card does not say it
-  // already, L8); stale or fresh with the time of the newest data shown (the shared wording of every screen,
-  // Html.statusText).
-  function statusOf(s, none) {
-    if (s.kind === 'failed') return { kind: 'failed', text: none ? '' : I18n.t('markets.failed') };
-    if (s.kind === 'loading') return { kind: 'loading', text: I18n.t('markets.loading') };
-    return { kind: s.kind, text: s.updated ? Html.statusText(s.kind, s.updated) : '' };
-  }
 
   // No price in any card (L8): the one calm card instead of six that each say it.
   function nothingAt(snapshot) {
@@ -116,10 +108,11 @@ var MarketsView = (function () {
     for (var i = 0; i < snapshot.groups.length; i++) for (var j = 0; j < snapshot.groups[i].rows.length; j++) if (priced(snapshot.groups[i].rows[j])) return false;
     return true;
   }
-  function drawCards(snapshot) {
-    var byId = {}, i, none = nothingAt(snapshot), cls = 'screen-body mk-body' + (none ? ' is-none' : '');
+  // failed: nothing came and the last attempt failed — the block, never the placeholders (L5).
+  function drawCards(snapshot, failed) {
+    var byId = {}, i, none = nothingAt(snapshot) || (!snapshot && failed), cls = 'screen-body mk-body' + (none ? ' is-none' : '');
     if (els.body.className !== cls) els.body.className = cls;
-    if (none) { els.none.innerHTML = Html.emptyState(Icons.glyph('chart'), I18n.t('markets.failed'), ''); return; }
+    if (none) { els.none.innerHTML = ViewState.block('failed', { glyph: Icons.glyph('chart'), retryAt: '' }); return; }
     if (snapshot) for (i = 0; i < snapshot.groups.length; i++) byId[snapshot.groups[i].id] = snapshot.groups[i];
     for (i = 0; i < layout.length; i++) {
       var slot = layout[i], group = byId[slot.id], key = (group ? JSON.stringify(group.rows) : 'none') + '|' + I18n.lang();
@@ -136,10 +129,11 @@ var MarketsView = (function () {
     if (!snapshot || snapshot !== lastSnapshot || I18n.lang() !== lastLang) {
       lastSnapshot = snapshot;
       lastLang = I18n.lang();
-      drawCards(snapshot);
+      drawCards(snapshot, s.kind === 'failed');
     }
-    var st = statusOf(s, nothingAt(snapshot));
-    Html.setStatus(els.status, 'status screen-status', st.kind, st.text);
+    // the header speaks only for the data on screen (B17, D-A1; ViewState.headText says nothing without a time); loading is
+    // the slots' placeholders, a failure with nothing to show is the one calm block (L8)
+    ViewState.head(els.status, s.kind, s.updated);
   }
 
   return { init: init, render: render };

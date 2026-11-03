@@ -346,3 +346,16 @@ test('Y2: a round cancelled with no round after it writes nothing: its late answ
   h.fetch(ONE);
   assert.equal(h.calls.length, 4, 'nothing was kept: the next round asks its forecast and sun again');
 });
+
+// FIX-BATCH-18 part B (register b15: MET sun times parsed with Date.parse on «…T07:40+03:00», no seconds — valid ES5.1, unproven
+// on the TV's 2015 engine): the parse no longer depends on the engine's Date.parse at all — with a Date.parse that refuses
+// every string the recorded answer gives the same model (Tz.instant reads the offset by hand).
+test('B18: MET parses with an engine whose Date.parse reads nothing — the same model, the same sun times', () => {
+  const NoParse = function () { return Reflect.construct(Date, arguments); };
+  Object.setPrototypeOf(NoParse, Date); NoParse.prototype = Date.prototype; NoParse.parse = () => NaN; NoParse.UTC = Date.UTC; NoParse.now = Date.now;
+  const input = () => ({ fetchedAt: ASKED, forecast: met('rehovot'), sun: met('sun-rehovot') });
+  const ref = load(FILES), old = load(FILES, { Date: NoParse });
+  const a = plain(ref.Met.parse(input(), cfg, wallFor(ref, ISRAEL))), b = plain(old.Met.parse(input(), cfg, wallFor(old, ISRAEL)));
+  assert.deepEqual(b, a);
+  assert.deepEqual([b.daily[0].sunrise, b.daily[0].sunset], ['05:57', '16:50']);
+});

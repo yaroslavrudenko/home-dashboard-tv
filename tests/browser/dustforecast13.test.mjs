@@ -1,10 +1,13 @@
 // Batch 13: the dust forecast (the owner, 2026-11-02: «а есть прогноз хамсина на каждый час дня как для температуры и на
 // неделю?» → «делай оба варианта»). At the TV's 1920×1080, in ru, he and uk: a dust line under every hour of the strip and a
-// dust column after every day's high (the main 7 days and the Israel 5 days), each card's legend on its title row («Пыль,
+// dust column after every day's high (the main 7 days and the Israel 7 days — FIX-BATCH-18 item 1; were 5), each card's legend on its title row («Пыль,
 // мкг/м³», «Пыль макс., мкг/м³», the amber pill «хамсин ≥ 100»; in Hebrew on the left of the title), «—» past the forecast,
 // empty slots before the first air answer and nothing moving when it lands, amber pills in a khamsin; the main screen in its
 // 984 px budget, nothing cut, outside its card or overlapping, everything legible. The air answers are the real 2026-11-02
 // recording and the SYNTHETIC khamsin derived from it, moved to the weather recordings' dates (airForecastAnswer).
+// OWNER-1LEG-C (owner 2026-11-02, one legend + design C): the title rows carry their title only; the ONE legend «Пыль
+// [хамсин ≥ 100]» is the main card's dust label; the day rows carry the weather only and each day's dust is in the band under
+// the list (#daily .dust-band, .region .dust-band: «Пыль», then one cell per day — its short name over its maximum).
 // B13_SHOTS=<dir> also writes the screenshots.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,33 +19,39 @@ const REAL = 'aq-4places-hourly-2026-11-02', KHAMSIN = 'aq-4places-hourly-khamsi
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); }, code);
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
-const LEGEND = { ru: ['Пыль, мкг/м³', 'Пыль макс., мкг/м³', 'хамсин ≥ 100'], he: ['אבק, מק״ג/מ״ק', 'אבק מרבי, מק״ג/מ״ק', 'חמסין ‪≥ 100‬'],
-  uk: ['Пил, мкг/м³', 'Пил макс., мкг/м³', 'хамсин ≥ 100'] };
+// OWNER-1LEG-C: [the one legend's key = the band's label, its pill, today's name in the band]
+// FIX-18B 13B: the one key is the grades' scale «100 121 196 271» (each on its pill) after «Пыль»
+const LEGEND = { ru: ['Пыль', '100121196271', 'Сег.'], he: ['אבק', '100121196271', 'היום'], uk: ['Пил', '100121196271', 'Сьог.'] };
 const shot = async (p, name) => { if (process.env.B13_SHOTS) { fs.mkdirSync(process.env.B13_SHOTS, { recursive: true }); await p.screenshot({ path: path.join(process.env.B13_SHOTS, name + '.png') }); } };
 
 // What a viewer reads on the main screen, and the geometry that must hold.
 function mainState() {
   const q = (s) => document.querySelector(s), all = (s) => [...document.querySelectorAll(s)], box = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; };
   const rtl = document.documentElement.dir === 'rtl';
-  const legendOf = (card) => ({ key: card.querySelector('.dust-legend-key').textContent, khamsin: card.querySelector('.dust-legend-khamsin').textContent,
-    active: card.querySelector('.dust-legend-khamsin').classList.contains('is-active'),
-    title: box(card.querySelector('.card-title')), legend: box(card.querySelector('.dust-legend')) });
-  const hourly = q('.hourly-card'), daily = q('#daily');
+  // OWNER-1LEG-C: the one legend (null when the dust item is not drawn), and how many legends there are on the screen / in titles
+  const lg = q('#screen-main .dust-legend');
+  const legend = lg ? { key: lg.querySelector('.dust-legend-key').textContent, khamsin: lg.querySelector('.dust-legend-scale').textContent,   // FIX-18B 13B: the grades' scale
+    active: lg.querySelector('.dust-legend-scale').classList.contains('is-active'), onDustItem: !!lg.closest('.now-air .air-item.air-dust'), box: box(lg) } : null;
+  const hourly = q('.hourly-card'), daily = q('#daily'), band = q('#daily .dust-band');
   const nowNum = q('.now-air .air-dust .air-num');
-  return { rtl, hourly: legendOf(hourly), daily: legendOf(daily), status: box(q('#status')), nowAir: nowNum ? nowNum.textContent : null,
+  return { rtl, legend, legends: all('#screen-main .dust-legend').length, titleLegends: all('#screen-main .card-head .dust-legend').length,
+    hourlyTitle: box(q('.hourly-card .card-title')), status: box(q('#status')), nowAir: nowNum ? nowNum.textContent : null,
     hours: all('.hour-dust').map((e) => e.textContent), khamsinHours: all('.hour-dust .is-khamsin').length,
-    days: all('#daily .day-dust').map((e) => e.textContent), khamsinDays: all('#daily .day-dust .is-khamsin').length,
-    hourBoxes: all('.hour-dust').map(box), dayBoxes: all('#daily .day-dust').map(box), temps: all('.hour-temp').map(box), highs: all('#daily .day-max').map(box),
-    hourlyCard: box(hourly), dailyCard: box(daily), lastDay: box(all('#daily .day').pop()), stage: box(q('#stage')) };
+    days: all('#daily .dust-band .day-dust').map((e) => e.textContent), khamsinDays: all('#daily .dust-band .day-dust .is-khamsin').length,
+    dustInRows: all('#daily .day .day-dust').length, bandLabel: band ? band.querySelector('.band-label').textContent : null,
+    bandDays: all('#daily .dust-band .band-day').map((e) => e.textContent), bandDayBoxes: all('#daily .dust-band .band-day').map(box),
+    hourBoxes: all('.hour-dust').map(box), dayBoxes: all('#daily .dust-band .day-dust').map(box), temps: all('.hour-temp').map(box),
+    hourlyCard: box(hourly), dailyCard: box(daily), lastDay: box(all('#daily .day').pop()), band: band ? box(band) : null, stage: box(q('#stage')) };
 }
 function israelState() {
   return [...document.querySelectorAll('.region')].map((c) => {
     const r = (e) => e.getBoundingClientRect();
-    const rtl = document.documentElement.dir === 'rtl', lg = r(c.querySelector('.dust-legend')), tt = r(c.querySelector('.card-title')), dd = r(c.querySelector('.day-dust'));
-    return { key: c.querySelector('.dust-legend-key').textContent, days: [...c.querySelectorAll('.day-dust')].map((e) => e.textContent),
-      gap: Math.round(lg.top - tt.bottom), endDiff: Math.round(rtl ? lg.left - dd.left : lg.right - dd.right),
-      active: c.querySelector('.dust-legend-khamsin').classList.contains('is-active'),
-      khamsin: c.querySelectorAll('.day-dust .is-khamsin').length, lastBottom: r([...c.querySelectorAll('.day')].pop()).bottom, cardBottom: r(c).bottom };
+    // OWNER-1LEG-C: no legend on a region card; the dust in the band under its days, labelled «Пыль»
+    const band = c.querySelector('.dust-band');
+    return { key: band.querySelector('.band-label').textContent, days: [...c.querySelectorAll('.dust-band .day-dust')].map((e) => e.textContent),
+      bandDays: [...c.querySelectorAll('.dust-band .band-day')].map((e) => e.textContent), legends: c.querySelectorAll('.dust-legend').length,
+      dustInRows: c.querySelectorAll('.day .day-dust').length, bandTop: r(band).top, bandBottom: r(band).bottom,
+      khamsin: c.querySelectorAll('.dust-band .day-dust .is-khamsin').length, lastBottom: r([...c.querySelectorAll('.day')].pop()).bottom, cardBottom: r(c).bottom };
   });
 }
 
@@ -54,7 +63,7 @@ async function open(lang, air) {
 }
 
 for (const lang of ['ru', 'he', 'uk']) {
-  test('B13 ' + lang + ': a dust line under every hour, a dust column after every day\'s high, each legend on its title row; the 984 px budget kept, nothing cut', async () => {
+  test('B13 / OWNER-1LEG-C ' + lang + ': a dust line under every hour, each day\'s dust in the band under the 7 days, the one legend on the current card\'s dust; the 984 px budget kept, nothing cut', async () => {
     const app = await open(lang, airForecastAnswer(REAL, -4));
     try {
       const p = app.page;
@@ -64,48 +73,48 @@ for (const lang of ['ru', 'he', 'uk']) {
       // X2: «Сейчас» is the CURRENT reading (27, as the current card) — the forecast for that hour said 29
       assert.deepEqual(m.hours, ['27', '32', '30', '30', '32', '34', '36', '38', '35', '31', '31', '38'], lang);
       assert.equal(m.nowAir, '27', 'the same value as the current card');
-      assert.deepEqual([m.hourly.active, m.daily.active], [false, false], 'X4: no khamsin on screen: the legend\'s «хамсин ≥ 100» is quiet');
-      // X3: the wrapped legend 6 px under the daily title, its end above the dust column (left in Hebrew)
-      assert.ok(Math.abs(m.daily.legend.t - m.daily.title.b - 6) <= 1, lang + ': legend gap ' + (m.daily.legend.t - m.daily.title.b));
-      assert.ok(Math.abs(m.rtl ? m.daily.legend.l - m.dayBoxes[0].l : m.daily.legend.r - m.dayBoxes[0].r) <= 1, lang + ': the legend ends above the dust column');
+      assert.equal(m.legend.active, false, 'X4: no khamsin on screen: the legend\'s «хамсин ≥ 100» is quiet');
+      // OWNER-1LEG-C (replaces X3): ONE legend, on the current card's dust item; the hourly / 7-day title rows carry their title only
+      assert.deepEqual([m.legends, m.legend.onDustItem, m.titleLegends], [1, true, 0], lang + ': one legend, on the dust item, none in a title row');
       assert.deepEqual(m.days, ['32', '38', '19', '16', '16', '—', '—'], lang + ': past the 5-day forecast «—»');
       assert.equal(m.khamsinHours + m.khamsinDays, 0, 'no khamsin in the real recording at home');
-      assert.deepEqual([m.hourly.key, m.daily.key, m.hourly.khamsin, m.daily.khamsin], [LEGEND[lang][0], LEGEND[lang][1], LEGEND[lang][2], LEGEND[lang][2]], lang + ': the legends');
-      // the hourly legend on the title's own row, after the title (in Hebrew: on its left), never over the status line
-      assert.ok(m.hourly.legend.t < m.hourly.title.b && m.hourly.title.t < m.hourly.legend.b, lang + ': the hourly legend on the title row');
-      assert.ok(m.rtl ? m.hourly.legend.r <= m.hourly.title.l : m.hourly.legend.l >= m.hourly.title.r, lang + ': after the title, in the reading direction');
-      assert.ok(m.hourly.legend.r <= m.status.l || m.status.r <= m.hourly.legend.l, lang + ': the legend and the status line apart');
+      assert.deepEqual([m.legend.key, m.legend.khamsin, m.bandLabel], [LEGEND[lang][0], LEGEND[lang][1], LEGEND[lang][0]], lang + ': the legend and the band\'s label');
+      assert.equal(m.bandDays.length, 7, 'a band cell per day');
+      assert.equal(m.bandDays[0], LEGEND[lang][2], lang + ': today in the band');
+      // the title and the status line apart (the legend left the title row)
+      assert.ok(m.hourlyTitle.r <= m.status.l || m.status.r <= m.hourlyTitle.l, lang + ': the title and the status line apart');
       // each hour's dust under its temperature, inside the 240 px card; each day's after its high, inside the daily card
       m.hourBoxes.forEach((b, i) => { assert.ok(b.t >= m.temps[i].b - 0.5, 'hour ' + i + ' under its temperature'); assert.ok(b.b <= m.hourlyCard.b - 13, 'hour ' + i + ' inside the padding'); });
-      m.dayBoxes.forEach((b, i) => assert.ok(m.rtl ? b.r <= m.highs[i].l - 13 : b.l >= m.highs[i].r + 13, 'day ' + i + ' after its high, apart from it'));
+      // OWNER-1LEG-C: the day rows carry no dust; each day's dust under its name in the band, the band under the last day, inside the card
+      assert.equal(m.dustInRows, 0, lang + ': no dust in a day row');
+      m.dayBoxes.forEach((b, i) => assert.ok(b.t >= m.bandDayBoxes[i].b - 0.5 && b.l >= m.dailyCard.l && b.r <= m.dailyCard.r, 'day ' + i + ' dust under its name, inside the card'));
+      assert.ok(m.band.t >= m.lastDay.b, lang + ': the band under the 7 days');
       assert.equal(Math.round(m.hourlyCard.b - m.hourlyCard.t), 240, 'the hourly card keeps its 240 px');
       assert.equal(Math.round(m.hourlyCard.b), 1032, 'the 984 px budget: the cards end where they did');
       assert.ok(m.lastDay.b <= m.dailyCard.b - 31, 'the 7 days inside the daily card\'s padding');
+      assert.ok(m.band.b <= m.dailyCard.b - 31, lang + ': the band inside the daily card\'s padding: ' + (m.dailyCard.b - m.band.b));
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' main');
-      assert.deepEqual((await p.evaluate(legibility, '#screen-main .card-head *, #screen-main .hour-dust *, #screen-main .day-dust *')).bad, [], lang + ' legible');
+      assert.deepEqual((await p.evaluate(legibility, '#screen-main .card-head *, #screen-main .hour-dust *, #screen-main .dust-band *, #screen-main .air-dust *')).bad, [], lang + ' legible');
       assert.equal(app.requests.air.length, 1, 'ONE air request carries the current air and the forecast of every place');
       await shot(p, 'b13-main-' + lang);
       await press(p, 39); await wait(1200);
       const isr = await p.evaluate(israelState);
-      assert.deepEqual(isr.map((c) => c.key), [0, 1, 2].map(() => LEGEND[lang][1]));
-      // X6: Haifa's 2026-11-06 is a CAMS fill (24 × 0): «—»
-      assert.deepEqual(isr.map((c) => c.days), [['24', '33', '15', '12', '—'], ['26', '37', '18', '14', '16'], ['48', '53', '23', '16', '185']], lang + ': Haifa, Tel Aviv, Beer Sheva');
-      isr.forEach((c, i) => {
-        assert.ok(Math.abs(c.gap - 6) <= 1, lang + ' region ' + i + ': legend gap ' + c.gap);
-        assert.ok(Math.abs(c.endDiff) <= 1, lang + ' region ' + i + ': the legend ends above the dust column ' + c.endDiff);
-      });
-      assert.deepEqual(isr.map((c) => c.active), [false, false, true], 'X4: lit only on the card that shows a khamsin day');
+      assert.deepEqual(isr.map((c) => c.key), [0, 1, 2].map(() => LEGEND[lang][0]), lang + ': each band labelled «Пыль»');
+      assert.deepEqual(isr.map((c) => [c.legends, c.dustInRows, c.bandDays.length, c.bandDays[0]]), [0, 1, 2].map(() => [0, 0, 7, LEGEND[lang][2]]), lang + ': no legend, no dust in a row, a band cell per day');
+      // X6: Haifa's 2026-11-06 is a CAMS fill (24 × 0): «—»; FIX-BATCH-18 item 4: 7 band cells, past the 5-day air forecast «—»
+      assert.deepEqual(isr.map((c) => c.days), [['24', '33', '15', '12', '—', '—', '—'], ['26', '37', '18', '14', '16', '—', '—'], ['48', '53', '23', '16', '185', '—', '—']], lang + ': Haifa, Tel Aviv, Beer Sheva');
       assert.deepEqual(isr.map((c) => c.khamsin), [0, 0, 1], 'Beer Sheva\'s real 185 µg/m³ on the 5th day is a khamsin');
       isr.forEach((c, i) => assert.ok(c.lastBottom <= c.cardBottom - 23, 'region ' + i + ': the days inside the card'));
+      isr.forEach((c, i) => assert.ok(c.bandTop >= c.lastBottom && c.bandBottom <= c.cardBottom - 23, 'region ' + i + ': the band under the days, inside the card: ' + (c.cardBottom - c.bandBottom)));
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-israel *')), [], lang + ' israel');
-      assert.deepEqual((await p.evaluate(legibility, '#screen-israel .card-head *, #screen-israel .day-dust *')).bad, [], lang + ' israel legible');
+      assert.deepEqual((await p.evaluate(legibility, '#screen-israel .card-head *, #screen-israel .dust-band *')).bad, [], lang + ' israel legible');
       await shot(p, 'b13-israel-' + lang);
       assert.deepEqual(app.errors, []);
     } finally { await app.close(); }
   });
 }
 
-test('B13 ru khamsin: amber pills on the khamsin hours and days (main and Israel), and nothing moves against an ordinary day', async () => {
+test('B13 / OWNER-1LEG-C ru khamsin: amber pills on the khamsin hours and band days (main and Israel), the one legend lit, and nothing moves against an ordinary day', async () => {
   const ref = await open('ru', airForecastAnswer(REAL, -4));
   let normal;
   try {
@@ -119,12 +128,13 @@ test('B13 ru khamsin: amber pills on the khamsin hours and days (main and Israel
     const m = await p.evaluate(mainState);
     assert.equal(m.khamsinHours, 12, 'the synthetic khamsin covers the whole strip');
     assert.deepEqual([m.hours[0], m.nowAir], ['182', '182'], 'X2: «Сейчас» is the current reading (the forecast said 144)');
-    assert.deepEqual([m.hourly.active, m.daily.active], [true, true], 'X4: the legend\'s pill lit');
+    assert.deepEqual([m.legend.active, m.legends, m.titleLegends], [true, 1, 0], 'X4 / OWNER-1LEG-C: the one legend\'s pill lit');
     assert.deepEqual([m.days.slice(0, 2), m.khamsinDays], [['197', '240'], 2], 'today and tomorrow');
     assert.deepEqual(m.hourBoxes.map((b) => b.t), normal.hourBoxes.map((b) => b.t), 'the hour lines stay where they were');
-    assert.deepEqual(m.dayBoxes.map((b) => [b.l, b.r, b.t]), normal.dayBoxes.map((b) => [b.l, b.r, b.t]), 'the day column stays where it was');
+    assert.deepEqual(m.dayBoxes.map((b) => [b.l, b.r, b.t]), normal.dayBoxes.map((b) => [b.l, b.r, b.t]), 'the band cells stay where they were');
+    assert.deepEqual(m.band, normal.band, 'the band keeps its box');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], 'main');
-    assert.deepEqual((await p.evaluate(legibility, '#screen-main .hour-dust *, #screen-main .day-dust *')).bad, [], 'amber on amber legible');
+    assert.deepEqual((await p.evaluate(legibility, '#screen-main .hour-dust *, #screen-main .dust-band *, #screen-main .air-dust *')).bad, [], 'amber on amber legible');
     await shot(p, 'b13-main-ru-khamsin');
     await press(p, 39); await wait(1200);
     assert.deepEqual((await p.evaluate(israelState)).map((c) => c.khamsin), [0, 1, 1], 'Tel Aviv tomorrow (synthetic), Beer Sheva on the 5th day (real)');
@@ -134,7 +144,7 @@ test('B13 ru khamsin: amber pills on the khamsin hours and days (main and Israel
   } finally { await app.close(); }
 });
 
-test('B13 ru no air yet: every slot there and empty, the legends shown, the same boxes as with data; air failed: «—» everywhere, legends kept', async () => {
+test('B13 / OWNER-1LEG-C ru no air yet: every slot there and empty, the band and its label shown, the same boxes as with data; air failed: «—» everywhere, the band kept', async () => {
   const ref = await open('ru', airForecastAnswer(REAL, -4));
   let normal;
   try {
@@ -147,9 +157,12 @@ test('B13 ru no air yet: every slot there and empty, the legends shown, the same
     await wait(800);
     const m = await p.evaluate(mainState);
     assert.deepEqual([m.hours, m.days], [Array(12).fill(''), Array(7).fill('')], 'empty slots');
-    assert.deepEqual([m.hourly.key, m.daily.key], [LEGEND.ru[0], LEGEND.ru[1]]);
+    // OWNER-1LEG-C: the band and its label stand before the air; no legend in a title row (the one legend comes with the dust reading)
+    assert.deepEqual([m.bandLabel, m.bandDays, m.titleLegends], [LEGEND.ru[0], normal.bandDays, 0]);
     assert.deepEqual(m.hourBoxes.map((b) => [b.t, b.b]), normal.hourBoxes.map((b) => [b.t, b.b]), 'the hour slots keep their height: nothing moves when the air lands');
-    assert.deepEqual(m.dayBoxes.map((b) => [b.l, b.r]), normal.dayBoxes.map((b) => [b.l, b.r]), 'the day column keeps its width');
+    assert.deepEqual(m.band, normal.band, 'the band keeps its box: nothing moves when the air lands');
+    assert.deepEqual(m.bandDayBoxes, normal.bandDayBoxes, 'the day names in the band stay where they will be with data');
+    assert.deepEqual(m.dayBoxes.map((b) => [b.l, b.r, b.t, b.b]), normal.dayBoxes.map((b) => [b.l, b.r, b.t, b.b]), 'the band cells keep their boxes');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), []);
     await shot(p, 'b13-main-ru-noair');
   } finally { await app.close(); }
@@ -159,7 +172,8 @@ test('B13 ru no air yet: every slot there and empty, the legends shown, the same
     const m = await failed.page.evaluate(mainState);
     assert.deepEqual([m.hours, m.days], [Array(12).fill('—'), Array(7).fill('—')]);
     assert.equal(await failed.page.$$eval('.hour-dust .dust-none, .day-dust .dust-none', (e) => e.length), 19, 'X5: every «—» muted');
-    assert.deepEqual([m.hourly.key, m.daily.key, m.hourly.khamsin], LEGEND.ru, 'the legends stay');
+    assert.deepEqual([m.bandLabel, m.bandDays, m.titleLegends], [LEGEND.ru[0], normal.bandDays, 0], 'the band stays, no legend in a title row');
+    assert.deepEqual(m.band, normal.band, 'the band keeps its box');
     await shot(failed.page, 'b13-main-ru-airfailed');
   } finally { await failed.close(); }
 });
@@ -197,7 +211,7 @@ test('X7: the air going stale dims every dust slot on the main and Israel screen
     await p.waitForFunction(() => document.querySelectorAll('.hour-dust .dust-num').length === 12, { timeout: 10000 });
     assert.equal(await p.$$eval('.hour-dust.is-stale, .day-dust.is-stale', (e) => e.length), 0, 'fresh: nothing dimmed');
     await press(p, 39); await wait(1500);                      // opening a screen asks the air again: it fails → stale
-    await p.waitForFunction(() => document.querySelectorAll('#screen-israel .day-dust.is-stale').length === 15, { timeout: 10000 });
+    await p.waitForFunction(() => document.querySelectorAll('#screen-israel .day-dust.is-stale').length === 21, { timeout: 10000 });
     await press(p, 37);
     await p.waitForFunction(() => document.querySelectorAll('#screen-main .hour-dust.is-stale').length === 12 && document.querySelectorAll('#daily .day-dust.is-stale').length === 7, { timeout: 10000 });
     assert.deepEqual(app.errors, []);
@@ -224,7 +238,9 @@ for (const [lang, v, shots] of [['ru', 1250, ['b13b-main-ru-1250']], ['ru', 3400
           days: [...document.querySelectorAll('#daily .day-dust .dust-num')].every((n) => inside(r(n), r(n.parentNode))), text: document.querySelector('#daily .day-dust').textContent,
           hour1: document.querySelectorAll('.hour-dust')[1].textContent };
       });
-      assert.deepEqual(fit, { hours: true, days: true, text: String(v), hour1: String(v) }, lang + ' ' + v);
+      // FIX-18B 13A: a band cell says a value from 1000 on in thousands (the hours keep the whole figure)
+      const short = (lang === 'he' ? String(Math.round(v / 100) / 10) + 'K' : String(Math.round(v / 100) / 10).replace('.', ',') + 'к');
+      assert.deepEqual(fit, { hours: true, days: true, text: short, hour1: String(v) }, lang + ' ' + v);
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' ' + v + ' main');
       // batch 16 («3400» spare): the daily pill leaves room in its 72 px column on the TV's font, never 0 px
       const spare = await p.evaluate(() => Math.min.apply(null, [...document.querySelectorAll('#daily .day-dust .dust-num')].map((n) => n.parentNode.getBoundingClientRect().width - n.getBoundingClientRect().width)));

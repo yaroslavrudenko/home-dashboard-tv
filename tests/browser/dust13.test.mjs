@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { openApp, measure, legibility, weatherAnswer } from './page.mjs';
+import { openApp, measure, legibility, rainyWeather as rainy } from './page.mjs';
 
 const FIX = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'fixtures', 'air', 'aq-4places.json');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -17,12 +17,6 @@ const airWith = (dust) => () => {
   const list = JSON.parse(fs.readFileSync(FIX, 'utf8'));
   for (const p of list) p.current.dust = dust;
   return { status: 200, contentType: 'application/json', body: JSON.stringify(list) };
-};
-// The recorded weather with real rain chances (the recording's are 0–18 %, under the 20 % the lists show), 100 % the widest.
-const rainy = (n, url) => {
-  const list = JSON.parse(weatherAnswer(url));
-  for (const p of list) p.daily.precipitation_probability_max = [33, 100, 45, 20, 64, 10, 87];
-  return { status: 200, body: JSON.stringify(list) };
 };
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
 // [the dust item's label, its value at 25, the khamsin word, the air line's label]
@@ -40,8 +34,11 @@ for (const lang of ['ru', 'he', 'uk']) {
         const v = await p.evaluate(() => {
           const q = (s) => document.querySelector(s), r = (e) => e.getBoundingClientRect();
           const b = r(q('.now-air')), top = r(q('.now-top')), d = q('.now-air .air-dust'), items = [...document.querySelectorAll('.now-air .air-item')];
-          const label = d.querySelector('.air-label'), value = d.querySelector('.air-value');
-          return { box: [Math.round(b.width), Math.round(b.height)], cls: d.className, label: label ? label.textContent : null,
+          // OWNER-1LEG-C: the dust label IS the screen's one legend — its key «Пыль» and the pill «хамсин ≥ 100» (bidi marks stripped)
+          const key = d.querySelector('.air-label.dust-legend .dust-legend-key'), pill = d.querySelector('.air-label.dust-legend .dust-legend-scale'), value = d.querySelector('.air-value');
+          return { box: [Math.round(b.width), Math.round(b.height)], cls: d.className, label: key ? key.textContent : null,
+            pill: pill ? pill.textContent.replace(/[\u202a-\u202e\u2066-\u2069\u200e\u200f]/g, '') : null, active: pill ? pill.classList.contains('is-active') : null,
+            legends: document.querySelectorAll('#screen-main .dust-legend').length,
             value: value ? value.textContent.replace(/\s+/g, ' ').trim() : null, word: d.querySelector('.air-word') ? d.querySelector('.air-word').textContent : null,
             wordInValue: !!(value && value.querySelector('.air-word')), // one line: every part of the value overlaps every other vertically (a wrapped part would sit wholly below)
             lines: value ? (Math.max.apply(null, [...value.children].map((c) => r(c).top)) < Math.min.apply(null, [...value.children].map((c) => r(c).bottom)) ? 1 : 2) : 0,
@@ -52,10 +49,12 @@ for (const lang of ['ru', 'he', 'uk']) {
         assert.equal(v.heights.length, 3, 'three items: UV, air quality, dust');
         assert.ok(v.inside, lang + ' ' + dust + ': the three items fit the card');
         assert.deepEqual(v.gaps, [20, 20], 'the same gap between the items');
-        if (dust === 25) assert.deepEqual([v.cls, v.label, v.value, v.word], ['air-item air-dust', WORD[lang][0], WORD[lang][1], null], lang);
-        // N1 (batch 16): a khamsin's amber word on the label's line, so even a 4-digit value and its unit fit the block on one line
-        if (dust >= 240) assert.deepEqual([v.cls, v.label, v.word, v.wordInValue, v.lines], ['air-item air-dust', WORD[lang][0] + ' · ' + WORD[lang][2], WORD[lang][2], false, 1], lang + ' ' + dust + ': «хамсин» on the label line, the value one line');
-        if (dust === null) assert.deepEqual([v.cls, v.label, v.value], ['air-item air-dust is-none', null, null], 'no value: no item drawn');
+        // OWNER-1LEG-C: the label is the one legend «Пыль [хамсин ≥ 100]» — the pill quiet on an ordinary day, amber in a khamsin
+        // (it replaces N1's amber «Пыль · хамсин» word); one legend on the whole main screen, none in the title rows
+        if (dust === 25) assert.deepEqual([v.cls, v.label, v.pill, v.active, v.value, v.word, v.legends], ['air-item air-dust', WORD[lang][0], '100121196271', false, WORD[lang][1], null, 1], lang);
+        // N1 (batch 16) kept: even a 4-digit value and its unit fit the block on one line
+        if (dust >= 240) assert.deepEqual([v.cls, v.label, v.pill, v.active, v.word, v.wordInValue, v.lines, v.legends], ['air-item air-dust', WORD[lang][0], '100121196271', true, null, false, 1, 1], lang + ' ' + dust + ': the key amber on the label line, the value one line');
+        if (dust === null) assert.deepEqual([v.cls, v.label, v.value, v.legends], ['air-item air-dust is-none', null, null, 0], 'no value: no item drawn');
         assert.deepEqual(v.heights, [68, 68, 68], 'every item the same height, the dust slot reserved when empty');
         assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' ' + dust + ' main');
         assert.deepEqual((await p.evaluate(legibility, '#screen-main .now-air *')).bad, [], lang + ' ' + dust + ' legible');
@@ -65,11 +64,16 @@ for (const lang of ['ru', 'he', 'uk']) {
         assert.ok(chips.every((t) => t.indexOf(WORD[lang][3]) === 0), lang + ': every air line is labelled: ' + JSON.stringify(chips));
         if (dust >= 240) assert.deepEqual(chips, [0, 1, 2].map(() => WORD[lang][3] + ' ' + WORD[lang][2]), 'a khamsin on every region, labelled');
         else assert.ok(chips.every((t) => t.indexOf(WORD[lang][2]) < 0), 'no khamsin below 100 µg/m³');
-        // the chance of rain never over the weather icon (the owner: «должно быть понятно»), here and on the main 7-day list
+        // the chance of rain never over the weather icon (the owner: «должно быть понятно»), here and on the main 7-day list.
+        // OWNER-1LEG-C (design C): the rain now stands BESIDE the icon on the day's one line, so «over» is a 2-D overlap of the
+        // two boxes (it was a vertical one while the rain sat under the icon); and beside means on the same line.
         const overlap = await p.evaluate(() => [...document.querySelectorAll('.day-icon')].filter((s) => {
           const i = s.querySelector(':scope > .icon'), t = s.querySelector('.day-pop'); if (!i || !t || !t.textContent) return false;
-          const a = i.getBoundingClientRect(), b = t.getBoundingClientRect(); return b.top < a.bottom - 0.5 && a.top < b.bottom - 0.5; }).length);
-        assert.equal(overlap, 0, lang + ': a rain chance overlaps its icon');
+          const a = i.getBoundingClientRect(), b = t.getBoundingClientRect();
+          const over = b.top < a.bottom - 0.5 && a.top < b.bottom - 0.5 && b.left < a.right - 0.5 && a.left < b.right - 0.5;
+          const sameLine = (b.top + b.bottom) / 2 > a.top && (b.top + b.bottom) / 2 < a.bottom;
+          return over || !sameLine; }).length);
+        assert.equal(overlap, 0, lang + ': a rain chance overlaps its icon or left its line');
         // dust13 F1 (batch 16): «☂100%» inside its 88 px slot — the line is no wider than the slot, on both screens
         const spill = await p.evaluate(() => [...document.querySelectorAll('.day-pop')].filter((t) => t.textContent && t.scrollWidth > t.clientWidth).map((t) => t.textContent + ' ' + t.scrollWidth + '>' + t.clientWidth));
         assert.deepEqual(spill, [], lang + ': a rain chance wider than its slot');

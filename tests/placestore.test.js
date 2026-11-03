@@ -108,7 +108,7 @@ test('B14: a good answer is saved raw under <persistKey>.v1 with the time it cam
   h.s.refresh();
   h.calls[0](null, [{ v: 1, extra: 'raw' }, { v: 2 }]);
   assert.deepEqual(st.writes, ['wx.v1']);
-  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: 1000, url: urlOf(['a', 'b']), json: [{ v: 1, extra: 'raw' }, { v: 2 }] }, 'the raw answer, not the model');
+  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: 1000, url: urlOf(['a', 'b']), entries: [{ at: 1000, json: { v: 1, extra: 'raw' } }, { at: 1000, json: { v: 2 } }] }, 'each place\'s raw element, not the model');   // FIX-18D 1: one per-place form for every save
   h.s.refresh();
   h.calls[1]('http 503');
   assert.deepEqual(st.writes, ['wx.v1'], 'a failed refresh writes nothing');
@@ -135,7 +135,7 @@ test('B14: a live answer replaces the restored data — fresh, and saved again',
   h.s.refresh();
   h.calls[0](null, [{ v: 9 }]);
   assert.deepEqual([h.s.get('a'), st2(h.s.status('a'))], [9, { kind: 'fresh', updatedAt: T }]);
-  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: T, url: urlOf(['a']), json: [{ v: 9 }] });
+  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: T, url: urlOf(['a']), entries: [{ at: T, json: { v: 9 } }] });   // FIX-18D 1: one per-place form for every save
 });
 
 test('B14: a failed first refresh keeps the restored data on screen, still stale', () => {
@@ -214,6 +214,7 @@ function makeFallback(places, opts = {}) {
   const ctx = load(FILES), t = fakeTimers(opts.at || 1000), calls = [], rounds = [];
   const fb = { id: 'alt', fetch: (ps, done) => rounds.push({ ids: ps.map((p) => p.id), done }),
     parse: (json, c, place) => { if (!json || typeof json.w !== 'number') throw new Error('alt: bad'); return { w: json.w, place: place.id }; } };
+  if (opts.stamp) fb.stamp = (el) => ({ at: el && el.at, restored: false });   // as MET: each element dated by its own arrival
   const src = Object.assign({}, opts.persist ? persisted : source, { fallback: fb });
   if (opts.persist) src.cfg = kept;
   let changes = 0;
@@ -288,7 +289,7 @@ test('B15: the fallback\'s answer is kept with its source and restored through I
   h.s.refresh();
   h.calls[0]('http 503');
   h.rounds[0].done(null, [{ w: 5 }, { w: 6 }]);
-  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: T, url: urlOf(['a', 'b']), src: 'alt', json: [{ w: 5 }, { w: 6 }] });
+  assert.deepEqual(JSON.parse(st.items['wx.v1']), { v: 1, at: T, url: urlOf(['a', 'b']), entries: [{ at: T, src: 'alt', json: { w: 5 } }, { at: T, src: 'alt', json: { w: 6 } }] });   // FIX-18D 1: one per-place form for every save
   const again = makeFallback(twoPlaces(), { persist: true, storage: st, at: T + HOUR });
   assert.deepEqual([again.s.get('a').w, again.s.status('a').kind, again.s.status('a').source, again.s.status('a').updatedAt], [5, 'stale', 'alt', T]);
   const noFallback = makeKept(twoPlaces(), st, T + HOUR);
@@ -359,4 +360,59 @@ test('C-2: a clock that went back makes a place stale', () => {
   assert.equal(h.s.status('a').kind, 'fresh');
   h.t.advance(-60000);
   assert.equal(h.s.status('a').kind, 'stale');
+});
+
+// F-5 (FIX-18B 1, native N1 + Codex P2): what is kept on the TV is the per-place merge of what is on screen — each place's
+// newest good element with its source and its own time, restored only within keepMaxMs of THAT time. A whole answer keeps
+// today's form ({ src, json }); both forms restore.
+const twoPlacesKept = () => [{ id: 'a' }, { id: 'b' }];
+test('F-5: whole save, then only a answers for longer than keepMaxMs — after a restart a has its newest data, b (expired) none', () => {
+  const st = fakeStorage(), T = 100 * HOUR, h = makeKept(twoPlacesKept(), st, T);
+  h.s.refresh(); h.calls[0](null, [{ v: 1 }, { v: 2 }]);
+  assert.deepEqual(JSON.parse(st.items['wx.v1']).entries.map((e) => e.json), [{ v: 1 }, { v: 2 }], 'a whole answer: every place, with its own time');   // FIX-18D 1: one per-place form for every save
+  let n = 1;
+  for (let t = 0; t < 49; t++) { h.t.advance(HOUR); while (h.calls.length > n) h.calls[n++](null, [{ v: 100 + t }, { nope: 1 }]); }
+  const saved = JSON.parse(st.items['wx.v1']);
+  assert.equal(saved.entries[1].at, T, 'b keeps its own (old) time in the merge');
+  const again = makeKept(twoPlacesKept(), st, h.t.now() + 1);
+  assert.equal(typeof again.s.get('a'), 'number', 'a: its newest data, kept');
+  assert.equal(again.s.get('a'), saved.entries[0].json.v);
+  assert.equal(again.s.get('b'), null, 'b: older than keepMaxMs by its own time — not restored');
+});
+test('F-5: complementary partial answers never lose a cached place — a restart restores both, each with its own time and source', () => {
+  const st = fakeStorage(), T = 100 * HOUR, h = makeKept(twoPlacesKept(), st, T);
+  h.s.refresh(); h.calls[0](null, [{ v: 3 }, { nope: 1 }]);
+  h.t.advance(kept.refreshMs); h.calls[1](null, [{ nope: 1 }, { v: 4 }]);
+  const again = makeKept(twoPlacesKept(), st, T + HOUR);
+  assert.deepEqual([again.s.get('a'), again.s.get('b')], [3, 4]);
+  assert.deepEqual([st2(again.s.status('a')), st2(again.s.status('b'))], [{ kind: 'stale', updatedAt: T }, { kind: 'stale', updatedAt: T + kept.refreshMs }]);
+});
+test('F-5: a merged entry with a fallback place goes back through ITS parse and restore; the legacy whole entry still restores', () => {
+  const st = fakeStorage(), T = 100 * HOUR;
+  const h = makeFallback(twoPlaces(), { persist: true, storage: st, at: T });
+  h.s.refresh(); h.calls[0](null, [{ v: 7 }, { v: 8 }]);
+  h.t.advance(kept.refreshMs); h.calls[1]('http 503'); h.rounds[0].done(null, [{ w: 5 }, { nope: 1 }]);
+  const e = JSON.parse(st.items['wx.v1']);
+  assert.deepEqual(e.entries.map((x) => x && x.src), ['alt', undefined], 'a from the fallback, b from the primary (no id)');
+  const again = makeFallback(twoPlaces(), { persist: true, storage: st, at: T + HOUR });
+  assert.deepEqual([again.s.get('a').w, again.s.status('a').source, again.s.get('b')], [5, 'alt', 8]);
+});
+
+// FIX-18D 1 (Codex's executed repro): a COMPLETE fallback answer in which place a's element came in an earlier round (MET reuses
+// it: stamped hour 99) and b's now (hour 100), saved at hour 100. A restart at 147 h + 1 ms must not bring a back — it is
+// 48 h + 1 ms old by its own time — while b (47 h + 1 ms) comes back.
+test('FIX-18D 1: a whole fallback answer — each place expires on its own stamped time (a at 99 h gone at 147 h + 1 ms, b kept)', () => {
+  const st = fakeStorage(), T = 100 * HOUR;
+  const stamped = (opts) => makeFallback(twoPlaces(), Object.assign({ stamp: true }, opts));
+  const h = stamped({ persist: true, storage: st, at: T });
+  h.s.refresh(); h.calls[0]('http 503'); h.rounds[0].done(null, [{ w: 5, at: T - HOUR }, { w: 6, at: T }]);
+  assert.deepEqual(JSON.parse(st.items['wx.v1']).entries.map((e) => e.at), [T - HOUR, T], 'saved with each place\'s own time');
+  const again = stamped({ persist: true, storage: st, at: 147 * HOUR + 1 });
+  assert.equal(again.s.get('a'), null, 'a: 48 h + 1 ms old by its own time — expired');
+  assert.deepEqual([again.s.get('b') && again.s.get('b').w, again.s.status('b').updatedAt], [6, T], 'b: 47 h + 1 ms — kept, dated by its own time');
+});
+test('FIX-18D 1: an entry of the earlier whole-answer form (one saved time) still expires each place on its own stamped time', () => {
+  const T = 100 * HOUR, st = fakeStorage({ 'wx.v1': JSON.stringify({ v: 1, at: T, url: urlOf(['a', 'b']), src: 'alt', json: [{ w: 5, at: T - HOUR }, { w: 6, at: T }] }) });
+  const again = makeFallback(twoPlaces(), { persist: true, storage: st, at: 147 * HOUR + 1, stamp: true });
+  assert.deepEqual([again.s.get('a'), again.s.get('b') && again.s.get('b').w], [null, 6]);
 });

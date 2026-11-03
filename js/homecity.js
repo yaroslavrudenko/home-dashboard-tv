@@ -108,5 +108,7 @@ var HomeCity = (function () {
   // (form 'In': ruIn / ukIn) where the language has one — else English, else Russian.
   function name(entry, lang, form) { return (form && entry[lang + form]) || entry[lang] || entry.en || entry.ru; }
 
-  return { resolve: resolve, find: find, derive: derive, apply: apply, name: name, km: km };
+  // The home city's name in a language (config: the Config the home city was applied to).
+  function homeName(config, lang) { return name(config.home.city, lang); }
+  return { resolve: resolve, find: find, derive: derive, apply: apply, name: name, homeName: homeName, km: km };
 })();

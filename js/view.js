@@ -18,9 +18,6 @@ var View = (function () {
     doc = document;
     sizes = size;
     els = { clocks: byId('clocks'), now: byId('now'), hourly: byId('hourly'), daily: byId('daily'), status: byId('status') };
-    // The status is fitted by measuring (B14-1): a font that arrives after the first fit changes every width, so fit again
-    // then (Chromium 47 has FontFaceSet and its loadingdone event).
-    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', refitStatus);
     var html = '';
     for (var i = 0; i < clocks.length; i++) {
       html += '<div class="card clock" id="clock-' + esc(clocks[i].id) + '"></div>';
@@ -77,9 +74,9 @@ var View = (function () {
   // the rows keep their size. L5: placeholders only while loading — a cell beyond the data on screen is an empty slot, and a
   // failure with no data says so once, quietly, in each card (the current card says when it is tried again).
   var LOADING_HOUR = '<div class="hour is-empty"><div class="hour-label">&nbsp;</div><div class="skeleton"></div><div class="hour-dust"></div></div>';
-  var LOADING_DAY = '<div class="day is-empty"><div class="skeleton"></div><div class="day-dust"></div></div>';
+  var LOADING_DAY = '<div class="day is-empty"><div class="skeleton"></div></div>';   // the days' dust: the band's placeholder (dustBand)
   var GAP_HOUR = '<div class="hour is-gap"></div>', GAP_DAY = '<div class="day is-gap"></div>';
-  function noData() { return '<div class="wx-none">' + esc(I18n.t('w.noData')) + '</div>'; }
+  function noData() { return '<div class="wx-none">' + esc(ViewState.partText('none')) + '</div>'; }
 
   // Batch 13: the dust forecast (the owner: «прогноз хамсина на каждый час дня как для температуры и на неделю»). dust (from the
   // App, Air.forecast): { loading } before the first air answer, else { hours: [cell], days: [cell], stale } — cell { dust
@@ -87,30 +84,39 @@ var View = (function () {
   // value (muted, X5: never the dust colour), the figure in the dust colour, on an amber pill on a khamsin; dimmed when the
   // air is stale. No dust object (a caller without it) reads as loading.
   var DUST_NONE = '<span class="dust-none">—</span>';
-  function dustSlot(cls, dust, c) {
-    var body = !dust || dust.loading ? '' : !c ? DUST_NONE : '<span class="dust-num' + (c.khamsin ? ' is-khamsin' : '') + '">' + c.dust + '</span>';
+  // FIX-18B 13: a khamsin value's pill is coloured by its grade (Air.grade: 1 amber … 4 red — the redder, the more dangerous);
+  // an ordinary value (grade 0) keeps the dust colour. One class name for every place a reading is shown.
+  function gradeOf(value) { return typeof value === 'number' ? Air.grade(value, Config.air) : 0; }
+  function numClass(base, value) { var g = gradeOf(value); return base + (g ? ' is-khamsin kg-' + g : ''); }
+  // FIX-18B 13A: a band cell (70 px, seven to a card) cannot hold «1500» on its pill with room to the next one at 24 px; there
+  // a value from 1000 on is said in thousands, one decimal — «1,5к», «3,4к» (the hours keep the whole figure: 88 px columns).
+  function shortDust(v) { return v >= 1000 ? I18n.t('w.thousand', { n: I18n.number(Math.round(v / 100) / 10, 1) }) : String(v); }
+  function dustSlot(cls, dust, c, short) {
+    var body = !dust || dust.loading ? '' : !c ? DUST_NONE : '<span class="' + numClass('dust-num', c.dust) + '">' + esc(short ? shortDust(c.dust) : String(c.dust)) + '</span>';
     return '<div class="' + cls + (dust && dust.stale ? ' is-stale' : '') + '">' + body + '</div>';
   }
   function cellOf(list, i) { return list ? list[i] : null; }
-  // The legend's label: «Пыль, мкг/м³» (labelKey 'w.dustLabel') or «Пыль макс., мкг/м³» ('w.dustMax').
-  function dustLabel(labelKey) { return I18n.t(labelKey) + ', ' + I18n.t('w.dustUnit'); }
   // What the legend's «хамсин ≥ 100» says for a card showing `cells`: the threshold, and whether any cell is a khamsin
   // (X4: only then is it the amber pill). null without a threshold.
+  // FIX-18B 13: top — the highest grade on screen (the lit key takes its colour).
   function dustLegend(dust, cells) {
     if (!dust || !dust.limit) return null;
-    var active = false;
-    for (var i = 0; cells && i < cells.length; i++) if (cells[i] && cells[i].khamsin) active = true;
-    return { limit: dust.limit, active: active };
+    var top = 0;
+    for (var i = 0; cells && i < cells.length; i++) if (cells[i]) top = Math.max(top, gradeOf(cells[i].dust));
+    return { limit: dust.limit, active: top > 0, top: top };
   }
-  // The card title with the dust legend right after it on the same row (every value has its own label; the hourly card's
-  // inline end is the status line's): the label in the dust colour, then «хамсин ≥ 100» — quiet grey, the amber pill
-  // that explains the amber cells when the card shows one (same box: nothing shifts). On a narrow card the legend wraps
-  // under the title, never cuts. title, label: translated text (X9); legend: dustLegend.
-  // label null: no legend at all (N8: a card with no rows explains nothing).
-  function dustTitle(title, label, legend) {
-    return '<div class="card-head"><div class="card-title">' + esc(title) + '</div>' + (label === null ? '' : '<div class="dust-legend"><span class="dust-legend-key">' +
-      esc(label) + '</span>' + (legend ? '<span class="dust-legend-khamsin' + (legend.active ? ' is-active' : '') + '">' +
-      esc(I18n.t('w.air.khamsinWord')) + ' ' + I18n.ltr('≥ ' + legend.limit) + '</span>' : '') + '</div>') + '</div>';
+  // FIX-18B 13B (the owner: the khamsin is explained ONCE on the main screen, in one place): the current card's dust label
+  // carries the grades — each grade's lower bound on its own pill in its colour (100 · 121 · 196 · 271, js/config.js: the EEA
+  // PM10 bands) in place of the old «хамсин ≥ 100» pill; quiet grey until a khamsin is on screen (X4), then lit.
+  function dustScale(dust, top) {
+    var bounds = [dust.limit].concat(Config.air.dustGradesUgm3), out = '';
+    for (var i = 0; i < bounds.length; i++) out += '<span class="' + numClass('dust-num', bounds[i]) + '">' + bounds[i] + '</span>';
+    return '<span class="dust-legend-scale' + (top ? ' is-active' : '') + '">' + out + '</span>';
+  }
+  // A card's title row; label: a value's own label after the title (the hourly card's «Пыль», FIX-17B 1: every value has
+  // its label) or none. The khamsin key is never here: it is said once, on the current card (dustHtml).
+  function cardHead(title, label) {
+    return '<div class="card-head"><div class="card-title">' + esc(title) + '</div>' + (label ? '<div class="band-label">' + esc(label) + '</div>' : '') + '</div>';
   }
 
   // The air & UV block (batch 12), between the place's text and the big icon, without glyphs. UV comes with the weather
@@ -123,29 +129,39 @@ var View = (function () {
   function figure(num, wordKey, level) {
     return '<span class="air-num">' + esc(num) + '</span> <span class="air-word lv-' + level + '">' + esc(I18n.t(wordKey)) + '</span>';
   }
-  function airItem(cls, labelKey, value, extra) {
-    return '<div class="air-item ' + cls + '"><div class="air-label">' + esc(I18n.t(labelKey)) + '</div><div class="air-value">' + value + '</div>' +
-      extra + '</div>';
+  function airItem(cls, labelKey, value) {   // N10: three parameters (the unused `extra` gone: the dust is its own item)
+    return '<div class="air-item ' + cls + '"><div class="air-label">' + esc(I18n.t(labelKey)) + '</div><div class="air-value">' + value + '</div></div>';
   }
-  // The dust: a third item of its own (the owner, 2026-11-02: «должно быть понятно а не вкучу слеплено») — its label «Пыль»,
-  // then «27 мкг/м³» in the value style; a khamsin (≥ 100 µg/m³) adds the amber word «хамсин» on the label's line («Пыль ·
-  // хамсин»: N1 — a 4-digit value and its unit then keep the value line to themselves inside the 256 px block). No value:
-  // the item is not drawn, its slot stays (nothing moves).
-  function dustHtml(a) {
-    if (!a || typeof a.dust !== 'number') return '<div class="air-item air-dust is-none"></div>';
-    var label = esc(I18n.t('w.dustLabel')) + (a.dustHigh ? ' · <span class="air-word lv-khamsin">' + esc(I18n.t('w.air.khamsinWord')) + '</span>' : '');
-    return '<div class="air-item air-dust"><div class="air-label">' + label + '</div><div class="air-value"><span class="air-num">' + esc(String(a.dust)) +
-      '</span> <span class="air-unit">' + esc(I18n.t('w.dustUnit')) + '</span></div></div>';
+  // The dust: a third item of its own (the owner, 2026-11-02: «должно быть понятно а не вкучу слеплено»). Its label line
+  // carries the screen's ONE khamsin key (design C, owner 2026-11-02): «Пыль», then the pill «хамсин ≥ 100», amber when the
+  // reading or any forecast cell on screen is a khamsin; then «27 мкг/м³» in the value style. The item is drawn whenever any
+  // dust is on screen — the reading or a forecast cell (FIX-17B 2): with no reading its value line says «—». Nothing at all:
+  // the item is not drawn, its slot stays (nothing moves). d: dustSlot's data; the threshold comes from it, never a literal.
+  // A khamsin reading sits on the same pill as a khamsin hour or day, coloured by its grade (FIX-BATCH-18 part B, FIX-18B 13).
+  function hasValue(cells) { for (var i = 0; cells && i < cells.length; i++) if (cells[i]) return true; return false; }
+  function cellsOf(d) { return (d && d.hours || []).concat(d && d.days || []); }
+  // The highest khamsin grade on the main screen: the current reading's and every cell's (FIX-18B 13).
+  function topGrade(a, d) {
+    var lg = dustLegend(d, cellsOf(d));
+    return Math.max(a ? gradeOf(a.dust) : 0, lg ? lg.top : 0);
+  }
+  function dustHtml(a, d) {
+    var now = a && typeof a.dust === 'number', cells = cellsOf(d);
+    if (!now && !hasValue(cells)) return '<div class="air-item air-dust is-none"></div>';
+    var lg = dustLegend(d, cells), top = topGrade(a, d);
+    var label = '<span class="dust-legend-key">' + esc(I18n.t('w.dustLabel')) + '</span>' + (lg ? dustScale(d, top) : '');
+    return '<div class="air-item air-dust"><div class="air-label dust-legend">' + label + '</div><div class="air-value">' + (now ? '<span class="' + numClass('air-num' + (gradeOf(a.dust) ? ' dust-num' : ''), a.dust) + '">' + esc(String(a.dust)) +
+      '</span> <span class="air-unit">' + esc(I18n.t('w.dustUnit')) + '</span>' : '<span class="air-num">—</span>') + '</div></div>';
   }
   function airBlock(s, isDay) {
     var a = s.air || null, loading = !a && (s.airKind === 'loading' || s.airKind === undefined);
     var uv = s.uv ? figure(String(s.uv.index), 'w.uv.' + s.uv.level, s.uv.level) : '<span class="air-num">—</span>';
     var air = loading ? '<span class="skeleton air-skeleton"></span>'
-      : !a || a.level === null ? '<span class="air-none">' + esc(I18n.t('w.noData')) + '</span>'
+      : !a || a.level === null ? '<span class="air-none">' + esc(ViewState.partText('none')) + '</span>'
       : figure(String(a.aqi), 'w.air.' + a.level, a.level);
-    var dust = dustHtml(a);
-    return '<div class="now-air' + (a && s.airKind === 'stale' ? ' is-stale' : '') + '">' + airItem('air-uv' + (isDay ? '' : ' is-night'), 'w.uv', uv, '') +
-      airItem('air-aq', 'w.air', air, '') + dust + '</div>';
+    var dust = dustHtml(a, s.dust);
+    return '<div class="now-air' + (a && s.airKind === 'stale' ? ' is-stale' : '') + '">' + airItem('air-uv' + (isDay ? '' : ' is-night'), 'w.uv', uv) +
+      airItem('air-aq', 'w.air', air) + dust + '</div>';
   }
 
   function nowHtml(v, s) {
@@ -175,9 +191,9 @@ var View = (function () {
   }
 
   // The day list (7 days on the main card, 5 on the Israel weather screen) with Apple-style range bars: every bar is a window onto ONE cold→warm gradient spanning the
-  // week's min…max, so a bar's colour means its temperature. Today carries a dot at the current temperature. dust: the
-  // dust forecast (dustSlot above): each day's maximum in its own column after the high temperature.
-  function dailyHtml(v, dust) {
+  // week's min…max, so a bar's colour means its temperature. Today carries a dot at the current temperature. The days'
+  // dust is the band's (dustBand), never the rows'.
+  function dailyHtml(v) {
     var lo = Infinity, hi = -Infinity, k, day;
     for (k = 0; k < v.daily.length; k++) {
       day = v.daily[k];
@@ -201,9 +217,27 @@ var View = (function () {
         '<div class="day-icon' + (popText(day.pop) ? '' : ' is-dry') + '">' + (day.code === null ? '' : Icons.weather(day.code, true)) +
         '<span class="day-pop">' + (popText(day.pop) ? Icons.glyph('umbrella') + popText(day.pop) : '') + '</span></div>' +
         '<div class="day-min">' + temp(day.min) + '</div><div class="range">' + bar + '</div>' +
-        '<div class="day-max">' + temp(day.max) + '</div>' + dustSlot('day-dust', dust, cellOf(dust && dust.days, k)) + '</div>';
+        '<div class="day-max">' + temp(day.max) + '</div></div>';
     }
     return out;
+  }
+  // Design C: the dust leaves the rows — one band under the list: its own label «Пыль», then one cell per day (the day's
+  // short name over its maximum; the khamsin pill when ≥ 100). Before the first weather answer (n: the slots) the band is
+  // there with empty cells of the same size (FIX-17B 5: nothing moves when the data lands); no data and no n: no band.
+  function dustBand(v, dust, n) {
+    var cells = '', k;
+    if (!v) {
+      if (!n) return '';
+      for (k = 0; k < n; k++) cells += '<div class="band-cell"><div class="band-day"></div><div class="day-dust"></div></div>';
+      return '<div class="dust-band is-empty"><div class="band-label">' + esc(I18n.t('w.dustLabel')) + '</div><div class="band-cells">' + cells + '</div></div>';
+    }
+    for (k = 0; k < v.daily.length; k++) {
+      var day = v.daily[k];
+      if (!day) { cells += '<div class="band-cell"></div>'; continue; }
+      cells += '<div class="band-cell"><div class="band-day">' + esc(day === v.today ? I18n.t('w.todayShort') : I18n.weekdayBand(day.weekday)) + '</div>' +
+        dustSlot('day-dust', dust, cellOf(dust && dust.days, k), true) + '</div>';
+    }
+    return '<div class="dust-band"><div class="band-label">' + esc(I18n.t('w.dustLabel')) + '</div><div class="band-cells">' + cells + '</div></div>';
   }
 
   // v: Weather.forHour view or null (no data yet). s: { name (the home city in the interface language), kind ('fresh' |
@@ -215,51 +249,33 @@ var View = (function () {
     if (!v) {
       var failed = s.kind === 'failed';
       els.now.className = 'card now is-empty';
-      els.now.innerHTML = '<div class="now-place">' + esc(placeName) + '</div>' + Html.emptyState(Icons.weather(3, true),
-        I18n.t(failed ? 'w.failed' : 'w.loading'), failed ? Html.retryText(s.retryAt) : '');
+      els.now.innerHTML = '<div class="now-place">' + esc(placeName) + '</div>' +
+        (failed ? ViewState.block('failed', { glyph: Icons.weather(3, true), retryAt: s.retryAt }) : ViewState.block('loading'));
       hours = failed ? noData() : repeat(LOADING_HOUR, sizes.hours);
       days = failed ? noData() : repeat(LOADING_DAY, sizes.days);
     } else {
       els.now.className = 'card now' + (s.kind === 'stale' ? ' is-stale' : '');
       els.now.innerHTML = nowHtml(v, s);
       for (i = 0; i < v.hourly.length; i++) hours += hourHtml(v.hourly[i], i === 0 && v.nowShown, dustSlot('hour-dust', s.dust, cellOf(s.dust && s.dust.hours, i)));
-      days = dailyHtml(v, s.dust);
+      days = dailyHtml(v);
     }
-    var d = s.dust, rows = !!v || s.kind !== 'failed';   // N8: failed with no data — no rows, so no legend
-    els.hourly.innerHTML = dustTitle(I18n.t('w.hourly'), rows ? dustLabel('w.dustLabel') : null, dustLegend(d, d && d.hours)) + '<div class="hours">' + hours + '</div>';
-    els.daily.innerHTML = dustTitle(I18n.t('w.days', { n: sizes.days }), rows ? dustLabel('w.dustMax') : null, dustLegend(d, d && d.days)) + '<div class="days">' + days + '</div>';
+    var rows = !!v || s.kind !== 'failed';   // failed with no data: no rows, so no dust label and no band (N8)
+    els.hourly.innerHTML = cardHead(I18n.t('w.hourly'), rows ? I18n.t('w.dustLabel') : '') + '<div class="hours' + (rows ? '' : ' is-none') + '">' + hours + '</div>';
+    els.daily.innerHTML = cardHead(I18n.t('w.days', { n: sizes.days })) + '<div class="days">' + days + '</div>' + dustBand(v, s.dust, rows ? sizes.days : 0);
   }
 
   // The status line speaks only about data on screen: "updated at" or "not updating · data from". Loading
-  // and failure are said once, in the weather card itself.
-  // The hourly card's status sits at the end of its title row (B14-1): never nearer than STATUS_GAP to the title and the dust
-  // legend. It takes the first of its forms that keeps that gap, measured once per new text (a change of state, time,
-  // source or language), never per tick: the full sentence; the short one («Не обновляется · 20:32»); with «MET» for
-  // «MET Norway»; for a stale time, the shortest word («Устарело · 02.11 20:32 · MET»). Every form keeps a word: the state
-  // is never said by colour alone.
-  var STATUS_GAP = 24, statusDrawn = '', statusArgs = null;
-  var STATUS_FORMS = { fresh: [['w.updated', 'src.met'], ['w.updatedShort', 'src.met'], ['w.updatedShort', 'src.metShort']],
-    stale: [['w.stale', 'src.met'], ['w.staleShort', 'src.met'], ['w.staleShort', 'src.metShort'], ['w.staleTiny', 'src.metShort']] };
+  // and failure are said once, in the weather card itself. Batch 18 (the owner: «надо сделать так же, как и везде»): it is
+  // the screen's status, as on every other screen (the same component, size and side), in the strip above the clocks — the
+  // whole sentence always fits there, so the hourly card's title row keeps only its title and «Пыль» (no fitting, B14-1).
+  var statusDrawn = '';
   function renderStatus(kind, time, source) {
-    var key = [kind, time, source, I18n.lang()].join('|'), forms = STATUS_FORMS[kind] || [];
+    var key = [kind, time, source, I18n.lang()].join('|');
     if (key === statusDrawn) return;
     statusDrawn = key;
-    statusArgs = [kind, time, source];
-    Html.setStatus(els.status, 'status', kind, Html.statusText(kind, time, source));
-    for (var i = 1; i < forms.length && !statusClear(); i++) {
-      var text = I18n.t(forms[i][0], { time: time });
-      Html.setStatus(els.status, 'status', kind, source ? I18n.t('w.source', { text: text, source: I18n.t(forms[i][1]) }) : text);
-    }
-  }
-  function refitStatus() { if (statusArgs) { statusDrawn = ''; renderStatus(statusArgs[0], statusArgs[1], statusArgs[2]); } }
-  // Whether the status keeps STATUS_GAP from the title and the legend on its row (no head yet: nothing to keep clear of).
-  function statusClear() {
-    var head = els.hourly.querySelector('.card-head');
-    if (!head || !els.status.firstChild) return true;
-    var s = els.status.getBoundingClientRect(), t = head.firstChild.getBoundingClientRect(), l = head.lastChild.getBoundingClientRect();
-    return I18n.dir() === 'rtl' ? Math.min(t.left, l.left) - s.right >= STATUS_GAP : s.left - Math.max(t.right, l.right) >= STATUS_GAP;
+    Html.setStatus(els.status, 'status screen-status main-status', kind, ViewState.headText(kind, time, source ? [I18n.t('src.' + source)] : []));
   }
 
   return { init: init, renderClocks: renderClocks, renderWeather: renderWeather, renderStatus: renderStatus, temp: temp, diffText: diffText,
-    dailyHtml: dailyHtml, dustTitle: dustTitle, dustLabel: dustLabel, dustLegend: dustLegend };
+    dailyHtml: dailyHtml, dustBand: dustBand, cardHead: cardHead, numClass: numClass };
 })();

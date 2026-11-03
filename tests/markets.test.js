@@ -529,3 +529,12 @@ test('C-19: an unreadable markets answer is logged with its message', () => {
   assert.deepEqual(logs.slice(0, 2), ['markets: unexpected spark shape', 'markets: unexpected spark shape']);
   assert.equal(c.state().kind, 'failed');
 });
+
+// N2 (FIX-BATCH-18 part B): Markets.snapshot is a public pure function and keeps its own guard — a rate of 0 or below is no
+// price (an empty row), whatever table it is handed; keep() refuses such a table for the controller (A1 above).
+test('N2: snapshot() turns a rate ≤ 0 into an empty row (its own guard, not only keep()\'s)', () => {
+  const ctx = load(FILES), cfg = ctx.Config.markets;
+  const s = ctx.Markets.snapshot(cfg, { quotes: {}, tables: { ILS: { UAH: 0, RUB: -25.6, USD: 0.27 } }, updatedAt: AT }, AT);
+  for (const id of ['UAHperILS', 'RUBperILS']) assert.equal(rowOf(s, id).price, null, id + ': no price');
+  assert.ok(rowOf(s, 'UAHperUSD').price === null, 'no USD table: no price');
+});

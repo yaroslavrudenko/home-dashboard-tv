@@ -39,7 +39,8 @@ test('1920×1080, Russian: clocks, current weather, 12-hour strip, 7 days; every
     assert.equal(await p.$$eval('.hour', (e) => e.length), 12);
     assert.equal(await p.$$eval('.day', (e) => e.length), 7);
     assert.equal(await p.$$eval('.detail', (e) => e.length), 5);
-    assert.equal(await p.$eval('#status', (e) => e.className), 'status is-fresh');
+    // FIX-BATCH-18 item 8: the main weather status is the screen status (the component every other screen uses)
+    assert.equal(await p.$eval('#status', (e) => e.className), 'status screen-status main-status is-fresh');
     assert.match(await p.$eval('#status', (e) => e.textContent), /^Обновлено в 20:3\d$/);
 
     const boxes = await p.evaluate(measure);
@@ -75,6 +76,7 @@ test('L3: Hebrew and Ukrainian render the main screen with the same layout, noth
 });
 
 // Decision 16 (D10): one centred message, placeholder rows, the message is not repeated in the status line.
+// B17-V1: the message is the one state block (weather glyph, «Временно недоступно», «Повторим в HH:MM»); B17-V5: «нет данных».
 test('no network: clocks still run, the weather card says it is unavailable and will retry', async () => {
   const app = await openApp({ weather: 'fail' });
   try {
@@ -84,15 +86,16 @@ test('no network: clocks still run, the weather card says it is unavailable and 
     assert.deepEqual(app.errors, []);
     assert.equal(app.weatherRequests.length, 1, 'one attempt, no burst of retries');
     assert.equal(await p.$eval('#clock-israel .clock-time', (e) => e.textContent), '20:32');
-    assert.equal(await p.$eval('.empty-text', (e) => e.textContent), 'Погода временно недоступна');
-    assert.match(await p.$eval('.empty-sub', (e) => e.textContent), /^Повторим в 20:3\d$/);
+    assert.equal(await p.$eval('#now .state.is-failed .state-text', (e) => e.textContent), 'Временно недоступно');
+    assert.match(await p.$eval('#now .state.is-failed .state-sub', (e) => e.textContent), /^Повторим в 20:3\d$/);
+    assert.equal(await p.$$eval('#now .state.is-failed > svg', (e) => e.length), 1, 'B17-V1: the weather glyph');
     assert.equal(await p.$eval('#status', (e) => e.textContent), '', 'the status line does not repeat the message');
     // L5 (batch 16): placeholders only while loading — a failure says so once, quietly, in the strip and in the list
     assert.equal(await p.$$eval('.hour.is-empty, .day.is-empty, .skeleton', (e) => e.length), 0, 'no placeholder after a failure');
-    assert.deepEqual(await p.$$eval('.wx-none', (e) => e.map((x) => x.textContent)), ['Нет данных', 'Нет данных'], 'one quiet line in each card');
+    assert.deepEqual(await p.$$eval('.wx-none', (e) => e.map((x) => x.textContent)), ['нет данных', 'нет данных'], 'one quiet line in each card (B17-V5)');
     const boxes = await p.evaluate(measure);
     assert.deepEqual(boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.r > 1920 || b.b > 1080), []);
-    const [msg, card] = await p.evaluate(() => [document.querySelector('.empty-state').getBoundingClientRect(), document.querySelector('#now').getBoundingClientRect()]
+    const [msg, card] = await p.evaluate(() => [document.querySelector('#now .state').getBoundingClientRect(), document.querySelector('#now').getBoundingClientRect()]
       .map((r) => ({ cx: r.left + r.width / 2, cy: r.top + r.height / 2 })));
     assert.ok(Math.abs(msg.cx - card.cx) < 2, 'the message is centred horizontally');
   } finally { await app.close(); }
@@ -187,10 +190,10 @@ test('a failed refresh marks the temperature stale on every clock card and on th
     assert.equal(await p.$$eval('.now.is-stale', (e) => e.length), 1, 'marked on the main card');
     assert.equal(await p.$$eval('.stale-mark', (e) => e.length), 0, 'FB5-N6: no amber dot');
     assert.equal(await p.$eval('.now.is-stale .now-temp', (e) => getComputedStyle(e).color), 'rgba(255, 255, 255, 0.62)', 'the main temperature is dimmed');
-    // B15 (B14-1): beside the dust legend the full line «Не обновляется · данные от 20:3x» touched it: the short form, 24 px clear
-    assert.match(await p.$eval('#status', (e) => e.textContent), /^Не обновляется · 20:3\d$/);
+    // B15 (B14-1) / OWNER-1LEG-C: the title row carries the title only, so the full line fits, 24 px clear of the title
+    assert.match(await p.$eval('#status', (e) => e.textContent), /^Не обновляется · данные от 20:3\d$/);
     assert.ok(await p.evaluate(() => { const r = (e) => e.getBoundingClientRect(), h = document.querySelector('#hourly .card-head');
-      return r(document.getElementById('status')).left - Math.max(r(h.firstChild).right, r(h.lastChild).right) >= 24; }), 'the status 24 px clear of the legend');
+      return !h.querySelector('.dust-legend') && r(document.getElementById('status')).left - r(h.querySelector('.card-title')).right >= 24; }), 'no legend; the status 24 px clear of the title');
     const dim = await p.$eval('.clock-weather.is-stale .clock-temp', (e) => getComputedStyle(e).color);
     assert.equal(dim, 'rgba(255, 255, 255, 0.62)', 'the stale temperature is dimmed');
   } finally { await app.close(); }

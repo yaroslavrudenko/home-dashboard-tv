@@ -120,6 +120,27 @@ var Tz = (function () {
   // "2026-10-29T20": the wall time's hour in the format of Open-Meteo's local times, null when unknown.
   function hourKey(w) { return w.ok ? wallDate(w) + 'T' + pad2(w.hours) : null; }
 
+  // ---- instants written with their offset ---------------------------------------------------------
+  // "2026-11-06T16:27:00+02:00" (Hebcal), "2026-10-25T07:40+03:00" (MET's sun times, no seconds), "2026-11-02T12:00:00Z" (MET's
+  // steps) → the instant in ms (a fraction of a second dropped); NaN for anything else. By hand — the offset taken off with Date.UTC, never Date.parse on the
+  // TV's 2015 engine (FIX-BATCH-18 part B: one parser for Hebcal and MET Norway).
+  // FIX-18B 5: what Date.parse refuses is NaN here too — a month, day, hour, minute, second or offset out of range (24:00 only
+  // as 24:00:00 with no fraction); a year 0000–0099 stays that year (Date.UTC alone would read it as 1900–1999).
+  var ISO = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)(?::(\d\d)(?:\.(\d+))?)?(?:(Z)|([+-])(\d\d):(\d\d))$/;
+  var MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  function isLeap(y) { return y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0); }
+  function instant(stamp) {
+    var m = ISO.exec(stamp);
+    if (!m) return NaN;
+    var y = +m[1], mo = +m[2], d = +m[3], h = +m[4], mi = +m[5], s = +(m[6] || 0), frac = +(m[7] || 0);
+    if (mo < 1 || mo > 12 || d < 1 || d > MONTH_DAYS[mo - 1] || (mo === 2 && d === 29 && !isLeap(y)) ||
+      mi > 59 || s > 59 || h > 24 || (h === 24 && (mi || s || frac)) || (!m[8] && (+m[10] > 23 || +m[11] > 59))) return NaN;
+    var at = new Date(0);
+    at.setUTCFullYear(y, mo - 1, d);
+    at.setUTCHours(h, mi, s, 0);
+    return at.getTime() - (m[8] ? 0 : (m[9] === '-' ? -1 : 1) * (+m[10] * 60 + +m[11]) * 60000);
+  }
+
   // ---- calendar dates ----------------------------------------------------------------------------
   function dateMs(date) { return Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)); }
   function isoDate(ms) { return new Date(ms).toISOString().slice(0, 10); }
@@ -128,6 +149,6 @@ var Tz = (function () {
   function daysBetween(from, to) { return Math.round((dateMs(to) - dateMs(from)) / DAY); }
 
   return { resolve: resolve, wallTime: wallTime, intlOffset: intlOffset, rules: RULES, pad2: pad2, hhmm: hhmm, hourKey: hourKey,
-    wallDate: wallDate, ddmm: ddmm, ddmmyyyy: ddmmyyyy,
+    wallDate: wallDate, ddmm: ddmm, ddmmyyyy: ddmmyyyy, instant: instant,
     dateMs: dateMs, isoDate: isoDate, addDays: addDays, weekdayOf: weekdayOf, daysBetween: daysBetween };
 })();

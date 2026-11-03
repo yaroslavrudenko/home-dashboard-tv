@@ -3,7 +3,8 @@
 // the same refresh asks MET — 6 forecasts and 6 sunrise requests, Open-Meteo once — and the main and Israel screens show the
 // weather with «… · MET Norway» on their status. B14-1: on the hourly card the status never comes nearer than 24 px to the title
 // and the dust legend (a shorter form when the full one does not fit), in the MET, khamsin and stale states; B14-3: a stale
-// time of another day carries its date. B15_SHOTS=<dir> writes main-<lang>-met.png, israel-<lang>-met.png, main-<lang>-stale-met.png.
+// time of another day carries its date. OWNER-1LEG-C: the title row carries the title only — the gap is measured against the
+// title, and the khamsin pill is the one legend's, on the current card's dust item. B17-V1: the failed card says «Временно недоступно». B15_SHOTS=<dir> writes main-<lang>-met.png, israel-<lang>-met.png, main-<lang>-stale-met.png.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -15,18 +16,20 @@ const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown',
 const NOW = Date.parse('2026-11-02T15:25:00Z');          // 17:25 in Israel, minutes after MET's recordings
 const DAY = 86400000;
 const overloaded = { status: 503, body: JSON.stringify({ error: true, reason: 'The service is overloaded' }) };
-const FAILED = { ru: 'Погода временно недоступна', he: 'מזג האוויר אינו זמין כרגע', uk: 'Погода тимчасово недоступна' };
+// B17-V1: the state block's failed word (the pre-B17 sentences «Погода временно недоступна» … are gone from the product)
+const FAILED = { ru: 'Временно недоступно', he: 'לא זמין כרגע', uk: 'Тимчасово недоступно' };
 const ISRAEL_MET = { ru: 'Обновлено в 17:25 · MET Norway', he: 'עודכן ב־17:25 · MET נורווגיה', uk: 'Оновлено о 17:25 · MET Norway' };
 const SOURCE = { ru: /MET/, he: /MET נורווגיה/, uk: /MET/ };
 const clean = (boxes) => boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent || b.l < 0 || b.t < 0 || b.r > 1920 || b.b > 1080);
 // The air answer with every place's dust at 240 µg/m³: a khamsin (the legend's amber pill).
 const khamsin = (n, url) => { const a = airAnswer(url), list = JSON.parse(a.body); for (const p of list) p.current.dust = 240; return Object.assign(a, { body: JSON.stringify(list) }); };
-// The gap between the hourly card's status and its title + dust legend (B14-1), and the status text.
+// The gap between the hourly card's status and its title (B14-1; OWNER-1LEG-C: the title row has no legend), the status text,
+// and the one legend's khamsin pill (on the current card's dust item).
 const head = () => {
   const r = (e) => e.getBoundingClientRect(), st = document.getElementById('status'), h = document.querySelector('#hourly .card-head');
-  const s = r(st), t = r(h.querySelector('.card-title')), l = r(h.querySelector('.dust-legend')), rtl = document.dir === 'rtl';
-  return { text: st.textContent, gap: Math.round(rtl ? Math.min(t.left, l.left) - s.right : s.left - Math.max(t.right, l.right)),
-    sameRow: s.top < Math.max(t.bottom, l.bottom) && t.top < s.bottom, pill: !!document.querySelector('#hourly .dust-legend-khamsin.is-active') };
+  const s = r(st), t = r(h.querySelector('.card-title')), rtl = document.dir === 'rtl';
+  return { text: st.textContent, gap: Math.round(rtl ? t.left - s.right : s.left - t.right), titleLegends: h.querySelectorAll('.dust-legend').length,
+    sameRow: s.top < t.bottom && t.top < s.bottom, pill: !!document.querySelector('#now .air-dust .dust-legend-scale.is-active') };
 };
 
 for (const lang of ['ru', 'he', 'uk']) {
@@ -36,7 +39,7 @@ for (const lang of ['ru', 'he', 'uk']) {
     try {
       const p = app.page;
       await p.waitForFunction(() => /MET/.test(document.getElementById('status').textContent), { timeout: 15000 });
-      await p.waitForSelector('#hourly .dust-legend-khamsin.is-active', { timeout: 10000 });
+      await p.waitForSelector('#now .air-dust .dust-legend-scale.is-active', { timeout: 10000 });   // OWNER-1LEG-C
       await p.evaluate(() => document.fonts.ready); await wait(500);
       assert.equal(app.weatherRequests.length, 1, 'Open-Meteo asked once');
       assert.equal(app.requests.met.length, 12, 'MET: one forecast and one sunrise request per place');
@@ -46,7 +49,8 @@ for (const lang of ['ru', 'he', 'uk']) {
       assert.match(h.text, SOURCE[lang], 'the source is named: ' + h.text);
       assert.match(h.text, /17:25/);
       assert.ok(h.pill, 'the khamsin pill is on');
-      assert.ok(!h.sameRow || h.gap >= 24, lang + ': the status ' + h.gap + ' px from the legend: ' + h.text);
+      assert.equal(h.titleLegends, 0, 'OWNER-1LEG-C: no legend in the title row');
+      assert.ok(!h.sameRow || h.gap >= 24, lang + ': the status ' + h.gap + ' px from the title: ' + h.text);
       const main = await p.evaluate(() => ({ temp: (document.querySelector('#now .now-temp') || {}).textContent || null, text: document.getElementById('screen-main').textContent,
         sunrise: [...document.querySelectorAll('#now .detail')].map((d) => d.textContent.replace(/\s+/g, ' ').trim()) }));
       assert.ok(main.temp, 'MET\'s temperature on the card');
@@ -84,7 +88,7 @@ for (const lang of ['ru', 'he', 'uk']) {
       await wait(500);
       await p.evaluate((ms) => sessionStorage.setItem('b15.offset', String(ms)), DAY);
       await p.reload({ waitUntil: 'load' });
-      await p.waitForFunction(() => document.querySelector('#now .now-temp, #now .empty-state'), { timeout: 10000 });
+      await p.waitForFunction(() => document.querySelector('#now .now-temp, #now .state'), { timeout: 10000 });   // B17-V1: .state
       await wait(2000);
       await p.evaluate(() => document.fonts.ready);
       const h = await p.evaluate(head);

@@ -78,7 +78,7 @@ var Met = (function () {
   // One sun event ("2026-10-25T07:40+03:00") as an instant on the place's clock (Y5: the offset MET wrote it in may not be
   // the place's offset at that moment, on the day the clocks change): { date, hhmm } or null.
   function eventOf(time, wall) {
-    var ms = time ? Date.parse(time) : NaN, w = isNaN(ms) ? null : wall(ms);
+    var ms = Tz.instant(time), w = isNaN(ms) ? null : wall(ms);
     return w && w.ok ? { date: dateOf(w), hhmm: Tz.hhmm(w) } : null;
   }
   function sunOf(json, wall) {
@@ -110,10 +110,10 @@ var Met = (function () {
     var ts = element && element.forecast && element.forecast.properties && element.forecast.properties.timeseries;
     if (!ts || !ts.length) throw new Error('met: no timeseries');
     var first = 0, i;
-    for (i = 0; i < ts.length && Date.parse(ts[i].time) <= element.fetchedAt; i++) first = i;
-    var clock = clockFor(wall, Date.parse(ts[first].time), Date.parse(ts[ts.length - 1].time) + SIX_HOURS), steps = [];
+    for (i = 0; i < ts.length && Tz.instant(ts[i].time) <= element.fetchedAt; i++) first = i;
+    var clock = clockFor(wall, Tz.instant(ts[first].time), Tz.instant(ts[ts.length - 1].time) + SIX_HOURS), steps = [];
     for (i = first; i < ts.length; i++) {
-      var ms = Date.parse(ts[i].time), key = Tz.hourKey(clock(ms));
+      var ms = Tz.instant(ts[i].time), key = Tz.hourKey(clock(ms));
       if (key === null) throw new Error('met: the place\'s time zone is unknown');
       var range = ts[i].data.next_6_hours, end = range ? dateOf(clock(ms + SIX_HOURS - 1)) : null;
       steps.push({ key: key, d: ts[i].data, rangeInside: end === key.slice(0, 10) });

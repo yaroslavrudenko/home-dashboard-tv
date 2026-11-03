@@ -35,6 +35,13 @@ export function weatherAnswer(url) {
     return w;
   }));
 }
+// The recorded weather with real rain chances (the recording's are 0–18 %, under the 20 % the lists show), 100 % the widest.
+// Use as `weather: rainyWeather` (dust13, band17).
+export function rainyWeather(n, url) {
+  const list = JSON.parse(weatherAnswer(url));
+  for (const p of list) p.daily.precipitation_probability_max = [33, 100, 45, 20, 64, 10, 87];
+  return { status: 200, body: JSON.stringify(list) };
+}
 // Batch 12: the air quality (one request for every place: the 4-place recording, or the 1-place one) and the Hebcal
 // calendar (Jerusalem's recording for its GeoNames id, else Rehovot's; both 2026-11-02, 180 days).
 export function airAnswer(url) {
@@ -276,8 +283,15 @@ export async function legibility(selector = '#stage *') {
     let alpha = m.length > 3 ? m[3] : 1;
     for (let a = el; a && a !== document.documentElement; a = a.parentElement) alpha *= parseFloat(getComputedStyle(a).opacity);
     if (!alpha || cs.visibility === 'hidden') continue;          // not drawn at all (a hidden screen): nothing to read
-    const fg = over(m.slice(0, 3), alpha, bg);
-    const contrast = (lum(fg) + 0.05) / (lum(bg) + 0.05);
+    // FIX-18B 13: text on its own fill (a khamsin pill: dark ink on a solid colour) is read against that fill, composited over
+    // the card — the nearest painted background between the text and its card; the ratio either way round
+    let under = bg;
+    for (let a = el; a && !a.classList.contains('card') && a !== document.body; a = a.parentElement) {
+      const b = getComputedStyle(a).backgroundColor.match(/[\d.]+/g).map(Number), ba = b.length > 3 ? b[3] : 1;
+      if (ba > 0) { under = over(b.slice(0, 3), ba, bg); break; }
+    }
+    const fg = over(m.slice(0, 3), alpha, under), lf = lum(fg), lb = lum(under);
+    const contrast = (Math.max(lf, lb) + 0.05) / (Math.min(lf, lb) + 0.05);
     if (parseFloat(cs.fontSize) < 24 || contrast < 4.5) bad.push(el.className + ' "' + el.textContent.trim().slice(0, 20) + '" ' + cs.fontSize + ' ' + contrast.toFixed(2));
   }
   const t = document.querySelector('.clock-time');

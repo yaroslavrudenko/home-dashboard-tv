@@ -22,7 +22,7 @@ test('config: hourly, 15 s timeout, the weather back-off, stale after 3 h, dust 
   const a = plain(load(FILES).Config.air);
   assert.deepEqual(a, { base: 'https://air-quality-api.open-meteo.com/v1/air-quality', refreshMs: 3600000, timeoutMs: 15000,
     retryMs: [60000, 120000, 240000, 480000], retryFloorMs: 30000, staleAfterMs: 3 * 3600000, keepMaxMs: 12 * 3600000, dustUgm3: 100,
-    forecastDays: 5, dustDayMinHours: 20 });   // B13-D1 / B13-D3: the dust forecast's days and a day's minimum of hourly values
+    dustGradesUgm3: [121, 196, 271], forecastDays: 5, dustDayMinHours: 20 });   // FIX-18B 13: the EEA PM10 band bounds   // B13-D1 / B13-D3: the dust forecast's days and a day's minimum of hourly values
 });
 
 test('URL: ONE request for the four places, in order; only the two values the screens show (S5: AQI and dust); no key', () => {
@@ -39,12 +39,12 @@ test('URL: ONE request for the four places, in order; only the two values the sc
 
 test('parse: the recorded answer of each place; one that carries nothing usable throws', () => {
   const ctx = load(FILES), cfg = ctx.Config.air, list = air('aq-4places');
-  assert.deepEqual(plain(ctx.Air.parse(list[0], cfg)), { aqi: 38, dust: 25, time: '2026-11-02T11:00', forecast: { byHour: {}, byDay: {} } }, 'S5: only what is shown; B13-D1: an answer with no hourly block has no forecast; X10: the index built at parse');
+  assert.deepEqual(plain(ctx.Air.parse(list[0], cfg)), { aqi: 38, dust: 25, forecast: { byHour: {}, byDay: {} } }, 'S5: only what is shown; B13-D1: an answer with no hourly block has no forecast; X10: the index built at parse');
   assert.deepEqual(plain(list.map((p) => ctx.Air.parse(p, cfg).aqi)), [38, 31, 41, 36]);
   const someNull = JSON.parse(JSON.stringify(list[0])); someNull.current.dust = null;
-  assert.deepEqual(plain(ctx.Air.parse(someNull, cfg)), { aqi: 38, dust: null, time: '2026-11-02T11:00', forecast: { byHour: {}, byDay: {} } });   // B13-D1, X10
+  assert.deepEqual(plain(ctx.Air.parse(someNull, cfg)), { aqi: 38, dust: null, forecast: { byHour: {}, byDay: {} } });   // B13-D1, X10
   const dustOnly = JSON.parse(JSON.stringify(list[0])); dustOnly.current.european_aqi = Infinity;
-  assert.deepEqual(plain(ctx.Air.parse(dustOnly, cfg)), { aqi: null, dust: 25, time: '2026-11-02T11:00', forecast: { byHour: {}, byDay: {} } }, 'not a finite number: no value');   // B13-D1, X10
+  assert.deepEqual(plain(ctx.Air.parse(dustOnly, cfg)), { aqi: null, dust: 25, forecast: { byHour: {}, byDay: {} } }, 'not a finite number: no value');   // B13-D1, X10
   const allNull = JSON.parse(JSON.stringify(list[0]));
   for (const k of ['european_aqi', 'dust']) allNull.current[k] = null;
   for (const bad of [allNull, { latitude: 1 }, air('aq-error'), null]) assert.throws(() => ctx.Air.parse(bad, cfg), /air/, JSON.stringify(bad).slice(0, 60));
@@ -124,7 +124,7 @@ const keysOf = (date, from, n) => Array.from({ length: n }, (_, i) => date + 'T'
 test('B13 parse: the hourly dust of each place, keyed by the place\'s wall hour; current values unchanged', () => {
   const ctx = load(FILES), cfg = ctx.Config.air, list = hourlyFix();
   const m = ctx.Air.parse(list[0], cfg);
-  assert.deepEqual([m.aqi, m.dust, m.time], [list[0].current.european_aqi, list[0].current.dust, list[0].current.time]);
+  assert.deepEqual([m.aqi, m.dust, 'time' in m], [list[0].current.european_aqi, list[0].current.dust, false], 'N11: the model carries only what is read (no time)');
   // X10: the index is built once at parse — each hour's value by its key, each day's count of values and maximum
   assert.equal(Object.keys(m.forecast.byHour).length, 120, '5 days × 24 hours');
   assert.equal(m.forecast.byHour['2026-11-02T00'], list[0].hourly.dust[0]);
@@ -231,4 +231,14 @@ test('B14: a restarted app shows the last good air quality, stale, for up to 12 
     assert.equal(JSON.stringify(b.get(p.id)), JSON.stringify(a.get(p.id)), p.id + ': the same model');
   }
   assert.equal(ctx.Air.createStore(places(ctx), ctx.Config.air, deps(T + 12 * 3600000 + 1)).get(places(ctx)[0].id), null, 'older than 12 h');
+});
+
+// FIX-18B 13 (the owner: «Цвет хамсина должен быть в зависимости от его опасности. Чем опаснее, тем краснее»): ONE function
+// grades a reading — 0 below 100 µg/m³ (no khamsin), then by the European Air Quality Index's PM10 bands (EEA,
+// https://airindex.eea.europa.eu/AQI/index.html: Moderate 46–120, Poor 121–195, Very poor 196–270, Extremely poor > 270).
+test('FIX-18B 13: Air.grade — 0 under 100; 1 for 100–120; 2 from 121; 3 from 196; 4 from 271 (every boundary both sides)', () => {
+  const ctx = load(FILES), cfg = ctx.Config.air, g = (v) => ctx.Air.grade(v, cfg);
+  assert.deepEqual([null, 0, 99, 100, 120, 121, 195, 196, 270, 271, 600, 1500, 3400].map(g), [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 4]);
+  // the grade never contradicts the khamsin flag the data carry
+  for (const v of [99, 100, 250, 3400]) assert.equal(g(v) > 0, ctx.Air.summary({ aqi: 30, dust: v }, cfg).dustHigh, String(v));
 });

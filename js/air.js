@@ -5,11 +5,12 @@
  * { error: true, reason }. Only what the screens show is asked: the European AQI and dust now, and the dust forecast
  * (batch 13: cfg.forecastDays days from today's 00:00; CAMS reaches ~4 days, later cells are null).
  *   Air.url(places, cfg)          ONE request for every place (js/openmeteo.js)
- *   Air.parse(json, cfg)          one place → { aqi, dust, time, forecast: { byHour: { wall hour ("2026-11-02T16") → dust },
+ *   Air.parse(json, cfg)          one place → { aqi, dust, forecast: { byHour: { wall hour ("2026-11-02T16") → dust },
  *                                 byDay: { date → { n, max } } } } (a missing value is left out; no hourly block: empty;
  *                                 an all-zero day is a CAMS fill, left out); throws when there is no current block or
  *                                 neither current value
  *   Air.summary(model, cfg)       what the screens show now: { aqi (rounded), level, dust (rounded), dustHigh } or null
+ *   Air.grade(dust, cfg)          a reading's khamsin grade: 0 (none) … 4 (FIX-18B 13, the EEA PM10 bands)
  *   Air.forecast(model, hourKeys, dates, cfg)   the dust forecast for the cells on screen, built once per render:
  *                                 { hours: [cell], days: [cell] } in the order asked; cell = { dust (rounded), khamsin } or
  *                                 null (no value; a null key; or a day with fewer than cfg.dustDayMinHours values); a day's
@@ -52,13 +53,22 @@ var Air = (function () {
   function parse(json, cfg) {
     var c = json && json.current;
     if (!c || typeof c !== 'object') throw new Error('air: no current block');
-    var m = { aqi: num(c.european_aqi), dust: num(c.dust), time: c.time, forecast: forecastOf(json.hourly) };
+    var m = { aqi: num(c.european_aqi), dust: num(c.dust), forecast: forecastOf(json.hourly) };   // N11: no `time` (nothing read it)
     if (m.aqi === null && m.dust === null) throw new Error('air: no values');
     return m;
   }
 
   // Dust is flagged from cfg.dustUgm3 (100 µg/m³: twice the EU daily PM10 limit from dust alone), on the rounded value.
   function khamsin(dust, cfg) { return dust !== null && dust >= cfg.dustUgm3; }
+  // FIX-18B 13: THE one place a reading gets its khamsin grade — 0 below dustUgm3, then 1 + the number of cfg.dustGradesUgm3
+  // bounds it reaches (the EEA PM10 bands, js/config.js): 1 … 4, the redder the more dangerous. Every view colours a reading
+  // through it (js/view.js numClass: the current card, the hours, the 7-day band and the Israel bands).
+  function grade(dust, cfg) {
+    if (!khamsin(dust, cfg)) return 0;
+    var g = 1;
+    for (var i = 0; i < cfg.dustGradesUgm3.length; i++) if (dust >= cfg.dustGradesUgm3[i]) g = i + 2;
+    return g;
+  }
   function cell(dust, cfg) { return { dust: dust, khamsin: khamsin(dust, cfg) }; }
 
   function summary(model, cfg) {
@@ -88,5 +98,5 @@ var Air = (function () {
   //         storage (optional: the last good answer is kept under 'air.v1', js/placestore.js) }
   function createStore(places, cfg, deps) { return PlaceStore.create(places, { cfg: cfg, url: url, parse: parse, persistKey: 'air' }, deps); }
 
-  return { url: url, parse: parse, summary: summary, forecast: forecast, createStore: createStore };
+  return { url: url, parse: parse, summary: summary, forecast: forecast, grade: grade, createStore: createStore };
 })();

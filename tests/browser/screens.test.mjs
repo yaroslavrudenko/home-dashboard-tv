@@ -121,7 +121,9 @@ test('a hidden screen costs nothing: refreshes while it is hidden never touch it
 const NEWS_COLS = () => [...document.querySelectorAll('.news-col')].map((c) => ({
   title: c.querySelector('.news-col-title').textContent, src: c.querySelector('.src-name').textContent,
   state: c.querySelector('.news-col-state') ? c.querySelector('.news-col-state').textContent : '',
-  empty: c.querySelector('.news-col-empty') ? c.querySelector('.news-col-empty').textContent : '',
+  // B17-V1: a column with no story holds the one state block — its word, and its second line (the retry) when it has one
+  empty: c.querySelector('.state .state-text') ? c.querySelector('.state .state-text').textContent : '',
+  emptySub: c.querySelector('.state .state-sub') ? c.querySelector('.state .state-sub').textContent : '',
   dir: getComputedStyle(c.querySelector('.news-rows')).direction, align: getComputedStyle(c.querySelector('.news-rows')).textAlign,
   rows: [...c.querySelectorAll('.news-row')].map((r) => ({ time: r.querySelector('.news-time') ? r.querySelector('.news-time').textContent : '',
     title: r.querySelector('.news-title') ? r.querySelector('.news-title').textContent : '', top: Math.round(r.getBoundingClientRect().top),
@@ -190,7 +192,7 @@ test('FB5-NS: long Hebrew and Hebrew/Latin headlines: three lines each (batch 16
 
 // FB5-NS / FB5B-N7 / N9: per-column state — a feed that fails affects only its own column; both configured columns are
 // always drawn (loading or failed inside each), and a partial failure is said once: in the failed column only.
-test('FB5B-N9: one feed down — only its column says so and keeps its stories, the header stays fresh; a feed with nothing yet says so in its column', async () => {
+test('FB5B-N9 / B17-V1: one feed down — only its column says so and keeps its stories, the header stays fresh; a feed with nothing yet says so in its column (the state block)', async () => {
   let econ = 0;
   const later = await openApp({ alerts: 'empty-bom.txt', configure: (c) => { c.news.refreshMs = 400; },
     news: (url) => (url.includes('section/finance') && ++econ > 1 ? { status: 503, body: '' } : null) });
@@ -213,15 +215,16 @@ test('FB5B-N9: one feed down — only its column says so and keeps its stories, 
   try {
     await ready(never);
     await toScreen(never.page, 'news');
-    await never.page.waitForSelector('.news-col-empty');
+    await never.page.waitForSelector('.news-col .state.is-failed');
     await wait(300);
     const cols = await never.page.evaluate(NEWS_COLS);
     // FB5D-R1: a feed that failed from the first load says so in its own column, amber, with when it is tried again —
-    // never the neutral «Нет данных»
+    // never the neutral «нет данных». B17-V1: the state block «Временно недоступно» + «Повторим в HH:MM»
     assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 5], ['Экономика', '', 0]]);
-    assert.equal(cols[0].empty, '');
-    assert.match(cols[1].empty, /^Не удалось загрузить · повторим в 20:3\d$/);
-    assert.equal(await never.page.$eval('.news-col-empty', (e) => getComputedStyle(e).color), 'rgb(255, 207, 138)', 'amber like .news-col-state');
+    assert.deepEqual([cols[0].empty, cols[0].emptySub], ['', '']);
+    assert.equal(cols[1].empty, 'Временно недоступно');
+    assert.match(cols[1].emptySub, /^Повторим в 20:3\d$/);
+    assert.equal(await never.page.$eval('.news-col .state.is-failed .state-text', (e) => getComputedStyle(e).color), 'rgb(255, 207, 138)', 'amber like .news-col-state');
     assert.match(await never.page.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), /is-fresh \| Обновлено в 20:3\d$/, 'the header stays fresh');
     await wait(700);                               // the screen's fade-in is over: legibility is measured on the final opacity
     assert.deepEqual(clean(withoutHeadlineClamp(await never.page.evaluate(measure, '#screen-news *'))), []);
@@ -229,7 +232,7 @@ test('FB5B-N9: one feed down — only its column says so and keeps its stories, 
   } finally { await never.close(); }
 });
 
-test('FB5B-N7: both feeds pending, then both failed: both configured columns stay, each saying it in its own place', async () => {
+test('FB5B-N7 / B17-V1 / B17-V2: both feeds pending, then both failed: both configured columns stay, each saying it in its own place (the state block); the header says nothing', async () => {
   const pending = await openApp({ alerts: 'empty-bom.txt', news: () => ({ hang: true }) });
   try {
     await ready(pending);
@@ -237,26 +240,28 @@ test('FB5B-N7: both feeds pending, then both failed: both configured columns sta
     await pending.page.waitForSelector('.news-col');
     await wait(700);
     const cols = await pending.page.evaluate(NEWS_COLS);
-    assert.deepEqual(cols.map((c) => [c.title, c.src, c.empty, c.rows.length]), [['Израиль', 'NEWSru', 'Загружаем новости…', 0], ['Экономика', 'NEWSru', 'Загружаем новости…', 0]]);
+    assert.deepEqual(cols.map((c) => [c.title, c.src, c.empty, c.emptySub, c.rows.length]), [['Израиль', 'NEWSru', 'Загрузка…', '', 0], ['Экономика', 'NEWSru', 'Загрузка…', '', 0]]);
     assert.deepEqual(cols.map((c) => c.dir), ['ltr', 'ltr'], 'Russian: the page\'s own direction, the ellipsis at the end');
     assert.equal(await pending.page.$eval('#news-status', (e) => e.textContent), '');
-    assert.equal(await pending.page.$$eval('#screen-news .empty-state', (e) => e.length), 0, 'no whole-screen message');
+    assert.deepEqual(await pending.page.$$eval('#screen-news .state', (e) => e.map((x) => !!x.closest('.news-col'))), [true, true], 'no whole-screen message: one block in each column');
   } finally { await pending.close(); }
   const failed = await openApp({ news: 'fail', alerts: 'empty-bom.txt' });
   try {
     await ready(failed);
     await toScreen(failed.page, 'news');
-    await failed.page.waitForSelector('.news-col-empty.is-failed');
+    await failed.page.waitForSelector('.news-col .state.is-failed');
     await wait(700);
     const cols = await failed.page.evaluate(NEWS_COLS);
-    // FB5D-R2: failure wording in both columns (not «Нет данных») and an amber header (not the fresh green dot)
+    // FB5D-R2: failure wording in both columns (not «нет данных»), amber. B17-V1: each column's block says when it is tried
+    // again; FB5C-OPEN: the ◀ ▶ open adds a second failed round, so the jittered back-off is drawn up to the 2-min ceiling
     assert.deepEqual(cols.map((c) => [c.title, c.state, c.rows.length]), [['Израиль', '', 0], ['Экономика', '', 0]]);
-    for (const c of cols) assert.equal(c.empty, 'Не удалось загрузить', c.title + ': N5 — the retry time is said once, in the header');
-    assert.deepEqual(await failed.page.$$eval('.news-col-empty', (els) => els.map((e) => getComputedStyle(e).color)), ['rgb(255, 207, 138)', 'rgb(255, 207, 138)']);
-    assert.deepEqual(await failed.page.$eval('#news-status', (e) => [getComputedStyle(e).color, getComputedStyle(e.querySelector('.status-dot')).backgroundColor]),
-      ['rgb(255, 207, 138)', 'rgb(255, 207, 138)'], 'the failed header is amber like stale');
-    // FB5C-OPEN: the ◀ ▶ open adds a second failed round, so the jittered back-off is drawn up to the 2-min ceiling
-    assert.match(await failed.page.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), /is-failed \| Новости временно недоступны · повторим в 20:3[3-5]$/, 'said once, in the header, with when it is tried again');
+    for (const c of cols) {
+      assert.equal(c.empty, 'Временно недоступно', c.title);
+      assert.match(c.emptySub, /^Повторим в 20:3[3-5]$/, c.title + ': with when it is tried again');
+    }
+    assert.deepEqual(await failed.page.$$eval('.news-col .state.is-failed .state-text', (els) => els.map((e) => getComputedStyle(e).color)), ['rgb(255, 207, 138)', 'rgb(255, 207, 138)']);
+    // B17-V2: the header speaks only for data on screen — empty with nothing shown, its class still carries is-failed
+    assert.equal(await failed.page.$eval('#news-status', (e) => e.className + ' | ' + e.textContent), 'status screen-status is-failed | ', 'no header sentence');
     assert.deepEqual(clean(withoutHeadlineClamp(await failed.page.evaluate(measure, '#screen-news *'))), []);
     assert.deepEqual((await failed.page.evaluate(legibility, '#screen-news *')).bad, []);
   } finally { await failed.close(); }
@@ -269,8 +274,10 @@ test('Traffic without a key: a calm invitation, and not a single request to TomT
     const p = app.page;
     await toScreen(p, 'traffic');
     await wait(800);
-    assert.deepEqual(await p.$eval('#screen-traffic', (s) => [s.querySelector('.screen-title').textContent, s.querySelector('.empty-text').textContent, s.querySelector('.empty-sub').textContent]),
-      ['Пробки', 'Подключите токен Mapbox, чтобы видеть пробки', 'MAPBOX_TOKEN в build.local.env, затем пересоберите приложение']);
+    // B17-V1: the invitation is the screen's one card holding the state block (kind none), the car glyph, its text and second line
+    assert.deepEqual(await p.$eval('#screen-traffic', (s) => [s.querySelector('.screen-title').textContent, s.querySelector('.state-card .state.is-none .state-text').textContent,
+      s.querySelector('.state-card .state.is-none .state-sub').textContent, s.querySelectorAll('.state-card .state.is-none > svg').length]),
+      ['Пробки', 'Подключите токен Mapbox, чтобы видеть пробки', 'MAPBOX_TOKEN в build.local.env, затем пересоберите приложение', 1]);
     assert.equal(app.requests.traffic.length, 0);
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
   } finally { await app.close(); }
@@ -313,7 +320,7 @@ test('FB5B-T1: Traffic with a token (Mapbox): ten GETs started together, one per
       return [Math.round(tw[1].getBoundingClientRect().top - tw[0].getBoundingClientRect().bottom), Math.round(col[1].getBoundingClientRect().left - col[0].getBoundingClientRect().right)]; });
     assert.equal(gaps[0], gaps[1], 'one rhythm: ' + gaps);
     assert.ok(cols.every((c) => c.items[4][5] <= 1080 - 48), 'the last row inside the screen');
-    assert.equal(await p.$eval('#traffic-status', (e) => e.textContent), 'Обновлено в 20:32');
+    assert.equal(await p.$eval('#traffic-status', (e) => e.textContent), 'Обновлено в 20:32 · Только что', 'B17-V3: fresh with its age');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, []);
   } finally { await app.close(); }
@@ -324,7 +331,7 @@ const toTraffic = (p) => toScreen(p, 'traffic');
 
 // C4 (D6, D7, D8, D12): one encoding per screen, no hairline slivers, a failed row keeps its shape, smaller units.
 // A column's bars share its scale («Города»: its longest, Haifa, 5922 s).
-test('C4: route bars share one time scale per column; no delay sliver under a minute; a failed route keeps «—», «Нет данных» and its track', async () => {
+test('C4 / B17-V5: route bars share one time scale per column; no delay sliver under a minute; a failed route keeps «—», «нет данных» and its track', async () => {
   const b = trafficFixture();
   b[1] = NO_ROUTE;                                  // Jerusalem cannot be routed
   Object.assign(b[6].routes[0], { duration: 1000, duration_typical: 960 });   // Rishon: 40 s over the usual
@@ -352,9 +359,9 @@ test('C4: route bars share one time scale per column; no delay sliver under a mi
     assert.ok(Math.abs(haifa.free + haifa.delay - haifa.track) < 1, 'Haifa, the longest, fills its track');
     assert.ok(Math.abs((tlv.free + tlv.delay) / haifa.track - 1920.4 / 5922.3) < 0.01, 'Tel Aviv on the same scale: ' + JSON.stringify(tlv));
     assert.ok(Math.abs((beersheva.free + beersheva.delay) / haifa.track - 4210.5 / 5922.3) < 0.01, 'Beer Sheva: ' + JSON.stringify(beersheva));
-    assert.deepEqual([v.jerusalem.time, v.jerusalem.timeCls, v.jerusalem.nodata, v.jerusalem.bar, v.jerusalem.fill], ['—', 'tw-time is-none', 'Нет данных', true, 0]);
+    assert.deepEqual([v.jerusalem.time, v.jerusalem.timeCls, v.jerusalem.nodata, v.jerusalem.bar, v.jerusalem.fill], ['—', 'tw-time is-none', 'нет данных', true, 0]);   // B17-V5: one key, lower case
     assert.equal(v.jerusalem.barGap, v.jerusalem.okBarGap, 'its track sits where every widget\'s bar sits');
-    assert.deepEqual(v.unit, ['30px', '32 мин']);
+    assert.deepEqual(v.unit, ['28px', '32 мин']);   // B17-T1: the type scale (30 → 28)
     assert.deepEqual(v.rishon, ['Свободно', 0], 'a 40 s delay: neither "+1 мин" nor a sliver (one threshold for words and bars)');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, []);
@@ -379,7 +386,7 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
           widgets: document.querySelectorAll('.tw .tw-time:not(.is-none)').length, chip: [getComputedStyle(chip).color, getComputedStyle(chip).opacity],
           title: document.querySelector('.tcol-title').getBoundingClientRect().top };
       });
-      assert.equal(v.text, 'Данные устарели · обновлено 20:32 · 0 мин назад', status + ': the data-time line');
+      assert.equal(v.text, 'Не обновляется · данные от 20:32 · Только что', status + ': the data-time line (B17-V3: stale with its age)');
       assert.match(v.note, /^Mapbox отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:3\d$/, status + ': ' + v.note);
       assert.equal(v.color, 'rgb(255, 207, 138)', status + ': amber');
       assert.equal(v.noteColor, 'rgb(255, 207, 138)');
@@ -398,9 +405,10 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
       await ready(app);
       const p = app.page;
       await toTraffic(p);
-      await p.waitForSelector('#screen-traffic .empty-text');
+      await p.waitForSelector('#screen-traffic .state-card .state.is-failed');
       await wait(700);
-      const v = await p.$eval('#screen-traffic', (e) => [e.querySelector('.empty-text').textContent, !!e.querySelector('.empty-sub'), e.querySelector('#traffic-note').textContent]);
+      // B17-V1: the card's state block — with a problem its text IS the problem note, and there is no second line
+      const v = await p.$eval('#screen-traffic', (e) => [e.querySelector('.state-card .state.is-failed .state-text').textContent, !!e.querySelector('.state-sub'), e.querySelector('#traffic-note').textContent]);
       assert.match(v[0], /^Mapbox отклонил запрос \(доступ или лимит\) · автоматический повтор не раньше 20:4\d$/, status + ': ' + v[0] + ' (the attempt + 10 min)');
       assert.deepEqual(v.slice(1), [false, ''], 'one message, in the card');
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
@@ -416,24 +424,25 @@ const cache = (at) => JSON.stringify({ v: 1, rows: trafficFixture().map((a) => {
   failed: false, problem: null, attemptAt: at });
 const stored = (q, c) => 'localStorage.setItem("tt-quota", ' + JSON.stringify(q) + ');' + (c ? 'localStorage.setItem("tt-cache", ' + JSON.stringify(c) + ');' : '');
 const head = (p) => p.evaluate(() => [document.getElementById('traffic-status').textContent, document.getElementById('traffic-note').textContent,
-  (document.querySelector('#screen-traffic .empty-text') || {}).textContent || '', document.querySelectorAll('.tw .tw-time:not(.is-none)').length]);
+  (document.querySelector('#screen-traffic .state-card .state-text') || {}).textContent || '', document.querySelectorAll('.tw .tw-time:not(.is-none)').length]);   // B17-V1
 
-test('FB5C-7: the header copy — updating, stale with its age, future-dated data, the daily cap, storage paused', async () => {
+// B17-V3: the one vocabulary — fresh / stale with the data's time and its age; future-dated data stale with why; no «Обновляется…» line.
+test('B17-V3: the traffic header — fresh / stale with the age, future-dated data, the daily cap, storage paused', async () => {
   const cases = [
-    ['cached rows show at once; ◀ ▶ open sends; while in flight «Обновляется… · данные от»', { traffic: () => ({ hang: true }), init: stored(quota({}), cache(FIXED_NOW - 41 * 60000)) },
-      1, ['Обновляется… · данные от 19:51', '', '', 10]],
+    ['cached rows show at once; ◀ ▶ open sends; while in flight the rows\' own line (B17-V3: no «Обновляется…»)', { traffic: () => ({ hang: true }), init: stored(quota({}), cache(FIXED_NOW - 41 * 60000)) },
+      1, ['Не обновляется · данные от 19:51 · 41 мин назад', '', '', 10]],
     ['the update fails: stale with the time and the age', { traffic: () => ({ status: 503, body: '' }), init: stored(quota({}), cache(FIXED_NOW - 41 * 60000)) },
-      1, ['Данные устарели · обновлено 19:51 · 41 мин назад', '', '', 10]],
+      1, ['Не обновляется · данные от 19:51 · 41 мин назад', '', '', 10]],
     ['future-dated data: no negative age; the attempt time rebased, nothing sent', { traffic: 'ok', init: stored(quota({ lastAttemptAt: FIXED_NOW + 3600000 }), cache(FIXED_NOW + 3600000)) },
-      0, ['Данные устарели · время данных требует проверки', '', '', 10]],
+      0, ['Не обновляется · данные от 21:32 · время данных требует проверки', '', '', 10]],
     ['the daily cap: nothing sent; the data line stays, the cap below it', { traffic: 'ok', init: stored(quota({ used: 3000 }), cache(FIXED_NOW - 41 * 60000)) },
-      0, ['Данные устарели · обновлено 19:51 · 41 мин назад', 'Дневной лимит запросов пробок исчерпан · обновление после 30.10 02:00', '', 10]],
+      0, ['Не обновляется · данные от 19:51 · 41 мин назад', 'Дневной лимит запросов пробок исчерпан · обновление после 30.10 02:00', '', 10]],
     ['the daily cap with no cache: the card says it', { traffic: 'ok', init: stored(quota({ used: 3000 })) },
       0, ['', '', 'Дневной лимит запросов пробок исчерпан · обновление после 30.10 02:00', 0]],
     ['a corrupt counter: paused, nothing sent', { traffic: 'ok', init: 'localStorage.setItem("tt-quota", "{used:");' },
       0, ['', '', 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов', 0]],
     ['a corrupt counter over cached rows: the data line stays, the pause below it', { traffic: 'ok', init: 'localStorage.setItem("tt-quota", "{used:");localStorage.setItem("tt-cache", ' + JSON.stringify(cache(FIXED_NOW - 41 * 60000)) + ');' },
-      0, ['Данные устарели · обновлено 19:51 · 41 мин назад', 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов', '', 10]]
+      0, ['Не обновляется · данные от 19:51 · 41 мин назад', 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов', '', 10]]
   ];
   for (const [name, o, rounds, want] of cases) {
     const app = await openApp({ ...QUIET, configure: KEY, ...o });
@@ -581,7 +590,7 @@ test('A2: an alert, then the feed lost: the overlay stays and says "no connectio
     assert.equal(v.text, 'Тревоги: нет связи · последний ответ 20:32');
     assert.ok(v.box[0] >= 0 && v.box[1] <= 1080 && v.box[2] >= 0 && v.box[3] <= 1920, 'inside the screen: ' + v.box);
     assert.ok(v.top && v.visible === 'visible', 'seen on top, not under anything');
-    assert.deepEqual([v.size, v.color], ['32px', 'rgb(255, 207, 138)']);   // D-C1: the one amber
+    assert.deepEqual([v.size, v.color], ['34px', 'rgb(255, 207, 138)']);   // D-C1: the one amber; B17-T1: the type scale (32 → 34)
     assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);
     await wait(600);
     assert.equal(await p.$eval('#alert', (e) => e.className), 'alert is-on', 'failures never clear it');
@@ -617,8 +626,8 @@ test('A5: nine places nearby: three names and «и ещё 6» in the right half,
   } finally { await app.close(); }
 });
 
-// A6: hyphenated names never break inside a name; many names step down to 48 px.
-test('A6: many configured areas in one alert: every name on one line, the list at 48 px, nothing cut', async () => {
+// A6: hyphenated names never break inside a name; many names step down to 52 px (B17-T2: the type scale, was 48).
+test('A6: many configured areas in one alert: every name on one line, the list at 52 px, nothing cut', async () => {
   const many = JSON.stringify({ id: '1', cat: '1', title: 'ירי רקטות וטילים', desc: 'היכנסו למרחב המוגן ושהו בו 10 דקות',
     data: ['רחובות', 'נס ציונה', 'ראשון לציון - מזרח', 'מזכרת בתיה', 'קריית עקרון', 'באר יעקב', 'יבנה', 'גדרה'] });
   const app = await openApp({ news: 'ok', alerts: () => ({ status: 200, body: many }),
@@ -630,7 +639,7 @@ test('A6: many configured areas in one alert: every name on one line, the list a
     const v = await p.evaluate(() => ({ cls: document.querySelector('.alert-areas').className, size: getComputedStyle(document.querySelector('.alert-areas')).fontSize,
       names: [...document.querySelectorAll('.alert-area')].map((e) => [e.textContent, e.getClientRects().length]) }));
     assert.equal(v.cls, 'alert-areas is-many');
-    assert.equal(v.size, '48px');
+    assert.equal(v.size, '52px');
     assert.equal(v.names.length, 8);
     for (const [name, lines] of v.names) assert.equal(lines, 1, name + ' broke across lines');
     assert.deepEqual(clean(await p.evaluate(measure, '#alert *')), []);

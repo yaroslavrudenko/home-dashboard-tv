@@ -17,7 +17,9 @@
  *   A source.url() that throws ends the hop as a failure of every place: the normal back-off follows.
  *   Batch 14: with source.persistKey and deps.storage, the last good RAW answer is kept under `<persistKey>.v1` as
  *   { v: 1, at, url, src, json } (src: the fallback's id when it answered; one write per answer that gave any place data;
- *   a refused write is ignored). At boot an
+ *   a refused write is ignored). F-5 (FIX-18B 1, FIX-18D 1): every save is the per-place merge
+ *   { v: 1, at, url, entries: [{ at, src, json } | null] } — each place's newest good element, its source and its own time,
+ *   restored only within keepMaxMs of that place's stamped time; an entry of the earlier whole-answer form still restores. At boot an
  *   entry asked with today's very URL (the same places in the same order, the same parameters: a new home city is not
  *   given the old one's weather) and no older than cfg.keepMaxMs goes through source.parse again, place by place; what
  *   parses (through the parse of the source that answered) is shown as stale (`restored`) until a live answer arrives.
@@ -38,6 +40,9 @@ var PlaceStore = (function () {
   function create(places, source, deps) {
     var cfg = source.cfg, state = {}, storage = deps.storage || null, fallback = source.fallback || null, epoch = 0, log = deps.log || function () {};
     var key = storage && source.persistKey ? source.persistKey + '.v' + VERSION : null;
+    // F-5 (FIX-18B 1): each place's newest good raw element, its source and the time it came — what is kept on the TV is the
+    // same per-place merge as what is on screen, so a partial answer never takes away a place that had data.
+    var kept = [];
     for (var i = 0; i < places.length; i++) state[places[i].id] = { data: null, updatedAt: 0, error: null, restored: false, source: undefined };
 
     // A place whose answer does not parse fails alone (its state says so) — and the reason is logged (C-19).
@@ -49,23 +54,34 @@ var PlaceStore = (function () {
 
     // The last good answer of an earlier run, parsed by today's parse: kept no longer than keepMaxMs (a clock that went
     // back makes the age negative: kept, and stale like any restored place).
+    // F-5: an entry is read place by place, each kept no longer than keepMaxMs from ITS OWN time — the time its source stamps
+    // on it (MET: when that place's answer arrived), else the time saved with it. FIX-18D 1: the stamp decides, so a place
+    // that came in an earlier round and was reused is never restored past its own keepMaxMs. A whole-answer entry ({ src, json },
+    // the form saved before FIX-18D) still restores, read the same way.
     function restore() {
       var e = key ? readSaved(storage, key, log) : null;
-      var src = e ? sourceOf(e.src) : null;
-      if (!src || !(deps.now() - e.at <= cfg.keepMaxMs) || e.url !== urlOrNull()) return;
-      var models = modelsOf(src, null, e.json), list = listOf(e.json);
-      if (src.restore) src.restore(list, places);
+      if (!e || !(deps.now() - e.at <= cfg.keepMaxMs) || e.url !== urlOrNull()) return;
+      var merged = Array.isArray(e.entries), list = merged ? null : listOf(e.json), back = {};
       for (var i = 0; i < places.length; i++) {
-        if (models[i]) set(state[places[i].id], models[i], stampOf(src, list[i], e.at).at, src, true);
+        var r = merged ? e.entries[i] : { at: e.at, src: e.src, json: list[i] }, src = r ? sourceOf(r.src) : null;
+        var at = src && typeof r.at === 'number' ? stampOf(src, r.json, r.at).at : NaN;
+        if (!(deps.now() - at <= cfg.keepMaxMs)) continue;
+        var model = parseOrNull(src, r.json, places[i]);
+        if (!model) continue;
+        kept[i] = { at: at, src: src.id, json: r.json };
+        set(state[places[i].id], model, at, src, true);
+        (back[src.id || ''] = back[src.id || ''] || { src: src, list: [] }).list[i] = r.json;
       }
+      for (var k in back) if (back.hasOwnProperty(k) && back[k].src.restore) back[k].src.restore(back[k].list, places);
     }
     // When a place's data arrived and whether they came back from the TV: the source's stamp, else `at` and live.
     function stampOf(src, el, at) {
       var st = src.stamp && el ? src.stamp(el) : null;
       return { at: st && typeof st.at === 'number' ? st.at : at, restored: !!(st && st.restored) };
     }
-    function save(url, json, src) {
-      try { storage.setItem(key, JSON.stringify({ v: VERSION, at: deps.now(), url: url, src: src.id, json: json })); } catch (e) { log(key + ': not saved: ' + e.message); }   // quota: the refresh goes on
+    // FIX-18D 1: ONE form for every save — each place's newest good element with its source and its own time ({ entries }).
+    function save(url) {
+      try { storage.setItem(key, JSON.stringify({ v: VERSION, at: deps.now(), url: url, entries: kept })); } catch (err) { log(key + ': not saved: ' + err.message); }   // quota: the refresh goes on
     }
     function set(s, model, at, src, restored) { s.data = model; s.updatedAt = at; s.error = null; s.source = src.id; s.restored = restored; }
     // One answer → one model per place (null: that place did not come or does not parse).
@@ -82,9 +98,9 @@ var PlaceStore = (function () {
       var failed = false, good = false, list = err ? [] : listOf(json);
       for (var i = 0; i < places.length; i++) {
         var s = state[places[i].id], st = stampOf(src, list[i], deps.now());
-        if (models[i]) { set(s, models[i], st.at, src, st.restored); good = true; } else { s.error = err || 'parse'; failed = true; }
+        if (models[i]) { set(s, models[i], st.at, src, st.restored); kept[i] = { at: st.at, src: src.id, json: list[i] }; good = true; } else { s.error = err || 'parse'; failed = true; }
       }
-      if (good && key) save(url, json, src);
+      if (good && key) save(url);
       return failed;
     }
     function finishWith(finish, src, err, json, url, models) { finish(function () { return accept(src, err, json, url, models); }); }

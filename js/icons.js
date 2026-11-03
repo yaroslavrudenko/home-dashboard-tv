@@ -72,6 +72,10 @@ var Icons = (function () {
   }
 
   var GLYPHS = {
+    // batch 18: the feels-like label on the Israel cards. FIX-18B 12 (the designer, the owner: «я согласен с дизайнером»): a
+    // thermometer WITH a person beside it — how warm it feels to someone — so «19°» never reads as a second temperature now
+    feels: '<g class="ic-feels"><path d="M10 38V14a5 5 0 0 1 10 0v24a10 10 0 1 1-10 0z"/><path d="M15 22v20"/><circle cx="15" cy="46" r="3"/>' +
+      '<circle cx="45" cy="21" r="7"/><path d="M31 54v-4a14 14 0 0 1 28 0v4"/></g>',
     wind: '<g class="ic-wind"><path d="M10 26h28a6 6 0 1 0-6-6"/><path d="M10 36h38a6 6 0 1 1-6 6"/><path d="M10 46h18"/></g>',
     drop: '<g class="ic-drop"><path d="M32 12c8 11 13 18 13 25a13 13 0 0 1-26 0c0-7 5-14 13-25z"/></g>',
     umbrella: '<g class="ic-umbrella"><path d="M10 32a22 22 0 0 1 44 0z"/><path d="M32 32v16a5 5 0 0 1-10 0"/></g>',

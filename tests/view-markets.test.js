@@ -73,7 +73,9 @@ test('Markets: prices in display units with the language\'s own marks; indices c
   const unit = (id) => rows(scr.card(id).innerHTML).map((r) => r.unit);
   // FIX-11B-B1b: the sign inside the price cell (its own box right after the number); FX always 4 places (the source's
   // real digits, no padding); crypto always 2 (B1a); indices 2.
-  assert.deepEqual(price('fx'), ['3,6912', '4,0137', '11,3700', '22,0500', '1,0874', '41,6200']);
+  // N7 (FIX-BATCH-18 part B): the rate rows carry the source's real precision (open.er-api, 2026-11-02: 14.545465 …), so the
+  // 4-place rounding is exercised, not padding
+  assert.deepEqual(price('fx'), ['3,6912', '4,0137', '14,5455', '25,6776', '1,0874', '45,4363']);
   assert.ok(rows(scr.card('fx').innerHTML).every((r) => r.signInPrice), 'every currency sign sits inside its price cell');
   assert.deepEqual(unit('fx'), ['₪', '₪', '₴', '₽', '$', '₴']);
   assert.deepEqual(price('crypto'), ['108' + NNBSP + '452,31', '3' + NNBSP + '912,55', '1' + NNBSP + '084,20', '2,41', '186,33', '0,34']);   // FIX-11B-B1a: crypto always 2 places, TRX included
@@ -157,7 +159,7 @@ test('Markets in Hebrew: every price and change stays left to right (LRE … PDF
   }
 });
 
-test('Markets before the first data: every card keeps its six row slots as placeholders; the header says loading, or failed', () => {
+test('Markets before the first data: every card keeps its six row slots as placeholders; failed with nothing: the one calm block (B17-V2: the header says only fresh / stale)', () => {
   const { ctx, scr } = setup('ru');
   ctx.MarketsView.render(null, { kind: 'loading', updated: '' });
   for (const id of ORDER) {
@@ -166,10 +168,12 @@ test('Markets before the first data: every card keeps its six row slots as place
     assert.equal(text(head(scr.card(id).innerHTML)), ctx.I18n.t('markets.group.' + id));
   }
   assert.equal(scr.nodes['markets-status'].className, 'status screen-status is-loading');
-  assert.equal(text(scr.nodes['markets-status'].innerHTML), 'Загружаем котировки…');
+  assert.equal(text(scr.nodes['markets-status'].innerHTML), '', 'loading is the slots themselves');
   ctx.MarketsView.render(null, { kind: 'failed', updated: '' });
   assert.equal(scr.nodes['markets-status'].className, 'status screen-status is-failed');
-  assert.equal(text(scr.nodes['markets-status'].innerHTML), 'Котировки временно недоступны');
+  assert.equal(text(scr.nodes['markets-status'].innerHTML), '');
+  assert.equal(scr.nodes['mk-body'].className, 'screen-body mk-body is-none', 'L5: never a placeholder beside a failure');
+  assert.equal(text(scr.nodes['mk-none'].innerHTML), 'Временно недоступноПовторим позже');
   ctx.MarketsView.render(fixture('markets-view-snapshot'), { kind: 'stale', updated: '14:32' });
   assert.equal(text(scr.nodes['markets-status'].innerHTML), 'Не обновляется · данные от 14:32');
   assert.equal(scr.card('fx').className, 'card mk-card');
@@ -186,7 +190,7 @@ test('Markets: a snapshot with updatedAt 0 (nothing ever arrived) shows no «О�
   assert.equal(scr.nodes['markets-status'].className, 'status screen-status is-failed', 'A2: failed is honoured, whatever time comes with it');
   assert.equal(text(scr.nodes['markets-status'].innerHTML), '', 'the empty card says it: not twice');
   assert.equal(scr.nodes['mk-body'].className, 'screen-body mk-body is-none');
-  assert.equal(text(scr.nodes['mk-none'].innerHTML), 'Котировки временно недоступны');
+  assert.equal(text(scr.nodes['mk-none'].innerHTML), 'Временно недоступноПовторим позже', 'B17-V1: the one block; no nextAt, so «later» (§4.5)');
   assert.match(scr.nodes['mk-none'].innerHTML, /<svg class="icon g-chart"/);
   // a partial failure keeps the per-card note (B8): one card with no price, the others priced
   const part = fixture('markets-view-snapshot');
@@ -194,7 +198,7 @@ test('Markets: a snapshot with updatedAt 0 (nothing ever arrived) shows no «О�
   ctx.MarketsView.render(part, { kind: 'stale', updated: '02:00' });
   assert.equal(scr.nodes['mk-body'].className, 'screen-body mk-body', 'some prices: the six cards');
   assert.ok(rows(scr.card('us').innerHTML).every((r) => r.nodata === '—'), 'B8: a card with no price at all: «—» in its rows');
-  assert.match(head(scr.card('us').innerHTML), /mk-failed/, '… and its head says it once');
+  assert.match(head(scr.card('us').innerHTML), /mk-state/, '… and its head says it once');
   const fresh = fixture('markets-view-snapshot');
   assert.ok(fresh.groups[0].rows.every((r) => !('stale' in r)), 'the fixture mirrors js/markets.js: fresh rows have no stale key');
 });
@@ -241,7 +245,7 @@ test('I18n.number: each language\'s decimal mark and thousands group, typographi
 
 test('Markets strings: every group, every row of the fixture and the screen\'s own strings in Russian, Hebrew and Ukrainian', () => {
   const ctx = load(['js/config.js', 'js/i18n.js']);
-  const keys = ['screen.markets', 'markets.loading', 'markets.failed', 'markets.closed', 'markets.partlyClosed', 'markets.noData']
+  const keys = ['screen.markets', 'markets.closed', 'markets.partlyClosed', 'st.noData']
     .concat(ORDER.map((g) => 'markets.group.' + g))
     .concat(fixture('markets-view-snapshot').groups.flatMap((g) => g.rows.map((r) => 'markets.row.' + r.id)));
   const seen = {};
@@ -255,7 +259,7 @@ test('Markets strings: every group, every row of the fixture and the screen\'s o
   }
   // own strings, not the English fallback, for every key that names words (brand, benchmark and index names — Brent, WTI,
   // VIX — may stay Latin; FIX-16B N2 shortened «Нефть Brent» to the benchmark's name with its unit after it)
-  for (const k of ['screen.markets', 'markets.closed', 'markets.partlyClosed', 'markets.noData', 'markets.group.fx', 'markets.row.UAHperILS', 'markets.row.GC=F', 'markets.unit.barrel'])
+  for (const k of ['screen.markets', 'markets.closed', 'markets.partlyClosed', 'st.noData', 'markets.group.fx', 'markets.row.UAHperILS', 'markets.row.GC=F', 'markets.unit.barrel'])
     for (const lang of ['ru', 'he', 'uk']) { ctx.I18n.setLang('en'); assert.notEqual(seen[lang + k], ctx.I18n.t(k), lang + ' ' + k + ' is its own'); }
   for (const gone of ['GBPILS', 'RUBperUSD', '^NYA', 'PL=F']) assert.equal(ctx.I18n.t('markets.row.' + gone), 'markets.row.' + gone, gone + ': not on the screen (M4-FINAL-5)');
 });
@@ -315,14 +319,14 @@ test('A10: the same snapshot in the same language (a minute tick): no serialisat
 });
 
 // B8 [D8]: a card none of whose rows has a price says so once, in its head (amber), and «—» in each row.
-test('B8: a card with no price at all: one amber «нет данных» in its head and «—» in every row; the other cards are untouched', () => {
+test('B8: a card with no price at all: one muted «нет данных» in its head (B17: a part, not an alarm) and «—» in every row; the other cards are untouched', () => {
   const { ctx, scr } = setup('ru');
   const snap = fixture('markets-view-snapshot');
   for (const r of snap.groups[1].rows) Object.assign(r, { price: null, changePct: null, closed: false });
   ctx.MarketsView.render(snap, { kind: 'stale', updated: '14:32' });
-  assert.match(head(scr.card('us').innerHTML), /<span class="mk-failed">нет данных<\/span>/);
+  assert.match(head(scr.card('us').innerHTML), /<span class="mk-state">нет данных<\/span>/);
   assert.deepEqual(rows(scr.card('us').innerHTML).map((r) => [r.cls, r.nodata, r.change]), Array(6).fill(['is-nodata', '—', '']));
-  assert.doesNotMatch(head(scr.card('il').innerHTML), /mk-failed/, 'one missing row: no head mark');
+  assert.doesNotMatch(head(scr.card('il').innerHTML), /mk-state/, 'one missing row: no head mark');
   assert.equal(rows(scr.card('il').innerHTML)[5].nodata, 'нет данных');
 });
 

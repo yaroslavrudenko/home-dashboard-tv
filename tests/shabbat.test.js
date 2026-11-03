@@ -227,7 +227,11 @@ test('S9: from candle lighting until midnight the Hebrew date is the next day\'s
   assert.deepEqual(h(at(ctx, NOV, '2026-11-07T10:00:00+02:00', '2026-11-07')), ['2026-11-07', 27, 'Cheshvan'], 'Shabbat day');
   assert.deepEqual(h(at(ctx, SEP, '2027-10-10T17:54:00+03:00', '2027-10-10')), ['2027-10-10', 10, 'Tishrei'], 'Kol Nidrei: Yom Kippur\'s date');
   assert.deepEqual(h(at(ctx, SEP, '2027-10-02T19:01:00+03:00', '2027-10-02')), ['2027-10-02', 2, 'Tishrei'], 'the second evening of Rosh Hashana');
-  assert.deepEqual(h(at(ctx, NOV, '2026-11-07T20:00:00+02:00', '2026-11-07')), ['2026-11-07', 27, 'Cheshvan'], 'after havdalah: no lighting tonight');
+  // N9 (FIX-BATCH-18 part B, decision: the owner's «применяй найденные проблемы»): after havdalah the evening is the next
+  // Hebrew day — 28 Cheshvan from havdalah (17:24) on Saturday 7 November; the day itself and the minute before stay 27
+  assert.deepEqual(h(at(ctx, NOV, '2026-11-07T17:23:00+02:00', '2026-11-07')), ['2026-11-07', 27, 'Cheshvan'], 'before havdalah: Shabbat\'s date');
+  assert.deepEqual(h(at(ctx, NOV, '2026-11-07T20:00:00+02:00', '2026-11-07')), ['2026-11-07', 28, 'Cheshvan'], 'N9: after havdalah: the next Hebrew day');
+  assert.deepEqual(h(at(ctx, APR, '2027-04-22T20:00:00+03:00', '2027-04-22')), ['2027-04-22', 16, 'Nisan'], 'N9: after the havdalah of a yom tov (Pesach I, 15 Nisan by day)');
 });
 
 test('states: yom tov (Pesach I; Yom Kippur), with the holiday; the today block carries the Hebrew date', () => {

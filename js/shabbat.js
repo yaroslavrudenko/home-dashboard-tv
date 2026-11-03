@@ -25,7 +25,6 @@ var Shabbat = (function () {
   // The longest holiday shown runs 8 days (Chanukah): starting 9 days back keeps its first day in every answer.
   var BACK_DAYS = 9;
   var PARAMS = 'v=1&cfg=json&i=on&c=on&M=on&s=on&maj=on&min=on&mod=on&mf=on&d=on&lg=s&leyning=on&ss=on&nx=on&o=on&mvch=on';
-  var STAMP = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)(?::(\d\d)(?:\.\d+)?)?([+-])(\d\d):(\d\d)$/;
   var HDATE = /^(\d+) (.+) (\d+)$/, LINK = /\/h\/([^?#]+)/, YEAR = /-\d+$/, EREV = /^Erev /, PARASHAT = /^Parashat /;
   var FAST_BEGINS = 'Fast begins', FAST_ENDS = 'Fast ends', PURIM = 'purim', SHUSHAN_PURIM = 'shushan-purim';
   // Hebcal's month names: "Rosh Chodesh Sh’vat" / "Mevarchim Chodesh Kislev" (a typographic apostrophe; the dates write Sh'vat).
@@ -38,12 +37,11 @@ var Shabbat = (function () {
     return cfg.base + '?' + PARAMS + where + '&start=' + Tz.addDays(today, -BACK_DAYS) + '&end=' + Tz.addDays(today, cfg.lookaheadDays);
   }
 
-  // "2026-11-06T16:27:00+02:00" → the instant (the offset taken off by hand: no Date.parse on a 2015 engine).
+  // "2026-11-06T16:27:00+02:00" → the instant (Tz.instant: the offset taken off by hand), with the date and time as written.
   function moment(stamp) {
-    var m = STAMP.exec(stamp);
-    if (!m) throw new Error('hebcal: unexpected time ' + stamp);
-    var offset = (m[7] === '-' ? -1 : 1) * (+m[8] * 60 + +m[9]) * 60000, date = stamp.slice(0, 10);
-    return { at: Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)) - offset, date: date, weekday: Tz.weekdayOf(date), time: m[4] + ':' + m[5] };
+    var at = Tz.instant(stamp), date = String(stamp).slice(0, 10);
+    if (isNaN(at)) throw new Error('hebcal: unexpected time ' + stamp);
+    return { at: at, date: date, weekday: Tz.weekdayOf(date), time: stamp.slice(11, 16) };
   }
   function hebrewDate(item) {
     var m = HDATE.exec(item.hdate || ''), p = item.heDateParts;
@@ -187,6 +185,10 @@ var Shabbat = (function () {
     for (var i = 0; i < windows.length; i++) if (!windows[i].end || windows[i].end.at > nowMs) return windows[i];
     return null;
   }
+  function endedToday(windows, nowMs, today) {
+    for (var i = 0; i < windows.length; i++) if (windows[i].end && windows[i].end.date === today && windows[i].end.at <= nowMs) return true;
+    return false;
+  }
   function litAt(segments, nowMs) {
     var lit = null;
     for (var i = 0; i < segments.length && segments[i].start.at <= nowMs; i++) lit = segments[i];
@@ -198,8 +200,10 @@ var Shabbat = (function () {
     var inRange = today <= data.range.end, w = inRange ? windowAt(data.windows, nowMs) : null;
     var lit = w && litAt(w.segments, nowMs), first = w && w.segments[0], shown = lit || first;
     var state = lit ? lit.kind : first && first.start.date === today ? STATE.EREV : STATE.WEEKDAY;
-    // From candle lighting until midnight the holy day has begun: its Hebrew date is the next civil day's.
-    var hebrewDay = lit && lit.start.date === today ? Tz.addDays(today, 1) : today;
+    // From candle lighting until midnight the holy day has begun: its Hebrew date is the next civil day's. N9 (FIX-BATCH-18
+    // part B): so it is after the havdalah that ended a Shabbat or a yom tov today — the evening already belongs to tomorrow's
+    // Hebrew date. (A plain weekday evening has no time of its own in the calendar answer: there the civil day's date stays.)
+    var hebrewDay = (lit && lit.start.date === today) || endedToday(data.windows, nowMs, today) ? Tz.addDays(today, 1) : today;
     return {
       today: { date: today, weekday: Tz.weekdayOf(today), day: +today.slice(8, 10), month: +today.slice(5, 7) - 1, hebrew: data.hebDates[hebrewDay] || null },
       state: state,

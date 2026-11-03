@@ -21,7 +21,7 @@ const REGIONS = () => [...document.querySelectorAll('.region')].map((c) => ({
   days: [...c.querySelectorAll('.day')].map((d) => d.querySelector('.day-name').textContent),
   bars: c.querySelectorAll('.range-fill').length, box: (() => { const b = c.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.right), Math.round(b.bottom)]; })() }));
 
-test('FB5-WX: «Погода в Израиле» — Север, Центр, Юг (Haifa, Tel Aviv, Beer Sheva): now and 5 days each, from the ONE weather request', async () => {
+test('FB5-WX: «Погода в Израиле» — Север, Центр, Юг (Haifa, Tel Aviv, Beer Sheva): now and 7 days each (batch 18), from the ONE weather request', async () => {
   const app = await openApp({ news: 'ok', alerts: 'empty-bom.txt' });
   try {
     await ready(app);
@@ -33,9 +33,9 @@ test('FB5-WX: «Погода в Израиле» — Север, Центр, Ю�
     for (const u of app.weatherRequests) assert.equal(new URL(u).searchParams.get('latitude').split(',').length, 6);
     const r = await p.evaluate(REGIONS);
     assert.deepEqual(r.map((c) => [c.cls, c.name, c.city, c.icon, c.days.length, c.bars]), [
-      ['card region', 'Север', 'Хайфа', true, 5, 5], ['card region', 'Центр', 'Тель-Авив', true, 5, 5], ['card region', 'Юг', 'Беэр-Шева', true, 5, 5]]);
+      ['card region', 'Север', 'Хайфа', true, 7, 7], ['card region', 'Центр', 'Тель-Авив', true, 7, 7], ['card region', 'Юг', 'Беэр-Шева', true, 7, 7]]);
     assert.deepEqual(r.map((c) => c.temp), ['18°', '21°', '23°']);
-    assert.deepEqual(r[0].subLines, ['Ощущается как 19°', 'Ветер 14 км/ч'], 'L10: feels-like and the wind, each on its own line, no «·»');
+    assert.deepEqual(r[0].subLines, ['19°', '14 км/ч'], 'batch 18: feels-like and the wind on one line, no words (an icon each)');
     assert.equal(r[0].days[0], 'Сегодня');
     assert.deepEqual(r.map((c) => c.box[1]), [r[0].box[1], r[0].box[1], r[0].box[1]], 'one line of cards');
     assert.deepEqual(r.map((c) => c.box[3]), [r[0].box[3], r[0].box[3], r[0].box[3]]);
@@ -57,7 +57,7 @@ test('FB5-WX: a failed refresh keeps the last data in every card, dimmed, and th
     await p.waitForSelector('#israel-status.is-stale', { timeout: 10000 });
     await wait(300);
     const r = await p.evaluate(REGIONS);
-    assert.deepEqual(r.map((c) => [c.cls, c.temp !== '', c.days.length]), [['card region is-stale', true, 5], ['card region is-stale', true, 5], ['card region is-stale', true, 5]]);
+    assert.deepEqual(r.map((c) => [c.cls, c.temp !== '', c.days.length]), [['card region is-stale', true, 7], ['card region is-stale', true, 7], ['card region is-stale', true, 7]]);
     assert.match(await p.$eval('#israel-status', (e) => e.textContent), /^Не обновляется · данные от 20:3\d$/);
     assert.equal(await p.$eval('.region.is-stale .region-temp', (e) => getComputedStyle(e).color), 'rgba(255, 255, 255, 0.62)');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-israel *')), []);
@@ -76,7 +76,8 @@ const MAP_VIEW = () => {
     fills: ib ? [ib.left - card.left, ib.top - card.top, card.right - ib.right, card.bottom - ib.bottom].map((d) => Math.round(Math.abs(d))) : null,
     card: [document.getElementById('map-card').clientWidth, document.getElementById('map-card').clientHeight], home: [home.left + home.width / 2 - card.left - 1, home.top + home.height / 2 - card.top - 1],   // from the padding box (1-px edge)
     attribution: attr.textContent, attrBox: (() => { const r = attr.getBoundingClientRect(); return [r.right <= card.right, r.bottom <= card.bottom, getComputedStyle(attr).visibility]; })(),
-    note: document.getElementById('map-note').textContent, status: document.getElementById('map-status').textContent,
+    // B17-V1: the one state block over the map card (#map-state)
+    note: document.getElementById('map-state').textContent, status: document.getElementById('map-status').textContent,
     title: document.querySelector('#screen-map .screen-title').textContent };
 };
 
@@ -110,7 +111,7 @@ test('MAP-S1: the map is one Mapbox live-traffic image filling the card — not 
   } finally { await app.close(); }
 });
 
-test('MAP-S2: every 5 min while on view (here 800 ms); a failed image keeps the last one and says «Карта недоступна · данные от HH:MM»; hidden asks nothing', async () => {
+test('MAP-S2 / B17-V4: every 5 min while on view (here 800 ms); a failed image keeps the last one and says «Не обновляется · данные от HH:MM»; hidden asks nothing', async () => {
   const app = await openApp({ news: 'ok', alerts: 'empty-bom.txt', configure: (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; c.map.refreshMs = 800; },
     map: (n) => (n === 1 ? null : { status: 503, body: '' }) });
   try {
@@ -121,7 +122,8 @@ test('MAP-S2: every 5 min while on view (here 800 ms); a failed image keeps the 
     const v = await p.evaluate(MAP_VIEW);
     assert.ok(app.requests.map.length >= 2, 'refreshed while on view');
     assert.deepEqual([v.loaded, v.cls], [true, 'card map-card'], 'the last image stays');
-    assert.match(v.status, /^Карта недоступна · данные от 20:3\d$/);
+    assert.match(v.status, /^Не обновляется · данные от 20:3\d$/);   // B17-V4
+    assert.equal(v.note, '', 'the last image on screen: no state block over it');
     assert.equal(new Set(app.requests.map.map((r) => new URL(r.url).searchParams.get('refresh'))).size, app.requests.map.length, 'a new stamp per image');
     await press(p, RIGHT); await wait(300);        // away from the map
     const n = app.requests.map.length;
@@ -130,16 +132,17 @@ test('MAP-S2: every 5 min while on view (here 800 ms); a failed image keeps the 
   } finally { await app.close(); }
 });
 
-test('MAP-S3: without a token the map invites like the traffic screen and asks for nothing; the header in Hebrew and Ukrainian', async () => {
+test('MAP-S3 / B17-V1 / B17-V4: without a token the map invites like the traffic screen (the state card) and asks for nothing; the stale header in Hebrew and Ukrainian', async () => {
   const app = await openApp({ news: 'ok', alerts: 'empty-bom.txt', map: 'ok' });
   try {
     await ready(app);
     await press(app.page, LEFT); await press(app.page, LEFT); await wait(800);
-    assert.deepEqual(await app.page.$eval('#screen-map', (s) => [s.querySelector('.screen-title').textContent, s.querySelector('.empty-text').textContent]),
-      ['Карта пробок', 'Подключите токен Mapbox, чтобы видеть пробки']);
+    assert.deepEqual(await app.page.$eval('#screen-map', (s) => [s.querySelector('.screen-title').textContent, s.querySelector('.state-card .state.is-none .state-text').textContent,
+      s.querySelector('.state-card .state.is-none .state-sub').textContent]),
+      ['Карта пробок', 'Подключите токен Mapbox, чтобы видеть пробки', 'MAPBOX_TOKEN в build.local.env, затем пересоберите приложение']);
     assert.equal(app.requests.map.length, 0);
   } finally { await app.close(); }
-  for (const [lang, title, stale] of [['he', 'מפת תנועה', /^המפה אינה זמינה · נתונים מ־20:3\d$/], ['uk', 'Карта заторів', /^Карта недоступна · дані від 20:3\d$/]]) {
+  for (const [lang, title, stale] of [['he', 'מפת תנועה', /^לא מתעדכן · נתונים מ־20:3\d$/], ['uk', 'Карта заторів', /^Не оновлюється · дані від 20:3\d$/]]) {   // B17-V4
     const l = await openApp({ lang, news: 'ok', alerts: 'empty-bom.txt', configure: (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; c.map.refreshMs = 800; }, map: (n) => (n === 1 ? null : { status: 503, body: '' }) });
     try {
       await ready(l);

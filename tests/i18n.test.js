@@ -18,7 +18,7 @@ test('every string key exists in both languages and is not empty', () => {
   const ctx = load(FILES);
   const keys = ['city.israel', 'city.ukraine', 'city.sydney', 'place.kyiv', 'place.sydney', 'clock.same', 'clock.ahead',
     'clock.behind', 'clock.unknown', 'w.feels', 'w.high', 'w.low', 'w.wind', 'w.humidity', 'w.rain', 'w.sunrise',
-    'w.sunset', 'w.kmh', 'w.now', 'w.today', 'w.hourly', 'w.days', 'w.updated', 'w.stale', 'w.loading', 'w.failed', 'w.retry', 'w.retrySoon'];
+    'w.sunset', 'w.kmh', 'w.now', 'w.today', 'w.hourly', 'w.days', 'st.fresh', 'st.stale', 'st.loading', 'st.failed', 'st.retry', 'st.retrySoon', 'st.partStale', 'st.noData'];   // B17-V6: one state vocabulary
   for (const lang of ['ru', 'en']) {
     ctx.I18n.setLang(lang);
     for (const k of keys) assert.ok(ctx.I18n.t(k) && ctx.I18n.t(k) !== k, lang + ' ' + k);
@@ -36,7 +36,7 @@ test('every Open-Meteo weather code has a name in both languages', () => {
 test('placeholders are filled; dates read naturally in each language', () => {
   const ctx = load(FILES);
   ctx.I18n.setLang('ru');
-  assert.equal(ctx.I18n.t('w.updated', { time: '20:32' }), 'Обновлено в 20:32');
+  assert.equal(ctx.I18n.t('st.fresh', { time: '20:32' }), 'Обновлено в 20:32');
   assert.equal(ctx.I18n.dateLong(4, 29, 9), 'Четверг, 29 октября');
   ctx.I18n.setLang('en');
   assert.equal(ctx.I18n.dateLong(4, 29, 9), 'Thursday, October 29');
@@ -50,13 +50,13 @@ test('batch 2: every screen, source, traffic and alert string exists in both lan
   // FB5B: the road widgets (t.road.*, t.col.roads), n.partial and the "today" limit (t.limit) are gone; the month cap,
   // 429, the night window and the news column/header states added.
   // FB5C: the night window, the month cap and the per-status refusal copy are gone; the judges' exact copy added.
-  const keys = ['screen.main', 'screen.news', 'screen.traffic', 'screen.map', 'n.justNow', 'n.minAgo', 'n.hAgo', 'n.dAgo', 'n.loading', 'n.failed', 'n.colFailed', 'n.colFailedRetry', 'n.failedRetry',
-    't.min', 't.hmin', 't.delay', 't.km', 't.noData', 't.noKey', 't.noKeySub', 't.failed',
-    't.updated', 't.updating', 't.updatingFrom', 't.future', 't.stale', 't.cap', 't.refused', 't.storage', 'm.loading', 'm.unavailable', 'm.staleFrom',
+  const keys = ['screen.main', 'screen.news', 'screen.traffic', 'screen.map', 'n.justNow', 'n.minAgo', 'n.hAgo', 'n.dAgo',
+    't.min', 't.hmin', 't.delay', 't.km', 't.noKey', 't.noKeySub',
+    't.futureDetail', 't.cap', 't.refused', 't.storage',
     'a.generic', 'a.since', 'a.shelter', 'a.shelterFor', 'a.nearby', 'a.offline',
     // batch 8: the "no connection · last answer" line, the alert preview and the Alerts screen
     'a.offlineSince', 'a.preview', 'screen.alerts', 'a.home.quiet', 'a.checked', 'a.checking', 'a.near.title', 'a.near.quiet',
-    'a.recent', 'a.recent.none', 'a.recent.loading', 'a.recent.failed',
+    'a.recent', 'a.recent.none',
     // batch 10: the home-alert line and the city picker (the route and home names now come from js/cities.js)
     'a.banner', 'a.bannerSince', 'city.title', 'city.sub', 'city.hint', 'city.saveFailed', 'city.saved']
     .concat(ctx.Config.news.feeds.map((f) => 'n.src.' + f.id), ctx.Config.news.columns.map((c) => 'n.col.' + c.id))
@@ -84,26 +84,21 @@ test('"how long ago" for a headline: just now, minutes, hours, days; a time in t
   assert.equal(ctx.I18n.ago(12 * m), '12 min ago');
 });
 
-// FB5C-7 (the judges' COMMON DECISION, line 7): the traffic copy, exactly.
-test('FB5C-7: the traffic copy — updated, updating, failed, future-dated, stale, the daily cap, a Mapbox refusal, storage', () => {
-  const ctx = load(FILES);
-  const t = (k, p) => ctx.I18n.t(k, p);
-  assert.equal(t('t.updated', { time: '20:32', n: 3 }), 'Обновлено в 20:32', 'N6: fresh says when, never «0 мин назад»; the age only when stale');
-  assert.equal(t('t.updating'), 'Обновляется…');
-  assert.equal(t('t.updatingFrom', { time: '20:32' }), 'Обновляется… · данные от 20:32');
-  assert.equal(t('t.failed'), 'Не удалось обновить пробки');
-  assert.equal(t('t.future'), 'Данные устарели · время данных требует проверки');
-  assert.equal(t('t.stale', { time: '29.10 20:32', n: 41 }), 'Данные устарели · обновлено 29.10 20:32 · 41 мин назад');
+// FB5C-7 (the judges' COMMON DECISION, line 7), B17-V3: the traffic copy, exactly — its header now in the one state
+// vocabulary (js/view-state.js: «Обновлено в 20:32 · 12 мин назад» / «Не обновляется · данные от …»), the judges' notes as they were.
+test('B17-V3: the traffic copy — fresh / stale with the age, future-dated, the daily cap, a Mapbox refusal, storage', () => {
+  const ctx = load(FILES.concat(['js/html.js']));
+  const t = (k, p) => ctx.I18n.t(k, p), head = ctx.ViewState.headText;
+  assert.equal(head('fresh', '20:32', [ctx.I18n.ago(12 * 60000)]), 'Обновлено в 20:32 · 12 мин назад');
+  assert.equal(head('stale', '29.10 20:32', [ctx.I18n.ago(41 * 60000)]), 'Не обновляется · данные от 29.10 20:32 · 41 мин назад');
+  assert.equal(head('stale', '20:32', [t('t.futureDetail')]), 'Не обновляется · данные от 20:32 · время данных требует проверки');
   assert.equal(t('t.cap', { time: '02:15' }), 'Дневной лимит запросов пробок исчерпан · обновление после 02:15');
   assert.equal(t('t.refused', { time: '20:57' }), 'Mapbox отклонил запрос (доступ или лимит) · автоматический повтор не раньше 20:57');
   assert.equal(t('t.storage'), 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов');
-  assert.equal(t('t.noData'), 'Нет данных');
-  // FB5D-R1: a news column that failed says so (never the neutral «Нет данных», now gone)
-  assert.equal(t('n.colFailedRetry', { time: '20:34' }), 'Не удалось загрузить · повторим в 20:34');
-  assert.equal(t('n.colFailed'), 'Не удалось загрузить');
-  assert.equal(t('n.noData'), 'n.noData', 'n.noData is gone');
-  for (const k of ['t.night', 't.nightFrom', 't.badKey', 't.busy', 't.loading', 't.retryAfter']) assert.equal(t(k), k, k + ' is gone');
-  for (const k of ['t.updated', 't.updating', 't.updatingFrom', 't.failed', 't.future', 't.stale', 't.cap', 't.refused', 't.storage'])
+  assert.equal(t('st.noData'), 'нет данных', 'F17-1: one key for «no data» (lower case: a part word)');
+  for (const k of ['n.noData', 't.night', 't.nightFrom', 't.badKey', 't.busy', 't.loading', 't.retryAfter', 't.updated', 't.updating', 't.updatingFrom', 't.failed', 't.future', 't.stale', 't.noData', 'n.colFailed', 'n.colFailedRetry'])
+    assert.equal(t(k), k, k + ' is gone');
+  for (const k of ['t.futureDetail', 't.cap', 't.refused', 't.storage'])
     assert.ok(!/1-го|05:30|06:00|месяц/.test(t(k, { time: 'X', n: 1 })), k + ': no monthly or window promise');
 });
 
@@ -135,7 +130,7 @@ test('L3: every interface string exists in Hebrew and Ukrainian (own strings, no
   }
   I18n.setLang('he');
   for (const k of keys) {
-    if (/^t\.noKeySub$/.test(k)) continue;                 // a file name and a variable: Latin by nature, Hebrew around them
+    if (/^(t\.noKeySub|w\.thousand)$/.test(k)) continue;   // a file name and a variable: Latin by nature; «1.5K» (FIX-18B 13A, pinned below)
     assert.match(I18n.t(k, { n: 1, h: 1, m: 5, t: '1°', time: '20:32', areas: 'א', text: 'א' }), /[\u0590-\u05ff]/, 'he ' + k + ' is Hebrew');
   }
   I18n.setLang('uk');
@@ -208,9 +203,9 @@ const PARASHOT = Object.keys(require('./fixtures/hebcal/parashot-names.json'));
 const SLUGS = ['rosh-hashana', 'yom-kippur', 'sukkot', 'shmini-atzeret', 'chanukah', 'tu-bishvat', 'purim', 'shushan-purim', 'pesach', 'yom-hashoah',
   'yom-hazikaron', 'yom-haatzmaut', 'lag-baomer', 'yom-yerushalayim', 'shavuot', 'tisha-bav', 'tzom-gedaliah', 'asara-btevet', 'taanit-esther', 'tzom-tammuz'];
 const MONTHS = ['Nisan', 'Iyyar', 'Sivan', 'Tamuz', 'Av', 'Elul', 'Tishrei', 'Cheshvan', 'Kislev', 'Tevet', "Sh'vat", 'Adar', 'Adar I', 'Adar II'];
-const B12_UI = ['screen.shabbat', 'sh.failed', 'sh.candles', 'sh.havdalah', 'sh.week', 'sh.shabbat', 'sh.parashaOf', 'sh.greet.shabbat',
+const B12_UI = ['screen.shabbat', 'sh.candles', 'sh.havdalah', 'sh.week', 'sh.shabbat', 'sh.parashaOf', 'sh.greet.shabbat',
   'sh.greet.yomtov', 'sh.greet.yomkippur', 'sh.today', 'sh.tomorrow', 'sh.inDays', 'sh.inHM', 'sh.inM', 'sh.ongoing', 'sh.todayIs', 'sh.fastTimes',
-  'sh.upcoming', 'sh.hdate', 'w.uv', 'w.air', 'w.noData', 'w.dustLabel', 'w.dustUnit', 'w.airShort', 'w.uv.low', 'w.uv.moderate', 'w.uv.high', 'w.uv.veryHigh', 'w.uv.extreme',
+  'sh.upcoming', 'sh.hdate', 'w.uv', 'w.air', 'w.dustLabel', 'w.dustUnit', 'w.airShort', 'w.uv.low', 'w.uv.moderate', 'w.uv.high', 'w.uv.veryHigh', 'w.uv.extreme',
   'w.air.good', 'w.air.fair', 'w.air.moderate', 'w.air.poor', 'w.air.veryPoor', 'w.air.extreme', 'w.air.khamsinWord'];
 
 test('B12: 59 parashot, 20 holidays and fasts (+ Shushan Purim, S9-2), 14 months and the screen\'s strings — own words in Russian, Hebrew and Ukrainian', () => {
@@ -231,6 +226,7 @@ test('B12: 59 parashot, 20 holidays and fasts (+ Shushan Purim, S9-2), 14 months
   I18n.setLang('he');
   for (const k of keys) {
     if (k === 'w.uv' || k === 'sh.hdate') continue;                       // «מדד UV», «{day} ב{month} {year}»: checked below
+    if (k === 'w.thousand') { assert.equal(I18n.t(k, { n: '1.5' }), '1.5K'); continue; }   // FIX-18B 13A: «1.5K» as Israeli screens write thousands; «1.5 א׳» did not fit a band cell (12.7 px between neighbours)
     if (/^(sh\.week|sh\.parashaOf|sh\.todayIs|sh\.fastTimes)$/.test(k)) continue;   // a {name} template: Hebrew words around it
     assert.match(I18n.t(k, { n: 1, h: 1, m: 5 }), /[֐-׿]/, 'he ' + k + ' is Hebrew');
   }
@@ -289,10 +285,11 @@ test('Reading: the labels, 9 special Shabbatot and 31 books — own words in Rus
 });
 
 // F-5 (FIX-16B): «Прогноз на {n} дней» / «Прогноз на {n} днів» read right only for 5–20 days (no plural forms in the tables):
-// the configured forecasts are pinned to 5 and 7, so a change of either is a change of this test and of the strings.
-test('F-5: the forecast lengths stay where the ru/uk plural «дней»/«днів» is right — 7 days at home, 5 on the Israel screen', () => {
+// the forecast with a title is pinned to 7, so a change is a change of this test and of the strings. Batch 18: the Israel
+// screen shows 7 days too (the owner), with no title over them — so no plural to keep right there.
+test('F-5: the titled forecast length stays where the ru/uk plural «дней»/«днів» is right — 7 days at home; the Israel screen 7, untitled', () => {
   const ctx = load(FILES);
   assert.equal(ctx.Config.weather.days, 7);
-  assert.equal(ctx.Config.israel.days, 5);
-  for (const n of [ctx.Config.weather.days, ctx.Config.israel.days]) assert.ok([5, 7].includes(n), String(n));
+  assert.equal(ctx.Config.israel.days, 7);
+  assert.ok([5, 7].includes(ctx.Config.weather.days));
 });

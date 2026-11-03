@@ -98,6 +98,17 @@ test('CSS uses nothing Chromium 47 lacks (custom properties, grid, backdrop-filt
   assert.ok(!/(^|[\s;{])gap\s*:/.test(css), 'flex gap');
 });
 
+// D-C2 (batch 17): one type scale. Every font-size in css/app.css is one of the eight steps — labels 24, body 28, titles 34,
+// screen titles 40, figures 52 / 72 / 104 / 136 — and the CSS header says so.
+test('D-C2: every font-size in css/app.css is one of 24, 28, 34, 40, 52, 72, 104, 136', () => {
+  const css = read('css/app.css'), steps = [24, 28, 34, 40, 52, 72, 104, 136];
+  const sizes = [...css.matchAll(/font-size:\s*([^;}]+)/g)].map((m) => m[1].trim());
+  assert.ok(sizes.length > 80, 'the declarations were found (' + sizes.length + ')');
+  const off = sizes.filter((v) => !/^\d+px$/.test(v) || !steps.includes(parseInt(v, 10)));
+  assert.deepEqual(off, [], 'off the scale');
+  assert.match(css.slice(0, 1200), /Type: 24 · 28 · 34 · 40 · 52 · 72 · 104 · 136/);
+});
+
 test('index.html loads every app script, config first and app last', () => {
   const html = read('index.html');
   const scripts = [...html.matchAll(/<script src="(js\/[^"]+)"/g)].map((m) => m[1]);

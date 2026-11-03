@@ -32,7 +32,7 @@ test('every weather code maps to an icon', () => {
 });
 
 // ---- Batch 12: the air & UV block in the main "now" card, the air chip on the Israel cards ---------------------------
-const B12 = ['js/config.js', 'js/i18n.js', 'js/tz.js', 'js/html.js', 'js/icons.js', 'js/view.js', 'js/view-israel.js'];
+const B12 = ['js/config.js', 'js/i18n.js', 'js/tz.js', 'js/html.js', 'js/icons.js', 'js/openmeteo.js', 'js/air.js', 'js/view.js', 'js/view-israel.js'];   // air.js: Air.grade (FIX-18B 13)
 function fakeDoc() {
   const nodes = {};
   const node = (id) => {
@@ -53,10 +53,14 @@ function mainWith(lang, s) {
   ctx.I18n.setLang(lang);
   const doc = fakeDoc();
   ctx.View.init(doc, [], { hours: 12, days: 7 });
-  ctx.View.renderWeather(NOW_VIEW, Object.assign({ name: 'Реховот', kind: 'fresh', retryAt: '' }, s));
+  // the App always passes the dust forecast (its threshold with it: FIX-17B 15); before the first air answer it is { loading }
+  ctx.View.renderWeather(NOW_VIEW, Object.assign({ name: 'Реховот', kind: 'fresh', retryAt: '', dust: { loading: true, limit: 100 } }, s));
   const html = doc.nodes.now.innerHTML, i = html.indexOf('<div class="now-air');
   return { html, block: i < 0 ? null : html.slice(i, html.indexOf('<div class="now-icon">')), cls: doc.nodes.now.className };
 }
+// FIX-18B 13B (the owner: one explanation, in one place): the one khamsin key is the grades' scale on the current card's dust label
+const GRADES = ['100', '121', '196', '271'];   // the scale's text, each on its own pill
+const SCALE = '<span class="dust-num is-khamsin kg-1">100</span><span class="dust-num is-khamsin kg-2">121</span><span class="dust-num is-khamsin kg-3">196</span><span class="dust-num is-khamsin kg-4">271</span>';
 const FAIR = { aqi: 38, level: 'fair', dust: 25, dustHigh: false };          // Air.summary shapes: rounded by the data side
 const DUSTY = { aqi: 104, level: 'extreme', dust: 240, dustHigh: true };
 const DUST_NO_AQI = { aqi: null, level: null, dust: 240, dustHigh: true };
@@ -65,31 +69,32 @@ test('B12 air & UV: between the place text and the icon, no glyphs; UV and air e
   const r = mainWith('ru', { uv: { index: 5, level: 'moderate' }, air: FAIR, airKind: 'fresh' });
   assert.ok(r.html.indexOf('now-main') < r.html.indexOf('now-air') && r.html.indexOf('now-air') < r.html.indexOf('now-icon'), 'between the text and the icon');
   assert.ok(!/<svg/.test(r.block), 'no glyph icons in the block');
-  assert.deepEqual(stripTags(r.block), ['УФ макс.', '5', 'умеренный', 'Качество воздуха', '38', 'приемлемое', 'Пыль', '25', 'мкг/м³']);
+  assert.deepEqual(stripTags(r.block), ['УФ макс.', '5', 'умеренный', 'Качество воздуха', '38', 'приемлемое', 'Пыль', ...GRADES, '25', 'мкг/м³']);
   assert.match(r.block, /<span class="air-word lv-moderate">умеренный<\/span>/);
   assert.match(r.block, /<span class="air-word lv-fair">приемлемое<\/span>/);
   assert.match(r.html, /<div class="details">/, 'the details row is still there, unchanged');
 });
 
 // N1 (batch 16): the khamsin word on the dust item's label line («Пыль · хамсин»), the value line «240 мкг/м³».
-test('B12 air: high dust is a khamsin — the dust item «Пыль · хамсин / 240 мкг/м³», amber word; in every language', () => {
-  for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Пыль ·', 'хамсин', '240', 'мкг/м³']],
-    ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'אבק ·', 'חמסין', '240', 'מק״ג/מ״ק']],
-    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Пил ·', 'хамсин', '240', 'мкг/м³']]]) {
+test('B12 air: high dust is a khamsin — the dust item «Пыль [хамсин ≥ 100] / 240 мкг/м³», the key amber (OWNER-1LEG-C); in every language', () => {
+  for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Пыль', ...GRADES, '240', 'мкг/м³']],
+    ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'אבק', ...GRADES, '240', 'מק״ג/מ״ק']],
+    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Пил', ...GRADES, '240', 'мкг/м³']]]) {
     const r = mainWith(lang, { uv: { index: 9, level: 'veryHigh' }, air: DUSTY, airKind: 'fresh' });
     assert.deepEqual(stripTags(r.block), words, lang);
+    assert.match(r.block, /<span class="dust-legend-scale is-active">/, lang + ': the key (the grades) lit');   // FIX-18B 13B
   }
-  assert.deepEqual(stripTags(mainWith('ru', { uv: null, air: FAIR, airKind: 'fresh' }).block).slice(-3), ['Пыль', '25', 'мкг/м³'], 'ordinary dust: its own labelled item');
+  assert.deepEqual(stripTags(mainWith('ru', { uv: null, air: FAIR, airKind: 'fresh' }).block).slice(-7), ['Пыль', ...GRADES, '25', 'мкг/м³'], 'ordinary dust: its own labelled item, the key quiet');
 });
 
-test('B12 air: loading keeps the slot (a placeholder bar), failed says «Нет данных», stale is dimmed, no UV reads «—»', () => {
+test('B12 air: loading keeps the slot (a placeholder bar), failed says «нет данных» (B17-V5: st.noData), stale is dimmed, no UV reads «—»', () => {
   const loading = mainWith('ru', { uv: { index: 3, level: 'moderate' }, air: null, airKind: 'loading' });
   assert.match(loading.block, /<span class="skeleton air-skeleton"><\/span>/);
   assert.deepEqual(stripTags(loading.block), ['УФ макс.', '3', 'умеренный', 'Качество воздуха']);
   const failed = mainWith('ru', { uv: null, air: null, airKind: 'failed' });
-  assert.deepEqual(stripTags(failed.block), ['УФ макс.', '—', 'Качество воздуха', 'Нет данных']);
+  assert.deepEqual(stripTags(failed.block), ['УФ макс.', '—', 'Качество воздуха', 'нет данных']);
   const noLevel = mainWith('ru', { uv: null, air: { aqi: null, level: null, dust: null, dustHigh: false }, airKind: 'fresh' });
-  assert.deepEqual(stripTags(noLevel.block).slice(-1), ['Нет данных'], 'a missing level is never a made-up one');
+  assert.deepEqual(stripTags(noLevel.block).slice(-1), ['нет данных'], 'a missing level is never a made-up one');
   assert.match(mainWith('ru', { uv: null, air: FAIR, airKind: 'stale' }).block, /^<div class="now-air is-stale">/);
   assert.match(mainWith('ru', { uv: null, air: FAIR, airKind: 'fresh' }).block, /^<div class="now-air">/);
 });
@@ -101,7 +106,7 @@ function israelWith(lang, air, airKind) {
   const regions = [{ id: 'center', place: 'telaviv' }];
   ctx.IsraelView.init(doc, regions);
   const card = { region: regions[0], view: null, kind: 'loading', retryAt: '', key: 'k1', air, airKind };
-  ctx.IsraelView.render([card], 5, { kind: 'none', updated: '' });
+  ctx.IsraelView.render([card], { kind: 'none', updated: '' });
   const html = doc.nodes['region-center'].innerHTML;
   // head: the region head and, right under it, the air line (its own line since the owner's «должно быть понятно»)
   const line = html.match(/<div class="region-air[^"]*">.*?<\/div>/);
@@ -112,7 +117,7 @@ test('B12 Israel air line: labelled «Воздух: приемлемое» on it
   const fair = israelWith('ru', FAIR, 'fresh');
   assert.match(fair.head, /<\/div><div class="region-air lv-fair"><span class="region-air-label">Воздух:<\/span> <span class="region-air-word">приемлемое<\/span><\/div>$/);
   for (const [lang, label] of [['he', 'אוויר:'], ['uk', 'Повітря:']]) assert.match(israelWith(lang, FAIR, 'fresh').head, new RegExp('<span class="region-air-label">' + label + '</span>'), lang);
-  assert.match(israelWith('ru', DUSTY, 'fresh').head, /<div class="region-air lv-dust"><span class="region-air-label">Воздух:<\/span> <span class="region-air-word">хамсин<\/span>/, 'a khamsin: labelled, in the dust colour');
+  assert.match(israelWith('ru', DUSTY, 'fresh').head, /<div class="region-air lv-dust"><span class="region-air-label">Воздух:<\/span> <span class="region-air-word dust-num is-khamsin kg-3">хамсин<\/span>/, 'FIX-18D 3: a khamsin on its grade\'s pill (240: 3); labelled, in the dust colour');
   assert.match(israelWith('he', FAIR, 'fresh').head, />סבירה</);
   assert.match(israelWith('uk', DUSTY, 'fresh').head, />хамсин</);
   assert.match(israelWith('ru', FAIR, 'stale').head, /region-air lv-fair is-stale/);
@@ -124,9 +129,9 @@ test('B12 Israel chip: an air answer alone redraws the card (the air is in the c
   const r = israelWith('ru', null, 'loading');
   const el = r.doc.nodes['region-center'];
   assert.equal(el.writes, 1);
-  r.ctx.IsraelView.render([r.card], 5, { kind: 'none', updated: '' });
+  r.ctx.IsraelView.render([r.card], { kind: 'none', updated: '' });
   assert.equal(el.writes, 1, 'same card, same air: not rewritten');
-  r.ctx.IsraelView.render([Object.assign({}, r.card, { air: FAIR, airKind: 'fresh' })], 5, { kind: 'none', updated: '' });
+  r.ctx.IsraelView.render([Object.assign({}, r.card, { air: FAIR, airKind: 'fresh' })], { kind: 'none', updated: '' });
   assert.equal(el.writes, 2);
 });
 
@@ -141,11 +146,11 @@ test('V4: after sunset the UV level word is dimmed (the day\'s maximum is behind
 });
 
 test('V12: high dust is said even when the AQI is missing — main line and region chip, ru/he/uk, fresh and stale', () => {
-  for (const [lang, none, dust, word] of [['ru', 'Нет данных', ['Пыль ·', 'хамсин', '240', 'мкг/м³'], 'хамсин'], ['he', 'אין נתונים', ['אבק ·', 'חמסין', '240', 'מק״ג/מ״ק'], 'חמסין'],
-    ['uk', 'Немає даних', ['Пил ·', 'хамсин', '240', 'мкг/м³'], 'хамсин']]) {
+  for (const [lang, none, dust, word] of [['ru', 'нет данных', ['Пыль', ...GRADES, '240', 'мкг/м³'], 'хамсин'], ['he', 'אין נתונים', ['אבק', ...GRADES, '240', 'מק״ג/מ״ק'], 'חמסין'],
+    ['uk', 'немає даних', ['Пил', ...GRADES, '240', 'мкг/м³'], 'хамсин']]) {
     for (const kind of ['fresh', 'stale']) {
       const r = mainWith(lang, { uv: null, air: DUST_NO_AQI, airKind: kind });
-      assert.deepEqual(stripTags(r.block).slice(-5), [none].concat(dust), lang + ' ' + kind + ': «no data» for the AQI, the dust item kept');
+      assert.deepEqual(stripTags(r.block).slice(-8), [none].concat(dust), lang + ' ' + kind + ': «no data» for the AQI, the dust item kept');
       const chip = israelWith(lang, DUST_NO_AQI, kind).head;
       assert.match(chip, new RegExp('<div class="region-air lv-dust' + (kind === 'stale' ? ' is-stale' : '') + '">[\\s\\S]*>' + word + '<\\/span>'), lang + ' ' + kind);
     }
@@ -155,16 +160,19 @@ test('V12: high dust is said even when the AQI is missing — main line and regi
 test('V13: the region card is keyed by what the chip shows — AQI 31 → 39 (both fair) writes nothing; fair → moderate writes once', () => {
   const r = israelWith('ru', { aqi: 31, level: 'fair', dust: 18, dustHigh: false }, 'fresh');
   const el = r.doc.nodes['region-center'];
-  const again = (air, kind) => r.ctx.IsraelView.render([Object.assign({}, r.card, { air, airKind: kind || 'fresh' })], 5, { kind: 'none', updated: '' });
+  const again = (air, kind) => r.ctx.IsraelView.render([Object.assign({}, r.card, { air, airKind: kind || 'fresh' })], { kind: 'none', updated: '' });
   again({ aqi: 39, level: 'fair', dust: 22, dustHigh: false });
   assert.equal(el.writes, 1, 'same word, same colour: not rewritten');
   again({ aqi: 120, level: 'extreme', dust: 150, dustHigh: true });
+  again({ aqi: 125, level: 'extreme', dust: 160, dustHigh: true });
+  assert.equal(el.writes, 2, 'dust 150 → 160: the same «хамсин», the same grade (2): not rewritten');
   again({ aqi: 130, level: 'extreme', dust: 210, dustHigh: true });
-  assert.equal(el.writes, 2, 'dust 150 → 210: the same «хамсин»');
+  assert.equal(el.writes, 3, 'FIX-18D 3: dust 160 → 210 — grade 2 → 3, only the grade changed: rewritten');
+  assert.match(el.innerHTML, /region-air-word dust-num is-khamsin kg-3/);
   again({ aqi: 45, level: 'moderate', dust: 20, dustHigh: false });
-  assert.equal(el.writes, 3);
+  assert.equal(el.writes, 4);
   again({ aqi: 45, level: 'moderate', dust: 20, dustHigh: false }, 'stale');
-  assert.equal(el.writes, 4, 'stale dims the chip: a change');
+  assert.equal(el.writes, 5, 'stale dims the chip: a change');
 });
 
 // The owner (2026-11-02): «вижу ультрофеолет - но не вижу пыли … не вижу хамсин», «открой все-равно - я хочу видть все даже если
@@ -176,18 +184,20 @@ test('Dust: its own item with its own label, the value in the value line — ru,
   for (const [lang, label, unit] of [['ru', 'Пыль', 'мкг/м³'], ['he', 'אבק', 'מק״ג/מ״ק'], ['uk', 'Пил', 'мкг/м³']]) {
     const d = dustItem(mainWith(lang, { uv: null, air: FAIR, airKind: 'fresh' }).block);
     assert.ok(d, lang + ': a dust item');
-    assert.match(d, new RegExp('^<div class="air-item air-dust"><div class="air-label">' + label + '</div><div class="air-value"><span class="air-num">25</span> <span class="air-unit">' + unit.replace(/[/]/g, '\\/') + '</span></div></div>'), lang);
+    assert.match(d, new RegExp('^<div class="air-item air-dust"><div class="air-label dust-legend"><span class="dust-legend-key">' + label + '</span><span class="dust-legend-scale">' +
+      SCALE + '</span></div><div class="air-value"><span class="air-num">25</span> <span class="air-unit">' + unit.replace(/[/]/g, '\\/') + '</span></div></div>'), lang);
     assert.ok(!/air-word/.test(d), lang + ': an ordinary day has no level word');
   }
 });
 // N1 (batch 16): a 4-digit khamsin («3400 мкг/м³ хамсин») overflowed the 256 px block, so the amber word moved to the label's
 // line («Пыль · хамсин»); the value line keeps the figure and its unit.
-test('Dust: at 100 µg/m³ and more the amber «хамсин» is on the label\'s line («Пыль · хамсин»), the value line the figure and its unit', () => {
-  for (const [lang, label, word] of [['ru', 'Пыль', 'хамсин'], ['he', 'אבק', 'חמסין'], ['uk', 'Пил', 'хамсин']]) {
+test('Dust: at 100 µg/m³ and more the key «хамсин ≥ 100» on the label\'s line is the amber pill (OWNER-1LEG-C), the value line the figure and its unit', () => {
+  for (const [lang, label] of [['ru', 'Пыль'], ['he', 'אבק'], ['uk', 'Пил']]) {
     const d = dustItem(mainWith(lang, { uv: null, air: DUSTY, airKind: 'fresh' }).block);
-    assert.match(d, new RegExp('<div class="air-label">' + label + ' · <span class="air-word lv-khamsin">' + word + '</span></div><div class="air-value"><span class="air-num">240</span> <span class="air-unit">[^<]+</span></div>'), lang);
+    assert.match(d, new RegExp('<div class="air-label dust-legend"><span class="dust-legend-key">' + label + '</span><span class="dust-legend-scale is-active">' + SCALE +
+      '</span></div><div class="air-value"><span class="air-num dust-num is-khamsin kg-3">240</span> <span class="air-unit">[^<]+</span></div>'), lang);   // FIX-BATCH-18 part B: the reading on the khamsin pill
   }
-  assert.match(dustItem(mainWith('ru', { uv: null, air: { aqi: 41, level: 'moderate', dust: 100, dustHigh: true }, airKind: 'fresh' }).block), />хамсин<[\s\S]*>100</);
+  assert.match(dustItem(mainWith('ru', { uv: null, air: { aqi: 41, level: 'moderate', dust: 100, dustHigh: true }, airKind: 'fresh' }).block), /dust-legend-scale is-active">[\s\S]*air-num dust-num is-khamsin kg-1">100</);   // FIX-18B 13: 100 is grade 1
 });
 test('Dust: no dust value — the item is not drawn (no label, no number), its slot reserved', () => {
   const r = mainWith('ru', { uv: null, air: { aqi: 38, level: 'fair', dust: null, dustHigh: false }, airKind: 'fresh' });
@@ -231,14 +241,17 @@ function stripWith(lang, dust) {
   return { hourly: doc.nodes.hourly.innerHTML, daily: doc.nodes.daily.innerHTML };
 }
 const slots = (html, cls) => [...html.matchAll(new RegExp('<div class="' + cls + '( is-stale)?">(.*?)</div>', 'g'))].map((m) => m[2]);
-const legendOf = (html) => stripTags(html.slice(html.indexOf('<div class="dust-legend">'), html.indexOf('<div class="hours">') >= 0 ? html.indexOf('<div class="hours">') : html.indexOf('<div class="days">')));
+const bandOf = (html) => { const i = html.indexOf('<div class="dust-band">'); return i < 0 ? null : html.slice(i); };
 
-test('B13 hourly: the title row keeps «Почасовой прогноз» and adds the legend «Пыль, мкг/м³ · хамсин ≥ 100» right after the title — ru, he, uk', () => {
-  for (const [lang, title, legend] of [['ru', 'Почасовой прогноз', ['Пыль, мкг/м³', 'хамсин ≥ 100']],
-    ['he', 'תחזית שעתית', ['אבק, מק״ג/מ״ק', 'חמסין ‪≥ 100‬']], ['uk', 'Погодинний прогноз', ['Пил, мкг/м³', 'хамсин ≥ 100']]]) {
-    const h = stripWith(lang, DUST_OK).hourly;
-    assert.match(h, new RegExp('^<div class="card-head"><div class="card-title">' + title + '</div><div class="dust-legend"><span class="dust-legend-key">'), lang);
-    assert.deepEqual(legendOf(h), legend, lang);
+// OWNER-1LEG-C (owner 2026-11-02, one legend + design C): the title rows carry their title only; the khamsin key is said once,
+// on the current card's dust item (Dust tests above); the day rows carry the weather only and the dust has its own band.
+test('OWNER-1LEG-C / FIX-17B 1: the hourly title row carries its title and the dust row\'s own «Пыль» label, the daily one its title only — no khamsin key in any title row', () => {
+  for (const [lang, hourly, daily, label] of [['ru', 'Почасовой прогноз', 'Прогноз на 7 дней', 'Пыль'], ['he', 'תחזית שעתית', 'תחזית ל־7 ימים', 'אבק'], ['uk', 'Погодинний прогноз', 'Прогноз на 7 днів', 'Пил']]) {
+    const r = stripWith(lang, DUST_OK);
+    // FIX-18B 13B: the grades are said once, on the current card — the hourly title row carries its title and «Пыль» only
+    assert.match(r.hourly, new RegExp('^<div class="card-head"><div class="card-title">' + hourly + '</div><div class="band-label">' + label + '</div></div><div class="hours">'), lang);
+    assert.match(r.daily, new RegExp('^<div class="card-head"><div class="card-title">' + daily + '</div></div><div class="days">'), lang);
+    assert.ok(!/dust-legend/.test(r.hourly + r.daily), lang + ': the legend is the current card\'s only');
   }
 });
 
@@ -246,42 +259,50 @@ test('B13 hourly: every hour has its own dust line UNDER the temperature — the
   const h = stripWith('ru', DUST_OK).hourly;
   const hours = h.split(/<div class="hour(?: is-now| is-empty| is-gap)?">/).slice(1);
   assert.match(hours[0], /<div class="hour-temp">[^<]*<\/div><div class="hour-dust"><span class="dust-num">27<\/span><\/div><\/div>$/, 'under the temperature, last in the column');
-  assert.deepEqual(slots(h, 'hour-dust'), ['<span class="dust-num">27</span>', '<span class="dust-num is-khamsin">120</span>', '<span class="dust-none">—</span>'],   // X5: «—» muted
+  assert.deepEqual(slots(h, 'hour-dust'), ['<span class="dust-num">27</span>', '<span class="dust-num is-khamsin kg-1">120</span>', '<span class="dust-none">—</span>'],   // FIX-18B 13: the pill carries its grade   // X5: «—» muted
     'ordinary, khamsin, no value «—»');
   // L5 (batch 16): an hour beyond the data is an empty slot of its own size — no placeholder bar (those are for loading only)
   assert.match(h, /<div class="hour is-gap"><\/div><\/div>$/, 'the 4th hour: an empty gap, no skeleton');
   assert.ok(!/skeleton/.test(h), 'no placeholder with data on screen');
 });
 
-test('B13 daily: the title row carries «Пыль макс., мкг/м³ · хамсин ≥ 100»; each day row a dust column after the high, «—» without a value', () => {
+test('OWNER-1LEG-C: a day row is the weather only (day · icon · min ─bar─ max); the dust band under the list — «Пыль», then each day\'s short name over its maximum, the khamsin pill, «—» without a value', () => {
   const d = stripWith('ru', DUST_OK).daily;
-  assert.match(d, /^<div class="card-head"><div class="card-title">Прогноз на 7 дней<\/div><div class="dust-legend">/);
-  assert.deepEqual(legendOf(d), ['Пыль макс., мкг/м³', 'хамсин ≥ 100']);
-  assert.deepEqual(slots(d, 'day-dust'), ['<span class="dust-num">38</span>', '<span class="dust-num is-khamsin">185</span>']);
-  assert.match(d, /<div class="day is-gap"><\/div><\/div>$/, 'L5: the day beyond the data an empty gap');
-  assert.match(d, /<div class="day-max">[^<]*<\/div><div class="day-dust"><span class="dust-num">38<\/span><\/div><\/div>/, 'right after the high temperature');
+  assert.ok(!/<div class="day">[\s\S]*?day-dust[\s\S]*?<\/div><\/div><div class="day/.test(d.slice(0, d.indexOf('<div class="dust-band">'))), 'no dust inside a day row');
+  assert.match(d, /<div class="day-max">[^<]*<\/div><\/div>/, 'the high temperature ends the row');
+  const band = bandOf(d);
+  assert.match(band, /^<div class="dust-band"><div class="band-label">Пыль<\/div><div class="band-cells">/);
+  assert.deepEqual(slots(band, 'day-dust'), ['<span class="dust-num">38</span>', '<span class="dust-num is-khamsin kg-2">185</span>']);   // FIX-18B 13: the pill carries its grade
+  assert.deepEqual([...band.matchAll(/<div class="band-day">([^<]*)<\/div>/g)].map((m) => m[1]).slice(0, 1), ['Сег.'], 'today, short');
+  assert.match(band, /<div class="band-cell"><\/div><\/div><\/div>$/, 'L5: the day beyond the data an empty cell');
   const none = stripWith('ru', { hours: [null, null, null, null], days: [null, null, null], stale: false, limit: 100 });
-  assert.deepEqual(slots(none.daily, 'day-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>'], 'air failed / no forecast: «—» per day (X5: muted)');
+  assert.deepEqual(slots(bandOf(none.daily), 'day-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>'], 'air failed / no forecast: «—» per day (X5: muted)');
   assert.deepEqual(slots(none.hourly, 'hour-dust'), ['<span class="dust-none">—</span>', '<span class="dust-none">—</span>', '<span class="dust-none">—</span>'], '… and per hour');
-  assert.deepEqual(legendOf(none.hourly), ['Пыль, мкг/м³', 'хамсин ≥ 100'], 'the legend stays');
-  for (const [lang, legend] of [['he', 'אבק מרבי, מק״ג/מ״ק'], ['uk', 'Пил макс., мкг/м³']]) assert.equal(legendOf(stripWith(lang, DUST_OK).daily)[0], legend, lang);
+  for (const [lang, label, today] of [['he', 'אבק', 'היום'], ['uk', 'Пил', 'Сьог.']]) {
+    const b = bandOf(stripWith(lang, DUST_OK).daily);
+    assert.match(b, new RegExp('<div class="band-label">' + label + '</div>'), lang);
+    assert.match(b, new RegExp('<div class="band-day">' + today + '</div>'), lang);
+  }
 });
 
-test('B13 no air yet: every dust slot is there and empty (its room kept), the legend shown; stale: every slot dimmed', () => {
+test('B13 no air yet: every dust slot is there and empty (its room kept); stale: every slot dimmed; no weather yet: the band\'s placeholder (FIX-17B 5)', () => {
   const r = stripWith('ru', { loading: true, limit: 100 });
   assert.deepEqual(slots(r.hourly, 'hour-dust'), ['', '', '']);
-  assert.deepEqual(slots(r.daily, 'day-dust'), ['', '']);
-  assert.deepEqual(legendOf(r.daily), ['Пыль макс., мкг/м³', 'хамсин ≥ 100']);
+  assert.deepEqual(slots(bandOf(r.daily), 'day-dust'), ['', '']);
   const stale = stripWith('ru', Object.assign({}, DUST_OK, { stale: true }));
   assert.equal((stale.hourly.match(/<div class="hour-dust is-stale">/g) || []).length, 3, 'the three drawn hours');
   assert.equal((stale.daily.match(/<div class="day-dust is-stale">/g) || []).length, 2);
   assert.equal((stripWith('ru', DUST_OK).hourly.match(/is-stale/g) || []).length, 0);
-  // the weather itself not there yet: the placeholders keep an empty dust slot as well
   const ctx = load(B12); ctx.I18n.setLang('ru');
   const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 2, days: 2 });
   ctx.View.renderWeather(null, { name: 'Реховот', kind: 'loading', retryAt: '', dust: { loading: true, limit: 100 } });
-  assert.deepEqual(slots(doc.nodes.hourly.innerHTML, 'hour-dust'), ['', '']);
-  assert.deepEqual(slots(doc.nodes.daily.innerHTML, 'day-dust'), ['', '']);
+  assert.deepEqual(slots(doc.nodes.hourly.innerHTML, 'hour-dust'), ['', ''], 'the placeholders keep an empty dust slot');
+  // FIX-17B 5: the band is there before the first weather answer — its label and one empty cell per day, the same boxes as
+  // with data (nothing moves when the data lands); the loading day rows carry no dust slot of their own
+  const daily = doc.nodes.daily.innerHTML, band = daily.slice(daily.indexOf('<div class="dust-band is-empty">'));
+  assert.ok(daily.indexOf('<div class="dust-band is-empty">') > 0, 'the placeholder band is there');
+  assert.equal((band.match(/<div class="band-cell"><div class="band-day"><\/div><div class="day-dust"><\/div><\/div>/g) || []).length, 2, 'one empty cell per day');
+  assert.ok(!/<div class="day is-empty">[^]*?day-dust[^]*?<\/div><\/div><div class="dust-band/.test(daily), 'no dust slot in the loading rows');
 });
 
 // Codex CC1 (batch 16): the forecast's title says the configured number of days (w.days {n}), never a fixed «7».
@@ -294,67 +315,107 @@ test('CC1: the daily card\'s title follows Config.weather.days — 5 days read �
   }
 });
 
-test('B13 Israel: each region\'s days carry their dust maximum and the same legend; a new forecast alone redraws the card, the same one does not', () => {
+// Batch 18 (the owner: «убрать фразу "ощущается" и "ветер" — их две сделать компактными и на одной строке»): feels-like and
+// the wind on ONE line, no words: a thermometer and the wind glyph for labels, the units kept; in every language.
+test('B18 Israel: feels-like and wind on one line, each with its icon for a label and no words; no condition line, no title', () => {
+  for (const [lang, kmh, words] of [['ru', 'км/ч', /Ощущается|Ветер|Ясно/], ['he', 'קמ״ש', /מרגיש|רוח|בהיר/], ['uk', 'км/год', /Відчувається|Вітер|Ясно/]]) {
+    const ctx = load(B12); ctx.I18n.setLang(lang);
+    const doc = fakeDoc(), regions = [{ id: 'center', place: 'telaviv' }];
+    ctx.IsraelView.init(doc, regions);
+    ctx.IsraelView.render([{ region: regions[0], view: Object.assign({}, NOW_VIEW, { daily: [] }), kind: 'fresh', retryAt: '', key: 'k', air: FAIR, airKind: 'fresh' }], { kind: 'fresh', updated: '16:00' });
+    const html = doc.nodes['region-center'].innerHTML, sub = html.match(/<div class="region-sub">([\s\S]*?)<\/div><div class="days">/);
+    assert.ok(sub, lang + ': the line before the days');
+    const parts = sub[1].split('<span class="region-part">').slice(1);
+    assert.equal(parts.length, 2, lang + ': two values on the one line');
+    assert.match(parts[0], /g-feels/, lang + ': feels-like labelled by its own glyph — a thermometer with a person (FIX-18B 12)');
+    assert.match(parts[1], /g-wind/, lang + ': the wind labelled by its glyph');
+    assert.deepEqual(stripTags(sub[1]).map((x) => x.replace(/[\u202a\u202c]/g, '')), ['22°', '12 ' + kmh], lang);
+    assert.ok(!words.test(html.replace(/<div class="region-air[\s\S]*?<\/div>/, '')), lang + ': no words for the two values, no condition words');
+  }
+});
+test('OWNER-1LEG-C Israel: each region\'s days carry their dust maximum in the band, no legend; a new forecast alone redraws the card, the same one does not', () => {
   const ctx = load(B12); ctx.I18n.setLang('ru');
   const doc = fakeDoc(), regions = [{ id: 'south', place: 'beersheva' }];
   ctx.IsraelView.init(doc, regions);
   const v = Object.assign({}, STRIP, { daily: STRIP.daily.slice(0, 2) });
   const card = (dust) => ({ region: regions[0], view: v, kind: 'fresh', retryAt: '', key: 'k1', air: FAIR, airKind: 'fresh', dust });
   const days = (dust) => ({ hours: [], days: dust, stale: false, limit: 100 });
-  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 185, khamsin: true }]))], 5, { kind: 'fresh', updated: '16:00' });
+  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 185, khamsin: true }]))], { kind: 'fresh', updated: '16:00' });
   const el = doc.nodes['region-south'];
-  assert.match(el.innerHTML, /<div class="card-head"><div class="card-title">Прогноз на 5 дней<\/div><div class="dust-legend">/);
-  assert.deepEqual(legendOf(el.innerHTML), ['Пыль макс., мкг/м³', 'хамсин ≥ 100']);
-  assert.deepEqual(slots(el.innerHTML, 'day-dust'), ['<span class="dust-num">48</span>', '<span class="dust-num is-khamsin">185</span>']);
+  // batch 18: no title over the days (the owner: «и так понятно что это за прогноз») and no condition words
+  assert.ok(!/card-head|card-title|Прогноз на/.test(el.innerHTML), 'no title over the days');
+  assert.ok(!/region-cond/.test(el.innerHTML), 'no condition line');
+  assert.match(el.innerHTML, /<div class="region-sub">[\s\S]*?<\/span><\/div><div class="days">/, 'the days follow the compact line');
+  assert.ok(!/dust-legend/.test(el.innerHTML), 'no legend on the Israel cards');
+  assert.deepEqual(slots(bandOf(el.innerHTML), 'day-dust'), ['<span class="dust-num">48</span>', '<span class="dust-num is-khamsin kg-2">185</span>']);   // FIX-18B 13: the pill carries its grade
   assert.equal(el.writes, 1);
-  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 185, khamsin: true }]))], 5, { kind: 'fresh', updated: '16:00' });
+  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 185, khamsin: true }]))], { kind: 'fresh', updated: '16:00' });
   assert.equal(el.writes, 1, 'the same forecast: not rewritten');
-  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 90, khamsin: false }]))], 5, { kind: 'fresh', updated: '16:00' });
+  ctx.IsraelView.render([card(days([{ dust: 48, khamsin: false }, { dust: 90, khamsin: false }]))], { kind: 'fresh', updated: '16:00' });
   assert.equal(el.writes, 2, 'a new forecast alone redraws the card (B13-D7)');
 });
 
-// ---- FIX-13B (the 4-reviewer panel). X4 (designer D4): the legend's «хамсин ≥ 100» is quiet grey text by default and becomes
-// the amber pill only when its card shows at least one khamsin cell (same box: nothing shifts). X9 (code F4): View.dustTitle
-// takes translated text for the title and the label. X5 (designer D5): «—» is a muted «dust-none», never the dust colour.
-const khamsinKey = (html) => (html.match(/<span class="dust-legend-khamsin[^"]*">/) || [''])[0];
-test('X4: the legend\'s «хамсин ≥ 100» is quiet by default and the amber pill only when the card shows a khamsin cell', () => {
-  const lit = stripWith('ru', DUST_OK);
-  assert.equal(khamsinKey(lit.hourly), '<span class="dust-legend-khamsin is-active">', 'a khamsin hour on the strip');
-  assert.equal(khamsinKey(lit.daily), '<span class="dust-legend-khamsin is-active">', 'a khamsin day in the list');
-  const calm = stripWith('ru', { hours: [{ dust: 27, khamsin: false }, null, null, null], days: [{ dust: 38, khamsin: false }, null, null], stale: false, limit: 100 });
-  assert.equal(khamsinKey(calm.hourly), '<span class="dust-legend-khamsin">');
-  assert.equal(khamsinKey(calm.daily), '<span class="dust-legend-khamsin">');
-  const mixed = stripWith('ru', { hours: [{ dust: 27, khamsin: false }, null, null, null], days: [{ dust: 185, khamsin: true }, null, null], stale: false, limit: 100 });
-  assert.deepEqual([khamsinKey(mixed.hourly), khamsinKey(mixed.daily)], ['<span class="dust-legend-khamsin">', '<span class="dust-legend-khamsin is-active">'], 'each card by its own cells');
-  assert.equal(khamsinKey(stripWith('ru', { loading: true, limit: 100 }).hourly), '<span class="dust-legend-khamsin">', 'no air yet: quiet');
-});
-test('X9: View.dustTitle takes the translated title and label; the legend states the threshold', () => {
+// X4 → OWNER-1LEG-C: the one key «хамсин ≥ 100» (on the current card) is quiet by default and the amber pill when the reading
+// or any cell the screen shows — an hour or a day — is a khamsin. X5: «—» is a muted «dust-none», never the dust colour.
+const khamsinKey = (html) => (html.match(/<span class="dust-legend-scale[^"]*">/) || [''])[0];   // FIX-18B 13B: the key is the scale
+function nowWith(dust, air) {
   const ctx = load(B12); ctx.I18n.setLang('ru');
-  assert.equal(ctx.View.dustTitle('Почасовой прогноз', 'Пыль, мкг/м³', { limit: 100, active: false }),
-    '<div class="card-head"><div class="card-title">Почасовой прогноз</div><div class="dust-legend"><span class="dust-legend-key">Пыль, мкг/м³</span>' +
-    '<span class="dust-legend-khamsin">хамсин ≥ 100</span></div></div>');
-  assert.match(ctx.View.dustTitle('A', 'B', { limit: 100, active: true }), /<span class="dust-legend-khamsin is-active">/);
+  const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 7 });
+  ctx.View.renderWeather(STRIP, { name: 'Реховот', kind: 'fresh', retryAt: '', uv: null, air: air || FAIR, airKind: 'fresh', dust });
+  return doc.nodes.now.innerHTML;
+}
+test('X4 / OWNER-1LEG-C: the one key is quiet by default and the amber pill when the reading, an hour or a day on screen is a khamsin', () => {
+  assert.equal(khamsinKey(nowWith(DUST_OK)), '<span class="dust-legend-scale is-active">', 'a khamsin hour and day on screen');
+  assert.equal(khamsinKey(nowWith({ hours: [{ dust: 27, khamsin: false }, null, null, null], days: [{ dust: 38, khamsin: false }, null, null], stale: false, limit: 100 })), '<span class="dust-legend-scale">');
+  assert.equal(khamsinKey(nowWith({ hours: [{ dust: 27, khamsin: false }, null, null, null], days: [{ dust: 185, khamsin: true }, null, null], stale: false, limit: 100 })), '<span class="dust-legend-scale is-active">', 'a khamsin day alone');
+  assert.equal(khamsinKey(nowWith({ loading: true, limit: 100 })), '<span class="dust-legend-scale">', 'no forecast yet: quiet');
+  assert.equal(khamsinKey(nowWith({ loading: true, limit: 100 }, DUSTY)), '<span class="dust-legend-scale is-active">', 'the reading itself');
+});
+// FIX-17B 2: the one key is on screen whenever ANY dust is — a forecast with no current reading draws it, active on a khamsin
+// day, with «—» for the reading; FIX-17B 15: no dust object (no threshold), no pill — never a made-up 100.
+test('FIX-17B 2 / 15: no current dust but a khamsin day — the key is drawn and amber, the value «—»; no forecast at all: no item; no dust object: no pill', () => {
+  const d = { hours: [null, null, null, null], days: [null, { dust: 185, khamsin: true }, null], stale: false, limit: 100 };
+  const html = nowWith(d, { aqi: 40, level: 'fair', dust: null, dustHigh: false });
+  assert.equal(khamsinKey(html), '<span class="dust-legend-scale is-active">');
+  assert.match(html, /<div class="air-value"><span class="air-num">—<\/span><\/div>/);
+  const none = nowWith({ hours: [null, null, null, null], days: [null, null, null], stale: false, limit: 100 }, { aqi: 40, level: 'fair', dust: null, dustHigh: false });
+  assert.match(none, /<div class="air-item air-dust is-none"><\/div>/, 'nothing to say: the slot only');
+  const noObj = nowWith(undefined, { aqi: 40, level: 'fair', dust: 25, dustHigh: false });
+  assert.ok(!/dust-legend-scale/.test(noObj), 'no threshold, no scale');
+  assert.match(noObj, /<span class="dust-legend-key">Пыль<\/span><\/div>/);
+});
+test('X9: View.cardHead takes the translated title', () => {
+  const ctx = load(B12);
+  assert.equal(ctx.View.cardHead('Почасовой прогноз <b>'), '<div class="card-head"><div class="card-title">Почасовой прогноз &lt;b&gt;</div></div>');
 });
 
 // Batch 15 (M4): while MET Norway's data are shown the weather status says so, in every language; Open-Meteo's says nothing more.
 test('B15: the status line names MET Norway when its data are shown (fresh and stale); nothing added for Open-Meteo', () => {
   const ctx = load(['js/config.js', 'js/i18n.js', 'js/tz.js', 'js/html.js', 'js/icons.js', 'js/view.js']);
-  const say = (lang, kind, source) => { ctx.I18n.setLang(lang); return ctx.Html.statusText(kind, '02.11 17:30', source); };
+  const say = (lang, kind, source) => { ctx.I18n.setLang(lang); return ctx.ViewState.headText(kind, '02.11 17:30', source ? [ctx.I18n.t('src.' + source)] : []); };
   assert.deepEqual([say('ru', 'fresh', 'met'), say('ru', 'stale', 'met'), say('ru', 'fresh', undefined), say('ru', 'loading', 'met')],
     ['Обновлено в 02.11 17:30 · MET Norway', 'Не обновляется · данные от 02.11 17:30 · MET Norway', 'Обновлено в 02.11 17:30', '']);
   assert.equal(say('uk', 'fresh', 'met'), 'Оновлено о 02.11 17:30 · MET Norway');
   assert.equal(say('he', 'fresh', 'met'), 'עודכן ב־02.11 17:30 · MET נורווגיה');
 });
 
-// N8 (FIX-16B): with no weather and the last try failed, the cards have no rows — so no dust legend explains them.
-test('N8: failed with no data — the hourly and daily cards keep their titles, no dust legend; loading keeps the legend', () => {
+// N8 (FIX-16B) → OWNER-1LEG-C: with no weather the cards keep their titles and say «нет данных»; no legend, no band.
+test('N8: failed with no data — the hourly and daily cards keep their titles, no dust legend, no band', () => {
   const ctx = load(B12); ctx.I18n.setLang('ru');
   const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 7 });
   ctx.View.renderWeather(null, { name: 'Реховот', kind: 'failed', retryAt: '20:40', dust: { hours: [], days: [], stale: false, limit: 100 } });
   for (const id of ['hourly', 'daily']) {
     assert.ok(!/dust-legend/.test(doc.nodes[id].innerHTML), id + ': no legend');
-    assert.match(doc.nodes[id].innerHTML, /<div class="wx-none">Нет данных<\/div>/);
+    assert.match(doc.nodes[id].innerHTML, /<div class="wx-none">нет данных<\/div>/);
   }
-  ctx.View.renderWeather(null, { name: 'Реховот', kind: 'loading', retryAt: '', dust: { loading: true, limit: 100 } });
-  assert.match(doc.nodes.daily.innerHTML, /dust-legend/, 'loading: the placeholder rows keep their legend');
+  assert.ok(!/dust-band/.test(doc.nodes.daily.innerHTML), 'no band');
+});
+
+// Khamsin pill unification (FIX-BATCH-18 part B, register b13): a khamsin READING sits on the same amber pill as a khamsin hour
+// or day (.dust-num.is-khamsin); an ordinary reading stays plain.
+test('B18 khamsin pill: the current reading ≥ the threshold is on the amber pill, an ordinary one is plain', () => {
+  const quiet = { loading: true, limit: 100 };
+  const num = (html) => (html.match(/<span class="air-num[^"]*">\d+<\/span> <span class="air-unit">/) || [''])[0];
+  assert.match(num(nowWith(quiet, DUSTY)), /^<span class="air-num dust-num is-khamsin kg-3">\d+</, 'a khamsin reading: the pill in its grade (240: 3)');
+  assert.match(num(nowWith(quiet, FAIR)), /^<span class="air-num">\d+</, 'an ordinary reading: plain');
 });

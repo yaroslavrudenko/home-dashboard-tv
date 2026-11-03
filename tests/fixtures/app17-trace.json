@@ -1,0 +1,211 @@
+{
+ "session": {
+  "boot": {
+   "weather": 1,
+   "air": 1,
+   "hebcal": 1,
+   "news": 2,
+   "markets": 0,
+   "traffic": 0,
+   "map": 0,
+   "history": 0,
+   "alerts": 1
+  },
+  "walk": {
+   "weather": 2,
+   "air": 2,
+   "hebcal": 1,
+   "news": 2,
+   "markets": 4,
+   "traffic": 10,
+   "map": 1,
+   "history": 1,
+   "alerts": 0
+  },
+  "lang": {
+   "weather": 1,
+   "air": 1,
+   "hebcal": 0,
+   "news": 2,
+   "markets": 0,
+   "traffic": 0,
+   "map": 0,
+   "history": 0,
+   "alerts": 0
+  },
+  "wake": {
+   "weather": 1,
+   "air": 0,
+   "hebcal": 0,
+   "news": 2,
+   "markets": 0,
+   "traffic": 0,
+   "map": 0,
+   "history": 0,
+   "alerts": 1
+  },
+  "alertStart": {
+   "weather": 0,
+   "air": 0,
+   "hebcal": 0,
+   "news": 0,
+   "markets": 0,
+   "traffic": 0,
+   "map": 0,
+   "history": 1,
+   "alerts": 1
+  },
+  "alertAbsent": {
+   "weather": 0,
+   "air": 0,
+   "hebcal": 0,
+   "news": 0,
+   "markets": 0,
+   "traffic": 0,
+   "map": 0,
+   "history": 0,
+   "alerts": 1
+  },
+  "alertEnd": {
+   "weather": 0,
+   "air": 0,
+   "hebcal": 0,
+   "news": 2,
+   "markets": 0,
+   "traffic": 0,
+   "map": 0,
+   "history": 0,
+   "alerts": 1
+  },
+  "alertScreen": 7
+ },
+ "wake": {
+  "recent": {
+   "weather": 0,
+   "air": 0,
+   "hebcal": 0,
+   "news": 0,
+   "markets": 0,
+   "traffic": 0,
+   "map": 0,
+   "history": 0,
+   "alerts": 1
+  },
+  "old": {
+   "weather": 1,
+   "air": 1,
+   "hebcal": 0,
+   "news": 2,
+   "markets": 0,
+   "traffic": 0,
+   "map": 0,
+   "history": 0,
+   "alerts": 1
+  }
+ },
+ "tick": {
+  "main": {
+   "screen-main": true,
+   "screen-israel": false,
+   "screen-news": false,
+   "screen-markets": false,
+   "screen-shabbat": false,
+   "screen-traffic": false,
+   "screen-map": false,
+   "screen-alerts": false
+  },
+  "israel": {
+   "screen-main": false,
+   "screen-israel": false,
+   "screen-news": false,
+   "screen-markets": false,
+   "screen-shabbat": false,
+   "screen-traffic": false,
+   "screen-map": false,
+   "screen-alerts": false
+  },
+  "news": {
+   "screen-main": false,
+   "screen-israel": false,
+   "screen-news": true,
+   "screen-markets": false,
+   "screen-shabbat": false,
+   "screen-traffic": false,
+   "screen-map": false,
+   "screen-alerts": false
+  },
+  "markets": {
+   "screen-main": false,
+   "screen-israel": false,
+   "screen-news": false,
+   "screen-markets": false,
+   "screen-shabbat": false,
+   "screen-traffic": false,
+   "screen-map": false,
+   "screen-alerts": false
+  },
+  "shabbat": {
+   "screen-main": false,
+   "screen-israel": false,
+   "screen-news": false,
+   "screen-markets": false,
+   "screen-shabbat": false,
+   "screen-traffic": false,
+   "screen-map": false,
+   "screen-alerts": false
+  },
+  "traffic": {
+   "screen-main": false,
+   "screen-israel": false,
+   "screen-news": false,
+   "screen-markets": false,
+   "screen-shabbat": false,
+   "screen-traffic": true,
+   "screen-map": false,
+   "screen-alerts": false
+  },
+  "map": {
+   "screen-main": false,
+   "screen-israel": false,
+   "screen-news": false,
+   "screen-markets": false,
+   "screen-shabbat": false,
+   "screen-traffic": false,
+   "screen-map": false,
+   "screen-alerts": false
+  },
+  "alerts": {
+   "screen-main": false,
+   "screen-israel": false,
+   "screen-news": false,
+   "screen-markets": false,
+   "screen-shabbat": false,
+   "screen-traffic": false,
+   "screen-map": false,
+   "screen-alerts": false
+  }
+ },
+ "liveTimeouts": 7,
+ "listeners": {
+  "listeners": {
+   "window:load": 1,
+   "document:keydown": 1,
+   "document:visibilitychange": 1
+  },
+  "intervals": 1
+ },
+ "rotation": {
+  "weather": 0,
+  "air": 0,
+  "hebcal": 0,
+  "news": 0,
+  "markets": 4,
+  "traffic": 10,
+  "map": 1,
+  "history": 1,
+  "alerts": 0
+ },
+ "_decisions": {
+  "tick.traffic.screen-traffic": "recorded false on 64c0203; true by B17-V3 / FIX-17B 9 (P17-2): the fresh traffic header says its age («· 12 мин назад»), so the minute tick rewrites it — kept on purpose"
+ }
+}

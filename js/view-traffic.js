@@ -47,7 +47,7 @@ var TrafficView = (function () {
         (d ? '<span class="chip lv-' + v.level + '">' + esc(chipText(d)) + '</span>' : '') + '</div>' +
       '<div class="tw-mid">' + (d ? '<span class="tw-time">' + minutesHtml(d.travel) + '</span>' +
           (d.length !== null ? '<span class="tw-km">' + esc(I18n.t('t.km', { n: Math.round(d.length / 1000) })) + '</span>' : '')
-        : '<span class="tw-time is-none">—</span><span class="tnodata">' + esc(I18n.t('t.noData')) + '</span>') + '</div>' +
+        : '<span class="tw-time is-none">—</span><span class="tnodata">' + esc(ViewState.partText('none')) + '</span>') + '</div>' +
       bar(d, v.level, scale) + '</div>';
   }
   // A column: its title over its widgets, which share one bar scale.
@@ -57,38 +57,38 @@ var TrafficView = (function () {
     return '<section class="tcol"><div class="card-title tcol-title">' + esc(I18n.t('t.col.' + col.id)) + '</div>' + out + '</section>';
   }
 
-  function emptyHtml(text) { return Html.emptyCard('traffic-empty', Icons.glyph('car'), text, ''); }
   // Why the data cannot be updated now, with when it may be (the judges' copy): '' when nothing stops it.
   function problemText(m) {
     return m.problem === 'storage' ? I18n.t('t.storage') : m.problem === 'cap' ? I18n.t('t.cap', { time: m.resumeAt })
       : m.problem === 'refused' ? I18n.t('t.refused', { time: m.resumeAt }) : '';
   }
-  // The data-time line over the cards: updating, future-dated, out of date or updated, always with when the data is from.
+  // The data-time line over the cards (B17-V3): the one vocabulary — fresh or stale with when the data is from and its age
+  // («Обновлено в 20:32 · 12 мин назад»); future-dated data is stale with a word on why.
   function dataLine(m) {
-    if (m.updating) return I18n.t('t.updatingFrom', { time: m.updated });
-    if (m.future) return I18n.t('t.future');
-    return I18n.t(m.kind === 'stale' ? 't.stale' : 't.updated', { time: m.updated, n: m.ago });
+    if (m.future) return ViewState.headText('stale', m.updated, [I18n.t('t.futureDetail')]);
+    return ViewState.headText(m.kind, m.updated, [I18n.ago(m.ageMs)]);
   }
 
   // No key: the calm invitation. Drawn once.
   function renderNoKey() {
     if (drawn === 'nokey' + I18n.lang()) return;
     drawn = 'nokey' + I18n.lang();
-    els.body.innerHTML = Html.emptyCard('traffic-empty', Icons.glyph('car'), I18n.t('t.noKey'), I18n.t('t.noKeySub'));
+    els.body.innerHTML = ViewState.noKeyCard();
     Html.setStatus(els.status, 'status screen-status', 'none', '');
   }
 
-  // m: { columns: [{ id, items: [{ id, name, view }] }], kind ('loading' | 'failed' | 'fresh' | 'stale'), updating, future,
-  //      updated ("HH:MM" or "DD.MM HH:MM": the oldest row on screen), ago (its age in minutes), problem ('storage' | 'cap'
+  // m: { columns: [{ id, items: [{ id, name, view }] }], kind ('loading' | 'failed' | 'fresh' | 'stale'), future,
+  //      updated ("HH:MM" or "DD.MM HH:MM": the oldest row on screen), ageMs (its age), problem ('storage' | 'cap'
   //      | 'refused' | null), resumeAt ("HH:MM" or "DD.MM HH:MM") }. With data the cards stay, the header says when the
   //      data is from, and a problem is a second line under it; with none, one card says what is happening.
   function render(m) {
     var hasData = m.kind === 'fresh' || m.kind === 'stale', problem = problemText(m);
-    var body = hasData ? 'cards' : m.kind === 'loading' ? I18n.t('t.updating') : problem || I18n.t('t.failed');
+    var body = hasData ? 'cards' : m.kind === 'loading' ? 'loading' : problem || 'failed';
     var key = JSON.stringify([m.columns, m.kind, body, I18n.lang()]);
     if (key !== drawn) {
       drawn = key;
-      if (!hasData) els.body.innerHTML = emptyHtml(body);
+      // a problem carries its own time (when it may resume): no retry line under it
+      if (!hasData) els.body.innerHTML = m.kind === 'loading' ? ViewState.card('loading') : ViewState.card('failed', { glyph: Icons.glyph('car'), text: problem });
       else {
         var html = '';
         for (var i = 0; i < m.columns.length; i++) html += columnHtml(m.columns[i]);

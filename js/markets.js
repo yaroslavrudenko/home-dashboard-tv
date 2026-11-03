@@ -80,6 +80,8 @@ var Markets = (function () {
     return { id: id, price: price, currency: currency, changePct: finite(m.regularMarketChangePercent) ? m.regularMarketChangePercent : null,
       closed: closedAt(m, nowS) };
   }
+  // N2: snapshot() is a public pure function (tests and callers hand it any table), so it keeps its own guard: a rate that is
+  // not a number > 0 is no price. The controller's keep() already refuses such a table; this is the deliberate second guard.
   function rateRow(row, table) {
     var v = table ? table[row.code] : undefined;
     if (!finite(v) || v <= 0) return emptyRow(row.id, null);
@@ -107,12 +109,7 @@ var Markets = (function () {
   function kindOf(cfg, snap, now) {
     if (!snap) return 'loading';
     var priced = 0, gaps = 0, kept = 0;
-    for (var i = 0; i < snap.groups.length; i++) {
-      for (var j = 0; j < snap.groups[i].rows.length; j++) {
-        var r = snap.groups[i].rows[j];
-        if (r.price === null) gaps++; else { priced++; if (r.stale) kept++; }
-      }
-    }
+    eachRow(snap, function (r) { if (r.price === null) gaps++; else { priced++; if (r.stale) kept++; } });   // N3: a snapshot has the config's groups/rows shape
     if (!priced) return 'failed';
     return Freshness.kind(true, kept > 0 || gaps > 0, snap.updatedAt, now, cfg.staleAfterMs);
   }

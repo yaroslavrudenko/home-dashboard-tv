@@ -11,7 +11,9 @@ var ShabbatView = (function () {
   var esc = Html.esc;
   // FIX-12B V17 / S8: the snapshot's states are the data side's Shabbat.STATE (js/shabbat.js loads before this view)
   var STATE = Shabbat.STATE;
-  // (window.kind, 'shabbat' | 'yomtov', is a different field: the contract's literal, not a state)
+  // window.kind is made of the same values (js/shabbat.js: seg.kind = STATE.YOMTOV | STATE.SHABBAT), so it is read with them too
+  // (N12, FIX-BATCH-18 part B: no window-kind literal here); Yom Kippur's Hebcal slug picks its own greeting
+  var YOM_KIPPUR = 'yom-kippur';
   var SOON_DAYS = 7;                                 // a countdown turns amber at a week or less
   var els = {}, rows = 0, drawn = {};
 
@@ -45,11 +47,11 @@ var ShabbatView = (function () {
   function parasha(p) { return I18n.lang() === 'he' && p.he ? p.he : I18n.t('sh.parashaOf', { name: named('sh.parasha.', p.id) }); }
   // What the window is called: the yom tov's name, else the parasha, else the festival it falls in, else «Шабат».
   function windowName(w) {
-    if (w.kind === 'yomtov' && w.holiday) return holiday(w.holiday);
+    if (w.kind === STATE.YOMTOV && w.holiday) return holiday(w.holiday);
     return w.parasha ? parasha(w.parasha) : w.during ? holiday(w.during) : I18n.t('sh.shabbat');
   }
   function weekTitle(w) {
-    if (w.kind === 'yomtov' && w.holiday) return holiday(w.holiday);
+    if (w.kind === STATE.YOMTOV && w.holiday) return holiday(w.holiday);
     if (w.reading) return I18n.t('sh.shabbat');                          // the reading block names the parasha
     return w.parasha || w.during ? I18n.t('sh.week', { name: windowName(w) }) : I18n.t('sh.shabbat');
   }
@@ -74,7 +76,7 @@ var ShabbatView = (function () {
   }
   // The portion's name: the parasha (the label says «weekly portion»), else the festival read.
   function portionName(w) {
-    if (w.kind === 'yomtov' && w.holiday) return holiday(w.holiday);
+    if (w.kind === STATE.YOMTOV && w.holiday) return holiday(w.holiday);
     if (w.parasha) return named('sh.parasha.', w.parasha.id);
     return w.during ? holiday(w.during) : '';
   }
@@ -97,7 +99,7 @@ var ShabbatView = (function () {
   function readingHtml(snap) {
     var w = snap.window, r = w && w.reading;
     if (!r) return '';
-    var torah = r.torah ? readItem('sh-read-torah', w.parasha && w.kind !== 'yomtov' ? 'sh.read.parasha' : 'sh.read.torah',
+    var torah = r.torah ? readItem('sh-read-torah', w.parasha && w.kind !== STATE.YOMTOV ? 'sh.read.parasha' : 'sh.read.torah',
       '<div class="sh-read-name">' + esc(portionName(w)) + '</div><div class="sh-read-ref">' + refHtml(r.torah) + '</div>') : '';
     var haftarah = r.haftarah ? readItem('sh-read-haftarah', 'sh.read.haftarah', '<div class="sh-read-ref">' + refHtml(r.haftarah) + '</div>') : '';
     // two columns: the portion | the haftarah over the extra line — the band holds them without reaching the rule
@@ -116,12 +118,14 @@ var ShabbatView = (function () {
     return '<div class="sh-place">' + esc(place) + '</div><div class="sh-date">' + esc(longDate(today)) + '</div>' +
       '<div class="sh-hdate">' + esc(hebDate(today.hebrew)) + '</div>';
   }
-  // The note slot is always there (36 px): a fast (amber while it runs), the holiday today, or empty.
+  // The note slot is always there (36 px): a fast (amber while it runs), the holiday today, or empty. N8: a fast that ends on
+  // the next day (Tisha B'Av, from sunset) says that day's short name before its end time («конец Чт 19:56»).
   function noteHtml(note) {
     if (!note) return '<div class="sh-note"></div>';
     if (note.kind === 'fast') {
+      var ends = note.ends.date === note.begins.date ? note.ends.time : I18n.weekdayShort(note.ends.weekday) + ' ' + note.ends.time;
       return '<div class="sh-note is-fast' + (note.active ? ' is-active' : '') + '">' + Icons.glyph('fast') + '<span>' +
-        esc(I18n.t('sh.fastTimes', { name: holiday(note.holiday), begins: note.begins.time, ends: note.ends.time })) + '</span></div>';
+        esc(I18n.t('sh.fastTimes', { name: holiday(note.holiday), begins: note.begins.time, ends: ends })) + '</span></div>';
     }
     return '<div class="sh-note"><span>' + esc(I18n.t('sh.todayIs', { name: holiday(note.holiday) })) + '</span></div>';
   }
@@ -141,15 +145,15 @@ var ShabbatView = (function () {
   // Shabbat or a yom tov is in: the greeting, the week's name, havdalah — its time alone, emphasised, when it is today.
   function calmHtml(snap) {
     var w = snap.window, h = w.havdalah;
-    var greet = snap.state === STATE.YOMTOV ? (w.holiday === 'yom-kippur' ? 'sh.greet.yomkippur' : 'sh.greet.yomtov') : 'sh.greet.shabbat';
+    var greet = snap.state === STATE.YOMTOV ? (w.holiday === YOM_KIPPUR ? 'sh.greet.yomkippur' : 'sh.greet.yomtov') : 'sh.greet.shabbat';
     var when = !h ? '' : ' · ' + (h.date === snap.today.date ? '<b class="sh-calm-time">' + esc(h.time) + '</b>' : esc(longDate(h) + ' · ' + h.time));
     // with the reading block above, the name is said there: not twice
     return '<div class="sh-calm"><div class="sh-calm-greet">' + esc(I18n.t(greet)) + '</div>' + (w.reading ? '' : '<div class="sh-calm-name">' + esc(windowName(w)) + '</div>') +
       '<div class="sh-calm-line">' + Icons.glyph('havdalah') + '<span>' + esc(I18n.t('sh.havdalah')) + when + '</span></div></div>';
   }
-  // With no data the header says when it is tried again (L6), so the card says the short statement only (N5); the window
-  // past its data (stale, the header shows its time) still says when.
-  function failedHtml(s, withRetry) { return Html.emptyState(Icons.glyph('candles'), I18n.t('sh.failed'), withRetry ? Html.retryText(s.retryAt) : ''); }
+  // The calendar failed with nothing to show as coming: the one state block with when it is tried again (B17: the header
+  // says nothing then; the card's title and place say what is missing).
+  function failedHtml(s) { return ViewState.block('failed', { glyph: Icons.glyph('candles'), retryAt: s.retryAt }); }
 
   // Before the first data: the same slots, each a placeholder bar the size of what will stand there (V10).
   function bar(kind) { return '<span class="skeleton sh-skel sh-skel-' + kind + '"></span>'; }
@@ -160,11 +164,11 @@ var ShabbatView = (function () {
       tile('sh-candles', 'candles', 'sh.candles') + tile('sh-havdalah', 'havdalah', 'sh.havdalah') + '</div>';
   }
   function weekHtml(snap, s) {
-    if (!snap) return s.kind === 'failed' ? '<div class="sh-place">' + esc(s.place) + '</div>' + failedHtml(s, false) : placeholderWeek(s.place);
+    if (!snap) return s.kind === 'failed' ? '<div class="sh-place">' + esc(s.place) + '</div>' + failedHtml(s) : placeholderWeek(s.place);
     var calm = isCalm(snap.state);
     // the calm card names the holiday itself: «Сегодня: Песах» under «Хаг самеах · Песах» would say it twice (V8)
     var top = todayHtml(snap.today, s.place) + noteHtml(calm && snap.note && snap.note.kind === 'holiday' ? null : snap.note);
-    if (!snap.window) return top + failedHtml(s, true);                         // data older than its range: nothing to show as coming
+    if (!snap.window) return top + failedHtml(s);                         // data older than its range: nothing to show as coming
     return top + readingHtml(snap) + (calm ? calmHtml(snap) : '<div class="sh-rule"></div>' + tilesHtml(snap));
   }
 
@@ -177,14 +181,14 @@ var ShabbatView = (function () {
       '<div class="sh-row-sub"><span class="sh-row-date">' + esc(shortDate(o)) + '</span>' +
       '<span class="sh-row-in' + cls + '">' + esc(ongoing ? I18n.t('sh.ongoing') : countDays(o.daysUntil)) + '</span></div></div>';
   }
-  // No data yet: placeholder bars; failed with no data: one quiet amber line instead of the rows (L6: a failure never looks
-  // like loading, nor like a blank card).
+  // No data yet: placeholder bars; failed with no data: the state block, its retry said once on the screen (card A) (L6: a
+  // failure never looks like loading, nor like a blank card).
   function listHtml(snap, failed) {
     var out = '', i, list = snap ? snap.upcoming : [], note = snap && snap.note;
     var runningFast = note && note.kind === 'fast' && note.active ? note.holiday : null;
-    if (failed) out = '<div class="sh-list-failed">' + esc(I18n.t('sh.failed')) + '</div>';
+    if (failed) out = ViewState.block('failed', { sub: '' });
     else for (i = 0; i < rows; i++) out += snap ? rowHtml(list[i], runningFast) : '<div class="sh-row is-empty">' + bar('name') + bar('sub') + '</div>';
-    return '<div class="card-title">' + esc(I18n.t('sh.upcoming')) + '</div><div class="sh-rows">' + out + '</div>';
+    return '<div class="card-title">' + esc(I18n.t('sh.upcoming')) + '</div><div class="sh-rows' + (failed ? ' is-state' : '') + '">' + out + '</div>';
   }
 
   // d: { name, el, key, build, cls } — build() makes the card's HTML only when its key changed (an unchanged minute
@@ -205,9 +209,8 @@ var ShabbatView = (function () {
       cls: 'card sh-week' + (calm ? ' is-calm' : '') + (snapshot ? '' : ' is-empty') });
     draw({ name: 'list', el: els.list, build: function () { return listHtml(snapshot, failed); },
       key: JSON.stringify([snapshot && snapshot.upcoming, snapshot && snapshot.note, failed, lang]), cls: 'card sh-list' + (snapshot ? '' : ' is-empty') });
-    // the header: the data's time; with no data at all, failed says when it is tried again (L6), loading says nothing
-    var kind = !snapshot ? '' : s.kind === 'fresh' ? 'fresh' : 'stale';
-    Html.setStatus(els.status, 'status screen-status', kind || s.kind, kind ? Html.statusText(kind, s.updated) : failed ? Html.retryText(s.retryAt) : '');
+    // the header: the data's time; with no data at all it says nothing (the cards' blocks do)
+    ViewState.head(els.status, !snapshot ? s.kind : s.kind === 'fresh' ? 'fresh' : 'stale', s.updated);
   }
 
   return { init: init, render: render };

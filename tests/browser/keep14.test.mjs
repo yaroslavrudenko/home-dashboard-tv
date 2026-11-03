@@ -3,6 +3,7 @@
 // here: the first run gets the recorded answers and keeps them (localStorage, written by the app itself), then the page
 // reloads 20 minutes later while Open-Meteo (weather and air) answers 503 — the main card and the Israel cards show the kept
 // weather with the stale line «Не обновляется · данные от …». Without storage (a TV that refuses it): today's empty card.
+// B17-V1: the empty card is the one state block «Временно недоступно» (the old «Погода временно недоступна» is gone).
 // B14_SHOTS=<dir> also writes keep-main-ru.png and keep-israel-ru.png (the 503-with-restored state).
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,7 +13,8 @@ import { openApp, weatherAnswer, airAnswer } from './page.mjs';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); }, code);
-const FAILED = 'Погода временно недоступна', STALE = 'Не обновляется · данные от ';
+// FAILED: B17-V1's state word (the card's state block); OLD_FAILED: the pre-B17 sentence, never on screen in either case
+const FAILED = 'Временно недоступно', OLD_FAILED = 'Погода временно недоступна', STALE = 'Не обновляется · данные от ';
 const LATER = 20 * 60000;
 // The first answer of each kind is the recording, every later one Open-Meteo's 503 of 2026-11-02.
 const overloaded = { status: 503, body: JSON.stringify({ error: true, reason: 'The service is overloaded' }) };
@@ -27,7 +29,7 @@ async function restart(app) {
   await p.waitForFunction(() => /^Обновлено в /.test(document.getElementById('status').textContent), { timeout: 10000 });
   await p.evaluate((ms) => sessionStorage.setItem('b14.offset', String(ms)), LATER);
   await p.reload({ waitUntil: 'load' });
-  await p.waitForFunction(() => document.querySelector('#now .now-temp, #now .empty-state'), { timeout: 10000 });
+  await p.waitForFunction(() => document.querySelector('#now .now-temp, #now .state'), { timeout: 10000 });   // B17-V1: .state
   await wait(1500);   // the boot request answered 503 and rendered
 }
 const texts = (p, sel) => p.$$eval(sel, (els) => els.map((e) => e.textContent.replace(/\s+/g, ' ').trim()));
@@ -49,13 +51,15 @@ test('B14: restarted while Open-Meteo answers 503 — the main card and the Isra
     const main = await p.evaluate(() => ({ status: document.getElementById('status').textContent, temp: (document.querySelector('#now .now-temp') || {}).textContent || null,
       text: document.getElementById('screen-main').textContent, hourly: document.querySelectorAll('#hourly .hour').length }));
     const hhmm = new Date(savedAt).toLocaleTimeString('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit' });
-    // B15 (B14-1): the full line does not fit beside the dust legend in Russian: its short form, 24 px clear of the legend
-    assert.equal(main.status, 'Не обновляется · ' + hhmm, 'the stale line with the kept time (20 minutes before the restart)');
+    // B15 (B14-1) / OWNER-1LEG-C: the title row carries the title only (no legend), so the full line fits in Russian, 24 px clear of the title
+    assert.equal(main.status, STALE + hhmm, 'the stale line with the kept time (20 minutes before the restart)');
     const gap = await p.evaluate(() => { const r = (e) => e.getBoundingClientRect(), h = document.querySelector('#hourly .card-head');
-      return Math.round(r(document.getElementById('status')).left - Math.max(r(h.firstChild).right, r(h.lastChild).right)); });
-    assert.ok(gap >= 24, 'the status ' + gap + ' px from the legend');
+      return { legends: h.querySelectorAll('.dust-legend').length, gap: Math.round(r(document.getElementById('status')).left - r(h.querySelector('.card-title')).right) }; });
+    assert.equal(gap.legends, 0, 'OWNER-1LEG-C: no legend in the title row');
+    assert.ok(gap.gap >= 24, 'the status ' + gap.gap + ' px from the title');
     assert.ok(main.temp, 'the kept temperature is on the card');
     assert.equal(main.text.indexOf(FAILED), -1, 'no «weather unavailable»');
+    assert.equal(main.text.indexOf(OLD_FAILED), -1);
     if (process.env.B14_SHOTS) { fs.mkdirSync(process.env.B14_SHOTS, { recursive: true }); await p.screenshot({ path: path.join(process.env.B14_SHOTS, 'keep-main-ru.png') }); }
     await press(p, 39); await wait(900);
     const israel = await p.evaluate(() => ({ status: document.getElementById('israel-status').textContent,
@@ -69,7 +73,7 @@ test('B14: restarted while Open-Meteo answers 503 — the main card and the Isra
   } finally { await app.close(); }
 });
 
-test('B14: without storage (a TV that refuses it) the same restart shows today\'s «Погода временно недоступна» — nothing breaks', async () => {
+test('B14 / B17-V1: without storage (a TV that refuses it) the same restart shows today\'s «Временно недоступно» — nothing breaks', async () => {
   const app = await openApp({ lang: 'ru', weather, air, news: 'ok', alerts: 'empty-bom.txt', init: NO_STORAGE, configure: (c) => { c.rotation.enabled = false; } });
   try {
     const p = app.page;
@@ -80,6 +84,7 @@ test('B14: without storage (a TV that refuses it) the same restart shows today\'
     assert.equal(main.status, '', 'no status line: the card says it');
     assert.equal(main.temp, null);
     assert.ok(main.text.indexOf(FAILED) >= 0, 'today\'s behaviour: weather unavailable');
+    assert.equal(await p.$eval('#now .state.is-failed .state-text', (e) => e.textContent), FAILED, 'B17-V1: said by the main card\'s state block');
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
 });

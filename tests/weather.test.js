@@ -273,11 +273,11 @@ test('stop() wins over a request already in flight: its late answer neither rend
   assert.equal(s.store.refresh(), true, 'a new refresh can start after stop');
 });
 
-// FB5-WX: the Israel weather screen reads the main weather's store: no request of its own, three regions, 5 days each.
-test('FB5-WX: the Israel regions (Haifa, Tel Aviv, Beer Sheva) come in the ONE weather request; each has current weather and 5 days', () => {
+// FB5-WX: the Israel weather screen reads the main weather's store: no request of its own, three regions, 7 days each (batch 18).
+test('FB5-WX: the Israel regions (Haifa, Tel Aviv, Beer Sheva) come in the ONE weather request; each has current weather and 7 days', () => {
   const ctx = load(FILES);
   const isr = ctx.Config.israel;
-  assert.deepEqual(JSON.parse(JSON.stringify(isr)), { regions: [{ id: 'north', place: 'haifa' }, { id: 'center', place: 'telaviv' }, { id: 'south', place: 'beersheva' }], days: 5 });
+  assert.deepEqual(JSON.parse(JSON.stringify(isr)), { regions: [{ id: 'north', place: 'haifa' }, { id: 'center', place: 'telaviv' }, { id: 'south', place: 'beersheva' }], days: 7 });
   const s = makeStore(ctx);
   s.store.refresh();
   assert.equal(s.calls.length, 1, 'one request for six places');
@@ -286,7 +286,7 @@ test('FB5-WX: the Israel regions (Haifa, Tel Aviv, Beer Sheva) come in the ONE w
     const data = s.store.get(r.place);
     assert.ok(data && typeof data.current.temp === 'number', r.place);
     const v = ctx.Weather.forHour(data, '2026-10-29T20', ctx.Config.weather);
-    assert.equal(v.daily.slice(0, isr.days).filter(Boolean).length, 5, r.place + ': five forecast days');
+    assert.equal(v.daily.slice(0, isr.days).filter(Boolean).length, 7, r.place + ': seven forecast days');
     assert.equal(s.store.status(r.place).kind, 'fresh');
   }
   s.clock.advance(15 * 60000);

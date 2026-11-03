@@ -253,7 +253,7 @@ var Traffic = (function () {
       wake: function () { if (selected) check(false); },
       // The whole screen, from ONE read of the accounting record (PERF-4): routes (every route's view, in cfg.routes
       // order); kind 'loading' (nothing to show, a round in flight) | 'failed' (nothing to show) | 'fresh' |
-      // 'stale' (a row on screen is old, future-dated, failed, or the last attempt failed); updating (a round in flight);
+      // 'stale' (a row on screen is old, future-dated, failed, or the last attempt failed); (B17: no «updating» flag — a round in flight with no data is 'loading', with data the data's own kind);
       // future (a row's time is ahead of the clock); updatedAt: the OLDEST row with data; problem: 'storage' | 'cap' |
       // 'refused' | null; resumeAt: when the cap or the refusal lets the next attempt go.
       status: function () {
@@ -268,7 +268,7 @@ var Traffic = (function () {
           if (v.future) future = true;
         }
         var p = !r || paused ? 'storage' : usedOn(r, now) + n > cfg.schedule.dailyRequestCap ? 'cap' : problem;
-        return { routes: routes, kind: any ? (stale ? 'stale' : 'fresh') : inFlight ? 'loading' : 'failed', updating: inFlight, future: future,
+        return { routes: routes, kind: any ? (stale ? 'stale' : 'fresh') : inFlight ? 'loading' : 'failed', future: future,
           updatedAt: any ? oldest : 0, problem: p, resumeAt: p === 'cap' || p === 'refused' ? earliest(cfg, r, n, now) : 0 };
       },
       stop: function () {

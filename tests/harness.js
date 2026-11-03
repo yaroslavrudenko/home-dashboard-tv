@@ -29,7 +29,10 @@ function load(files, globals) {
   if (globals) for (const k of Object.keys(globals)) ctx[k] = globals[k];
   vm.createContext(ctx);
   const city = files.includes('js/config.js') && !files.includes('js/homecity.js');
-  const all = BASE.filter((f) => !files.includes(f)).concat(city ? files.flatMap((f) => (f === 'js/config.js' ? [f, ...CITY] : [f])) : files);
+  // Batch 17: every view states loading / failed / stale through js/view-state.js, which index.html loads right after
+  // js/html.js — so does every load here.
+  const withState = files.includes('js/view-state.js') ? files : files.flatMap((f) => (f === 'js/html.js' ? [f, 'js/view-state.js'] : [f]));
+  const all = BASE.filter((f) => !withState.includes(f)).concat(city ? withState.flatMap((f) => (f === 'js/config.js' ? [f, ...CITY] : [f])) : withState);
   for (const f of all) vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
   if (city) applyHomeCity(ctx);
   return ctx;

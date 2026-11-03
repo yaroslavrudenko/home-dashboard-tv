@@ -3,6 +3,8 @@
  * fonts — flexbox, semi-transparent fills, static font files and -webkit-font-feature-settings instead.
  * Spacing scale: 8 · 16 · 24 · 32 · 40 (card gutter) · 28 (between cards) · 48/64 (page). Radius: 32 (cards).
  * Type: nothing below 24 px; secondary text never below 62 % white (≥ 4.5:1 on the lightest card).
+ * Type: 24 · 28 · 34 · 40 · 52 · 72 · 104 · 136 (labels 24, body 28, titles 34, screen titles 40, figures 52 / 72 / 104 / 136) —
+   the only sizes (D-C2, enforced by tests/build-config.test.js).
  * Palette — one shade per role (D-C1); a role's colour always comes with its word, never alone:
  *   muted   rgba(255, 255, 255, 0.62)  every quiet secondary text and mark (one grouped rule, below)
  *   quiet-strong rgba(255, 255, 255, 0.85)  secondary text that must read at a glance (the closed price, the alert's time and
@@ -57,16 +59,23 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* The muted role (D-C1): every quiet secondary text and mark, in ONE shade — 62 % white, the legibility floor (≥ 4.5:1 on the
    lightest card). Placed first, so a state class further down (stale, soon, now, khamsin) still overrides it. */
 .alerts-offline, .card-title, .clock-time .approx, .clock-time.is-unknown, .clock-date, .clock-diff,
-.clock-weather.is-stale .clock-temp, .now.is-stale .now-temp, .now-sub, .detail-label, .empty-sub, .hour-label,
-.status, .dust-legend-khamsin, .dust-none, .day-min, .air-label, .air-none,
+.clock-weather.is-stale .clock-temp, .now.is-stale .now-temp, .now-sub, .detail-label, .state-sub, .hour-label,
+.status, .dust-none, .day-min, .air-label, .air-none,
 .air-unit, .air-uv.is-night .air-word, .region-air-label, .sh-date, .sh-tile-date, .sh-tile-in,
 .sh-row-date, .sh-row-in, .sh-read-label, .region-city, .region.is-stale .region-temp, .region-sub,
-.news-col-head .src-name, .news-time, .news-col-empty, .tw-time .unit, .tw.is-stale .tw-time, .tw-time.is-none,
-.tw-km, .tnodata, .tw.is-stale .chip, .al-home-sub, .al-near-places, .al-time, .al-recent-empty,
-.city-sub, .city-alt, .city-hint, .mk-closed, .mk-row.is-stale .mk-price, .mk-row.is-stale .mk-chg,
+.news-col-head .src-name, .news-time, .state.is-loading .state-text, .tw-time .unit, .tw.is-stale .tw-time, .tw-time.is-none,
+.tw-km, .tnodata, .tw.is-stale .chip, .al-home-sub, .al-near-places, .al-time,
+.city-sub, .city-alt, .city-hint, .mk-closed, .mk-state, .mk-row.is-stale .mk-price, .mk-row.is-stale .mk-chg,
 .mk-chg.is-flat, .mk-chg.is-none, .mk-nodata,
 .al-heads .al-time, .al-heads .al-kind, .al-heads .al-areas, .wx-none, .mk-per, .mk-head-sign { color: rgba(255, 255, 255, 0.62); }
 
+/* FIX-BATCH-18 part B / FIX-18B 2–3 (the Hebrew boot shift, CLS 0.38): the stage is not shown while <html> is still
+   .is-booting — App.start applies the language (js/app-lang.js apply) and takes the class off — so a right-to-left page is
+   never painted left to right first. index.html carries the default language's lang and dir, and should a script fail before
+   App.start, the stage still appears after 3 s (the animation), never a blank page. */
+html.is-booting #stage { opacity: 0; -webkit-animation: boot-reveal 0.01s linear 3s forwards; animation: boot-reveal 0.01s linear 3s forwards; }
+@-webkit-keyframes boot-reveal { to { opacity: 1; } }
+@keyframes boot-reveal { to { opacity: 1; } }
 /* The burn-in shift moves this layer; will-change keeps it composited, so a shift repaints nothing. */
 #stage {
   position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
@@ -114,7 +123,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
   overflow: hidden;
 }
 .card-title {
-  font-size: 26px; font-weight: 500; letter-spacing: 0.02em;
+  font-size: 24px; font-weight: 500; letter-spacing: 0.02em;
   -webkit-font-feature-settings: normal; font-feature-settings: normal;   /* tabular punctuation spaces "7-DAY" apart */
   text-transform: uppercase;
 }
@@ -129,11 +138,14 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .skeleton { border-radius: 12px; background: rgba(255, 255, 255, 0.06); }
 
 /* ---- clocks ----------------------------------------------------------------------------------- */
-/* Vertical budget (984 px inside the page padding): clocks 280 · 24 · current 416 · 24 · hourly 240. Batch 13: the hourly
+/* Vertical budget (984 px inside the page padding): clocks 280 · 24 · current 416 · 24 · hourly 240. FIX-BATCH-18 item 8 (the
+   owner chose option 1, «Сверху справа»): the screen status takes the 48 px strip at the top of the budget, as on every other
+   screen, and the grid moves down 48 px — status 48 · clocks 256 (their vertical padding 24 → 12) · 24 · current 392 (its
+   padding 32/24 → 20/12) · 24 · hourly 240; the 7-day rows 68 → 64. Batch 13: the hourly
    card keeps its 240 px with a dust line under every hour (28 px), taken from its own padding (24/24 → 18/14) and its
    icons (52 + 8 → 44 + 4): 18 · title 31 · 8 · label 29 · 4 · icon 44 · rain 24 · temperature 38 · dust 28 · 14 = 238. */
-.clocks { display: flex; height: 280px; flex: 0 0 280px; }
-.clock { flex: 1 1 0; -webkit-margin-end: 28px; padding: 24px 40px; display: flex; flex-direction: column; }
+.clocks { display: flex; height: 256px; flex: 0 0 256px; margin-top: 48px; }   /* FIX-BATCH-18 item 8: the 48 px above hold the status */
+.clock { flex: 1 1 0; -webkit-margin-end: 28px; padding: 12px 40px; display: flex; flex-direction: column; }
 .clock:last-child { -webkit-margin-end: 0; }
 .clock.is-night { background: linear-gradient(180deg, rgba(150, 160, 255, 0.075) 0%, rgba(255, 255, 255, 0.03) 100%); }
 .clock-head { display: flex; align-items: center; height: 40px; }
@@ -143,10 +155,10 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .clock-time.is-unknown { font-size: 40px; font-weight: 400; line-height: 104px; }
 .clock-date { font-size: 28px; margin-top: 8px; white-space: nowrap; }
 .clock-meta { display: flex; align-items: center; justify-content: space-between; margin-top: auto; min-height: 36px; }
-.clock-diff { font-size: 26px; white-space: nowrap; }
+.clock-diff { font-size: 24px; white-space: nowrap; }
 .clock-weather { display: flex; align-items: center; }
 .clock-weather .icon { width: 40px; height: 40px; -webkit-margin-end: 8px; stroke-width: 4.5; }
-.clock-temp { font-size: 30px; font-weight: 400; color: rgba(255, 255, 255, 0.85); }
+.clock-temp { font-size: 28px; font-weight: 400; color: rgba(255, 255, 255, 0.85); }
 .clock-weather.is-stale .icon { opacity: 0.62; }
 
 /* ---- main area: the daily card is exactly one clock column wide, so the column seams line up ---- */
@@ -155,13 +167,13 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .daily { flex: 0 0 auto; width: calc((100% - 56px) / 3); padding: 32px 40px; }
 
 /* current weather */
-.now { flex: 1 1 auto; padding: 32px 40px 24px; display: flex; flex-direction: column; }
+.now { flex: 1 1 auto; padding: 20px 40px 20px; display: flex; flex-direction: column; }   /* FIX-BATCH-18 item 8: 32/24 → 20/12; FIX-18B 9: the bottom 12 → 20 (the designer: room under the details), taken from the free gap above their divider (15 → 7 px); no card edge moves */
 .now-top { display: flex; justify-content: space-between; }
 .now-main { min-width: 0; }
 .now-place { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
 .now-temp, .region-temp { font-size: 136px; font-weight: 300; line-height: 1; text-indent: -6px; }   /* the big figure; text-indent: optical alignment of its digits */
 .now-temp { margin-top: 4px; }
-.now-cond { font-size: 36px; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
+.now-cond { font-size: 34px; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
 .now-sub { font-size: 28px; margin-top: 4px; white-space: nowrap; }
 .now-sub span { display: inline-block; }
 .now-sub span + span { -webkit-margin-start: 24px; }
@@ -175,92 +187,112 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .detail .icon g { stroke: rgba(255, 255, 255, 0.85); }                  /* one quiet tint for detail glyphs */
 .detail-text { display: flex; flex-direction: column; }
 .detail-label { font-size: 24px; }
-.detail-value { font-size: 30px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
+.detail-value { font-size: 28px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 /* no data yet / unavailable: one calm message in the middle of the card */
-.empty-state { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.empty-state .icon { width: 120px; height: 120px; stroke-width: 2.4; opacity: 0.4; }
-.empty-text { font-size: 34px; color: rgba(255, 255, 255, 0.85); margin-top: 16px; }
-.empty-sub { font-size: 28px; margin-top: 8px; }
+/* The one state block (batch 17, D-A1 / L7: js/view-state.js): loading (muted), failed (amber) with when it is tried again,
+   or a screen's own fact (kind none); centred in whatever holds it. A large card gives it a glyph. */
+.state { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.state .icon { width: 120px; height: 120px; stroke-width: 2.4; opacity: 0.4; }
+.state-text { font-size: 34px; color: rgba(255, 255, 255, 0.85); margin-top: 16px; }
+.state.is-failed .state-text { color: #ffcf8a; }   /* the amber role: a failure, said in words too */
+.state-sub { font-size: 28px; margin-top: 8px; }
+.state-card { flex: 1 1 auto; display: flex; }   /* a screen with nothing to show: one calm card holding the block */
 
 /* hourly strip */
-.hourly-card { flex: 0 0 240px; margin-top: 24px; padding: 18px 40px 14px; }
+.hourly-card { flex: 0 0 240px; margin-top: 24px; padding: 18px 40px 14px; display: flex; flex-direction: column; }
+.hourly { flex: 1 1 auto; display: flex; flex-direction: column; }   /* the card's room below the title: only the failed line uses it */
 .hours { display: flex; justify-content: space-between; margin-top: 8px; }
+.hours.is-none { flex: 1 1 auto; }   /* FIX-17B 7: «нет данных» centred in the card, its height unchanged */
 .hour { display: flex; flex-direction: column; align-items: center; width: 88px; }
 .hour-label { font-size: 24px; white-space: nowrap; }
 .hour.is-now .hour-label { color: #fff; font-weight: 500; }
 .hour .icon { width: 44px; height: 44px; margin-top: 4px; stroke-width: 3.5; }
 .hour-pop { font-size: 24px; color: #8ec5ff; height: 24px; line-height: 24px; }
-.hour-temp { font-size: 32px; color: rgba(255, 255, 255, 0.92); }
-.hour.is-empty .skeleton { width: 64px; height: 104px; margin-top: 4px; }
+.hour-temp { font-size: 34px; line-height: 38px; color: rgba(255, 255, 255, 0.92); }   /* D-C2: 32 → 34, the box pinned at 38 px (the 984 budget) */
+.hour.is-empty .skeleton { width: 64px; height: 106px; margin-top: 4px; }   /* FIX-BATCH-18 part B: as tall as icon 44 · 4 · rain 24 · temperature 38 (was 104: the strip grew 2 px when the data came) */
 .status { position: absolute; right: 40px; top: 24px; font-size: 24px; display: flex; align-items: center; }
 .status-dot { width: 10px; height: 10px; border-radius: 5px; -webkit-margin-end: 8px; background: #8ce6b4; }
 /* stale, or a failure the header says (e.g. both news feeds down): amber */
 .status.is-stale, .status.is-failed { color: #ffcf8a; }
 .status.is-stale .status-dot, .status.is-failed .status-dot { background: #ffcf8a; }
 
-/* ---- Batch 13: the dust forecast. The card title row carries the legend right after the title (the hourly card's inline
-   end is the status line's): «Пыль, мкг/м³» in the dust colour, then the amber pill «хамсин ≥ 100» that explains the amber
-   cells; on a narrow card it wraps under the title, never cut. A cell: the figure in the dust colour; a khamsin: amber on an
-   amber pill; «—» with no value; empty before the first air answer (the room is fixed, so nothing moves); dimmed when
-   stale. Sand for dust, amber (.lv-khamsin) for a khamsin. ---- */
+/* ---- Batch 13 / design C: the dust forecast. Each hour's dust under its temperature (the hourly card's title row carries
+   its «Пыль» label, FIX-17B 1); each day's maximum in the band under the 7-day list (.dust-band below). The screen's one
+   khamsin key, «хамсин ≥ 100», sits on the current card's dust item (.air-dust .dust-legend). A cell: the figure in the dust
+   colour; a khamsin: amber on an amber pill; «—» with no value; empty before the first air answer (the room is fixed, so
+   nothing moves); dimmed when stale. Sand for dust, amber for a khamsin. ---- */
 .card-head { display: flex; flex-wrap: wrap; align-items: baseline; }
 .card-head .card-title { -webkit-margin-end: 32px; }
 .dust-legend { display: flex; align-items: baseline; font-size: 24px; line-height: 26px; white-space: nowrap;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space them apart */
 .dust-legend-key, .hour-dust, .day-dust { color: #e3cfa6; }
-.dust-legend-khamsin.is-active, .dust-num.is-khamsin { color: #ffb38a; background: rgba(255, 179, 138, 0.16); }
-.dust-num.is-khamsin { border-radius: 13px; padding: 0 2px; }   /* 2 px: «3400» on its pill leaves the 72 px column ~6 px to spare on the TV font (it had 0) */
-/* X4: quiet grey text by default, the amber pill only when the card shows a khamsin cell; the box is the same either way */
-.dust-legend-khamsin { -webkit-margin-start: 16px; padding: 0 10px; border-radius: 13px; }
+/* FIX-18B 13 (the owner: «Чем опаснее, тем краснее»): a khamsin's pill by its grade (js/air.js grade, the EEA PM10 bands):
+   1 amber (100–120) · 2 orange (121–195) · 3 red-orange (196–270) · 4 red (> 270) — a solid fill under dark ink (a tinted pill
+   cannot carry red text at 4.5:1 on this dark glass: measured 2.9–4.3). Ink on fill, measured: 12.1 · 8.6 · 6.7 · 5.1 : 1
+   (tests/browser/khamsin18.test.mjs); the hue steps 45° → 30° → 15° → 0°, so the grades part at 3 m. */
+.dust-num.is-khamsin { color: #141a2e; }
+.dust-num.is-khamsin.kg-1 { background: #ffd27a; }
+.dust-num.is-khamsin.kg-2 { background: #ffa05a; }
+.dust-num.is-khamsin.kg-3 { background: #ff7a59; }
+.dust-num.is-khamsin.kg-4 { background: #f25555; }
+/* FIX-18B 13B: the one legend — the grades on the current card's dust label line, after «Пыль»: four pills (each grade's lower
+   bound in its colour), quiet grey until a khamsin is on screen; sized to fit the 256 px air block in ru, he and uk */
+.dust-legend-scale { display: flex; -webkit-margin-start: 8px; }
+/* FIX-18C K2 (the designer): ONE segmented bar «[100|121|196|271]» — the segments touch, square inside, rounded only at the
+   bar's two ends (mirrored right to left) */
+.dust-legend-scale .dust-num.is-khamsin { padding: 0 8px; border-radius: 0; }
+.dust-legend-scale .dust-num:first-child { border-top-left-radius: 13px; border-bottom-left-radius: 13px; }
+.dust-legend-scale .dust-num:last-child { border-top-right-radius: 13px; border-bottom-right-radius: 13px; }
+[dir="rtl"] .dust-legend-scale .dust-num:first-child { border-radius: 0 13px 13px 0; }
+[dir="rtl"] .dust-legend-scale .dust-num:last-child { border-radius: 13px 0 0 13px; }
+.dust-legend-scale:not(.is-active) .dust-num { color: rgba(255, 255, 255, 0.62); background: rgba(255, 255, 255, 0.06); }
+.dust-num.is-khamsin { border-radius: 13px; padding: 0 6px; }   /* FIX-18C K1 (the designer): real room inside every khamsin pill (was 2 px); «3400» still keeps ≥ 12 px to its neighbour in the hours */
 /* X5: «—» (no value) muted, never the dust colour; 62 % white is the legibility floor (layout test: 4.5:1) */
 .dust-none { display: inline-block; }   /* as tall as its line, like .dust-num */
-/* X3: on the narrow cards the wrapped legend sits 6 px under the title and ends above the dust column (no row-gap on Chromium 47) */
-#daily .dust-legend, .region .dust-legend { margin-top: 6px; -webkit-margin-start: auto; }
 .hour-dust { height: 26px; margin-top: 2px; font-size: 24px; line-height: 26px; white-space: nowrap; }
+.day-dust { font-size: 24px; line-height: 26px; white-space: nowrap; }
 .dust-num { display: inline-block; }
 .hour-dust.is-stale .dust-num, .day-dust.is-stale .dust-num { opacity: 0.72; }
 
-/* 7-day list */
+/* 7-day list (design C, owner 2026-11-02): one line per day — the day · its icon with the chance of rain beside it · the low
+   ─ the range bar ─ the high; the dust is in the band under the list. Row heights are per card (#daily 64 since FIX-BATCH-18 item 8, .region 62). */
 .days { margin-top: 8px; }
-.day { display: flex; align-items: center; height: 77px; border-top: 1px solid rgba(255, 255, 255, 0.07); }   /* 82 → 77 (batch 13, X3): room for the legend line and its 6 px gap */
+.day { display: flex; align-items: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
 .day:first-child { border-top: 0; }
 .day.is-gap { border-top-color: transparent; }   /* N9: no rule over a row past the data */
-.day-name { width: 136px; font-size: 30px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
-/* the icon is centred on the row; the chance of rain hangs below it and never moves it */
-/* the weather icon in the upper part of the slot, the chance of rain on its own line under it — an umbrella and the
-   percentage, never over the icon's drops (the owner: «должно быть понятно»); the row keeps its 77 px (82 before batch 13) */
-.day-icon { position: relative; width: 88px; height: 77px; }
-.day-icon > .icon { position: absolute; left: 22px; top: 4px; width: 44px; height: 44px; stroke-width: 4; }
-.day-icon.is-dry > .icon { top: 16px; }   /* L12: no rain line under it — the icon on the row's centre (77 − 44) / 2 */
-.day-pop { position: absolute; left: 0; right: 0; top: 51px; height: 26px; text-align: center; font-size: 24px; line-height: 26px; color: #8ec5ff; white-space: nowrap;
-  -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* F1: proportional figures — «☂100%» stays inside its 88 px slot */
+.day-name { flex: 0 0 140px; width: 140px; font-size: 28px; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
+/* the icon and, beside it, the chance of rain — an umbrella and the percentage (never over the icon's drops: the owner,
+   «должно быть понятно»); 138 px: «☂100%» keeps ≥ 16 px to the low (FIX-17 D2; measured 19.3 px) */
+.day-icon { flex: 0 0 138px; width: 138px; display: flex; align-items: center; -webkit-margin-start: 12px; }
+.day-icon > .icon { flex: 0 0 36px; width: 36px; height: 36px; stroke-width: 4; }
+.day-pop { -webkit-margin-start: 6px; font-size: 24px; line-height: 26px; color: #8ec5ff; white-space: nowrap;
+  -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* F1: proportional figures */
 .day-pop .icon { display: inline-block; width: 18px; height: 18px; vertical-align: -2px; -webkit-margin-end: 2px; stroke-width: 5; }
 .day-pop .icon g { stroke: #8ec5ff; }
-/* 64 px holds «−9°» and «45°» (53 px): the home cities are Israel's (js/cities.js); 72 → 64 in batch 13 for the dust column */
-.day-min { width: 64px; text-align: end; font-size: 30px; }
-.day-max { width: 64px; text-align: end; font-size: 30px; color: rgba(255, 255, 255, 0.95); }
-.day-dust { flex: 0 0 72px; width: 72px; -webkit-margin-start: 14px; text-align: end; font-size: 24px; line-height: 26px; white-space: nowrap; }   /* X1: «3400» on its pill: 68 px; 14 px from the high */
-.range { position: relative; flex: 1 1 auto; height: 16px; -webkit-margin-start: 10px; -webkit-margin-end: 6px; }
+/* 56 px holds «−9°» and «45°» (53 px): the home cities are Israel's (js/cities.js) */
+.day-min { width: 56px; text-align: end; font-size: 28px; }
+.day-max { width: 56px; text-align: end; font-size: 28px; color: rgba(255, 255, 255, 0.95); }
+.range { position: relative; flex: 1 1 auto; height: 16px; -webkit-margin-start: 16px; -webkit-margin-end: 16px; }   /* the row gap: 16 px (owner, 2026-11-03: design C) */
 .range:before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); }
 /* each fill shows its slice of one week-wide gradient (background-size / -position set per bar) */
 .range-fill { position: absolute; top: 4px; height: 8px; border-radius: 4px; background-repeat: no-repeat;
   background-image: linear-gradient(90deg, #8fd0ff 0%, #b9e6c9 50%, #ffcf8a 100%); }
 .range-dot { position: absolute; top: 0; width: 16px; height: 16px; border-radius: 8px; background: #fff; border: 3px solid #1c2440; }
 .day.is-empty .skeleton { flex: 1 1 auto; height: 24px; }
-/* L5: no weather and the last try failed: one quiet line in the strip and in the list (the current card says when it is
-   tried again); a cell beyond the data is an empty slot of its own size, no placeholder */
-.wx-none { flex: 1 1 auto; padding-top: 48px; text-align: center; font-size: 28px; }
+/* L5: no weather and the last try failed: one quiet line in the strip and in the list, centred in its room (the current
+   card says when it is tried again; FIX-17B 7: the room is the card's, so its height never changes) */
+.wx-none { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 28px; }
 
 /* ---- Batch 12. The air & UV block in the "now" card: in the free gap between the place's text and the big icon, no
    glyphs; a label, then the figure and the level word (atomic, a line wraps only between them); the dust line only
    when the dust is high. .now-top keeps its height. Level colours are soft and always come with the word. ---- */
-.now-air { flex: 0 0 256px; width: 256px; -webkit-margin-start: auto; -webkit-margin-end: 32px; display: flex; flex-direction: column; justify-content: flex-start; }   /* fixed and top-aligned: the dust line moves nothing */
+.now-air { flex: 0 0 288px; width: 288px; -webkit-margin-start: auto; -webkit-margin-end: 0; display: flex; flex-direction: column; justify-content: flex-start; }   /* fixed and top-aligned: the dust line moves nothing. FIX-18C K2: 256 + its 32 px end margin → 288 and 0 (the left edge, and the icon, stay where they were): room for the segmented legend */
 .air-item + .air-item { margin-top: 20px; }
 .air-label { height: 30px; font-size: 24px; line-height: 30px; white-space: nowrap;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space «УФ-индекс» apart */
 .air-value { height: 38px; font-size: 24px; line-height: 38px; white-space: nowrap; }
 .air-num, .air-word, .air-none { display: inline-block; white-space: nowrap; }
-.air-num { font-size: 30px; color: rgba(255, 255, 255, 0.92); -webkit-margin-end: 4px; }
+.air-num { font-size: 28px; color: rgba(255, 255, 255, 0.92); -webkit-margin-end: 4px; }
 /* the figure and its words on one baseline, each box only as tall as its text, so the line stays inside its 38 px */
 .air-num { line-height: 34px; }
 .air-word, .air-unit, .air-none { line-height: 28px; }
@@ -269,7 +301,6 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
    nothing moves; the unit in the label's quiet grey */
 .air-item { height: 68px; }   /* label 30 + value 38, fixed: the dust item takes the same room with or without a value */
 .air-unit { display: inline-block; white-space: nowrap; }
-.lv-khamsin { color: #ffb38a; }
 .now.is-stale .air-uv .air-num, .now.is-stale .air-uv .air-word, .now-air.is-stale .air-aq .air-num,
 .now-air.is-stale .air-aq .air-word, .now-air.is-stale .air-dust .air-num, .now-air.is-stale .air-dust .air-word { opacity: 0.72; }
 .lv-low, .lv-good { color: #8ce6b4; }
@@ -303,7 +334,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .sh-tiles { flex: 0 0 auto; display: flex; margin-top: 16px; }   /* the tiles fit their content; the free space goes above the rule */
 .sh-tile { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; padding: 36px 40px; border-radius: 24px; background: rgba(255, 255, 255, 0.045); }
 .sh-tile + .sh-tile { -webkit-margin-start: 28px; }
-.sh-tile-head { display: flex; align-items: center; font-size: 30px; font-weight: 500; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
+.sh-tile-head { display: flex; align-items: center; font-size: 28px; font-weight: 500; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 .sh-tile-head .icon { width: 44px; height: 44px; -webkit-margin-end: 12px; stroke-width: 3.5; }
 .sh-tile-head .ic-candles, .sh-calm-line .ic-havdalah, .sh-tile-head .ic-havdalah { stroke: #ffd58f; }
 .sh-tile-date { margin-top: 12px; font-size: 28px; line-height: 34px; min-height: 34px; white-space: nowrap; }
@@ -322,23 +353,23 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* Shabbat or a yom tov is in: a warm, calm card; the words say it, the tint only accompanies them */
 .sh-week.is-calm { background: linear-gradient(180deg, rgba(255, 200, 140, 0.11) 0%, rgba(255, 255, 255, 0.04) 100%); }
 .sh-calm { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.sh-calm-greet { font-size: 96px; font-weight: 300; line-height: 1.1; color: #ffe2b8; }
-.sh-calm-name { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.9); }
-.sh-calm-line { display: flex; align-items: center; margin-top: 32px; font-size: 30px; color: rgba(255, 255, 255, 0.85); white-space: nowrap; }
+.sh-calm-greet { font-size: 104px; font-weight: 300; line-height: 1.1; color: #ffe2b8; }
+.sh-calm-name { margin-top: 16px; font-size: 34px; color: rgba(255, 255, 255, 0.9); }
+.sh-calm-line { display: flex; align-items: center; margin-top: 32px; font-size: 28px; line-height: 40px; color: rgba(255, 255, 255, 0.85); white-space: nowrap; }   /* D-C2: the line box pinned — the bold time's glyphs stay inside it at 28 px */
 .sh-calm-time { font-weight: 500; color: rgba(255, 255, 255, 0.95); }
 .sh-calm-line .icon { width: 40px; height: 40px; -webkit-margin-end: 12px; stroke-width: 3.5; }
 /* card C: six rows on one pitch, from the top; a name may take two lines, the date and the count one */
 .sh-rows { display: flex; flex-direction: column; margin-top: 8px; }
+.sh-rows.is-state { flex: 1 1 auto; }   /* FIX-17B 6: the failed block centred in the card, like the week card's */
 .sh-row { flex: 0 0 128px; height: 128px; display: flex; flex-direction: column; justify-content: center; border-top: 1px solid rgba(255, 255, 255, 0.07); }
 .sh-row:first-child { border-top: 0; }
 .sh-row:empty { border-top-color: transparent; }
-.sh-row-name { font-size: 32px; font-weight: 500; line-height: 40px; color: rgba(255, 255, 255, 0.92); }
-.sh-row-sub { display: flex; justify-content: space-between; margin-top: 6px; font-size: 26px; line-height: 32px; white-space: nowrap; }
+.sh-row-name { font-size: 34px; font-weight: 500; line-height: 40px; color: rgba(255, 255, 255, 0.92); }
+.sh-row-sub { display: flex; justify-content: space-between; margin-top: 6px; font-size: 24px; line-height: 32px; white-space: nowrap; }
 .sh-row-in { -webkit-padding-start: 16px; }
 .sh-row-in.is-ongoing { color: #8ce6b4; }
 .sh-row-name .icon { display: inline-block; width: 32px; height: 32px; vertical-align: -5px; -webkit-margin-end: 10px; stroke-width: 4; }   /* a fast: its glyph */
 .sh-row.is-empty { justify-content: center; }
-.sh-list-failed { margin-top: 24px; font-size: 28px; line-height: 34px; color: #ffcf8a; }   /* L6: the calendar failed — said, never a blank card */
 /* The weekly reading (card A, the band between the Hebrew date and the rule): every value under its own label.
    Worst case, a note above and a reference on two lines: 52 + 8 + 148 = 208 of the 220 px band. */
 .sh-ref-part { white-space: nowrap; }
@@ -348,8 +379,8 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .sh-read-row > .sh-read-item { flex: 0 1 auto; max-width: 50%; -webkit-padding-end: 64px; }
 .sh-read-col { flex: 1 1 0; min-width: 0; }
 .sh-read-extra { margin-top: 8px; }
-.sh-read-label { font-size: 26px; line-height: 32px; }
-.sh-read-name { font-size: 36px; line-height: 44px; font-weight: 500; color: rgba(255, 255, 255, 0.95); }
+.sh-read-label { font-size: 24px; line-height: 32px; }
+.sh-read-name { font-size: 34px; line-height: 44px; font-weight: 500; color: rgba(255, 255, 255, 0.95); }
 .sh-read-ref, .sh-read-value { font-size: 28px; line-height: 36px; color: rgba(255, 255, 255, 0.85); }
 
 /* ---- News, Traffic and the alert are mostly words: proportional figures (tabular ones space out hyphens, as in
@@ -363,16 +394,17 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .region:last-child { -webkit-margin-end: 0; }
 .region-head { display: flex; align-items: baseline; white-space: nowrap; -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: no spaced hyphens */
 .region-name { font-size: 34px; font-weight: 500; color: rgba(255, 255, 255, 0.92); }
-.region-city { -webkit-margin-start: 16px; font-size: 26px; }
+.region-city { -webkit-margin-start: 16px; font-size: 24px; }
 .region-now { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
 .region-temp { margin-top: 8px; }   /* the main card's figure (.now-temp) */
-.region-cond { margin-top: 8px; font-size: 34px; color: rgba(255, 255, 255, 0.9); white-space: nowrap; }   /* its own line: «Преимущественно ясно» never meets the icon */
 .region-icon .icon { width: 168px; height: 168px; stroke-width: 1.7; }
-.region-sub { margin-top: 8px; height: 68px; font-size: 28px; line-height: 34px; }   /* L10: two lines in every language (feels-like, wind) */
-.region-part { white-space: nowrap; }   /* «Вітер 14 км/год» whole, a line of its own */
+.region-sub { margin-top: 8px; height: 34px; display: flex; align-items: center; font-size: 28px; line-height: 34px; white-space: nowrap; }   /* batch 18: ONE line, no words: feels-like and the wind, each with its icon */
+.region-part { display: flex; align-items: center; white-space: nowrap; }   /* «14 км/год» whole */
+.region-part + .region-part { -webkit-margin-start: 32px; }
+.region-sub .icon { flex: 0 0 32px; width: 32px; height: 32px; -webkit-margin-end: 8px; stroke-width: 4.5; }   /* the value's label */
+.region-sub .icon g { stroke: rgba(255, 255, 255, 0.85); }
 /* the days fill the rest of the card, rows spread evenly: no empty band at the bottom */
-.region .card-head { margin-top: 24px; }   /* 32 → 24 (batch 13): the legend's line; Ukrainian's two-line sub line still leaves the 5 days their room */
-.region .days { margin-top: 8px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
+.region .days { margin-top: 16px; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: space-between; }
 
 /* ---- News and Traffic share a header: the screen's name on the left, its status line on the right ------- */
 /* The header reserves two lines (72 px): the title and the status line share the first 48 px, the traffic note has the
@@ -380,6 +412,11 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .screen-head { display: flex; align-items: flex-start; justify-content: space-between; height: 72px; flex: 0 0 72px; padding: 0 41px; }
 .screen-title { margin: 0; height: 48px; line-height: 48px; font-size: 40px; font-weight: 500; color: rgba(255, 255, 255, 0.92); letter-spacing: -0.005em; }
 .status.screen-status { position: static; height: 48px; }
+/* batch 18 (the owner: «так же, как и везде»): the main screen's weather status is its screen status — the same component,
+   size and side as on every other screen (its end edge on the header's 41 px inset). FIX-BATCH-18 item 8, owner chose option 1
+   («Сверху справа»): at the top of the screen, inside the same safe margin as every other screen's status (y 48–96), the
+   clocks moved down under it */
+.status.main-status { position: absolute; top: 0; right: 41px; }
 .head-side { display: flex; flex-direction: column; align-items: flex-end; }   /* the status line, and under it the note */
 .status-note { display: none; font-size: 24px; line-height: 24px; color: #ffcf8a; white-space: nowrap; }
 .status-note.is-on { display: block; }
@@ -405,11 +442,8 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 /* Three lines at most (the owner, 2026-11-02: «3 строки»), always three lines tall: no measuring, and row n lines up across
    the columns; a longer headline ends with an ellipsis (on the left in Hebrew). N1: 3 × 38 = 114 px at 30 px, from the
    row's top (4 + 24 + 3 + 114 = 145 of its 162 px), so at least 16 px stay under the third line. */
-.news-title { margin-top: 3px; height: 114px; overflow: hidden; font-size: 30px; line-height: 38px; color: rgba(255, 255, 255, 0.92);
+.news-title { margin-top: 3px; height: 114px; overflow: hidden; font-size: 28px; line-height: 38px; color: rgba(255, 255, 255, 0.92);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-.news-col-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; font-size: 28px; }
-.news-col-empty.is-failed { color: #ffcf8a; }   /* a failure, amber like .news-col-state — never a neutral "no data" */
-.news-empty, .traffic-empty { flex: 1 1 auto; display: flex; }
 
 /* ---- Traffic: two columns of five widgets (routes «Города», «Рядом»; the main roads are on the map screen), one
    rhythm: 28 px between widgets and between the columns. Every widget has the same three rows — name + chip, time +
@@ -424,7 +458,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .tw-name { min-width: 0; font-size: 28px; font-weight: 500; color: rgba(255, 255, 255, 0.92); white-space: nowrap; }
 .tw-mid { display: flex; justify-content: space-between; align-items: baseline; }
 .tw-time { font-size: 52px; font-weight: 300; line-height: 1; white-space: nowrap; letter-spacing: -0.01em; }
-.tw-time .unit { font-size: 30px; }   /* "38 мин": the figure leads */
+.tw-time .unit { font-size: 28px; }   /* "38 мин": the figure leads */
 .tw-km, .tnodata { font-size: 24px; white-space: nowrap; }
 .chip { flex: 0 0 auto; -webkit-margin-start: 12px; padding: 2px 12px; border-radius: 18px; font-size: 24px; font-weight: 500; white-space: nowrap; }
 .chip.lv-ok { color: #8ce6b4; background: rgba(140, 230, 180, 0.13); }
@@ -458,15 +492,13 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .map-key-line.lv-ok { background: #2f8a5a; }
 .map-key-line.lv-slow { background: #c27a2c; }
 .map-key-line.lv-jam { background: #c23434; }
+.map-state { display: none; }
+.map-state.is-on { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; }   /* the state block over the map until the first image */
 .map-card.no-image .map-home, .map-card.no-image .map-home-name, .map-card.no-image .map-attribution, .map-card.no-image .map-key { visibility: hidden; }
 /* the attribution Mapbox requires, small and quiet in the corner over the sea (bottom-left in every language: Jerusalem's
    label sits in the bottom-right corner) */
 .map-attribution { position: absolute; left: 24px; bottom: 16px; padding: 4px 12px; border-radius: 12px; background: rgba(14, 20, 36, 0.7);
   font-size: 24px; color: rgba(255, 255, 255, 0.85); direction: ltr; white-space: nowrap; }
-.map-note { display: none; }
-.map-note.is-on { position: absolute; left: 0; right: 0; top: 50%; margin-top: -32px; display: flex; justify-content: center; }
-.map-note-text { padding: 12px 32px; border-radius: 32px; background: rgba(14, 20, 36, 0.82); font-size: 32px; color: rgba(255, 255, 255, 0.85); }
-.map-empty { flex: 1 1 auto; display: flex; }
 
 /* ---- The alert at home: the Alerts screen becomes it, filling the screen, deep red and calm; a slow pulse of light
    (opacity only). `inherit`, never `visible`: on a hidden screen the layer stays hidden with it. ------------------ */
@@ -487,17 +519,17 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .alert-body .ic-warning { stroke: #ffd9d5; }
 .alert-kind { margin-top: 32px; font-size: 104px; font-weight: 500; line-height: 1.1; letter-spacing: -0.015em; color: #fff; }
 .alert-orig { margin-top: 16px; font-size: 40px; line-height: 48px; color: rgba(255, 255, 255, 0.85); }   /* a sub-line of the title: the 16 px of .alert-since under .alert-areas; its own right-to-left block (js/view-alert.js) */
-.alert-areas { margin-top: 32px; font-size: 64px; color: #ffe6e3; line-height: 1.2; }
-.alert-areas.is-many { font-size: 48px; }
+.alert-areas { margin-top: 32px; font-size: 72px; color: #ffe6e3; line-height: 1.2; }
+.alert-areas.is-many { font-size: 52px; }
 .alert-area { display: inline-block; white-space: nowrap; }   /* a name never breaks at its hyphen; lines break between names */
-.alert-since { margin-top: 16px; font-size: 36px; color: rgba(255, 255, 255, 0.85); }
+.alert-since { margin-top: 16px; font-size: 34px; color: rgba(255, 255, 255, 0.85); }
 /* The feed lost while the alert is up: said inside the alert, in warm amber (about 8:1 on the deep red). */
-.alert-offline { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 32px; color: #ffcf8a; }
+.alert-offline { display: flex; align-items: center; justify-content: center; margin-top: 16px; font-size: 34px; color: #ffcf8a; }
 .alert-offline .offline-dot { width: 14px; height: 14px; border-radius: 7px; -webkit-margin-end: 12px; border: 2px solid #ffcf8a; }
 .alert-instr { margin-top: 48px; padding: 16px 40px; border-radius: 40px; font-size: 40px; line-height: 48px; color: #fff; background: rgba(255, 255, 255, 0.1); }
 /* The owner's preview (the blue key): the same alert under a white band that cannot be mistaken for the alert. */
 .alert-preview { position: absolute; left: 0; right: 0; top: 0; height: 104px; z-index: 1; display: flex; align-items: center; justify-content: center;
-  font-size: 44px; font-weight: 500; color: #5a111b; background: #fff; }
+  font-size: 40px; font-weight: 500; color: #5a111b; background: #fff; }
 .alert.is-preview .alert-body { top: 104px; }
 
 /* ---- The home-alert line: while an alert at home is up, every screen but the Alerts screen (the alert itself)
@@ -524,7 +556,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .al-home .ic-warning { stroke: #ff9a8c; }
 .al-home.is-offline .ic-warning { stroke: #ffcf8a; }
 .al-home.is-alert { background: linear-gradient(180deg, rgba(200, 40, 52, 0.42) 0%, rgba(120, 20, 30, 0.32) 100%); }
-.al-home-main { margin-top: 24px; font-size: 64px; font-weight: 500; line-height: 1.15; color: #fff; }
+.al-home-main { margin-top: 24px; font-size: 72px; font-weight: 500; line-height: 1.15; color: #fff; }
 .al-home.is-offline .al-home-main { font-size: 40px; color: #ffcf8a; }
 .al-home-place { margin-top: 16px; font-size: 40px; color: rgba(255, 255, 255, 0.85); }
 .al-home-sub { margin-top: 16px; font-size: 28px; }
@@ -542,13 +574,11 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .al-heads + .al-row { border-top: 0; }
 .al-time { flex: 0 0 200px; font-size: 28px; white-space: nowrap;
   -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; }
-.al-kind { flex: 0 0 360px; -webkit-padding-end: 24px; font-size: 30px; font-weight: 500; line-height: 38px; color: rgba(255, 255, 255, 0.92); }
+.al-kind { flex: 0 0 360px; -webkit-padding-end: 24px; font-size: 28px; font-weight: 500; line-height: 38px; color: rgba(255, 255, 255, 0.92); }
 .al-areas { flex: 1 1 auto; min-width: 0; font-size: 28px; line-height: 38px; color: rgba(255, 255, 255, 0.85); }
 /* Untranslated Hebrew in a left-to-right row: read right to left, but lined up with its column's left edge. */
 html[dir="ltr"] .al-kind[dir="rtl"], html[dir="ltr"] .al-areas[dir="rtl"] { text-align: left; }
 .al-name { white-space: nowrap; }   /* a place name never breaks at its hyphen */
-.al-recent-empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 32px; }
-.al-recent-empty.is-failed { color: #ffcf8a; }
 
 /* ---- The language toast: the new language's name in its own words, a moment in the lower middle, then gone ---- */
 .toast { position: fixed; left: 50%; bottom: 120px; z-index: 20; width: 480px; margin-left: -240px; padding: 20px 0; border-radius: 40px;
@@ -568,7 +598,7 @@ html[dir="ltr"] .al-kind[dir="rtl"], html[dir="ltr"] .al-areas[dir="rtl"] { text
   -webkit-transform: translateY(16px); transform: translateY(16px); -webkit-transition: -webkit-transform 0.22s ease-out; transition: transform 0.22s ease-out;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }
 .city.is-on .city-sheet { -webkit-transform: none; transform: none; }
-.city-title { font-size: 48px; line-height: 56px; font-weight: 500; color: #fff; }
+.city-title { font-size: 52px; line-height: 56px; font-weight: 500; color: #fff; }
 .city-sub { margin-top: 8px; font-size: 28px; line-height: 36px; }
 .city-window { position: relative; height: 648px; margin-top: 24px; overflow: hidden; }   /* 9 rows of 72 px */
 .city-list { will-change: transform; }
@@ -581,7 +611,7 @@ html[dir="ltr"] .al-kind[dir="rtl"], html[dir="ltr"] .al-areas[dir="rtl"] { text
   -webkit-transform: rotate(45deg); transform: rotate(45deg); }
 html[dir="rtl"] .city-check { margin-left: 8px; }
 .city-badge { position: absolute; top: 276px; width: 96px; height: 96px; border-radius: 48px; display: flex; align-items: center; justify-content: center;
-  font-size: 48px; font-weight: 500; color: #fff; background: rgba(255, 255, 255, 0.22); opacity: 0;
+  font-size: 52px; font-weight: 500; color: #fff; background: rgba(255, 255, 255, 0.22); opacity: 0;
   -webkit-transition: opacity 0.2s ease; transition: opacity 0.2s ease; left: 50%; margin-left: -48px; }
 .city-badge.is-on { opacity: 1; }
 .city-msg { display: none; margin-top: 16px; font-size: 28px; color: #ffcf8a; text-align: center; }
@@ -593,8 +623,9 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
    last card's gutter, so no nth-child rule depends on the count. The lines share the height (align-content: stretch).
    The head as on the News / Israel screens (26 px top padding, a 46 px head, a 34 px title). A row: the name, the price
    (right-aligned, one decimal column per card), the sign in a cell of its own, the change. Six rows per card on ONE
-   pitch, 58 px: the card is 440 px tall = 1 border + 26 top + 46 head + 6 × 58 + 18 bottom + 1 border (name 28 · price
-   30 · change 26 px, as on the other screens). ---- */
+   pitch, 58 px: the card's content needs 440 px = 1 border + 26 top + 46 head + 6 × 58 + 18 bottom + 1 border (name 28 · price
+   30 · change 26 px, as on the other screens); the two lines stretch to share the body, so a card measures 442 px at
+   1920×1080 (N4, measured 2026-11-03). ---- */
 .mk-body { flex-wrap: wrap; align-content: stretch; -webkit-margin-end: -28px; margin-bottom: -28px; }
 .mk-card { width: calc(100% / 3 - 28px); -webkit-margin-end: 28px; margin-bottom: 28px; padding: 26px 40px 18px; display: flex; flex-direction: column;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }
@@ -617,7 +648,7 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 /* «закрыто» / «частично закрыто»: only in the card's head, at its end, one line; never inside a row */
 .mk-closed { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; white-space: nowrap; }
 /* a card with no price at all: said once, amber like every failure the app says, in its head */
-.mk-failed { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; color: #ffcf8a; white-space: nowrap; }
+.mk-state { -webkit-margin-start: auto; -webkit-padding-start: 16px; font-size: 24px; white-space: nowrap; }   /* a card with no price: «нет данных», muted (a part, not an alarm) */
 .mk-price, .mk-pct { -webkit-font-feature-settings: "tnum" 1; font-feature-settings: "tnum" 1; white-space: nowrap; }
 /* the price column: one width per card (B6) — its widest price in any language, measured 2026-11-02 on the recorded and
    the live quotes — so he / ru / uk match; a cell only grows (a «нет данных» row may widen it), never cuts. Set by a
@@ -626,7 +657,7 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 .mk-price:before { content: ''; display: block; height: 0; }
 /* direction ltr: a figure is left to right in every language, and its trailing figure-space padding stays at its right
    (in a right-to-left cell the bidi algorithm would move trailing spaces to the left of the number) */
-.mk-price { -webkit-padding-start: 16px; direction: ltr; text-align: right; font-size: 30px; color: rgba(255, 255, 255, 0.92); }
+.mk-price { -webkit-padding-start: 16px; direction: ltr; text-align: right; font-size: 28px; color: rgba(255, 255, 255, 0.92); }
 /* FIX-11B-B1b: the number AND its sign box, widest in any language (measured on the recorded and the live quotes) */
 #mk-fx .mk-price:before { width: 160px; }
 #mk-us .mk-price:before { width: 140px; }
@@ -644,7 +675,7 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 /* the change: its own column at the end (a fixed width: Chromium 47 ignores min-width on a table cell); soft
    Apple-like colours, never neon; a fixed 22 px arrow slot and a fixed-width figure, so every «%» ends on one line */
 .mk-chg { width: 140px; -webkit-padding-start: 8px;   /* 8: the sign box already ends 3–9 px after the sign */
-  text-align: end; font-size: 26px; white-space: nowrap; }
+  text-align: end; font-size: 24px; white-space: nowrap; }
 #mk-indices .mk-chg { -webkit-padding-start: 16px; }   /* no sign box after a level in points: the full gap before the arrow */
 #mk-commodities .mk-chg { -webkit-padding-start: 10px; }   /* N2: no sign box in its rows (the $ is in the head): 10 px clear of the arrow, the rest for the unit */
 .mk-pct { display: inline-block; min-width: 118px; text-align: right; }   /* + the 22 px arrow slot = the cell's 140 px: «+12,34%» never moves the arrow */
@@ -658,7 +689,7 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 .mk-chg.is-down .mk-arrow { border-top-color: #ff9a8c; }
 .mk-row.is-stale .mk-chg.is-up .mk-arrow { border-bottom-color: rgba(255, 255, 255, 0.62); }
 .mk-row.is-stale .mk-chg.is-down .mk-arrow { border-top-color: rgba(255, 255, 255, 0.62); }
-.mk-nodata { -webkit-padding-start: 16px; text-align: right; font-size: 26px; white-space: nowrap; }
+.mk-nodata { -webkit-padding-start: 16px; text-align: right; font-size: 24px; white-space: nowrap; }
 /* before the first data: the same six slots, as plain rows */
 .mk-card.is-empty .mk-rows { display: block; }
 .mk-row.is-empty { display: flex; align-items: center; height: 58px; }
@@ -669,9 +700,36 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
    mirror by themselves; here only what is placed by left / right or drawn from the left. Figures stay left to right
    (js/i18n.js ltr()). The page dots and ◀ ▶ stay physical (index.html: the dots are dir="ltr"). ---- */
 [dir="rtl"] .status { right: auto; left: 40px; }
+[dir="rtl"] .status.main-status { right: auto; left: 41px; }
 [dir="rtl"] .corner { left: 64px; right: 1024px; }
 [dir="rtl"] .clock-time { direction: ltr; text-align: right; }   /* "≈" before the time, as in every language */
 [dir="rtl"] .now-temp, [dir="rtl"] .region-temp { text-indent: 0; }
 /* a range bar and a time bar fill from the right: the coldest end next to the low temperature, the trip from the start */
 [dir="rtl"] .range, [dir="rtl"] .tbar { -webkit-transform: scaleX(-1); transform: scaleX(-1); }
 
+
+/* ==== Design C (owner, 2026-11-02 — one legend + design C): the dust band under the 7-day list — its label, then one cell
+   per day: the short day over that day's maximum. D17-6: on the main card (7 cells) the label has its own line; batch 18
+   (FIX-BATCH-18 item 4): an Israel card has 7 cells too, so its label takes its own line as well (inline it left 8.8 px
+   between «Сьог.» and its neighbour; owner's minimum 16). ==== */
+#daily, .region { display: flex; flex-direction: column; }
+#daily .days, .region .days { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; }
+#daily .day { height: 64px; }   /* FIX-BATCH-18 item 8: 68 → 64 (the grid moved down 48 px) */
+.region .day { height: 62px; }
+.region .day-pop { line-height: 24px; }
+.dust-band { display: flex; align-items: flex-end; margin-top: 12px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+.region .dust-band { margin-top: 8px; padding-top: 10px; }
+#daily .dust-band, .region .dust-band { flex-wrap: wrap; }
+.band-label { flex: 0 0 auto; -webkit-margin-end: 16px; font-size: 24px; line-height: 26px; color: #e3cfa6; white-space: nowrap; }
+#daily .band-label, .region .band-label { flex: 0 0 100%; margin-bottom: 4px; }
+.band-cells { flex: 1 1 auto; display: flex; margin: 0 -20px; }   /* FIX-18C K1: the cells reach 20 px into the card's 40 px padding each side (70 → 75.7 px), so «3,4к» pills on their 5 px padding keep ≥ 12 px apart */
+.band-cell { flex: 1 1 0; text-align: center; }
+.band-cell:first-child { flex-grow: 1.1; }   /* D3: today's label («Сьог.») is the widest: a fixed larger share, never content-sized (nothing moves when the air lands) */
+.band-day { min-height: 26px; font-size: 24px; line-height: 26px; color: rgba(255, 255, 255, 0.62); white-space: nowrap; }
+.band-cell .day-dust { min-height: 26px; margin-top: 6px; text-align: center; }   /* D1: an empty slot keeps its line, so nothing moves when the air lands */
+.band-cell .dust-num.is-khamsin { padding: 0 5px; -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* FIX-18C K1: 5 px inside (was 1); proportional figures so «1,5к» and its neighbours keep ≥ 12 px between pills in a 75.7 px cell (.band-cells) */
+/* the hourly card's own «Пыль» label, on its title row after the title (FIX-17B 1: every value has its label) */
+.card-head .band-label { -webkit-margin-end: 0; }
+/* the one legend: «Пыль» in the dust colour, the khamsin grades beside it (FIX-18B 13B), in the current card's dust item */
+.air-dust .dust-legend { display: flex; align-items: center; font-size: 24px; line-height: 30px; }
+.air-dust .air-num:not(.is-khamsin) { color: #e3cfa6; }   /* FIX-18B 7: an ordinary reading in the dust colour; a khamsin keeps its grade's pill colour */

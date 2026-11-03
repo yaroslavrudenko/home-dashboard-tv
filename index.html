@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" dir="ltr" class="is-booting">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=1920, height=1080">
@@ -10,13 +10,13 @@
 <body>
 <div id="stage">
   <section id="screen-main" class="screen is-active">
+    <div id="status" class="status screen-status main-status"></div>
     <section id="clocks" class="clocks"></section>
     <section class="main">
       <div class="col-left">
         <div id="now" class="card now"></div>
         <div class="card hourly-card">
           <div id="hourly" class="hourly"></div>
-          <div id="status" class="status"></div>
         </div>
       </div>
       <div id="daily" class="card daily"></div>
@@ -44,6 +44,7 @@
 <script src="js/i18n.js"></script>
 <script src="js/tz.js"></script>
 <script src="js/html.js"></script>
+<script src="js/view-state.js"></script>
 <script src="js/net.js"></script>
 <script src="js/refresher.js"></script>
 <script src="js/placestore.js"></script>
@@ -75,7 +76,18 @@
 <script src="js/view-alerts.js"></script>
 <script src="js/view-banner.js"></script>
 <script src="js/view-city.js"></script>
+<script src="js/view-toast.js"></script>
 <script src="js/player-behind.js"></script>
+<script src="js/app-env.js"></script>
+<script src="js/home-clock.js"></script>
+<script src="js/app-render-weather.js"></script>
+<script src="js/app-render-feeds.js"></script>
+<script src="js/app-nav.js"></script>
+<script src="js/app-alerts.js"></script>
+<script src="js/app-lang.js"></script>
+<script src="js/app-city.js"></script>
+<script src="js/app-keys.js"></script>
+<script src="js/app-wake.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

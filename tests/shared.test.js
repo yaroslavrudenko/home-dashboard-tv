@@ -27,7 +27,7 @@ test('C-2: Freshness — one rule: no data loading/failed; data fresh, stale on 
   assert.equal(F.old(NOW + 1, NOW, MAX), true);
 });
 
-test('C-16 / C-21 / C-6: Html — esc escapes the single quote too; setStatus writes only a changed line; statusText is Html\'s', () => {
+test('C-16 / C-21 / C-6: Html — esc escapes the single quote too; setStatus writes only a changed line; the header line is ViewState\'s (B17)', () => {
   const ctx = load(['js/i18n.js', 'js/html.js']);
   assert.equal(ctx.Html.esc('<a href=\'x\' title="y">&</a>'), '&lt;a href=&#39;x&#39; title=&quot;y&quot;&gt;&amp;&lt;/a&gt;');
   let writes = 0, html = '';
@@ -39,8 +39,9 @@ test('C-16 / C-21 / C-6: Html — esc escapes the single quote too; setStatus wr
   ctx.Html.setStatus(el, 'status', 'stale', 'Не обновляется · данные от 20:32');
   assert.equal(writes, 2);
   ctx.I18n.setLang('ru');
-  assert.equal(ctx.Html.statusText('stale', '20:32', 'met'), 'Не обновляется · данные от 20:32 · MET Norway');
+  assert.equal(ctx.ViewState.headText('stale', '20:32', [ctx.I18n.t('src.met')]), 'Не обновляется · данные от 20:32 · MET Norway');
   assert.equal(ctx.Html.label, undefined, 'C-14: no dead export');
+  for (const gone of ['statusText', 'emptyState', 'emptyCard', 'retryText']) assert.equal(ctx.Html[gone], undefined, 'B17: ' + gone + ' is gone (ViewState)');
 });
 
 test('C-5: I18n.tOr — a name from the tables, or the fallback (never the key); L3 uk «Від {time}»; L1 the short column line', () => {
@@ -52,7 +53,7 @@ test('C-5: I18n.tOr — a name from the tables, or the fallback (never the key);
   assert.equal(ctx.I18n.t('a.since', { time: '20:32' }), 'Від 20:32', 'never «З 20:32», read as «3 20:32»');
   for (const [lang, line] of [['ru', 'данные от 09:31'], ['he', 'נתונים מ־09:31'], ['uk', 'дані від 09:31']]) {
     ctx.I18n.setLang(lang);
-    assert.equal(ctx.I18n.t('n.colStale', { time: '09:31' }), line, lang);
+    assert.equal(ctx.I18n.t('st.partStale', { time: '09:31' }), line, lang + ' (B17-V6: the part word, st.partStale)');
   }
 });
 
