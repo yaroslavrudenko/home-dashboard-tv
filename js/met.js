@@ -234,10 +234,24 @@ var Met = (function () {
       }
     }
 
+    // FIX-BATCH-19 6 (perf B18-P2): an answer is turned into a model once per place and wall-clock hour — a kept answer reused
+    // by the next rounds of that hour (or restored, then reused, after a restart) gives the same model, so it is not parsed
+    // again; the model depends on the answer, the sun and the hour it is read at (its current step, its «today»), nothing else.
+    // FIX-19B C3: that hour is the ABSOLUTE hour (UTC, as MET's steps are), never the wall hour — the hour the clocks repeat
+    // when they go back (Kyiv's 03:00 twice on 2026-10-25) is two hours, two models.
+    var made = {};   // place id → { forecast, sun, hour, model }
+    function parseOnce(el, c, place) {
+      var wall = deps.wallOf(place), hour = el && typeof el.fetchedAt === 'number' ? Math.floor(el.fetchedAt / HOUR) : null, m = made[place.id];
+      if (m && el && m.forecast === el.forecast && m.sun === el.sun && m.hour === hour && hour !== null) return m.model;
+      var model = parse(el, c, wall);
+      made[place.id] = { forecast: el.forecast, sun: el.sun, hour: hour, model: model };
+      return model;
+    }
+
     return { id: 'met', fetch: fetch, restore: restore, cancel: function () { generation++; },
       // the time a place's data arrived from MET, and whether it came back from the TV (stale until a live answer)
       stamp: function (el) { return { at: el && el.at, restored: !!(el && el.restored) }; },
-      parse: function (json, c, place) { return parse(json, c, deps.wallOf(place)); } };
+      parse: parseOnce };
   }
 
   return { code: code, slim: slim, parse: parse, fallback: fallback, forecastUrl: forecastUrl, sunUrl: sunUrl };

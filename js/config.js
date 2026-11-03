@@ -245,6 +245,10 @@ var Config = {
     refreshMs: 5 * 60 * 1000,
     staleAfterMs: 15 * 60 * 1000,       // data older than this reads «not updating» even without a failure
     timeoutMs: 15 * 1000,
+    // FIX-BATCH-19 4 (P10): the time an answer's data were made (Date − Age) shown in «Обновлено», never earlier than this
+    // before it arrived — a guard against a TV clock far from the server's (measured 2026-11-03: Yahoo spark max-age 300 +
+    // stale-while-revalidate 120 s, open.er-api max-age 3600 s: no honest answer is older than an hour)
+    httpAgeMaxMs: 60 * 60 * 1000,
     groups: [
       { id: 'fx', rows: [
         { id: 'USDILS', yahoo: 'USDILS=X' },          // shekels per dollar

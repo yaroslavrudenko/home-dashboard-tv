@@ -125,15 +125,21 @@ var Markets = (function () {
       else (needs[r.base] = needs[r.base] || []).push(r.code);
     });
 
+    // FIX-BATCH-19 4 (P10): «Обновлено» is the time the data were made — the answer's Date − Age (js/net.js getJsonDated) when
+    // the source gives it, never later than its arrival nor earlier than httpAgeMaxMs before it; else the arrival.
+    function dataAt(meta, now) {
+      var d = meta && meta.dataAt;
+      return Num.finite(d) ? Math.max(now - cfg.httpAgeMaxMs, Math.min(now, d)) : now;
+    }
     function isCurrent(k, now) { return !!k && now >= k.receivedAt && now < k.until; }
     // A table is kept only when it has every code its rows read, as a number > 0 (an incomplete one is a failed refresh
     // of that base: asked again next round, and never put over a complete one); then until the provider's next update
     // (at most rateReuseMaxMs) and never shorter than one refreshMs, so a past or missing next-update keeps it this round.
-    function keep(base, json, now) {
+    function keep(base, json, now, dataAt) {
       var table = rateTable(json, base), codes = needs[base];
       for (var i = 0; i < codes.length; i++) if (!finite(table[codes[i]]) || table[codes[i]] <= 0) throw new Error('markets: incomplete rates for ' + base);
       var next = json.time_next_update_unix * 1000, ahead = finite(next) ? Math.min(next - now, cfg.rateReuseMaxMs) : 0;
-      kept[base] = { table: table, receivedAt: now, until: now + Math.max(ahead, cfg.refreshMs) };
+      kept[base] = { table: table, receivedAt: now, dataAt: dataAt, until: now + Math.max(ahead, cfg.refreshMs) };
     }
 
     // A row without a value this round shows its last good one, marked stale — its closed mark recomputed for now from its
@@ -158,15 +164,19 @@ var Markets = (function () {
 
     // One round: every spark request and every rates table that is not current, all at once. The quotes are shown as soon
     // as every spark answer is in (with the rate tables that are current); the round shows its whole result when it ends.
+    // FIX-BATCH-19 3 (P7) / FIX-19B: returns cancel(reason) — the TV hid the page, or the screen was left before any answer
+    // came: every request still in flight is aborted and the round draws nothing (OnView asks again on the next arrival). Left
+    // once an answer has come, the round declines (false) and ends in the background, so a slow network never starves the
+    // screen; its snapshot is there on the return.
     function round(done) {
-      var start = deps.now(), found = {}, newest = 0, jobs = [], sparkLeft = requests.spark.length, left, i;
+      var start = deps.now(), found = {}, newest = 0, jobs = [], sparkLeft = requests.spark.length, left, i, cancelled = false, pending = [], arrived = 0;
       // The time moves only for an answer that brought at least one configured row.
-      function takeQuotes(json, now) {
+      function takeQuotes(json, now, at) {
         var q = quotes(json), usable = false;
         for (var s in q) if (q.hasOwnProperty(s)) { found[s] = q[s]; if (bySymbol.hasOwnProperty(s)) { usable = true; lastMeta[bySymbol[s]] = q[s]; } }
-        if (usable) newest = Math.max(newest, now);
+        if (usable) newest = Math.max(newest, at);
       }
-      function takeRates(base, json, now) { keep(base, json, now); newest = Math.max(newest, now); }
+      function takeRates(base, json, now, at) { keep(base, json, now, at); newest = Math.max(newest, at); }
       for (i = 0; i < requests.spark.length; i++) jobs.push({ url: requests.spark[i], take: takeQuotes, spark: true });
       for (i = 0; i < requests.rates.length; i++) {
         var r = requests.rates[i];
@@ -174,7 +184,7 @@ var Markets = (function () {
       }
       function build() {
         var now = deps.now(), tables = {};
-        for (var b in kept) if (kept.hasOwnProperty(b) && isCurrent(kept[b], now)) { tables[b] = kept[b].table; newest = Math.max(newest, kept[b].receivedAt); }
+        for (var b in kept) if (kept.hasOwnProperty(b) && isCurrent(kept[b], now)) { tables[b] = kept[b].table; newest = Math.max(newest, kept[b].dataAt); }
         return withLastGood(snapshot(cfg, { quotes: found, tables: tables, updatedAt: newest }, now), now);
       }
       // The round is over before it is drawn: a render that throws never stops the cadence.
@@ -186,14 +196,21 @@ var Markets = (function () {
       left = jobs.length;
       if (!left) { finish(); return; }
       for (i = 0; i < jobs.length; i++) (function (job) {
-        deps.getJson(job.url, cfg.timeoutMs, function (err, json) {
-          if (!err) { try { job.take(json, deps.now()); } catch (e) { log(e.message); } }   // unreadable or incomplete: its rows stay empty
+        pending.push(deps.getJson(job.url, cfg.timeoutMs, function (err, json, meta) {
+          if (cancelled) return;
+          if (!err) arrived++;
+          if (!err) { try { var now = deps.now(); job.take(json, now, dataAt(meta, now)); } catch (e) { log(e.message); } }   // unreadable or incomplete: its rows stay empty
           left--;
           if (job.spark) sparkLeft--;
           if (!left) finish();
           else if (job.spark && !sparkLeft) { current = build(); deps.onChange(current); }
-        });
+        }));
       })(jobs[i]);
+      return function (reason) {
+        if (reason === 'leave' && arrived > 0) return false;
+        cancelled = true;
+        for (var k = 0; k < pending.length; k++) if (pending[k] && pending[k].abort) pending[k].abort();
+      };
     }
 
     // A2: the closed marks for `now`, from each priced quote's last session (no request); the same snapshot object while no

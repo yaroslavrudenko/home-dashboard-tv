@@ -41,6 +41,7 @@ var App = (function () {
   // The order matters: the language and the city before anything is made; the views; the navigation (its render table and
   // sources are read at call time, so the sources may follow it); the data sets; the alert layer; the remote and the tick.
   function start() {
+    env.mark('dash:start');   // FIX-BATCH-19 7: the boot's first moment (tools/tv-boot.mjs)
     // src: the data sets, ui: the navigation and the alert layer — records filled below and read at call time (late binding).
     var src = {}, ui = {}, flow = null, city;
     ToastView.init(document.getElementById('toast'), env.timers());
@@ -63,7 +64,7 @@ var App = (function () {
 
     // The render table: one draw per configured screen, by its id from the renderer that has it — built from Config.screens, so
     // no id can be paired with another screen's draw (FIX-BATCH-18 part B; tests/app-modules.test.js: the renderers cover every id).
-    var w = WeatherRender.create(src, clock), f = FeedRender.create(src, clock), ids = Config.screens, table = {};
+    var w = WeatherRender.create(src, clock, env.mark), f = FeedRender.create(src, clock), ids = Config.screens, table = {};
     for (var i = 0; i < ids.length; i++) table[ids[i]] = w[ids[i]] || f[ids[i]];
     // AppNav ↔ AlertFlow is a cycle: a shown screen redraws the banner (a late-bound call to the flow made just below).
     var nav = AppNav.create(document, { ids: ids, rotation: Config.rotation, render: table, sources: src,
@@ -77,7 +78,7 @@ var App = (function () {
     src.air = Air.createStore(WeatherRender.airPlaces(Config), Config.air, env.withTimers({ getJson: Net.getJson, storage: env.storage(), onChange: nav.onData('main', 'israel') }));
     src.shabbat = Shabbat.createStore(Config.shabbat, env.withTimers({ getJson: Net.getJson, onChange: nav.onData('shabbat'), today: clock.today }));
     src.news = News.createStore(Config.news, env.withTimers({ getText: Net.getText, onChange: nav.onData('news') }), I18n.lang());
-    src.markets = Markets.createController(Config.markets, env.withTimers({ getJson: Net.getJson, documentVisible: env.documentVisible, onChange: nav.onData('markets') }));
+    src.markets = Markets.createController(Config.markets, env.withTimers({ getJson: Net.getJsonDated, documentVisible: env.documentVisible, onChange: nav.onData('markets') }));
     src.traffic = null;
     src.map = null;
     if (Traffic.hasToken(Config.traffic)) {

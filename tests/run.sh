@@ -5,17 +5,31 @@
 #   tests/run.sh --junit FILE    also write a JUnit report (per-test names, for by-name regression diffs)
 #   tests/run.sh --browser       also run tests/browser/*.test.mjs (layout in headless Chrome; needs
 #                                PUPPETEER_CORE_DIR — they fail, never skip, without it); one browser run at a time (exit 3)
+#   tests/run.sh --readme-count N   only check that README.md says N tests (its badge and its «Tested and reviewed» row)
+# FIX-BATCH-19 2: a FULL run (--browser) that passes also checks README.md's count against the tests it ran — a mismatch
+# exits 4 with both numbers, so the count cannot drift again.
 # Options combine in any order.
 set -u
 cd "${0:A:h}/.."
 NODE="${NODE:-/Users/yaroslavr/.nvm/versions/node/v22.22.0/bin/node}"
 [[ -x "$NODE" ]] || NODE="$(command -v node)"
 
+# README.md's test count, both places (the badge, the «Tested and reviewed» row), against N: exit 4 with both numbers.
+readme_count() {
+  local badge row
+  badge="$(sed -nE 's/.*tests-([0-9]+)%20passing.*/\1/p' README.md | head -1)"
+  row="$(sed -nE 's/.*Tested and reviewed\*\* \| ([0-9]+) automated tests.*/\1/p' README.md | head -1)"
+  if [[ "$badge" != "$1" || "$row" != "$1" ]]; then
+    echo "README.md says ${badge:-?} tests (badge) and ${row:-?} (Tested and reviewed); the suite ran $1: update README.md" >&2; return 4
+  fi
+  return 0
+}
 junit="" browser=0
 while (( $# )); do
   case "$1" in
     --junit) junit="${2:-}"; shift 2 ;;
     --browser) browser=1; shift ;;
+    --readme-count) readme_count "${2:-}"; exit $? ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
@@ -72,4 +86,5 @@ if (( rc != 0 )); then
   echo "--- failure details ---"
   print -r -- "$out" | grep -E -A12 '^not ok [0-9]+ - ' | grep -E '^not ok|error:|expected|actual|^\s+[A-Za-z].*: ' | head -200
 fi
+if (( rc == 0 && browser )); then readme_count "$tests" || exit 4; echo "README.md count: $tests (matches)"; fi
 exit $rc

@@ -114,3 +114,53 @@ test('N5: in every Config section timeoutMs < refreshMs (a hung round ends befor
   assert.ok(found.length >= 6, 'the sections are found: ' + found.map((f) => f[0]).join(', '));
   for (const [at, timeout, refresh] of found) assert.ok(timeout > 0 && timeout < refresh, at + ': timeoutMs ' + timeout + ' < refreshMs ' + refresh);
 });
+
+// FIX-19B, the P7 decision (Codex P2 + perf R19-P2). A round that cancels is forgotten by an explicit flag: after a completed
+// round, an explicit new round hidden mid-way (TV off) is asked again as soon as the page shows — never 240 s later.
+function makeCancel(cancelResult) {
+  const ctx = load(['js/onview.js']);
+  const t = fakeTimers(T0), runs = [], reasons = [];
+  let visible = true;
+  const gate = ctx.OnView.create(EVERY, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout, documentVisible: () => visible },
+    (done) => { runs.push({ at: t.now() - T0, done }); return (reason) => { reasons.push(reason); return cancelResult; }; });
+  return { gate, t, runs, reasons, page: (v) => { visible = v; gate.visibilityChanged(); } };
+}
+test('FIX-19B P7 (Codex): completed round, explicit round hidden mid-way → the page shown again asks at once', () => {
+  const m = makeCancel(undefined);
+  m.gate.setVisible(true, true); m.runs[0].done();
+  m.t.advance(60000);
+  m.gate.setVisible(true, true);
+  assert.equal(m.runs.length, 2, 'the explicit round');
+  m.page(false);
+  assert.deepEqual(m.reasons, ['hidden']);
+  m.page(true);
+  assert.equal(m.runs.length, 3, 'asked again at once (was: waited for the cadence)');
+});
+// FIX-19B C9 (native L1): a cancelled round whose cancel does nothing and which still ends later changes nothing — neither off
+// view (no timer) nor after the screen came back and a new round runs (no timer armed under it, no second round at once).
+test('FIX-19B C9: a cancelled round that still calls done() later — no timer, and the new round stays the only one', () => {
+  const m = makeCancel(undefined);
+  m.gate.setVisible(true, true);
+  m.page(false);
+  m.runs[0].done();
+  assert.deepEqual(m.t.pending(), [], 'off view: no timer');
+  m.page(true);
+  assert.equal(m.runs.length, 2, 'back: asked again at once');
+  m.runs[0].done();
+  assert.deepEqual(m.t.pending(), [], 'the old round ending again arms nothing under the new one');
+  m.gate.setVisible(true, true);
+  assert.equal(m.runs.length, 2, 'the new round is still in flight: no second round');
+});
+// FIX-19B: a round that declines the leave (it already has answers) ends in the background: no timer off view; back on view
+// by the rotation within refreshMs it is not asked again (its result is the one on screen).
+test('FIX-19B P7: a round that declines the leave ends in the background — no timer off view, no new round on the return', () => {
+  const m = makeCancel(false);
+  m.gate.setVisible(true, true);
+  m.gate.setVisible(false);
+  assert.deepEqual(m.reasons, ['leave']);
+  m.runs[0].done();
+  assert.deepEqual(m.t.pending(), [], 'no timer off view');
+  m.t.advance(60000);
+  m.gate.setVisible(true, false);
+  assert.equal(m.runs.length, 1, 'the rotation back within refreshMs asks nothing');
+});

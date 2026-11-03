@@ -1,6 +1,9 @@
 /* HTTP over XMLHttpRequest (Chromium 47 has no fetch), always with a hard timeout. ES5.
  *   Net.request(opts, done)  opts: { url, timeoutMs, method ('GET'), body (string), headers ({}), json (bool), expires (bool) }
  *   Net.getJson(url, timeoutMs, done) / Net.getText(url, timeoutMs, done)
+ *   Net.getJsonDated(url, timeoutMs, done)  as getJson, and a good answer also passes { dataAt }: when its data were made —
+ *                                       the Date header less the Age header (an HTTP cache, the browser's or a CDN's, may
+ *                                       answer with older data); NaN when either is missing or unreadable (FIX-BATCH-19 4, P10)
  *   Net.getJsonExpiring(url, timeoutMs, done)  as getJson, and a good answer also passes { expires }: its Expires header
  *                                       ('' when absent) — batch 15: MET Norway's answers are not asked again before it
  *   Net.getImage(url, timeoutMs, done)  an image (the traffic map) with the same hard deadline: done(error, img) once,
@@ -27,7 +30,7 @@ var Net = (function () {
       if (!opts.json) { finish(null, xhr.responseText); return; }
       var json;
       try { json = JSON.parse(xhr.responseText); } catch (e) { finish('parse'); return; }
-      finish(null, json, opts.expires ? { expires: xhr.getResponseHeader('Expires') || '' } : undefined);
+      finish(null, json, opts.expires ? { expires: xhr.getResponseHeader('Expires') || '' } : opts.dated ? { dataAt: dataAt(xhr) } : undefined);
     };
     xhr.ontimeout = function () { finish('timeout'); };
     xhr.onerror = xhr.onabort = function () { finish('network'); };
@@ -41,7 +44,18 @@ var Net = (function () {
     return xhr;
   }
 
+  // The time an answer's data were made: Date − Age (both the server's clock); NaN without a Date, or with an Age that is not
+  // a number ≥ 0. FIX-19B C7: read from getAllResponseHeaders() once — it lists only what the page may read, so a header the
+  // server did not expose is simply absent (getResponseHeader on it made the browser log «Refused to get unsafe header»).
+  var DATE_HEADER = /(?:^|\n)date:[ \t]*([^\r\n]*)/i, AGE_HEADER = /(?:^|\n)age:[ \t]*([^\r\n]*)/i;   // built once
+  function headerOf(all, re) { var m = re.exec(all); return m ? m[1] : null; }
+  function dataAt(xhr) {
+    var all = xhr.getAllResponseHeaders ? xhr.getAllResponseHeaders() || '' : '', ageText = headerOf(all, AGE_HEADER);
+    var date = Date.parse(headerOf(all, DATE_HEADER) || ''), age = ageText === null ? 0 : Number(ageText);
+    return isNaN(date) || !(age >= 0) ? NaN : date - age * 1000;
+  }
   function getJson(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true }, done); }
+  function getJsonDated(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true, dated: true }, done); }
   function getJsonExpiring(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true, expires: true }, done); }
   function getText(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs }, done); }
 
@@ -62,5 +76,5 @@ var Net = (function () {
     return { img: img, cancel: function () { finish('cancelled'); } };
   }
 
-  return { request: request, getJson: getJson, getJsonExpiring: getJsonExpiring, getText: getText, getImage: getImage };
+  return { request: request, getJson: getJson, getJsonDated: getJsonDated, getJsonExpiring: getJsonExpiring, getText: getText, getImage: getImage };
 })();

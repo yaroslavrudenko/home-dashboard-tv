@@ -183,6 +183,10 @@ test('T17-C5: one scripted rotation cycle asks the frozen request counts per sou
     const p = app.page;
     await p.waitForSelector('#dots .dot', { timeout: 10000 });
     const at = () => p.evaluate(() => [...document.querySelectorAll('#dots .dot')].findIndex((d) => d.className === 'dot is-on'));
+    // FIX-19C: the baseline is taken once the boot round is in — every source has asked its frozen boot count (golden
+    // session.boot) — never right after the dots appear: on a slow run the boot requests landed after it (1/1/1/2/1 «rotation»)
+    const bootIn = () => Object.keys(golden.session.boot).every((k) => counts(app)[k] >= golden.session.boot[k]);
+    for (const end = Date.now() + 15000; !bootIn();) { assert.ok(Date.now() < end, 'the boot round never came in: ' + JSON.stringify(counts(app))); await wait(25); }
     const boot = counts(app);
     let seen = 0;
     for (const end = Date.now() + 20000; Date.now() < end;) { const i = await at(); if (i === 7) seen = 1; if (seen && i === 0) break; await wait(50); }

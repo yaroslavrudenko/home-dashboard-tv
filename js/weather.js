@@ -64,7 +64,7 @@ var Weather = (function () {
 
   // What to show at the place's wall-clock hour `hourKey` ("2026-10-29T21"; null = the data's own hour):
   // the strip starts at that hour and the list at that day, so an old answer never labels a past hour "Now"
-  // or yesterday "Today". Missing rows are null (placeholders keep the layout intact).
+  // or yesterday "Today". Missing hours are null (placeholders keep the layout intact); missing days are named rows.
   function forHour(model, hourKey, cfg) {
     var key = hourKey || model.current.hourKey, date = key.slice(0, 10);
     var hourly = [], daily = [], i;
@@ -73,8 +73,26 @@ var Weather = (function () {
     var today = daily.length && daily[0].date === date ? daily[0] : null;
     var nowShown = hourly.length > 0 && hourly[0].key === key;
     while (hourly.length < cfg.hours) hourly.push(null);
-    while (daily.length < cfg.days) daily.push(null);
-    return { current: model.current, today: today, hourly: hourly, daily: daily, nowShown: nowShown };
+    // FIX-BATCH-19 5 / FIX-19B C2: data from an earlier day end before the list does — each missing day is still its own row,
+    // named, with «—» for what it lacks: never an empty slot, also when every stored day has passed (counted from the date asked)
+    for (var next = daily.length ? Tz.addDays(daily[daily.length - 1].date, 1) : date; daily.length < cfg.days; next = Tz.addDays(next, 1)) daily.push(missingDay(next));
+    return { current: currentAt(model, key), today: today, hourly: hourly, daily: daily, nowShown: nowShown };
+  }
+  function missingDay(d) { return { date: d, weekday: Tz.weekdayOf(d), code: null, min: null, max: null, pop: null, sunrise: null, sunset: null, uvMax: null }; }
+  // FIX-BATCH-19 5: what «now» shows at the wall-clock hour `hourKey`. The reading when it is of that hour; when it is older
+  // (stale data, another hour or day) and the forecast has that hour, that hour's temperature, sky and day/night — so the big
+  // figure, the strip's «Сейчас» and the clock cards all show the same hour (the reading's feels-like, wind and humidity stay,
+  // dimmed with the rest of the stale data).
+  function currentAt(model, hourKey) {
+    var c = model.current;
+    if (!hourKey || c.hourKey === hourKey) return c;
+    for (var i = 0; i < model.hourly.length; i++) {
+      var h = model.hourly[i];
+      // FIX-19B C1: that hour is chosen by its key and temperature only; a sky it lacks is shown as lacking (code null: no icon,
+      // «—»), never another hour's
+      if (h.key === hourKey && h.temp !== null) return Obj.copyWith(c, { temp: h.temp, code: h.code, isDay: h.isDay, hourKey: hourKey });
+    }
+    return c;
   }
 
   function uv(raw) {
@@ -91,5 +109,5 @@ var Weather = (function () {
     return PlaceStore.create(places, { cfg: cfg, url: url, parse: parse, persistKey: 'weather', fallback: fallback }, deps);
   }
 
-  return { url: url, parse: parse, forHour: forHour, uv: uv, createStore: createStore };
+  return { url: url, parse: parse, forHour: forHour, currentAt: currentAt, uv: uv, createStore: createStore };
 })();

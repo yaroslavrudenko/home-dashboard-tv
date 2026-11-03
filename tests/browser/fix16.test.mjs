@@ -266,10 +266,12 @@ test('N6 / B17-V3 / N7 / N9 / N8: Traffic says «Оновлено о 20:32 · Щ
   const app = await openApp({ lang: 'uk', weather: fiveDays, traffic: 'ok', history: 'history.json', alerts: 'empty-bom.txt', configure: TOKEN });
   try {
     const p = app.page;
-    await p.waitForSelector('.day.is-gap');
-    const gaps = await p.evaluate(() => [...document.querySelectorAll('.day.is-gap')].map((d) => getComputedStyle(d).borderTopColor));
-    assert.ok(gaps.length >= 2, 'N9: the gap rows exist (an empty list proves nothing): ' + gaps.length);
-    assert.ok(gaps.every((c) => c === 'rgba(0, 0, 0, 0)'), 'N9: ' + gaps);
+    // FIX-BATCH-19 5 (supersedes N9's empty rows): a day past the data is its own named row with «—» for its values, never an
+    // empty slot — five days of data give two such rows in the 7-day list
+    await p.waitForSelector('#daily .day-max');
+    const past = await p.evaluate(() => [...document.querySelectorAll('#daily .days .day')].filter((d) => d.querySelector('.day-max') && d.querySelector('.day-max').textContent === '—')
+      .map((d) => [d.querySelector('.day-name').textContent !== '', d.classList.contains('is-gap')]));
+    assert.deepEqual(past, [[true, false], [true, false]], 'two days past the data, each named, none an empty gap');
     await toScreen(p, 'traffic');
     await p.waitForSelector('.tw-name');
     // B17-V3: fresh with its age; under a minute I18n.ago says «Щойно» — never «0 хв тому» (N6)

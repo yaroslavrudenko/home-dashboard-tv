@@ -67,8 +67,10 @@ var AlertsHistory = (function () {
     var log = deps.log || function () {};
     var events = [], updatedAt = 0, failed = false, placeOf = Alerts.placeLookup(deps.places || []);   // the index: built once
     // One round: one request; the round is over (the gate schedules the next) before the screen is redrawn.
+    // FIX-BATCH-19 3 (P7): the round returns cancel() — left during it, the request is aborted and nothing is drawn.
     var gate = OnView.create(cfg.refreshMs, deps, function (done) {
-      deps.getJson(cfg.url, cfg.timeoutMs, function (err, json) {
+      var cancelled = false, xhr = deps.getJson(cfg.url, cfg.timeoutMs, function (err, json) {
+        if (cancelled) return;
         var list = null;
         if (!err) { try { list = parse(json, cfg.max, placeOf); } catch (e) { list = null; log('alerts history: ' + e.message); } }
         failed = list === null;
@@ -76,6 +78,7 @@ var AlertsHistory = (function () {
         done();
         deps.onChange();
       });
+      return function () { cancelled = true; if (xhr && xhr.abort) xhr.abort(); };
     });
 
     return {

@@ -89,7 +89,9 @@ test('missing forecast cells and arrays keep the current weather and become plac
   const e = ctx.Weather.forHour(ctx.Weather.parse(noForecast, cfg), null, cfg);
   assert.equal(e.current.temp, noForecast.current.temperature_2m);
   assert.equal(e.hourly.length, 12);
-  assert.ok(e.hourly.every((h) => h === null) && e.daily.every((d) => d === null), 'placeholders keep the layout');
+  assert.ok(e.hourly.every((h) => h === null), 'hour placeholders keep the layout');
+  // FIX-19B C2: with no forecast days the seven day rows are still named (from the reading's date), each «—»
+  assert.deepEqual(JSON.parse(JSON.stringify(e.daily.map((d) => [d.date, d.min, d.max]))), [0, 1, 2, 3, 4, 5, 6].map((k) => [ctx.Tz.addDays(noForecast.current.time.slice(0, 10), k), null, null]));
   assert.equal(e.today, null);
   assert.equal(e.nowShown, false);
 
@@ -111,7 +113,8 @@ test('the strip and the day list follow the wall clock: an old answer never labe
   const nextDay = ctx.Weather.forHour(m, '2026-10-30T09', cfg);
   assert.equal(nextDay.today.date, '2026-10-30', 'yesterday is no longer "Today"');
   assert.equal(nextDay.daily[0].date, '2026-10-30');
-  assert.equal(nextDay.daily[6], null, 'six real days and a placeholder');
+  // FIX-BATCH-19 5 (owner: never an empty slot): the 7th day is past the data — its own row, named, with «—» for what it lacks
+  assert.deepEqual([nextDay.daily[6].date, nextDay.daily[6].min, nextDay.daily[6].max, nextDay.daily[6].code], ['2026-11-05', null, null, null], 'six real days and the seventh named, without values');
   const far = ctx.Weather.forHour(m, '2026-11-20T09', cfg);
   assert.equal(far.nowShown, false);
   assert.equal(far.today, null);
@@ -401,4 +404,34 @@ test('FIX-15B Y1: MET answers {} for every place → the refresh ends, back-off 
   assert.deepEqual([store.status('home').kind, clock.pending()], ['failed', [30000]]);
   assert.equal(store.refresh(), true);
   assert.equal(om.length, 2);
+});
+
+// FIX-BATCH-19 5 (NEXT-BATCH verify FIX-15B): an answer from an earlier hour or day — the big figure, the strip's «Сейчас» and
+// the clock card show the SAME hour: the forecast's for the hour on the clock (the reading's own hour when it is that hour).
+test('B19 item 5: Weather.currentAt — the reading at its own hour; at a later hour that hour\'s forecast (temp, sky, day/night)', () => {
+  const ctx = load(FILES), cfg = ctx.Config.weather, json = fixture('rehovot'), m = ctx.Weather.parse(json, cfg);
+  const own = m.current.hourKey, later = m.hourly.find((h) => h.key > own && h.temp !== m.current.temp);
+  assert.equal(ctx.Weather.currentAt(m, own), m.current, 'its own hour: the reading itself');
+  const c = ctx.Weather.currentAt(m, later.key);
+  assert.deepEqual([c.temp, c.code, c.isDay, c.hourKey, c.feels], [later.temp, later.code, later.isDay, later.key, m.current.feels]);
+  const v = ctx.Weather.forHour(m, later.key, cfg);
+  assert.deepEqual([v.current.temp, v.hourly[0].temp, v.nowShown], [later.temp, later.temp, true], 'the big figure and «Сейчас» agree');
+  assert.equal(ctx.Weather.currentAt(m, '2099-01-01T00'), m.current, 'an hour the forecast does not have: the reading');
+});
+
+// FIX-19B C1 (Codex P2): the hour on the clock is chosen by its key and temperature; when its sky is missing the current card
+// shows that hour's temperature with no sky (code null), never the older reading.
+test('FIX-19B C1: currentAt takes the hour with a temperature even without a sky — never falls back to an older reading', () => {
+  const ctx = load(FILES), cfg = ctx.Config.weather, json = fixture('rehovot');
+  const m = ctx.Weather.parse(json, cfg), h = m.hourly.find((x) => x.key > m.current.hourKey && x.temp !== m.current.temp);
+  h.code = null;
+  const c = ctx.Weather.currentAt(m, h.key);
+  assert.deepEqual([c.temp, c.code, c.hourKey], [h.temp, null, h.key]);
+});
+// FIX-19B C2 (Codex P2): every stored day has passed (data 8 days old) — the list still has seven named rows, from today.
+test('FIX-19B C2: data older than the whole list — seven named «—» rows counted from the date asked, no empty slot', () => {
+  const ctx = load(FILES), cfg = ctx.Config.weather, m = ctx.Weather.parse(fixture('rehovot'), cfg);
+  const v = ctx.Weather.forHour(m, '2026-11-08T09', cfg);
+  assert.deepEqual(JSON.parse(JSON.stringify(v.daily.map((d) => d && [d.date, d.min, d.max]))), [0, 1, 2, 3, 4, 5, 6].map((k) => [ctx.Tz.addDays('2026-11-08', k), null, null]));
+  assert.equal(v.today, null);
 });

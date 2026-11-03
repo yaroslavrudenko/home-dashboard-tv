@@ -81,3 +81,36 @@ test('FIX-18D 2: a contender stopped inside its takeover never displaces a live 
   assert.deepEqual([ra.code, rb.code, rc.code], [0, 3, 3], JSON.stringify({ aPid, a: ra.err, b: rb.err, c: rc.err }));
   assert.ok(!fs.existsSync(lock) && !fs.existsSync(lock + '.takeover'), 'everything released');
 });
+
+// FIX-BATCH-19 2: README.md's test count (the badge and the «Tested and reviewed» row) is checked against a number — the same
+// check a passing full run (--browser) makes with the count it ran, so the README cannot drift again (exit 4, both numbers).
+test('B19 item 2: --readme-count accepts README\'s own number and refuses any other (exit 4, both numbers said)', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const n = Number(/tests-(\d+)%20passing/.exec(readme)[1]);
+  assert.equal(Number(/Tested and reviewed\*\* \| (\d+) automated tests/.exec(readme)[1]), n, 'the badge and the row agree');
+  assert.equal(spawnSync('zsh', [RUN, '--readme-count', String(n)], { encoding: 'utf8' }).status, 0);
+  const off = spawnSync('zsh', [RUN, '--readme-count', String(n + 1)], { encoding: 'utf8' });
+  assert.equal(off.status, 4);
+  assert.match(off.stderr, new RegExp('README.md says ' + n + ' tests \\(badge\\) and ' + n + ' \\(Tested and reviewed\\); the suite ran ' + (n + 1)));
+});
+
+// FIX-19B C11 (native L4): the end-of-run README check is pinned — a passing full run (--browser) prints «README.md count: N
+// (matches)» when README says N, and exits 4 with both numbers when it says another. The suite is stubbed: NODE is a script
+// that prints a passing TAP summary of N tests (the runner's own NODE override), so this runs in milliseconds.
+test('FIX-19B C11: a passing full run checks README\'s count — «matches» on N, exit 4 on any other number', () => {
+  const readme = fs.readFileSync(path.join(__dirname, '..', 'README.md'), 'utf8');
+  const n = Number(/tests-(\d+)%20passing/.exec(readme)[1]);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dash-stub-')), stub = path.join(dir, 'node');
+  const runWith = (count) => {
+    fs.writeFileSync(stub, '#!/bin/sh\nprintf "ok 1 - stub\\n# tests ' + count + '\\n# pass ' + count + '\\n# fail 0\\n"\n', { mode: 0o755 });
+    return spawnSync('zsh', [RUN, '--browser'], { env: Object.assign({}, process.env, { NODE: stub, DASH_TEST_LOCK: path.join(dir, 'lock') }), encoding: 'utf8', timeout: 20000 });
+  };
+  try {
+    const same = runWith(n);
+    assert.equal(same.status, 0, same.stderr);
+    assert.match(same.stdout, new RegExp('^README.md count: ' + n + ' \\(matches\\)$', 'm'));
+    const other = runWith(n + 3);
+    assert.equal(other.status, 4, other.stdout + other.stderr);
+    assert.match(other.stderr, new RegExp('README.md says ' + n + ' tests \\(badge\\) and ' + n + ' \\(Tested and reviewed\\); the suite ran ' + (n + 3)));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

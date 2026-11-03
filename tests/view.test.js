@@ -419,3 +419,16 @@ test('B18 khamsin pill: the current reading ≥ the threshold is on the amber pi
   assert.match(num(nowWith(quiet, DUSTY)), /^<span class="air-num dust-num is-khamsin kg-3">\d+</, 'a khamsin reading: the pill in its grade (240: 3)');
   assert.match(num(nowWith(quiet, FAIR)), /^<span class="air-num">\d+</, 'an ordinary reading: plain');
 });
+
+// FIX-19B C1 (Codex P2): the hour shown has no sky in the forecast — the current card says «—» for the condition and draws an
+// empty icon box of the same size, never a guessed cloud nor another hour's sky.
+test('FIX-19B C1: a current hour with no sky — «—» condition and an empty icon box (no guessed cloud)', () => {
+  const ctx = load(B12); ctx.I18n.setLang('ru');
+  const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 7 });
+  const v = Object.assign({}, STRIP, { current: Object.assign({}, STRIP.current, { code: null }) });
+  ctx.View.renderWeather(v, { name: 'Реховот', kind: 'stale', retryAt: '', uv: null, air: FAIR, airKind: 'fresh', dust: { loading: true, limit: 100 } });
+  const html = doc.nodes.now.innerHTML;
+  assert.match(html, /<div class="now-cond">—<\/div>/);
+  assert.match(html, /<div class="now-icon"><svg class="icon w-none"[^>]*><\/svg><\/div>/);
+  assert.ok(!/w-cloudy/.test(html.slice(html.indexOf('now-icon'))), 'no guessed cloud');
+});

@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="685 automated tests passing" src="https://img.shields.io/badge/tests-685%20passing-brightgreen?style=for-the-badge">
+  <img alt="712 automated tests passing" src="https://img.shields.io/badge/tests-712%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -146,7 +146,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🎵 **Plays under «Настин кинозал»'s music** | Open the player, start a channel, open the dashboard: the music keeps playing under the dashboard ([below](#plays-under-настин-кинозал)). Two apps, one family. |
 | 📺 **An installed app for every Samsung generation** | A signed Tizen `.wgt` for Samsung Smart TVs from 2017 to the newest models, kept compatible down to Tizen 3.0 / Chromium 47 (tested on the owner's UE50MU7000): plain ES5, no framework, no bundler, no backend. |
 | 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources, and the holiday, month and parasha names are our own translations. |
-| 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view. |
+| 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view; leaving it mid-request aborts the request. |
 | 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha with its Torah verses and haftarah (and a special Shabbat, Shabbat Mevarchim or the Omer count when there is one), the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
 | 🌬️ **Air, dust and UV** | Today's highest UV index and the European air-quality index at home, an air chip on every Israel region, and a dust warning when a khamsin comes in. |
 | 🚗 **Live Israeli traffic** | Ten routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
@@ -155,7 +155,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 685 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 712 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -238,7 +238,9 @@ language, Hebcal and the alert feed (measured on 2026-11-02 with live answers, a
   not updating, with the time it is from; every temperature from that data (the main card and each clock
   card) is dimmed, and the amber status line says it once. With no data at all, the weather card says «Временно недоступно»
   once, with «Повторим в HH:MM», and the hourly strip and the 7-day list each say «нет данных» in one quiet line
-  (placeholder bars only while the first answer is awaited; a day past the data is an empty row).
+  (placeholder bars only while the first answer is awaited). A forecast from an earlier day keeps all seven rows: a day past the
+  data is still named, with «—» for its values; and the big figure, the strip's «Сейчас» and the clock card show the same hour
+  (that hour's forecast when the reading is older).
 
 ### Behaviour worth knowing
 
@@ -316,7 +318,8 @@ The lists were checked on 2026-11-02 (`tests/fixtures/markets/ranking.json`); th
   per troy ounce, copper per pound) — and the card says its one currency once in its head, «Сырьё · $».
 - **When a source fails**, a row keeps its last good price, dimmed, until the next good round. A row that never had a value
   says «нет данных»; when a whole card has nothing, its head says «нет данных» (muted: a part, not an alarm) and its rows show «—». The header
-  says «Обновлено в HH:MM»; «Не обновляется · данные от HH:MM» after a failed round or 15 minutes without new data. When
+  says «Обновлено в HH:MM» — the time the prices were made (the answer's Date less its Age, when the source lets the page read
+  them), not when a cached copy arrived; «Не обновляется · данные от HH:MM» after a failed round or 15 minutes without new data. When
   no price came at all, one calm card in place of the six says «Временно недоступно» in amber over «Повторим позже». The «закрыто» mark
   follows the clock between rounds (a market that closes at 21:00 reads closed at 21:01, with no request).
 
@@ -587,6 +590,9 @@ tests/run.sh                         # unit tests: time zones, weather, air qual
 PUPPETEER_CORE_DIR=<dir with puppeteer-core> tests/run.sh --browser   # + every screen in every language and the alert in headless Chrome at 1920×1080
 #   one browser run at a time: a second one exits 3 at once (the lock is a symlink in $TMPDIR whose target is the running pid;
 #   a dead run's lock is taken over; a lock with no readable pid is reported with the rm command that clears it)
+#   a passing full run also checks README.md's test count against the tests it ran (exit 4 on a mismatch);
+#   tests/run.sh --readme-count N checks only that
+node tools/tv-boot.mjs http://127.0.0.1:9222 --runs 5             # boot time on the TV from the page's own marks (after sdb forward to its inspector port)
 ACORN=<path to acorn> tools/es5-gate.sh                               # every script must parse as ES5
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
 PUPPETEER_CORE_DIR=... node tools/readme-shots.mjs [--map <png>]      # the README gallery and hero (docs/screenshots/)

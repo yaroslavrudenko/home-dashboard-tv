@@ -150,3 +150,31 @@ for (const lang of ['ru', 'he', 'uk']) {
     }
   });
 }
+
+// FIX-BATCH-19 item 1: each Israel region's khamsin chip follows ITS OWN dust — North (Haifa) 120, Centre (Tel Aviv) 600, South
+// (Beer Sheva) 250 in one answer give grades 1, 4, 3 (class and computed fill), in ru, he and uk. The air answer lists the
+// home city first, then the three regions in that order (js/air.js: one request for every place).
+const perRegion = (values) => () => {
+  const list = JSON.parse(airForecastAnswer('aq-4places-hourly-2026-11-02', -4)().body);
+  list.forEach((p, i) => { if (i > 0) p.current.dust = values[i - 1]; });
+  return { status: 200, contentType: 'application/json', body: JSON.stringify(list) };
+};
+for (const lang of ['ru', 'he', 'uk']) {
+  test('B19 item 1 ' + lang + ': each Israel chip in its own region\'s grade — North 120 → 1, Centre 600 → 4, South 250 → 3', async () => {
+    const app = await openApp({ lang, weather: 'ok', air: perRegion([120, 600, 250]), alerts: 'empty-bom.txt', configure: (c) => { c.rotation.enabled = false; } });
+    try {
+      const p = app.page;
+      await p.waitForSelector('#daily .day-max', { timeout: 10000 });
+      await press(p, 39); await wait(1200);
+      await p.waitForSelector('#region-south .region-air-word', { timeout: 10000 });
+      const chips = await p.evaluate(() => ['north', 'center', 'south'].map((id) => {
+        const w = document.querySelector('#region-' + id + ' .region-air-word');
+        return [id, (w.className.match(/kg-(\d)/) || [0, 0])[1] | 0, getComputedStyle(w).backgroundColor];
+      }));
+      assert.deepEqual(chips, [['north', 1, COLOUR[1]], ['center', 4, COLOUR[4]], ['south', 3, COLOUR[3]]], lang);
+      assert.deepEqual(clean(await p.evaluate(measure, '#screen-israel *')), [], lang + ' israel');
+      if (process.env.KHAMSIN_SHOTS) await p.screenshot({ path: path.join(process.env.KHAMSIN_SHOTS, 'b19-chips-' + lang + '.png') });
+      assert.deepEqual(app.errors, []);
+    } finally { await app.close(); }
+  });
+}

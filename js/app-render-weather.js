@@ -13,8 +13,9 @@ var WeatherRender = (function () {
   function nowDust(summary) { return summary && summary.dust !== null ? { dust: summary.dust, khamsin: summary.dustHigh } : null; }
 
   // src: { store (the weather), air }; clock: HomeClock.
-  function create(src, clock) {
-    var weatherDrawn = '';
+  // mark (optional): AppEnv.mark — the first main screen drawn with its weather is named (FIX-BATCH-19 7)
+  function create(src, clock, mark) {
+    var weatherDrawn = '', fullMarked = false;
     function mainPlace() { return Config.places[0]; }
     // What a place's air shows (Air.summary) and the state of its data.
     function airOf(placeId) { return { air: Air.summary(src.air.get(placeId), Config.air), airKind: src.air.status(placeId).kind }; }
@@ -27,16 +28,19 @@ var WeatherRender = (function () {
       return { hours: f.hours, days: f.days, stale: kind === 'stale', limit: cfg.dustUgm3 };
     }
 
+    function clockWeather(cur, fresh) { return { temp: cur.temp, code: cur.code, isDay: cur.isDay, stale: !fresh }; }
     function clocks() {
       var list = [], home = clock.wall(0), store = src.store;
       for (var i = 0; i < Config.clocks.length; i++) {
         var c = Config.clocks[i], wall = clock.wall(i);
         var data = store && c.place ? store.get(c.place) : null;
         var fresh = data !== null && store.status(c.place).kind === 'fresh';
+        // FIX-BATCH-19 5: the same hour as the main card; FIX-19B C8: that one hour also decides the night tint
+        var cur = data ? Weather.currentAt(data, clock.placeHourKey(c.place)) : null;
         list.push({ id: c.id, wall: wall, homeOffset: i > 0 && home.ok ? home.offset : undefined,
           // Night tint: the place's own sunrise/sunset when the weather is fresh, otherwise fixed local hours.
-          isNight: fresh ? !data.current.isDay : wall.ok && (wall.hours < Config.dayStartsHour || wall.hours >= Config.nightStartsHour),
-          weather: data ? { temp: data.current.temp, code: data.current.code, isDay: data.current.isDay, stale: !fresh } : null });
+          isNight: fresh ? !cur.isDay : wall.ok && (wall.hours < Config.dayStartsHour || wall.hours >= Config.nightStartsHour),
+          weather: cur ? clockWeather(cur, fresh) : null });
       }
       View.renderClocks(list);
     }
@@ -56,6 +60,9 @@ var WeatherRender = (function () {
       }
       View.renderStatus(s.kind, clock.stamp(s.updatedAt), s.source);   // B14-3: a time of another day carries its date
       clocks();
+      // FIX-BATCH-19 7 / FIX-19B C5: the first COMPLETE main screen with its weather (the card, its status and the clocks all
+      // drawn — from data kept on the TV when there are some), for tools/tv-boot.mjs
+      if (v && !fullMarked && mark) { fullMarked = true; mark('dash:main-full'); }
     }
 
     // The Israel weather screen: each region's card from the main weather's data at Israel's wall-clock hour; the header

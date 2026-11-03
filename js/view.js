@@ -169,7 +169,7 @@ var View = (function () {
     return '<div class="now-top"><div class="now-main">' +
         '<div class="now-place">' + esc(placeName) + '</div>' +
         '<div class="now-temp">' + temp(c.temp) + '</div>' +
-        '<div class="now-cond">' + esc(I18n.condition(c.code)) + '</div>' +
+        '<div class="now-cond">' + esc(c.code === null ? '—' : I18n.condition(c.code)) + '</div>' +   // FIX-19B C1: a lacking sky says so
         '<div class="now-sub">' + (c.feels === null ? '' : '<span>' + esc(I18n.t('w.feels', { t: temp(c.feels) })) + '</span>') +
           '<span>' + esc(I18n.t('w.high')) + ' ' + temp(t.max) + '</span><span>' + esc(I18n.t('w.low')) + ' ' + temp(t.min) + '</span></div>' +
       '</div>' + airBlock(s, c.isDay) + '<div class="now-icon">' + Icons.weather(c.code, c.isDay) + '</div></div>' +
@@ -190,7 +190,7 @@ var View = (function () {
       '<div class="hour-pop">' + (popText(hr.pop) || '&nbsp;') + '</div><div class="hour-temp">' + temp(hr.temp) + '</div>' + dustCellHtml + '</div>';
   }
 
-  // The day list (7 days on the main card, 5 on the Israel weather screen) with Apple-style range bars: every bar is a window onto ONE cold→warm gradient spanning the
+  // The day list (7 days on the main card and on each Israel region card since batch 18) with Apple-style range bars: every bar is a window onto ONE cold→warm gradient spanning the
   // week's min…max, so a bar's colour means its temperature. Today carries a dot at the current temperature. The days'
   // dust is the band's (dustBand), never the rows'.
   function dailyHtml(v) {

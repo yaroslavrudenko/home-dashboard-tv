@@ -113,3 +113,21 @@ test('B15: getJsonExpiring passes { expires } with a good answer (\'\' when abse
   assert.deepEqual(run((x) => fire(x, 4, 503)), [['http 503', undefined, '{"retryAfter":""}']]);
   assert.deepEqual(run((x) => fire(x, 4, 200, '{bad')), [['parse', undefined, 'none']]);
 });
+
+// FIX-BATCH-19 4 (P10) / FIX-19B C7: getJsonDated passes { dataAt } — the Date header less Age, read from
+// getAllResponseHeaders() (names in any case); getResponseHeader is never asked for them (an unexposed header made the browser
+// log «Refused to get unsafe header»). NaN without a Date, or with an Age that is not a number ≥ 0; Age absent counts as 0.
+test('B19 P10 / FIX-19B C7: getJsonDated passes { dataAt } = Date − Age from getAllResponseHeaders; never getResponseHeader for them', () => {
+  const asked = [];
+  const run = (all) => { const ctx = load(['js/net.js'], { XMLHttpRequest: fakeXhr((x) => { x.getAllResponseHeaders = () => all; x.getResponseHeader = (h) => { asked.push(h); return null; }; fire(x, 4, 200, '{"a":1}'); }) });
+    const calls = []; ctx.Net.getJsonDated('https://x.test/d', 1000, (err, json, meta) => calls.push([err, meta.dataAt])); return calls[0]; };
+  const DATE = 'Tue, 03 Nov 2026 09:55:28 GMT', T = Date.parse('2026-11-03T09:55:28Z');
+  assert.deepEqual(run('content-type: application/json\r\ndate: ' + DATE + '\r\nage: 300\r\n'), [null, T - 300000], 'a CDN or browser copy 5 minutes old');
+  assert.deepEqual(run('Date: ' + DATE + '\r\nAGE: 300\r\n'), [null, T - 300000], 'any case');
+  assert.deepEqual(run('date: ' + DATE + '\r\n'), [null, T], 'no Age: the Date');
+  assert.ok(Number.isNaN(run('age: 10\r\n')[1]), 'no Date (not exposed): NaN');
+  assert.ok(Number.isNaN(run('')[1]), 'nothing exposed: NaN');
+  assert.ok(Number.isNaN(run('date: ' + DATE + '\r\nage: x\r\n')[1]), 'an Age that is not a number: NaN');
+  assert.ok(Number.isNaN(run('date: ' + DATE + '\r\nage: -5\r\n')[1]), 'a negative Age: NaN (Gemini LOW 2)');
+  assert.deepEqual(asked.filter((h) => /^(date|age)$/i.test(h)), [], 'getResponseHeader never asked for Date or Age');
+});

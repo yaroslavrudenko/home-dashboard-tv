@@ -37,7 +37,12 @@ var AppEnv = (function () {
     try { tizen.tvinputdevice.registerKey(name); return true; } catch (e) { log(what + ': ' + e.message); return false; }
   }
   function reload() { location.reload(); }
+  // FIX-BATCH-19 7: a named moment of the boot on the page's own clock (performance.mark), read from the TV by
+  // tools/tv-boot.mjs; nothing where the engine has no marks.
+  function mark(name) {
+    try { if (window.performance && performance.mark) performance.mark(name); } catch (e) { log('mark ' + name + ': ' + e.message); }
+  }
 
   return { log: log, timers: timers, withTimers: withTimers, storage: storage, sessionStore: sessionStore, documentVisible: documentVisible,
-    keepScreenOn: keepScreenOn, exit: exit, canRegisterKeys: canRegisterKeys, registerKey: registerKey, reload: reload };
+    keepScreenOn: keepScreenOn, exit: exit, canRegisterKeys: canRegisterKeys, registerKey: registerKey, reload: reload, mark: mark };
 })();

@@ -359,3 +359,46 @@ test('B18: MET parses with an engine whose Date.parse reads nothing — the same
   assert.deepEqual(b, a);
   assert.deepEqual([b.daily[0].sunrise, b.daily[0].sunset], ['05:57', '16:50']);
 });
+
+// FIX-BATCH-19 6 (perf B18-P2): a kept MET answer reused by the next rounds of the same hour is not parsed again — the same
+// model comes back (counted: the steps' first-time read happens once); a new hour, a new answer or a new sun parses afresh.
+test('B19 item 6: one parse per place and hour — a reused answer gives the same model; a new hour or answer parses again', () => {
+  const ctx = load(FILES), place = { id: 'home', lat: 31.8928, lon: 34.8113 };
+  let reads = 0; const inst = ctx.Tz.instant;
+  ctx.Tz.instant = (s) => { if (s === '2026-11-02T15:00:00Z') reads++; return inst(s); };
+  const f = ctx.Met.fallback(ctx.Config.weather, { now: () => ASKED, wallOf: () => wallFor(ctx, ISRAEL), getJsonExpiring: () => {} });
+  const forecast = met('rehovot'), sun = met('sun-rehovot');
+  const el = (at) => ({ fetchedAt: at, forecast, sun });
+  const a = f.parse(el(ASKED), ctx.Config.weather, place), once = reads;
+  const b = f.parse(el(ASKED + 20 * 60000), ctx.Config.weather, place);
+  assert.equal(b, a, 'the same answer 20 minutes later, the same hour: the same model');
+  assert.equal(reads, once, 'not parsed again');
+  const c = f.parse(el(ASKED + 60 * 60000), ctx.Config.weather, place);
+  assert.notEqual(c, a, 'the next hour: parsed again (its current step moves)');
+  assert.deepEqual(plain(c.current.hourKey), '2026-11-02T18');
+  const d = f.parse({ fetchedAt: ASKED + 60 * 60000, forecast: met('rehovot'), sun }, ctx.Config.weather, place);
+  assert.notEqual(d, c, 'a new answer: parsed again');
+});
+
+// FIX-19B C3 (Codex P2): the parse-once cache keys on the absolute hour. Kyiv's clocks go back on 2026-10-25: 00:30Z and
+// 01:15Z are both 03:xx on the wall, but two different MET steps (10° then 11°) — the second read gets the second step.
+test('FIX-19B C3: the repeated DST wall hour is two hours — Kyiv 00:30Z / 01:15Z on 2026-10-25 give 10° then 11°', () => {
+  const ctx = load(FILES), at = Date.parse('2026-10-25T00:30:00Z'), later = Date.parse('2026-10-25T01:15:00Z');
+  const r = ctx.Tz.resolve({ zones: KYIV }, at, ctx.Intl), wall = (ms) => ctx.Tz.wallTime(r, ms);
+  assert.equal(ctx.Tz.hourKey(wall(at)), ctx.Tz.hourKey(wall(later)), 'the same wall hour (the premise)');
+  const forecast = { properties: { timeseries: ['00', '01', '02'].map((h, i) => ({ time: '2026-10-25T' + h + ':00:00Z',
+    data: { instant: { details: { air_temperature: 10 + i } }, next_1_hours: { summary: { symbol_code: 'cloudy' } } } })) } };
+  const f = ctx.Met.fallback(ctx.Config.weather, { wallOf: () => wall, now: () => at, getJsonExpiring: () => {} }), place = { id: 'kyiv' };
+  assert.equal(f.parse({ fetchedAt: at, forecast, sun: null }, cfg, place).current.temp, 10);
+  assert.equal(f.parse({ fetchedAt: later, forecast, sun: null }, cfg, place).current.temp, 11);
+});
+// FIX-19B C10 (native L2): the sun is part of the cache key — with no sun in the first round and the sun in the second round of
+// the same hour, the model carries the sun times.
+test('FIX-19B C10: the sun arriving later in the same hour gives a model with the sun times', () => {
+  const ctx = load(FILES), place = { id: 'home', lat: 31.8928, lon: 34.8113 }, forecast = met('rehovot');
+  const f = ctx.Met.fallback(ctx.Config.weather, { now: () => ASKED, wallOf: () => wallFor(ctx, ISRAEL), getJsonExpiring: () => {} });
+  const a = f.parse({ fetchedAt: ASKED, forecast, sun: null }, ctx.Config.weather, place);
+  assert.equal(a.daily[0].sunrise, null, 'round 1: no sun yet');
+  const b = f.parse({ fetchedAt: ASKED + 10 * 60000, forecast, sun: met('sun-rehovot') }, ctx.Config.weather, place);
+  assert.deepEqual([b.daily[0].sunrise, b.daily[0].sunset], ['05:57', '16:50'], 'round 2, same hour: the sun times');
+});

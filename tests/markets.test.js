@@ -240,7 +240,8 @@ test('a round that ends after the screen was left (or the page hidden) leaves no
   h.c.setVisible(false);
   h.answer();
   assert.deepEqual(h.t.pending(), [], 'left during the round');
-  assert.ok(h.c.snapshot() !== null, 'its answers are still shown when the screen comes back');
+  // FIX-BATCH-19 3 (P7, owner's order): the round left is cancelled — its late answers draw nothing (was: shown on return)
+  assert.equal(h.c.snapshot(), null, 'a cancelled round\'s late answers are not taken');
   h.c.setVisible(true, true);
   h.hide();
   h.answer();
@@ -537,4 +538,72 @@ test('N2: snapshot() turns a rate ≤ 0 into an empty row (its own guard, not on
   const s = ctx.Markets.snapshot(cfg, { quotes: {}, tables: { ILS: { UAH: 0, RUB: -25.6, USD: 0.27 } }, updatedAt: AT }, AT);
   for (const id of ['UAHperILS', 'RUBperILS']) assert.equal(rowOf(s, id).price, null, id + ': no price');
   assert.ok(rowOf(s, 'UAHperUSD').price === null, 'no USD table: no price');
+});
+
+// FIX-BATCH-19 3 (P7, NEXT-BATCH: «abort the XHR on leave»): leaving the screen (or the TV hiding the page) during a round
+// aborts every request still in flight; a late answer draws nothing; the attempt is forgotten, so coming back (even by the
+// rotation) asks again at once.
+test('B19 P7: leave during a round → every pending request aborted, no late render; back on view → asked again at once', () => {
+  const ctx = load(FILES), t = fakeTimers(AT), calls = [], snaps = [];
+  let visible = true;
+  const c = ctx.Markets.createController(ctx.Config.markets, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+    documentVisible: () => visible, onChange: (s) => snaps.push(s),
+    getJson: (url, ms, done) => { const x = { url, done, aborted: false, abort() { this.aborted = true; } }; calls.push(x); return x; } });
+  c.setVisible(true, true);
+  assert.equal(calls.length, 4, 'a round: 4 requests');
+  c.setVisible(false);
+  assert.deepEqual(calls.map((x) => x.aborted), [true, true, true, true], 'left: every pending request aborted');
+  for (const x of calls) x.done(null, /latest/.test(x.url) ? answers.rates[/latest\/([A-Z]{3})$/.exec(x.url)[1]] : answers.spark[0]);
+  assert.deepEqual([snaps.length, c.snapshot()], [0, null], 'the late answers draw nothing');
+  t.advance(MIN);
+  c.setVisible(true, false);   // the rotation brings the screen back a minute later
+  assert.equal(calls.length, 8, 'the aborted attempt is forgotten: asked again at once');
+  visible = false; c.visibilityChanged();
+  assert.ok(calls.slice(4).every((x) => x.aborted), 'the TV hid the page: aborted too');
+});
+
+// FIX-BATCH-19 4 (P10): «Обновлено» says when the data were made, not when a cached copy reached the TV — the answer's
+// Date − Age (Net.getJsonDated): a copy made 5 minutes ago reads 5 minutes ago; a time after the arrival (a clock ahead) reads
+// the arrival; older than httpAgeMaxMs reads that bound; no such header: the arrival, as before.
+test('B19 P10: updatedAt is the data\'s own time (Date − Age), bounded by the arrival and httpAgeMaxMs', () => {
+  const at = (meta) => {
+    const ctx = load(FILES), t = fakeTimers(AT), calls = [];
+    const c = ctx.Markets.createController(ctx.Config.markets, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+      onChange: () => {}, getJson: (url, ms, done) => calls.push({ url, done }) });
+    c.setVisible(true, true);
+    for (const x of calls) x.done(null, /latest/.test(x.url) ? answers.rates[/latest\/([A-Z]{3})$/.exec(x.url)[1]] : answers.spark[x.url.includes('TRX-USD') ? 1 : 0], meta);
+    return c.snapshot().updatedAt - AT;
+  };
+  assert.equal(at({ dataAt: AT - 5 * MIN }), -5 * MIN, 'a cached copy made 5 minutes ago');
+  assert.equal(at({ dataAt: AT + MIN }), 0, 'a Date after the arrival: the arrival');
+  assert.equal(at({ dataAt: AT - 3 * 60 * MIN }), -60 * MIN, 'older than httpAgeMaxMs: the bound');
+  assert.equal(at(undefined), 0, 'no header: the arrival');
+  assert.equal(at({ dataAt: NaN }), 0, 'unreadable: the arrival');
+});
+
+// FIX-19B, the P7 decision (perf R19-P2: aborting every left round starved the screen on a slow network): left once an answer
+// has come, the round is not aborted — it ends in the background and its snapshot is on screen at the return; the rotation back
+// within refreshMs asks nothing more (4 requests in all). The TV hiding the page still aborts all.
+test('FIX-19B P7: left after the first answer → not aborted, the round ends in the background, the return shows it (4 requests)', () => {
+  const ctx = load(FILES), t = fakeTimers(AT), calls = [];
+  let visible = true;
+  const c = ctx.Markets.createController(ctx.Config.markets, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+    documentVisible: () => visible, onChange: () => {},
+    getJson: (url, ms, done) => { const x = { url, done, aborted: false, abort() { this.aborted = true; } }; calls.push(x); return x; } });
+  const reply = (x) => x.done(null, /latest/.test(x.url) ? answers.rates[/latest\/([A-Z]{3})$/.exec(x.url)[1]] : answers.spark[x.url.includes('TRX-USD') ? 1 : 0]);
+  c.setVisible(true, true);
+  reply(calls[0]);                                   // one spark answer has come
+  c.setVisible(false);
+  assert.ok(calls.every((x) => !x.aborted), 'left with an answer in: nothing aborted');
+  calls.slice(1).forEach(reply);
+  assert.deepEqual(t.pending(), [], 'no timer off view');
+  t.advance(MIN);
+  c.setVisible(true, false);
+  assert.equal(calls.length, 4, 'the rotation back asks nothing more');
+  assert.ok(c.snapshot().groups.some((g) => g.rows.some((r) => r.price !== null)), 'the round\'s prices are there');
+  c.setVisible(true, true);                          // an explicit open asks (the 2 spark: the rates are current); the TV hides the page during it
+  assert.equal(calls.length, 6);
+  reply(calls[4]);
+  visible = false; c.visibilityChanged();
+  assert.ok(calls.slice(5).every((x) => x.aborted), 'hidden: every request still open aborted, answers in or not');
 });

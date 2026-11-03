@@ -211,3 +211,18 @@ test('C-2: a clock that went back makes the recent list stale, not fresh', () =>
   h.t.advance(-60 * 60000);
   assert.equal(h.c.state().kind, 'stale', 'the list is dated an hour ahead of the clock');
 });
+
+// FIX-BATCH-19 3 (P7): leaving the Alerts screen during the recent-alerts request aborts it; its late answer draws nothing.
+test('B19 P7: leave during the history request → aborted, no late render; back → asked again at once', () => {
+  const ctx = load(FILES), t = fakeTimers(Date.parse('2026-10-29T18:30:00Z')), calls = [];
+  let changes = 0;
+  const c = ctx.AlertsHistory.createController(historyCfg(ctx), { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
+    onChange: () => { changes++; }, getJson: (url, ms, done) => { const x = { done, aborted: false, abort() { this.aborted = true; } }; calls.push(x); return x; } });
+  c.setVisible(true, true);
+  c.setVisible(false);
+  assert.deepEqual(calls.map((x) => x.aborted), [true], 'left: the request aborted');
+  calls[0].done(null, []);
+  assert.deepEqual([changes, c.state().kind], [0, 'loading'], 'its late answer draws nothing');
+  c.setVisible(true, false);
+  assert.equal(calls.length, 2, 'the aborted attempt is forgotten: asked again at once');
+});

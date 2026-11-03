@@ -59,6 +59,7 @@ var Icons = (function () {
   }
 
   function weather(code, isDay) {
+    if (code === null || code === undefined) return svg('w-none', '');   // FIX-19B C1: no sky known: an empty box of the same size, never a guessed cloud
     switch (kind(code)) {
       case 'clear': return svg('w-clear', isDay ? SUN : MOON);
       case 'partly': return svg('w-partly', behindCloud(isDay, 6, 4));
