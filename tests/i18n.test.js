@@ -206,7 +206,8 @@ const MONTHS = ['Nisan', 'Iyyar', 'Sivan', 'Tamuz', 'Av', 'Elul', 'Tishrei', 'Ch
 const B12_UI = ['screen.shabbat', 'sh.candles', 'sh.havdalah', 'sh.week', 'sh.shabbat', 'sh.parashaOf', 'sh.greet.shabbat',
   'sh.greet.yomtov', 'sh.greet.yomkippur', 'sh.today', 'sh.tomorrow', 'sh.inDays', 'sh.inHM', 'sh.inM', 'sh.ongoing', 'sh.todayIs', 'sh.fastTimes',
   'sh.upcoming', 'sh.hdate', 'w.uv', 'w.air', 'w.dustLabel', 'w.dustUnit', 'w.airShort', 'w.uv.low', 'w.uv.moderate', 'w.uv.high', 'w.uv.veryHigh', 'w.uv.extreme',
-  'w.air.good', 'w.air.fair', 'w.air.moderate', 'w.air.poor', 'w.air.veryPoor', 'w.air.extreme', 'w.air.khamsinWord'];
+  'w.air.good', 'w.air.fair', 'w.air.moderate', 'w.air.poor', 'w.air.veryPoor', 'w.air.extreme', 'w.air.khamsinWord',
+  'w.airShort.good', 'w.airShort.fair', 'w.airShort.moderate', 'w.airShort.poor', 'w.airShort.veryPoor', 'w.airShort.extreme'];   // G4
 
 test('B12: 59 parashot, 20 holidays and fasts (+ Shushan Purim, S9-2), 14 months and the screen\'s strings — own words in Russian, Hebrew and Ukrainian', () => {
   const { I18n } = withoutFallback();
@@ -292,4 +293,16 @@ test('F-5: the titled forecast length stays where the ru/uk plural «дней»/
   assert.equal(ctx.Config.weather.days, 7);
   assert.equal(ctx.Config.israel.days, 7);
   assert.ok([5, 7].includes(ctx.Config.weather.days));
+});
+
+// G2 (5/5): the city picker's hint draws the remote's arrows itself (▲▼◀▶ are not in the TV's font subsets, and as text
+// they turn inward in Hebrew): no arrow glyph in any table, the two places the view draws them marked once each.
+test('G2: city.hint carries no arrow glyph in any language, only the {ud} and {lr} places the view draws', () => {
+  const ctx = load(FILES);
+  for (const lang of ['ru', 'he', 'uk', 'en']) {
+    ctx.I18n.setLang(lang);
+    const h = ctx.I18n.t('city.hint');
+    assert.ok(!/[\u25b2\u25b6\u25bc\u25c0]/.test(h), lang + ': ' + h);
+    assert.deepEqual([h.split('{ud}').length, h.split('{lr}').length, h.indexOf('{ud}') < h.indexOf('{lr}')], [2, 2, true], lang + ': ' + h);
+  }
 });

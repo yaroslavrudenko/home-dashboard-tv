@@ -79,7 +79,7 @@ test('B12 air & UV: between the place text and the icon, no glyphs; UV and air e
 test('B12 air: high dust is a khamsin — the dust item «Пыль [хамсин ≥ 100] / 240 мкг/м³», the key amber (OWNER-1LEG-C); in every language', () => {
   for (const [lang, words] of [['ru', ['УФ макс.', '9', 'очень высокий', 'Качество воздуха', '104', 'опасное', 'Пыль', ...GRADES, '240', 'мкг/м³']],
     ['he', ['מדד UV מרבי', '9', 'גבוה מאוד', 'איכות האוויר', '104', 'מסוכנת', 'אבק', ...GRADES, '240', 'מק״ג/מ״ק']],
-    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечне', 'Пил', ...GRADES, '240', 'мкг/м³']]]) {
+    ['uk', ['УФ макс.', '9', 'дуже високий', 'Якість повітря', '104', 'небезпечна', 'Пил', ...GRADES, '240', 'мкг/м³']]]) {
     const r = mainWith(lang, { uv: { index: 9, level: 'veryHigh' }, air: DUSTY, airKind: 'fresh' });
     assert.deepEqual(stripTags(r.block), words, lang);
     assert.match(r.block, /<span class="dust-legend-scale is-active">/, lang + ': the key (the grades) lit');   // FIX-18B 13B
@@ -115,15 +115,37 @@ function israelWith(lang, air, airKind) {
 
 test('B12 Israel air line: labelled «Воздух: приемлемое» on its own line under the head; «Воздух: хамсин» when the dust is high', () => {
   const fair = israelWith('ru', FAIR, 'fresh');
-  assert.match(fair.head, /<\/div><div class="region-air lv-fair"><span class="region-air-label">Воздух:<\/span> <span class="region-air-word">приемлемое<\/span><\/div>$/);
+  assert.match(fair.head, /<\/div><div class="region-air lv-fair"><span class="region-air-label">Воздух:<\/span> <span class="region-air-word">приемлемый<\/span><\/div>$/);
   for (const [lang, label] of [['he', 'אוויר:'], ['uk', 'Повітря:']]) assert.match(israelWith(lang, FAIR, 'fresh').head, new RegExp('<span class="region-air-label">' + label + '</span>'), lang);
   assert.match(israelWith('ru', DUSTY, 'fresh').head, /<div class="region-air lv-dust"><span class="region-air-label">Воздух:<\/span> <span class="region-air-word dust-num is-khamsin kg-3">хамсин<\/span>/, 'FIX-18D 3: a khamsin on its grade\'s pill (240: 3); labelled, in the dust colour');
-  assert.match(israelWith('he', FAIR, 'fresh').head, />סבירה</);
+  assert.match(israelWith('he', FAIR, 'fresh').head, />סביר</);   // G4: masculine, as its label «אוויר:»
   assert.match(israelWith('uk', DUSTY, 'fresh').head, />хамсин</);
   assert.match(israelWith('ru', FAIR, 'stale').head, /region-air lv-fair is-stale/);
   assert.match(israelWith('ru', null, 'loading').head, /<div class="region-air is-reserved"><\/div>$/, 'loading: the line reserved, empty');
   assert.match(israelWith('ru', null, 'failed').head, /<div class="region-air is-reserved"><\/div>$/, 'no data: no words, the line still reserved (nothing moves)');
 });
+
+// G4 (5/5): the level word agrees with the label it stands under — the main screen's «Качество воздуха / איכות האוויר /
+// Якість повітря» (neuter / feminine / feminine), the Israel card's «Воздух: / אוויר: / Повітря:» (masculine / masculine / neuter).
+const LEVELS = ['good', 'fair', 'moderate', 'poor', 'veryPoor', 'extreme'];
+const AIR_WORDS = {
+  main: { ru: ['хорошее', 'приемлемое', 'умеренное', 'плохое', 'очень плохое', 'опасное'],
+    he: ['טובה', 'סבירה', 'בינונית', 'ירודה', 'ירודה מאוד', 'מסוכנת'],
+    uk: ['добра', 'прийнятна', 'помірна', 'погана', 'дуже погана', 'небезпечна'] },
+  israel: { ru: ['хороший', 'приемлемый', 'умеренный', 'плохой', 'очень плохой', 'опасный'],
+    he: ['טוב', 'סביר', 'בינוני', 'ירוד', 'ירוד מאוד', 'מסוכן'],
+    uk: ['добре', 'прийнятне', 'помірне', 'погане', 'дуже погане', 'небезпечне'] } };
+for (const lang of ['ru', 'he', 'uk']) {
+  for (let i = 0; i < LEVELS.length; i++) {
+    const level = LEVELS[i], air = { aqi: 40 + i * 20, level, dust: 25, dustHigh: false };
+    test('G4 air level word agrees with its label: ' + lang + ' ' + level + ' — main «' + AIR_WORDS.main[lang][i] + '», Israel card «' + AIR_WORDS.israel[lang][i] + '»', () => {
+      const main = mainWith(lang, { uv: null, air, airKind: 'fresh' });
+      assert.match(main.block, new RegExp('<span class="air-word lv-' + level + '">' + AIR_WORDS.main[lang][i] + '</span>'), 'main screen');
+      const card = israelWith(lang, air, 'fresh');
+      assert.match(card.head, new RegExp('<span class="region-air-word">' + AIR_WORDS.israel[lang][i] + '</span></div>$'), 'Israel card');
+    });
+  }
+}
 
 test('B12 Israel chip: an air answer alone redraws the card (the air is in the card key)', () => {
   const r = israelWith('ru', null, 'loading');

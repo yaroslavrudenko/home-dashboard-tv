@@ -107,9 +107,9 @@ test('C/T13: Hebrew — the picker right to left: names at the right, the ✓ at
       const row = document.querySelector('.city-row.is-current'), r = row.getBoundingClientRect();
       const name = row.querySelector('.city-name').getBoundingClientRect(), check = row.querySelector('.city-check').getBoundingClientRect();
       return { title: document.querySelector('.city-title').textContent, name: row.querySelector('.city-name').textContent, alt: row.querySelector('.city-alt').textContent,
-        nameAtRight: r.right - name.right < 40, checkAtLeft: check.left - r.left < 48, hint: document.querySelector('.city-hint').textContent };
+        nameAtRight: r.right - name.right < 40, checkAtLeft: check.left - r.left < 48, hint: document.querySelector('.city-hint').textContent.trim() };
     });
-    assert.deepEqual(v, { title: 'עיר', name: 'רחובות', alt: 'Rehovot', nameAtRight: true, checkAtLeft: true, hint: '▲▼ בחירה · ◀▶ לפי אות · OK — סיום · חזרה — ביטול' });
+    assert.deepEqual(v, { title: 'עיר', name: 'רחובות', alt: 'Rehovot', nameAtRight: true, checkAtLeft: true, hint: 'בחירה ·  לפי אות · OK — סיום · חזרה — ביטול' });   // G2: the arrows are drawn, not text
   } finally { await app.close(); }
 });
 
@@ -175,3 +175,31 @@ test('C/T12: a TV that refuses to save the city says so on the sheet and does no
     assert.deepEqual(v, [1, 'city-msg is-on', 'Не удалось сохранить город', 'city is-on']);
   } finally { await app.close(); }
 });
+// G2 (5/5): the hint's four arrows drawn in CSS, a left-to-right pair each, so they point outward in every language — in
+// Hebrew too (as text, ▶◀ came out pointing inward). Each in its glyph's 24 px slot, the hint one line, nothing cut.
+// G2_SHOTS=<dir> also writes city-<lang>.png.
+for (const lang of ['ru', 'he', 'uk']) {
+  test('G2: ' + lang + ' — the hint\'s arrows drawn, ▲ before ▼ and ◀ left of ▶ (outward), the hint on one line, nothing cut', async () => {
+    const app = await openApp({ lang, news: 'ok', alerts: 'empty-bom.txt' });
+    try {
+      await ready(app);
+      const p = app.page;
+      await press(p, OK);
+      await wait(400);
+      const v = await p.evaluate(() => {
+        const h = document.querySelector('.city-hint'), hr = h.getBoundingClientRect(), lh = parseFloat(getComputedStyle(h).lineHeight);
+        const box = (c) => { const r = h.querySelector('.city-arrow.' + c).getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: Math.round(r.width), h: Math.round(r.height) }; };
+        const a = { up: box('is-up'), down: box('is-down'), left: box('is-left'), right: box('is-right') };
+        return { n: h.querySelectorAll('.city-arrow').length, glyphs: /[\u25b2\u25b6\u25bc\u25c0]/.test(h.textContent), oneLine: hr.height <= lh + 1,
+          upBeforeDown: a.up.r <= a.down.l, leftOfRight: a.left.r <= a.right.l,
+          sizes: [a.up.w, a.up.h, a.down.w, a.down.h, a.left.w, a.left.h, a.right.w, a.right.h],
+          inside: Object.keys(a).every((k) => a[k].l >= hr.left && a[k].r <= hr.right && a[k].t >= hr.top && a[k].b <= hr.bottom) };
+      });
+      assert.deepEqual(v, { n: 4, glyphs: false, oneLine: true, upBeforeDown: true, leftOfRight: true, sizes: [18, 16, 18, 16, 16, 18, 16, 18], inside: true }, lang);
+      const bad = (await p.evaluate(measure, '.city-sheet *')).filter((b) => b.cut || b.overflowsParent || b.outsideCard);
+      assert.deepEqual(bad.filter((b) => !/city-row|city-name|city-alt|city-check|city-list/.test(b.cls)), [], lang + ': nothing cut in the sheet\'s fixed parts');
+      if (process.env.G2_SHOTS) await p.screenshot({ path: process.env.G2_SHOTS + '/city-' + lang + '.png' });
+      assert.deepEqual(app.errors, []);
+    } finally { await app.close(); }
+  });
+}

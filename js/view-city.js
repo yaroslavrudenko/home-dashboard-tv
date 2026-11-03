@@ -9,6 +9,10 @@ var CityView = (function () {
   var esc = Html.esc;
   var ROW_PX = 72, VISIBLE = 9, IDLE_MS = 30000, BADGE_MS = 700, MSG_MS = 2000;
   var KEY_OK = 13, KEY_BACK = 10009, KEY_LEFT = 37, KEY_UP = 38, KEY_RIGHT = 39, KEY_DOWN = 40;
+  // G2: the remote's arrows in the hint, drawn in CSS (▲▼◀▶ are not in the TV's font subsets) and kept left to right in
+  // every language («{ud}» up/down, «{lr}» left/right in city.hint): in Hebrew ◀ stays left of ▶, both pointing outward.
+  var ARROWS = { ud: '<span class="city-arrows" dir="ltr"><span class="city-arrow is-up"></span><span class="city-arrow is-down"></span></span>',
+    lr: '<span class="city-arrows" dir="ltr"><span class="city-arrow is-left"></span><span class="city-arrow is-right"></span></span>' };
   var el = null, list = null, rows = null, badge = null, msg = null, cities = null, deps = null;
   var order = [], focus = 0, current = -1, open = false, idleTimer = null, badgeTimer = null, msgTimer = null;
 
@@ -30,7 +34,7 @@ var CityView = (function () {
     el.innerHTML = '<div class="city-sheet"><div class="city-title">' + esc(I18n.t('city.title')) + '</div>' +
       '<div class="city-sub">' + esc(I18n.t('city.sub')) + '</div>' +
       '<div class="city-window"><div class="city-list">' + html + '</div><div class="city-badge"></div></div>' +
-      '<div class="city-msg"></div><div class="city-hint">' + esc(I18n.t('city.hint')) + '</div></div>';
+      '<div class="city-msg"></div><div class="city-hint">' + esc(I18n.t('city.hint')).replace('{ud}', ARROWS.ud).replace('{lr}', ARROWS.lr) + '</div></div>';
     list = el.querySelector('.city-list');
     rows = list.children;
     badge = el.querySelector('.city-badge');

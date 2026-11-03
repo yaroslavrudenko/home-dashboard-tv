@@ -11,6 +11,7 @@ const { load, fakeTimers } = require('./harness');
 const FILES = ['js/config.js', 'js/refresher.js', 'js/placestore.js', 'js/openmeteo.js', 'js/air.js'];
 const air = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'air', name + '.json'), 'utf8'));
 const plain = (v) => JSON.parse(JSON.stringify(v));
+const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);   // G5: the index maps have no prototype
 // The places the App asks for: home + the Israel regions (Config.israel.regions → Config.places), derived, never listed.
 function places(ctx) {
   const byId = {};
@@ -133,7 +134,7 @@ test('B13 parse: the hourly dust of each place, keyed by the place\'s wall hour;
   assert.deepEqual(Object.keys(m.forecast.byDay), ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06']);
   const holes = JSON.parse(JSON.stringify(list[0])); holes.hourly.dust[5] = null; holes.hourly.dust[6] = 'x';
   const h = ctx.Air.parse(holes, cfg).forecast;
-  assert.deepEqual([h.byHour.hasOwnProperty('2026-11-02T05'), h.byHour.hasOwnProperty('2026-11-02T06'), h.byDay['2026-11-02'].n], [false, false, 22], 'not a number: no value');
+  assert.deepEqual([own(h.byHour, '2026-11-02T05'), own(h.byHour, '2026-11-02T06'), h.byDay['2026-11-02'].n], [false, false, 22], 'not a number: no value');
 });
 
 test('B13 parse: no hourly block is NOT an error — the current values work, the forecast is empty', () => {
@@ -241,4 +242,20 @@ test('FIX-18B 13: Air.grade — 0 under 100; 1 for 100–120; 2 from 121; 3 from
   assert.deepEqual([null, 0, 99, 100, 120, 121, 195, 196, 270, 271, 600, 1500, 3400].map(g), [0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 4]);
   // the grade never contradicts the khamsin flag the data carry
   for (const v of [99, 100, 250, 3400]) assert.equal(g(v) > 0, ctx.Air.summary({ aqi: 30, dust: v }, cfg).dustHigh, String(v));
+});
+
+// G5 (5/5): the dust index is keyed by the answer's own time strings; a key named like an Object.prototype member
+// («__proto__», «constructor») neither reaches the prototype (no `n` written onto every object) nor finds a value there.
+test('G5: a «__proto__» or «constructor» time in the answer touches no prototype and finds nothing', () => {
+  const vm = require('node:vm');
+  const ctx = load(FILES), cfg = ctx.Config.air, list = air('aq-4places');
+  const odd = JSON.parse(JSON.stringify(list[0]));
+  odd.hourly = { time: ['__proto__', 'constructor', '2026-11-02T10:00'], dust: [50, 60, 40] };
+  const m = ctx.Air.parse(odd, cfg);
+  assert.equal(vm.runInContext('({}).n', ctx), undefined, 'nothing written onto Object.prototype');
+  assert.equal(vm.runInContext('({}).max', ctx), undefined);
+  assert.deepEqual(plain(m.forecast.byHour), JSON.parse('{"__proto__":50,"constructor":60,"2026-11-02T10":40}'), 'each its own key, as any other');
+  const f = ctx.Air.forecast(m, ['toString', 'hasOwnProperty', '2026-11-02T10'], ['toString', 'valueOf', null], cfg);
+  assert.deepEqual(plain(f), { hours: [null, null, { dust: 40, khamsin: false }], days: [null, null, null] }, 'a prototype member is never a cell');
+  assert.deepEqual(plain(ctx.Air.forecast(null, ['toString'], ['constructor'], cfg)), { hours: [null], days: [null] }, 'no model: the empty index, the same');
 });

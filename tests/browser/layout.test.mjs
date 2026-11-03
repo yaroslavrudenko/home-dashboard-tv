@@ -241,28 +241,67 @@ test('Back (10009) exits the app, other keys do not; the screen saver is switche
   } finally { await app.close(); }
 });
 
-// Decision 16 (D11): every condition string in every language fits the card on one line.
-test('every weather condition in both languages fits the main card on one line, nothing pushed out', async () => {
-  const app = await openApp({ weather: 'ok' });
+// Decision 16 (D11): every condition string in every language fits the card on one line. G14 (5/5): with the air block
+// on screen (it sits between the text and the icon since batch 12, so the text's neighbour is .now-air, not .now-icon), in
+// every language the app cycles through, each in its own direction.
+test('every weather condition in every language fits the main card on one line, clear of the air block', async () => {
+  const app = await openApp({ weather: 'ok', air: 'ok' });
   try {
     await ready(app);
-    const bad = await app.page.evaluate(() => {
+    await app.page.waitForSelector('.now-air .air-num', { timeout: 10000 });
+    const r = await app.page.evaluate(() => {
       const out = [], codes = [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99];
-      const now = document.getElementById('now');
-      for (const lang of ['ru', 'en']) {
+      const now = document.getElementById('now'), langs = Config.languages.concat(['en']);   // + the fallback table (kept from D11)
+      for (const lang of langs) {
         I18n.setLang(lang);
+        document.documentElement.lang = lang;
+        document.documentElement.dir = I18n.dir();
         for (const code of codes) {
           const cond = now.querySelector('.now-cond');
           cond.textContent = I18n.condition(code);
           const c = cond.getBoundingClientRect(), d = now.querySelector('.details').getBoundingClientRect(), n = now.getBoundingClientRect();
-          const icon = now.querySelector('.now-icon').getBoundingClientRect();
+          const air = now.querySelector('.now-air').getBoundingClientRect();
           const lineH = parseFloat(getComputedStyle(cond).lineHeight);
-          if (c.height > lineH + 1 || d.bottom > n.bottom - 1 || c.right > icon.left) out.push(lang + ' ' + code + ' ' + cond.textContent);
+          // the air block is on the text's end side: right in ltr, left in rtl
+          const overlap = I18n.dir() === 'rtl' ? c.left < air.right : c.right > air.left;
+          if (c.height > lineH + 1 || d.bottom > n.bottom - 1 || c.left < n.left || c.right > n.right || overlap) out.push(lang + ' ' + code + ' ' + cond.textContent);
         }
       }
-      return out;
+      return { langs, bad: out };
     });
+    assert.deepEqual(r.langs, ['ru', 'he', 'uk', 'en'], 'every language the app cycles through, and the English fallback');
+    assert.deepEqual(r.bad, []);
+  } finally { await app.close(); }
+});
+
+// G4 (5/5): the Israel cards' air word agrees with its label («Воздух: приемлемый») — the longest of the six levels, in
+// every language and its own direction, fits its card on one line with nothing cut.
+test('the Israel cards\' air level word fits on one line in every language, all six levels', async () => {
+  const app = await openApp({ weather: 'ok', air: 'ok', configure: (c) => { c.rotation.enabled = false; } });
+  try {
+    await ready(app);
+    const p = app.page;
+    await p.evaluate(() => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: 39 }); document.dispatchEvent(e); });
+    await p.waitForFunction(() => { const w = document.querySelectorAll('#screen-israel .region-air-word'); return w.length === 3 && w[0].getBoundingClientRect().width > 0; }, { timeout: 10000 });
+    const bad = [];
+    for (const lang of ['ru', 'he', 'uk']) {
+      for (const level of ['good', 'fair', 'moderate', 'poor', 'veryPoor', 'extreme']) {
+        const r = await p.evaluate((lang, level) => {
+          I18n.setLang(lang);
+          document.documentElement.lang = lang;
+          document.documentElement.dir = I18n.dir();
+          const lines = [...document.querySelectorAll('#screen-israel .region-air')];
+          for (const l of lines) { l.querySelector('.region-air-label').textContent = I18n.t('w.airShort'); l.querySelector('.region-air-word').textContent = I18n.t('w.airShort.' + level); }
+          return lines.map((l) => { const w = l.querySelector('.region-air-word'), lh = parseFloat(getComputedStyle(l).lineHeight), b = l.getBoundingClientRect();
+            return { word: w.textContent, oneLine: b.height <= lh + 1 && w.getBoundingClientRect().height <= lh + 1 }; });
+        }, lang, level);
+        for (const x of r) if (!x.oneLine) bad.push(lang + ' ' + level + ' ' + x.word + ' wraps');
+        const cut = (await p.evaluate(measure, '#screen-israel .region-air, #screen-israel .region-air *')).filter((b) => b.cut || b.outsideCard || b.overflowsParent);
+        for (const b of cut) bad.push(lang + ' ' + level + ' ' + b.cls + ' «' + b.text + '» cut/outside');
+      }
+    }
     assert.deepEqual(bad, []);
+    assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
 });
 

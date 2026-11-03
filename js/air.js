@@ -31,7 +31,8 @@ var Air = (function () {
   // Weather's hourly keys) and each day's count of values and maximum. No block: an empty forecast. A day whose values are
   // ALL exactly 0 is a CAMS fill, not a reading (X6: Haifa 2026-11-06 recorded 24 × 0 while Tel Aviv read 16): no data.
   function forecastOf(h) {
-    var times = h && h.time || [], dust = h && h.dust || [], hours = [], all = {}, byHour = {}, byDay = {}, i, v, key, d;
+    // G5: the maps are keyed by the answer's own strings — no prototype, so no key («__proto__», «constructor») finds a stranger
+    var times = h && h.time || [], dust = h && h.dust || [], hours = [], all = Object.create(null), byHour = Object.create(null), byDay = Object.create(null), i, v, key, d;
     for (i = 0; i < times.length; i++) {                          // the values, and every day's count and maximum
       if ((v = num(dust[i])) === null) continue;
       key = String(times[i]).slice(0, 13);
@@ -77,7 +78,7 @@ var Air = (function () {
     return { aqi: aqi, level: OpenMeteo.band(aqi, LEVELS, 'extreme'), dust: dust, dustHigh: khamsin(dust, cfg) };
   }
 
-  var NO_FORECAST = { byHour: {}, byDay: {} };
+  var NO_FORECAST = { byHour: Object.create(null), byDay: Object.create(null) };   // G5: as forecastOf's maps
 
   // The cells on screen (B13-D2, D3): lookups of the shown keys in the index built at parse (X10). A day counts only with
   // cfg.dustDayMinHours of its values (the CAMS horizon's last day is partial); today is the whole calendar day, its past
@@ -85,10 +86,10 @@ var Air = (function () {
   function forecast(model, hourKeys, dates, cfg) {
     var ix = model ? model.forecast : NO_FORECAST, hours = [], days = [], i, d;
     for (i = 0; i < hourKeys.length; i++) {
-      hours.push(hourKeys[i] !== null && ix.byHour.hasOwnProperty(hourKeys[i]) ? cell(Math.round(ix.byHour[hourKeys[i]]), cfg) : null);
+      hours.push(hourKeys[i] !== null && Object.prototype.hasOwnProperty.call(ix.byHour, hourKeys[i]) ? cell(Math.round(ix.byHour[hourKeys[i]]), cfg) : null);
     }
     for (i = 0; i < dates.length; i++) {
-      d = dates[i] !== null && ix.byDay.hasOwnProperty(dates[i]) ? ix.byDay[dates[i]] : null;
+      d = dates[i] !== null && Object.prototype.hasOwnProperty.call(ix.byDay, dates[i]) ? ix.byDay[dates[i]] : null;
       days.push(d && d.n >= cfg.dustDayMinHours ? cell(Math.round(d.max), cfg) : null);
     }
     return { hours: hours, days: days };

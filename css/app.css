@@ -617,6 +617,14 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 .city-msg { display: none; margin-top: 16px; font-size: 28px; color: #ffcf8a; text-align: center; }
 .city-msg.is-on { display: block; }
 .city-hint { margin-top: 24px; font-size: 24px; line-height: 32px; text-align: center; }
+/* G2: the hint's arrows drawn as border triangles (the .mk-arrow technique) in the hint's colour, each in the 24 px slot a
+   glyph took, so the hint reads and measures as before; the pair is a left-to-right island in every language */
+.city-arrows { display: inline-block; white-space: nowrap; }
+.city-arrow { display: inline-block; width: 0; height: 0; vertical-align: middle; border: 0 solid transparent; }
+.city-arrow.is-up { margin: 0 3px; border-width: 0 9px 16px; border-bottom-color: currentColor; }
+.city-arrow.is-down { margin: 0 3px; border-width: 16px 9px 0; border-top-color: currentColor; }
+.city-arrow.is-left { margin: 0 4px; border-width: 9px 16px 9px 0; border-right-color: currentColor; }
+.city-arrow.is-right { margin: 0 4px; border-width: 9px 0 9px 16px; border-left-color: currentColor; }
 
 /* ---- Markets: six cards on one grid — currencies, US shares, Israeli shares; crypto, US indices, commodities. The ONE
    setting for the cards per line is .mk-card's width (100% / 3); the body's negative end and bottom margins absorb the

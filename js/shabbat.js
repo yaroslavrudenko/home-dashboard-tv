@@ -98,8 +98,9 @@ var Shabbat = (function () {
 
   function parse(json, cfg) {
     if (!json || typeof json !== 'object' || !Array.isArray(json.items) || !json.range) throw shapeError();
-    var holidays = holidaysFor(cfg), hebDates = {}, windows = [], open = null, yomtov = {}, parashot = {}, titles = {}, groups = {}, ids = [],
-      begins = {}, pairs = [], readings = {}, specials = {}, mevarchim = {}, roshChodesh = [], omer = {}, m;
+    // G5: the maps keyed by Hebcal's own strings (a title, a memo, a link id) have no prototype: «toString» finds nothing
+    var holidays = holidaysFor(cfg), hebDates = {}, windows = [], open = null, yomtov = {}, parashot = {}, titles = Object.create(null), groups = Object.create(null), ids = [],
+      begins = Object.create(null), pairs = [], readings = {}, specials = {}, mevarchim = {}, roshChodesh = [], omer = {}, m;
     for (var i = 0; i < json.items.length; i++) {
       var it = json.items[i];
       if (!it || typeof it.date !== 'string') throw shapeError();

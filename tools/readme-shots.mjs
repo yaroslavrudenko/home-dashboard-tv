@@ -56,8 +56,11 @@ if (live && !/^pk\./.test(TOKEN)) throw new Error('--live needs MAPBOX_TOKEN (th
 const DEMO_ALERT = ['he-alert.png', 'he-banner.png'];
 // Pikud HaOref answers only with the headers its own site sends; fetched asynchronously, so a slow answer never holds the
 // other sources up.
+// A full desktop-Chrome User-Agent: since 2026-11-03 the live feed answers 403 text/html to a bare «Mozilla/5.0»
+// (measured 17:11 IL: bare 403, this one 200 application/json).
+const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 const oref = async (n, url) => {
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://www.oref.org.il/', 'X-Requested-With': 'XMLHttpRequest' }, signal: AbortSignal.timeout(20000) });
+  const r = await fetch(url, { headers: { 'User-Agent': BROWSER_UA, Referer: 'https://www.oref.org.il/', 'X-Requested-With': 'XMLHttpRequest' }, signal: AbortSignal.timeout(20000) });
   return { status: r.status, body: Buffer.from(await r.arrayBuffer()) };
 };
 

@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="712 automated tests passing" src="https://img.shields.io/badge/tests-712%20passing-brightgreen?style=for-the-badge">
+  <img alt="737 automated tests passing" src="https://img.shields.io/badge/tests-737%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -53,16 +53,16 @@
   <tr><td align="center"><b>5 · Shabbat &amp; holidays</b> — the reading, candles, havdalah, what is next</td><td align="center"><b>6 · Traffic</b> — ten routes, live</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-7-map.png" alt="Traffic map in Hebrew: a real Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot with its name beside it, and a key of the traffic colours in the top-left corner"></td>
-    <td><img src="docs/screenshots/he-8-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot with the time of the last check, nearby towns, and the recent Pikud HaOref alerts in Israel under the column labels time, alert, areas"></td>
+    <td><img src="docs/screenshots/he-8-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot, checked at 17:12, no alerts nearby with the nearby towns listed, and no Pikud HaOref alerts in Israel in the last 7 days"></td>
   </tr>
   <tr><td align="center"><b>7 · Traffic map</b> — a real Mapbox picture</td><td align="center"><b>8 · Alerts</b> — home, nearby, recent alerts in Israel</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 11:37, enter the protected space and stay 10 minutes"></td>
+    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 17:09, enter the protected space and stay 10 minutes"></td>
     <td><img src="docs/screenshots/he-alert-preview.png" alt="The alert preview in Hebrew: the same overlay under a white band saying this is an alert test, not a real alert"></td>
   </tr>
   <tr><td align="center"><b>The alert</b> — the Alerts screen opens by itself</td><td align="center"><b>The alert preview</b> — the blue key, clearly not real</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-banner.png" alt="The home screen in Hebrew during an alert at home: a slim red banner at the top says alert in Rehovot since 11:38"></td>
+    <td><img src="docs/screenshots/he-banner.png" alt="The home screen in Hebrew during an alert at home: a slim red banner at the top says alert in Rehovot since 17:10"></td>
     <td><img src="docs/screenshots/he-city.png" alt="The home-city picker in Hebrew: a list of Israeli cities with their English names, Rehovot ticked, arrows to move and OK to choose"></td>
   </tr>
   <tr><td align="center"><b>Alert banner</b> — stays on top of every other screen</td><td align="center"><b>Home city</b> — OK opens the picker</td></tr>
@@ -83,10 +83,10 @@
   <tr><td align="center">Русский · Рынки</td><td align="center">Українська · Ринки</td></tr>
 </table>
 
-<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs --live</code>), taken on 3 November 2026 at 11:36–11:38.
-<b>Live</b> (the real answers at that moment): the news (Ynet, Globes, Українська правда, Економічна правда, at 11:36–11:37),
+<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs --live</code>), taken on 3 November 2026 at 17:08–17:10 (the Alerts screen at 17:12).
+<b>Live</b> (the real answers at that moment): the news (Ynet, Globes, Українська правда, Економічна правда, at 17:08–17:10),
 the Markets (Yahoo Finance and open.er-api), Shabbat and holidays (Hebcal), the traffic routes and the traffic map (Mapbox), the
-Alerts screen (Pikud HaOref's live feed and its recent-alerts history, both empty at 11:37: no alerts in the last 7 days), and the
+Alerts screen (Pikud HaOref's live feed and its recent-alerts history, both empty at 17:12: no alerts in the last 7 days), and the
 weather on every screen (Open-Meteo). <b>Recorded and demo air</b> on the home and Israel weather screens and on the banner and
 city-picker shots over the home screen (with their live weather), so they show a khamsin: Rehovot's dust is a synthetic khamsin laid over
 its recorded forecast (khamsin pills in the hours and in the 7-day dust band, each in its grade's colour, the one key — the grades «100 121 196 271» — lit on the current card, whose reading sits on its own grade's pill), and Beer Sheva's
@@ -148,14 +148,14 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🌍 **Three languages, full right-to-left Hebrew** | Русский · עברית · Українська on ▲ / ▼, at once, no reload. Hebrew mirrors the whole layout; each language has its own news sources, and the holiday, month and parasha names are our own translations. |
 | 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view; leaving it mid-request aborts the request. |
 | 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha with its Torah verses and haftarah (and a special Shabbat, Shabbat Mevarchim or the Omer count when there is one), the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
-| 🌬️ **Air, dust and UV** | Today's highest UV index and the European air-quality index at home, an air chip on every Israel region, and a dust warning when a khamsin comes in. |
+| 🌬️ **Air, dust and UV** | Today's highest UV index and the European air-quality index at home, an air line on every Israel region, and a dust warning when a khamsin comes in. |
 | 🚗 **Live Israeli traffic** | Ten routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
 | 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in your home city opens the Alerts screen at once, red and full, with an attention sound, and a red line «Тревога в Реховоте» stays at the top of every other screen; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
 | 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 712 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 737 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 

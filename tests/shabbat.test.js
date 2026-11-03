@@ -445,3 +445,17 @@ test('reading reaches the screen: view() hands the shown segment\'s reading, and
   const old = ctx.Shabbat.view(parsed(ctx, NOV), IL('2026-11-02T12:00:00+02:00'), '2026-11-02', cfg);
   assert.equal(old.window.reading, null, 'an answer without readings (leyning off): no reading, never made up');
 });
+
+// G5 (5/5): the fast and holiday maps are keyed by Hebcal's own strings. A holiday titled «toString» whose link is a
+// configured fast, and a «Fast ends» with that memo and no «Fast begins»: no pair is made from Object.prototype.toString.
+test('G5: a «toString» title and an unmatched «Fast ends» make no fast (no prototype member taken for a start)', () => {
+  const ctx = load(FILES), cfg = ctx.Config.shabbat;
+  const json = { range: { start: '2027-07-01', end: '2027-07-30' }, items: [
+    { title: 'toString', date: '2027-07-22', category: 'holiday', link: 'https://hebcal.com/h/tzom-tammuz-2027', hebrew: 'x' },
+    { title: 'Fast ends', date: '2027-07-22T20:10:00+03:00', category: 'zmanim', subcat: 'fast', memo: 'toString' }] };
+  const data = ctx.Shabbat.parse(json, cfg);
+  assert.deepEqual(plain(data.fasts), [], 'no fast from an end alone');
+  assert.ok(data.fasts.every((f) => typeof f.begins !== 'function'));
+  // the configured fast is still an occurrence (the holiday item itself is ordinary)
+  assert.deepEqual(plain(data.occurrences).map((o) => [o.holiday, o.kind]), [['tzom-tammuz', 'fast']]);
+});

@@ -26,7 +26,7 @@ var IsraelView = (function () {
     if (!a || (a.level === null && !a.dustHigh)) return null;
     // FIX-18D 3: a khamsin's word sits on its grade's pill (View.numClass → Air.grade: the same mapping as every dust pill), and
     // the grade is part of what the chip shows — so a grade change alone redraws the card (the key is made of this object)
-    return { cls: 'lv-' + (a.dustHigh || !a.level ? 'dust' : a.level) + (card.airKind === 'stale' ? ' is-stale' : ''), word: a.dustHigh ? 'w.air.khamsinWord' : 'w.air.' + a.level,
+    return { cls: 'lv-' + (a.dustHigh || !a.level ? 'dust' : a.level) + (card.airKind === 'stale' ? ' is-stale' : ''), word: a.dustHigh ? 'w.air.khamsinWord' : 'w.airShort.' + a.level,   // G4: the word agrees with the card's own label («Воздух:»)
       wordCls: a.dustHigh ? View.numClass('region-air-word dust-num', a.dust) : 'region-air-word' };
   }
   // The air, labelled on its own line under the head («Воздух: приемлемое» — the owner: «должно быть понятно»); the line is
