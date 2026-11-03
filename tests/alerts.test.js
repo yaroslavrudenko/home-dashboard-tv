@@ -166,7 +166,7 @@ test('one request per 5 s with a 4 s timeout and NO custom header; the next poll
   assert.equal(m.poll(), false, 'one in flight: a second poll sends nothing');
   clock.advance(60000);
   assert.equal(calls.length, 1, 'a slow answer never piles requests up');
-  assert.equal(calls[0].url, 'https://www.oref.org.il/WarningMessages/alert/alerts.json');
+  assert.equal(calls[0].url, 'https://www.oref.org.il/warningMessages/alert/Alerts.json');   // case-sensitive since 2026-11-03
   assert.equal(calls[0].ms, 4000);
   assert.equal(calls[0].args.length, 3, 'url, timeout, callback — no headers argument at all');
   assert.ok(!/X-Requested-With/.test(fs.readFileSync(path.join(__dirname, '..', 'js', 'alerts.js'), 'utf8')), 'the header is gone from the code');

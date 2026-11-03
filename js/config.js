@@ -200,7 +200,9 @@ var Config = {
   // `match` holds the area names exactly as Pikud HaOref's area list writes them (tests/fixtures/oref/districts_heb.json;
   // a test checks every name). The screen calls an area by its name in the interface language.
   alerts: {
-    url: 'https://www.oref.org.il/WarningMessages/alert/alerts.json',
+    // The path is case-sensitive since 2026-11-03 (measured 14:15 IL: «WarningMessages/alert/alerts.json» answers CloudFront 404
+    // text/html; this spelling, Pikud HaOref's own, answers 200 application/json with a browser User-Agent, no other header)
+    url: 'https://www.oref.org.il/warningMessages/alert/Alerts.json',
     pollMs: 5 * 1000,                   // the next poll starts this long after the previous one ENDED
     timeoutMs: 4 * 1000,
     // An alert never ends on a guess (js/alerts.js): it stays for the instruction's minutes after the area was last
