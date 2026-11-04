@@ -230,3 +230,18 @@ test('C-1: the App is a composition root and every module it was split into stay
   assert.ok(files.length >= 12, files.join(','));
   for (const f of files) assert.ok(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8').split('\n').length <= 200, f);
 });
+
+// Batch 25 T5 F3 (Opus): the Markets header's time can be a kept row's from an earlier day (Yahoo failing overnight) — it
+// carries its date, as the weather's (B14-3, HomeClock.stamp); today's alone.
+test('B25 F3: the Markets header — a kept row\'s time from before midnight carries its date, one of today the time alone', () => {
+  const NOW = Date.UTC(2026, 9, 29, 22, 10), now = { ms: NOW };   // 00:10 on 30.10 in Israel
+  const ctx = load(['js/config.js', 'js/tz.js', 'js/home-clock.js', 'js/app-render-feeds.js'], { Date: fakeDate(now) });
+  const clock = ctx.HomeClock.create(ctx.Config.clocks, NOW), drawn = [];
+  ctx.MarketsView = { render: (snap, s) => drawn.push(s) };
+  let st = { kind: 'stale', snapshot: null, updatedAt: Date.UTC(2026, 9, 29, 21, 50) };   // 23:50 on 29.10
+  const f = ctx.FeedRender.create({ markets: { state: () => st } }, clock);
+  f.markets();
+  st = { kind: 'fresh', snapshot: null, updatedAt: NOW - 5 * 60000 };
+  f.markets();
+  assert.deepEqual(drawn.map((s) => [s.kind, s.updated]), [['stale', '29.10 23:50'], ['fresh', '00:05']]);
+});

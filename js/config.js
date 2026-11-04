@@ -84,9 +84,11 @@ var Config = {
     // (Good · Fair · Moderate · Poor · Very poor · Extremely poor, µg/m³). The values are rounded, so "> 270" starts at 271;
     // 100 is not an EEA bound: it is this app's khamsin threshold (dustUgm3 above), inside the EEA's Moderate band.
     dustGradesUgm3: [121, 196, 271],
-    // Batch 13: the dust forecast in the same request — hourly for forecastDays days from today's 00:00 (CAMS reaches ~4 to
-    // 5 days, later cells are null); a day's value (its hourly maximum) is shown only with dustDayMinHours of its 24 values.
-    forecastDays: 5,
+    // Batch 13: the dust forecast in the same request — hourly for forecastDays days from today's 00:00; a day's value (its
+    // hourly maximum) is shown only with dustDayMinHours of its 24 values. Batch 25 T2 (owner 2026-11-04): 7, the days the
+    // band shows — measured live 2026-11-04 10:31 UTC with forecast_days=7: Rehovot's days 1–5 have 24/24 values, day 6 3/24
+    // (partial: «—»), day 7 none (beyond the horizon: «…»); one request as before, its answer 1098 → 1313 bytes gzipped.
+    forecastDays: 7,
     dustDayMinHours: 20
   },
 

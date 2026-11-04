@@ -820,3 +820,84 @@ test('FIX-19B P7: left after a source\'s first answer → that round is not abor
   assert.deepEqual(h.count(), { yahoo: 2, stats: 0, rates: 0 }, 'the rotation back: the aborted Yahoo asks at once, Coinbase is fresh');
   assert.ok(h.c.snapshot().groups[3].rows.every((r) => r.price > 0), 'the background round\'s coins are there');
 });
+
+// Batch 25 T5 (native reviewer F4, owner 2026-11-04, batch 25 T5): while a row is kept (stale) the header's «данные от» time
+// is the OLDEST kept row's data time, never the newest source's — Coinbase answering every minute must not make three-hour-old
+// Yahoo rows look a minute old. Nothing kept: the newest data's time («Обновлено в …»), as before.
+test('B25 T5: Coinbase fresh every minute, Yahoo failing for 3 h → stale, the header\'s time is Yahoo\'s last good data (3 h old), not Coinbase\'s', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  h.answer();
+  assert.deepEqual([h.c.state().kind, h.c.state().updatedAt], ['fresh', AT], 'nothing kept: the newest data\'s time');
+  for (let m = 1; m <= 180; m++) { h.t.advance(MIN); h.answer({ 'spark?': 'network' }); }
+  const st = h.c.state();
+  assert.equal(st.kind, 'stale');
+  assert.equal(h.c.snapshot().updatedAt, AT + 180 * MIN, 'the snapshot still says when its newest data (the coins) came');
+  assert.equal(st.updatedAt, AT, 'the header: the oldest kept row\'s data (Yahoo, 3 h ago), never Coinbase\'s minute-old time');
+  assert.equal(rowOf(st.snapshot, 'INTU').stale, true);
+  assert.equal(rowOf(st.snapshot, 'BTC').stale, undefined, 'the coins are fresh');
+  // the rates fail too, later: the oldest of the kept rows is still Yahoo's
+  h.t.advance(MIN);
+  h.answer({ 'spark?': 'network', [RATES_HOST]: 'network' });
+  assert.equal(h.c.state().updatedAt, AT, 'two sources kept: the older one');
+  // Yahoo comes back: only the rates are kept — their own last good time (one minute before)
+  h.t.advance(5 * MIN);
+  h.answer({ [RATES_HOST]: 'network' });
+  const back = h.c.state();
+  assert.equal(rowOf(back.snapshot, 'INTU').stale, undefined, 'Yahoo fresh again');
+  assert.equal(rowOf(back.snapshot, 'USDILS').stale, true);
+  assert.deepEqual([back.updatedAt, h.c.snapshot().updatedAt], [AT + 180 * MIN, AT + 186 * MIN], 'the kept rates\' own last good time, not the coins\' newer one');
+  h.t.advance(MIN);
+  h.answer();
+  assert.deepEqual([h.c.state().kind, h.c.state().updatedAt], ['fresh', h.c.snapshot().updatedAt], 'nothing kept: the newest again');
+});
+
+// Batch 25 T5 F1/F2 (panel 0/3 + Codex): a kept row's time is the data time of the very answer that carried it — never its
+// source's newest. The answers here carry their own data times (meta.dataAt: Date − Age, js/net.js); `dated(url)` gives each.
+function answerDated(h, dated, fail) {
+  for (const x of h.calls.splice(0, h.calls.length)) {
+    const err = fail && fail(x.url);
+    if (err) { x.done(err, undefined, { retryAfter: '' }); continue; }
+    const [e, body] = recordedAnswer(x.url);
+    x.done(e, body, e ? { retryAfter: '' } : { dataAt: dated(x.url) });
+  }
+}
+test('B25 F2 (Codex\'s repro): rates dated 5 min before the coins, then the rates fail — the header says the RATES\' time, not the coins\'', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  answerDated(h, (url) => (kindOf(url) === 'rates' ? AT - 5 * MIN : AT));            // FX «09:55», crypto and Yahoo «10:00»
+  assert.deepEqual([h.c.state().kind, h.c.state().updatedAt], ['fresh', AT]);
+  h.t.advance(MIN);                                                                  // «10:01»: Coinbase's next round
+  answerDated(h, () => AT + MIN, (url) => (kindOf(url) === 'rates' ? 'network' : null));
+  const st = h.c.state();
+  assert.equal(rowOf(st.snapshot, 'USDILS').stale, true);
+  assert.equal(rowOf(st.snapshot, 'BTC').stale, undefined);
+  assert.equal(st.updatedAt, AT - 5 * MIN, 'the kept FX rows\' own table time («09:55»), never the coins\' («10:00»)');
+  assert.equal(st.snapshot.keptAt, AT - 5 * MIN, 'carried on the snapshot (F4)');
+});
+test('B25 F2: two Yahoo answers of different ages, the older one\'s symbols kept — the header says the older answer\'s time', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  const sparks = h.calls.filter((x) => kindOf(x.url) === 'yahoo').map((x) => x.url);
+  assert.equal(sparks.length, 2);
+  answerDated(h, (url) => (url === sparks[0] ? AT - 20 * MIN : url === sparks[1] ? AT - 2 * MIN : AT));
+  h.t.advance(5 * MIN);                                                              // Yahoo's next round: the first spark fails
+  answerDated(h, () => AT + 5 * MIN, (url) => (url === sparks[0] ? 'network' : null));
+  const st = h.c.state(), stale = st.snapshot.groups.flatMap((g) => g.rows.filter((r) => r.stale).map((r) => r.id));
+  assert.ok(stale.length > 0 && stale.length < 24, 'only the first spark\'s rows are kept: ' + stale.join(','));
+  assert.equal(st.updatedAt, AT - 20 * MIN, 'the older spark\'s time, never the newer one\'s (Yahoo\'s newest)');
+});
+test('B25 F4: the kept time travels with the snapshot — none on a snapshot with nothing kept, and the minute tick keeps it', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  answerDated(h, () => AT - MIN);
+  assert.equal('keptAt' in h.c.state().snapshot, false, 'nothing kept: no keptAt');
+  h.t.advance(MIN);
+  answerDated(h, () => AT + MIN, (url) => (kindOf(url) === 'rates' ? 'network' : null));
+  h.c.setVisible(false);
+  const before = h.c.state().snapshot;
+  h.t.advance(23 * 3600000);                                                         // across 00:00 Israel: fxNow / closedNow make new snapshots
+  assert.notEqual(h.c.state().snapshot, before, 'a regrouped snapshot (the currency change and the closed marks moved)');
+  assert.equal(h.c.state().snapshot.keptAt, AT - MIN, 'the regrouped snapshot keeps its keptAt');
+  assert.equal(h.c.state().updatedAt, AT - MIN);
+});

@@ -33,7 +33,9 @@
  * keep theirs); one that never had a value has price null (never dropped, never made up). closed: a quote's market is outside
  * its regular session (true / false; it follows the clock between rounds, A2); false for crypto (it trades around the
  * clock); null for a currency rate, a reference rate with no trading hours. unit: what a commodity's price is for (the
- * configured row's unit: 'barrel', 'ounce', …). updatedAt is the arrival time of the newest usable data shown (0: none). */
+ * configured row's unit: 'barrel', 'ounce', …). updatedAt is the arrival time of the newest usable data shown (0: none).
+ * keptAt (batch 25 T5, only while a row is kept): the OLDEST kept row's own data time — each row's from the very answer that
+ * carried it (its spark answer, its product's stats, the rates table). */
 var Markets = (function () {
   var CURRENCIES = { USD: true, ILS: true, UAH: true, RUB: true, EUR: true };
   var LAST_MINUTE_S = 60;                          // a 24-hour session's `end` is its last minute, not its end
@@ -180,7 +182,10 @@ var Markets = (function () {
     var lastGood = {}, lastMeta = {}, current = null, hold = {}, bySymbol = {};   // hold: host → not asked before (ms)
     // What each source's last round gave (got), the time of its newest data (at), and the data time of the last good rates
     // table (lastRatesAt: the FX rows shown, fresh or kept, are from it).
-    var got = { quotes: {}, stats: {}, rates: null, ratesAt: 0 }, at = { yahoo: 0, coinbase: 0 }, lastRatesAt = 0;
+    // Batch 25 T5: each answer's data time per row it carried — quoteAt (symbol), statsAt (product), ratesAt (the table).
+    var got = { quotes: {}, quoteAt: {}, stats: {}, statsAt: {}, rates: null, ratesAt: 0 }, at = { yahoo: 0, coinbase: 0 }, lastRatesAt = 0;
+    // Batch 25 T5: each row's own data time when it was last good — the snapshot's keptAt is the oldest of the kept ones.
+    var lastGoodAt = {};
     var basis = readBasis(deps.now());   // { day (home), at (the table's data time), rates: { code: units for one dollar } }
     eachRow(cfg, function (r) { if (r.yahoo) bySymbol[r.yahoo] = r.id; });
 
@@ -247,11 +252,11 @@ var Markets = (function () {
     // The time moves only for an answer that brought at least one configured row.
     function takeQuotes(into, json, readAt) {
       var q = quotes(json), usable = false;
-      for (var s in q) if (q.hasOwnProperty(s)) { into.quotes[s] = q[s]; if (bySymbol.hasOwnProperty(s)) { usable = true; lastMeta[bySymbol[s]] = q[s]; } }
+      for (var s in q) if (q.hasOwnProperty(s)) { into.quotes[s] = q[s]; into.quoteAt[s] = readAt; if (bySymbol.hasOwnProperty(s)) { usable = true; lastMeta[bySymbol[s]] = q[s]; } }
       if (usable) into.newest = Math.max(into.newest, readAt);
     }
     function statsJob(request) {
-      return { url: request.url, take: function (into, json, readAt) { into.stats[request.product] = stats(json); into.newest = Math.max(into.newest, readAt); } };
+      return { url: request.url, take: function (into, json, readAt) { into.stats[request.product] = stats(json); into.statsAt[request.product] = readAt; into.newest = Math.max(into.newest, readAt); } };
     }
     function takeRates(into, json, readAt) {
       into.rates = rateTable(json, codes);
@@ -261,21 +266,25 @@ var Markets = (function () {
 
     // A row without a value this round shows its last good one, marked stale — its closed mark recomputed for now from its
     // last trading session; a row with one becomes the last good.
+    // A row's own data time: the answer that carried it (batch 25 T5).
+    function rowAt(spec) { return spec.yahoo ? got.quoteAt[spec.yahoo] : spec.product ? got.statsAt[spec.product] : got.ratesAt; }
     function withLastGood(snap, now) {
-      var anyStale = false, nowS = Math.floor(now / 1000);
+      var anyStale = false, nowS = Math.floor(now / 1000), keptAt = 0;
       for (var i = 0; i < snap.groups.length; i++) {
         var rows = snap.groups[i].rows;
         for (var j = 0; j < rows.length; j++) {
           var r = rows[j], g = lastGood[r.id];
-          if (r.price !== null) lastGood[r.id] = r;
+          if (r.price !== null) { lastGood[r.id] = r; lastGoodAt[r.id] = rowAt(cfg.groups[i].rows[j]); }
           else if (g) {
             rows[j] = copyRow(g, { closed: lastMeta[g.id] ? closedAt(lastMeta[g.id], nowS) : g.closed, stale: true });
             anyStale = true;
+            keptAt = keptAt ? Math.min(keptAt, lastGoodAt[r.id]) : lastGoodAt[r.id];
           }
         }
       }
       // Stale rows came with an earlier snapshot: the newest data shown is at most that snapshot's time.
       if (anyStale && current) snap.updatedAt = Math.max(snap.updatedAt, current.updatedAt);
+      if (keptAt) snap.keptAt = keptAt;
       return snap;
     }
     function build() {
@@ -302,7 +311,7 @@ var Markets = (function () {
         var since = any ? b.since : undefined;
         if (out || since !== snap.groups[i].since) { groups = groups || snap.groups.slice(); groups[i] = groupWith(snap.groups[i], out || rows, since); }
       }
-      return groups ? { updatedAt: snap.updatedAt, groups: groups } : snap;
+      return groups ? Obj.copyWith(snap, { groups: groups }) : snap;
     }
 
     // One source, s: { name, jobs ([{ url, take }]), fields (of `got` its round replaces), refreshMs (its cadence) }. A round
@@ -313,7 +322,7 @@ var Markets = (function () {
     // the background, so a slow network never starves the screen; its snapshot is there on the return.
     function source(s) {
       function round(done) {
-        var start = deps.now(), into = { quotes: {}, stats: {}, rates: null, ratesAt: 0, newest: 0 }, live = [], pending = [];
+        var start = deps.now(), into = { quotes: {}, quoteAt: {}, stats: {}, statsAt: {}, rates: null, ratesAt: 0, newest: 0 }, live = [], pending = [];
         var left, arrived = 0, cancelled = false, i;
         for (i = 0; i < s.jobs.length; i++) if (!held(s.jobs[i].url, start)) live.push(s.jobs[i]);
         // The round is over before it is drawn: a render that throws never stops the cadence.
@@ -348,8 +357,8 @@ var Markets = (function () {
     for (i = 0; i < requests.spark.length; i++) yahooJobs.push({ url: requests.spark[i], take: takeQuotes });
     for (i = 0; i < requests.stats.length; i++) coinbaseJobs.push(statsJob(requests.stats[i]));
     coinbaseJobs.push({ url: requests.rates, take: takeRates });
-    var gates = [source({ name: 'yahoo', jobs: yahooJobs, fields: ['quotes'], refreshMs: cfg.refreshMs }),
-      source({ name: 'coinbase', jobs: coinbaseJobs, fields: ['stats', 'rates', 'ratesAt'], refreshMs: cb.refreshMs })];
+    var gates = [source({ name: 'yahoo', jobs: yahooJobs, fields: ['quotes', 'quoteAt'], refreshMs: cfg.refreshMs }),
+      source({ name: 'coinbase', jobs: coinbaseJobs, fields: ['stats', 'statsAt', 'rates', 'ratesAt'], refreshMs: cb.refreshMs })];
 
     // A2: the closed marks for `now`, from each priced quote's last session (no request); the same snapshot object while no
     // mark changes, so the minute tick redraws nothing.
@@ -366,7 +375,7 @@ var Markets = (function () {
         }
         if (out) { groups = groups || snap.groups.slice(); groups[i] = groupWith(snap.groups[i], out, snap.groups[i].since); }
       }
-      return groups ? { updatedAt: snap.updatedAt, groups: groups } : snap;
+      return groups ? Obj.copyWith(snap, { groups: groups }) : snap;
     }
 
     return {
@@ -376,11 +385,12 @@ var Markets = (function () {
       // The TV hid or showed the page.
       visibilityChanged: function () { for (var g = 0; g < gates.length; g++) gates[g].visibilityChanged(); },
       snapshot: function () { return current; },
-      // { kind: 'loading' | 'failed' | 'stale' | 'fresh', snapshot, updatedAt } — what the header says (kindOf).
+      // { kind: 'loading' | 'failed' | 'stale' | 'fresh', snapshot, updatedAt } — what the header says (kindOf). updatedAt:
+      // the newest data's time, or — while any row is kept — the OLDEST kept row's (batch 25 T5).
       state: function () {
         var now = deps.now();
         current = fxNow(closedNow(current, now), now);
-        return { kind: kindOf(cfg, current, now), snapshot: current, updatedAt: current ? current.updatedAt : 0 };
+        return { kind: kindOf(cfg, current, now), snapshot: current, updatedAt: !current ? 0 : current.keptAt || current.updatedAt };
       }
     };
   }

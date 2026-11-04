@@ -63,7 +63,7 @@ var FeedRender = (function () {
     // controller decides: js/markets.js state()), its time at home («обновлено 14:32»).
     function markets() {
       var st = src.markets.state();
-      MarketsView.render(st.snapshot, { kind: st.kind, updated: clock.hhmm(st.updatedAt) });
+      MarketsView.render(st.snapshot, { kind: st.kind, updated: clock.stamp(st.updatedAt) });   // B25 T5 (B14-3): a kept row's time of another day carries its date
     }
 
     // The Shabbat & holidays screen: the calendar held (null before it came) viewed at this moment on the home date, the

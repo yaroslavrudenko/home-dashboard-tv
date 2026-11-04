@@ -85,8 +85,11 @@ var View = (function () {
   // air is stale. No dust object (a caller without it) reads as loading.
   var DUST_NONE = '<span class="dust-none">—</span>';
   // Owner 2026-11-04, batch 24 (в): a day beyond the source's horizon (Air.forecast { beyond }) — a quiet «…» in its cell,
-  // said once in words on the band's head (bandHead): a 70 px cell has no room for «нет прогноза».
+  // said once in words on the band's head (bandHead): a 70 px cell has no room for «нет прогноза». Batch 25 T4 (owner
+  // 2026-11-04): only on fresh data — while the air is stale a day the OLD answer has no value for (past midnight) is «not
+  // refreshed yet», never «no forecast»: «—», and no key.
   var DUST_BEYOND = '<span class="dust-beyond">…</span>';
+  function isBeyond(dust, c) { return !!c && c.beyond === true && !dust.stale; }
   // FIX-18B 13: a khamsin value's pill is coloured by its grade (Air.grade: 1 amber … 4 red — the redder, the more dangerous);
   // an ordinary value (grade 0) keeps the dust colour. One class name for every place a reading is shown.
   function gradeOf(value) { return typeof value === 'number' ? Air.grade(value, Config.air) : 0; }
@@ -95,7 +98,7 @@ var View = (function () {
   // a value from 1000 on is said in thousands, one decimal — «1,5к», «3,4к» (the hours keep the whole figure: 88 px columns).
   function shortDust(v) { return v >= 1000 ? I18n.t('w.thousand', { n: I18n.number(Math.round(v / 100) / 10, 1) }) : String(v); }
   function dustSlot(cls, dust, c, short) {
-    var body = !dust || dust.loading ? '' : !c ? DUST_NONE : c.beyond ? DUST_BEYOND : '<span class="' + numClass('dust-num', c.dust) + '">' + esc(short ? shortDust(c.dust) : String(c.dust)) + '</span>';
+    var body = !dust || dust.loading ? '' : isBeyond(dust, c) ? DUST_BEYOND : !c || c.beyond ? DUST_NONE : '<span class="' + numClass('dust-num', c.dust) + '">' + esc(short ? shortDust(c.dust) : String(c.dust)) + '</span>';
     return '<div class="' + cls + (dust && dust.stale ? ' is-stale' : '') + '">' + body + '</div>';
   }
   function cellOf(list, i) { return list ? list[i] : null; }
@@ -252,7 +255,7 @@ var View = (function () {
       var day = v.daily[k];
       if (!day) { cells += '<div class="band-cell"></div>'; continue; }
       c = dust && !dust.loading ? cellOf(dust.days, k) : null;
-      if (c && c.beyond) beyond = true;
+      if (isBeyond(dust, c)) beyond = true;
       cells += '<div class="band-cell"><div class="band-day">' + esc(day === v.today ? I18n.t('w.todayShort') : I18n.weekdayBand(day.weekday)) + '</div>' +
         dustSlot('day-dust', dust, c, true) + '</div>';
     }

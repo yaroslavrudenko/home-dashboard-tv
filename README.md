@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="795 automated tests passing" src="https://img.shields.io/badge/tests-795%20passing-brightgreen?style=for-the-badge">
+  <img alt="806 automated tests passing" src="https://img.shields.io/badge/tests-806%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -85,7 +85,8 @@
 
 <sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs --live</code>), taken on 3 November 2026 at 17:08–17:10 (the Alerts screen at 17:12).
 <b>Live</b> (the real answers at that moment): the news (Ynet, Globes, Українська правда, Економічна правда, at 17:08–17:10),
-the Markets (Yahoo Finance and open.er-api), Shabbat and holidays (Hebcal), the traffic routes and the traffic map (Mapbox), the
+the Markets (Yahoo Finance, and the earlier free rates source for the currencies: since 4 November the crypto and every
+currency come from Coinbase, so the two Markets shots predate that), Shabbat and holidays (Hebcal), the traffic routes and the traffic map (Mapbox), the
 Alerts screen (Pikud HaOref's live feed and its recent-alerts history, both empty at 17:12: no alerts in the last 7 days), and the
 weather on every screen (Open-Meteo). <b>Recorded and demo air</b> on the home and Israel weather screens and on the banner and
 city-picker shots over the home screen (with their live weather), so they show a khamsin: Rehovot's dust is a synthetic khamsin laid over
@@ -154,8 +155,8 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
-| 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 795 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, Coinbase, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
+| ✅ **Tested and reviewed** | 806 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -216,8 +217,10 @@ language, Hebcal and the alert feed (measured on 2026-11-02 with live answers, a
   condition, wind, humidity, sunrise/sunset (today's high/low and chance of rain are the 7-day list's), a 12-hour strip (each hour's dust under its temperature, the row labelled «Пыль» on the card's title line, followed by the khamsin key — below) and a 7-day list: one line per day — the day, its icon with the
   chance of rain beside it, the low, the range bar, the high — and under the list the dust band: «Пыль», then each day's short
   name over its maximum, on a pill from 100 µg/m³ coloured by the khamsin's grade (below). A clean day (every hour 0) reads 0.
-  A day the air answer has no value for at all — past the source's forecast (about 5 days) — reads a quiet «…», said once in
-  words at the other end of the «Пыль» line: «… нет прогноза»; «—» stays for a day with too few values or no air data.
+  The air request asks for all 7 days; a day the answer has no value for at all — past the source's forecast (about 5 days;
+  on 2026-11-04 the 6th day had 3 of its 24 hours, the 7th none) — reads a quiet «…», said once in words at the other end of
+  the «Пыль» line: «… нет прогноза»; «—» stays for a day with too few values, no air data, or — while the air data are stale —
+  a day the old answer does not reach (not refreshed yet, which is not «no forecast»).
 - **Air and UV**, between the city and the big weather icon. «УФ макс.» is today's highest UV index with its level
   (низкий, умеренный, высокий, очень высокий, экстремальный); after sunset the figure and the level word are dimmed, because the day's peak
   is past. «Качество воздуха» is the European air-quality index with its level (хорошее up to 20, приемлемое to 40,

@@ -23,7 +23,7 @@ test('config: hourly, 15 s timeout, the weather back-off, stale after 3 h, dust 
   const a = plain(load(FILES).Config.air);
   assert.deepEqual(a, { base: 'https://air-quality-api.open-meteo.com/v1/air-quality', refreshMs: 3600000, timeoutMs: 15000,
     retryMs: [60000, 120000, 240000, 480000], retryFloorMs: 30000, staleAfterMs: 3 * 3600000, keepMaxMs: 12 * 3600000, dustUgm3: 100,
-    dustGradesUgm3: [121, 196, 271], forecastDays: 5, dustDayMinHours: 20 });   // FIX-18B 13: the EEA PM10 band bounds   // B13-D1 / B13-D3: the dust forecast's days and a day's minimum of hourly values
+    dustGradesUgm3: [121, 196, 271], forecastDays: 7, dustDayMinHours: 20 });   // owner 2026-11-04, batch 25 T2: was forecastDays 5   // FIX-18B 13: the EEA PM10 band bounds   // B13-D1 / B13-D3: the dust forecast's days and a day's minimum of hourly values
 });
 
 test('URL: ONE request for the four places, in order; only the two values the screens show (S5: AQI and dust); no key', () => {
@@ -34,7 +34,7 @@ test('URL: ONE request for the four places, in order; only the two values the sc
   assert.equal(u.searchParams.get('current'), 'european_aqi,dust');
   assert.equal(u.searchParams.get('timezone'), 'auto');
   assert.equal(u.searchParams.get('hourly'), 'dust', 'B13-D1: the dust forecast in the SAME request, no AQI hourly (not shown)');
-  assert.equal(u.searchParams.get('forecast_days'), '5', 'B13-D1');
+  assert.equal(u.searchParams.get('forecast_days'), '7', 'B13-D1; owner 2026-11-04, batch 25 T2: was 5 — the 7 days the band shows');
   assert.ok(!/key|token/i.test(u.search));
 });
 

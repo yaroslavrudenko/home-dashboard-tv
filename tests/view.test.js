@@ -328,8 +328,14 @@ test('B24 (в): a day beyond the forecast is a muted «…», distinct from «�
   }
   const partial = bandOf(stripWith('ru', Object.assign({}, DUST_OK, { days: [{ dust: 3, khamsin: false }, null, null] })).daily);
   assert.deepEqual([slots(partial, 'day-dust')[1], /band-beyond/.test(partial)], ['<span class="dust-none">—</span>', false], 'too few values: «—», and no key');
-  const stale = bandOf(stripWith('ru', Object.assign({}, DUST_BEYOND, { stale: true })).daily);
-  assert.match(stale, /<div class="band-beyond">… нет прогноза<\/div>/, 'stale data keep the key');
+  // owner 2026-11-04, batch 25 T4: was «stale data keep the key» — while the air is stale a day the OLD answer has no value
+  // for (past midnight) is «not refreshed yet»: «—», dimmed, and no «нет прогноза» key; a value stays a value
+  for (const lang of ['ru', 'he', 'uk', 'en']) {
+    const stale = bandOf(stripWith(lang, Object.assign({}, DUST_BEYOND, { stale: true })).daily);
+    assert.equal(/band-beyond|dust-beyond/.test(stale), false, lang + ': stale: no «…» and no key');
+    assert.deepEqual(slots(stale, 'day-dust'), ['<span class="dust-num">0</span>', '<span class="dust-none">—</span>'], lang + ': stale: the day past the old answer «—»');
+    assert.equal((stale.match(/class="day-dust is-stale"/g) || []).length, 2, lang + ': both day cells dimmed (the third row is empty)');
+  }
   // the current card's dust item: a forecast of beyond days only is no value (the item stays empty, as with no forecast)
   const ctx = load(B12); ctx.I18n.setLang('ru');
   const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 7 });
