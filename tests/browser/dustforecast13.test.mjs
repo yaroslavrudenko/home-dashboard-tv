@@ -78,7 +78,8 @@ for (const lang of ['ru', 'he', 'uk']) {
       // B22 (owner 2026-11-04, judges' common decision, city card, fix 1; replaces OWNER-1LEG-C's placement): ONE legend, on the
       // hourly title row; none in the city card
       assert.deepEqual([m.legends, m.legend.onHourlyHead, m.titleLegends], [1, true, 1], lang + ': one legend, on the hourly title row');
-      assert.deepEqual(m.days, ['32', '38', '19', '16', '16', '—', '—'], lang + ': past the 5-day forecast «—»');
+      // owner 2026-11-04, batch 24 (в): was «—», «—» — past the 5-day forecast the days are beyond the horizon: «…»
+      assert.deepEqual(m.days, ['32', '38', '19', '16', '16', '…', '…'], lang + ': past the 5-day forecast «…»');
       assert.equal(m.khamsinHours + m.khamsinDays, 0, 'no khamsin in the real recording at home');
       assert.deepEqual([m.legend.key, m.legend.khamsin, m.bandLabel], [LEGEND[lang][0], LEGEND[lang][1], LEGEND[lang][0]], lang + ': the legend and the band\'s label');
       assert.equal(m.bandDays.length, 7, 'a band cell per day');
@@ -103,8 +104,9 @@ for (const lang of ['ru', 'he', 'uk']) {
       const isr = await p.evaluate(israelState);
       assert.deepEqual(isr.map((c) => c.key), [0, 1, 2].map(() => LEGEND[lang][0]), lang + ': each band labelled «Пыль»');
       assert.deepEqual(isr.map((c) => [c.legends, c.dustInRows, c.bandDays.length, c.bandDays[0]]), [0, 1, 2].map(() => [0, 0, 7, LEGEND[lang][2]]), lang + ': no legend, no dust in a row, a band cell per day');
-      // X6: Haifa's 2026-11-06 is a CAMS fill (24 × 0): «—»; FIX-BATCH-18 item 4: 7 band cells, past the 5-day air forecast «—»
-      assert.deepEqual(isr.map((c) => c.days), [['24', '33', '15', '12', '—', '—', '—'], ['26', '37', '18', '14', '16', '—', '—'], ['48', '53', '23', '16', '185', '—', '—']], lang + ': Haifa, Tel Aviv, Beer Sheva');
+      // owner 2026-11-04, batch 24 (а)+(в) (was X6 «—» and «—» past the forecast): Haifa's 2026-11-06 (24 × 0) reads 0; FIX-BATCH-18
+      // item 4: 7 band cells, past the 5-day air forecast «…»
+      assert.deepEqual(isr.map((c) => c.days), [['24', '33', '15', '12', '0', '…', '…'], ['26', '37', '18', '14', '16', '…', '…'], ['48', '53', '23', '16', '185', '…', '…']], lang + ': Haifa, Tel Aviv, Beer Sheva');
       assert.deepEqual(isr.map((c) => c.khamsin), [0, 0, 1], 'Beer Sheva\'s real 185 µg/m³ on the 5th day is a khamsin');
       isr.forEach((c, i) => assert.ok(c.lastBottom <= c.cardBottom - 23, 'region ' + i + ': the days inside the card'));
       isr.forEach((c, i) => assert.ok(c.bandTop >= c.lastBottom && c.bandBottom <= c.cardBottom - 23, 'region ' + i + ': the band under the days, inside the card: ' + (c.cardBottom - c.bandBottom)));

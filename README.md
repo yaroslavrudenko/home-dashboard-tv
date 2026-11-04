@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="772 automated tests passing" src="https://img.shields.io/badge/tests-772%20passing-brightgreen?style=for-the-badge">
+  <img alt="779 automated tests passing" src="https://img.shields.io/badge/tests-779%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -155,7 +155,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 772 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 779 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -214,7 +214,9 @@ language, Hebcal and the alert feed (measured on 2026-11-02 with live answers, a
 - **Weather** for the home city (Rehovot by default; see [Home city](#home-city)) from [Open-Meteo](https://open-meteo.com/) (free, no API key): temperature, feels-like,
   condition, wind, humidity, sunrise/sunset (today's high/low and chance of rain are the 7-day list's), a 12-hour strip (each hour's dust under its temperature, the row labelled «Пыль» on the card's title line, followed by the khamsin key — below) and a 7-day list: one line per day — the day, its icon with the
   chance of rain beside it, the low, the range bar, the high — and under the list the dust band: «Пыль», then each day's short
-  name over its maximum, on a pill from 100 µg/m³ coloured by the khamsin's grade (below).
+  name over its maximum, on a pill from 100 µg/m³ coloured by the khamsin's grade (below). A clean day (every hour 0) reads 0.
+  A day the air answer has no value for at all — past the source's forecast (about 5 days) — reads a quiet «…», said once in
+  words at the other end of the «Пыль» line: «… нет прогноза»; «—» stays for a day with too few values or no air data.
 - **Air and UV**, between the city and the big weather icon. «УФ макс.» is today's highest UV index with its level
   (низкий, умеренный, высокий, очень высокий, экстремальный); after sunset the figure and the level word are dimmed, because the day's peak
   is past. «Качество воздуха» is the European air-quality index with its level (хорошее up to 20, приемлемое to 40,
@@ -272,7 +274,7 @@ language, Hebcal and the alert feed (measured on 2026-11-02 with live answers, a
 with the temperature now and its condition icon (no condition words: the icon says it), feels-like and wind on ONE
 line with no words — a «feels like» glyph (a thermometer with a person) and the wind glyph label the two values, the units kept («19°  14 км/ч», each after its glyph) — and a
 7-day list (today and six days, no title over it) with the same range bars as the main card, the days' dust in a band
-under it («Пыль» on its own line, then one cell per day). The head of each card ends with an air chip: the air glyph and the level word in its colour, or «пыль» when the
+under it («Пыль» on its own line, with «… нет прогноза» at its other end when a day is past the forecast, then one cell per day). The head of each card ends with an air chip: the air glyph and the level word in its colour, or «пыль» when the
 dust is high (even with no index). The regions ride the main weather's single Open-Meteo request (six places, one
 request) and the home screen's air request (four places, one request), so this screen costs no request of its own; a
 failed refresh dims every card and the header says it once.

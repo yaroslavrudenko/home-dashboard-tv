@@ -163,13 +163,14 @@ test('B13 khamsin per hour: from 100 µg/m³ on the ROUNDED value (99.4 no, 99.5
   assert.deepEqual(f.hours, [{ dust: 99, khamsin: false }, { dust: 100, khamsin: true }, { dust: 100, khamsin: true }, { dust: 240, khamsin: true }]);
 });
 
-test('B13 per day: the day\'s MAXIMUM with at least 20 of its 24 hours; 19 → null; a partial last day and days past the horizon → null', () => {
+test('B13 per day: the day\'s MAXIMUM with at least 20 of its 24 hours; 19 → null; a partial last day → null; days past the horizon → beyond (batch 24 (в))', () => {
   const ctx = load(FILES), cfg = ctx.Config.air, list = hourlyFix();
   const dates = ['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08'];
   const maxOf = (p, d) => Math.round(Math.max(...list[p].hourly.time.map((t, i) => (t.slice(0, 10) === d ? list[p].hourly.dust[i] : -1))));
   const f = plain(ctx.Air.forecast(ctx.Air.parse(list[0], cfg), [], dates, cfg));
   assert.deepEqual(f.days.slice(0, 5), dates.slice(0, 5).map((d) => ({ dust: maxOf(0, d), khamsin: false })), 'real 2026-11-02: five full days');
-  assert.deepEqual(f.days.slice(5), [null, null], 'past the 5-day horizon');
+  // owner 2026-11-04, batch 24 (в): was [null, null] — a day the answer has no value for is beyond the horizon, not «—»
+  assert.deepEqual(f.days.slice(5), [{ beyond: true }, { beyond: true }], 'past the 5-day horizon');
   // Beer Sheva's real 2026-11-06: a khamsin day (its maximum 185 µg/m³)
   const south = plain(ctx.Air.forecast(ctx.Air.parse(list[3], cfg), [], ['2026-11-06'], cfg));
   assert.deepEqual(south.days, [{ dust: maxOf(3, '2026-11-06'), khamsin: true }]);
@@ -199,21 +200,46 @@ test('B13 today counts the whole calendar day: the hours already past are in tod
     { hours: [{ dust: 10, khamsin: false }], days: [{ dust: 150, khamsin: true }] });
 });
 
-// ---- FIX-13B X6 (designer D6): a CAMS fill day — every value of the day exactly 0 (Haifa 2026-11-06 in the real 2026-11-02
-// recording: 24 × 0 while Tel Aviv reads 16 and Beer Sheva 185) — is no data: its hours and its maximum read «—». A single 0
-// among real values stays a 0.
-test('X6: a day whose values are ALL exactly 0 is a fill — no hourly values, no daily maximum; a single 0 among real values stays 0', () => {
+// ---- Owner 2026-11-04, batch 24 (а) («для пыли а+в»; replaces FIX-13B X6, which dropped a day whose values were ALL 0 as a
+// «CAMS fill»): a 0 is a reading. Haifa's 2026-11-06 in the 2026-11-02 recording (24 × 0) now reads 0, hours and day.
+test('B24 (а): a day whose values are ALL exactly 0 is a clean day — its hours read 0 and its maximum 0 (no longer «—»)', () => {
   const ctx = load(FILES), cfg = ctx.Config.air, list = hourlyFix();
   const haifa = list[1].hourly.dust.slice(96, 120);
   assert.deepEqual([haifa.length, haifa.every((v) => v === 0)], [24, true], 'the recording: Haifa 2026-11-06 is 24 × 0');
   const f = plain(ctx.Air.forecast(ctx.Air.parse(list[1], cfg), keysOf('2026-11-06', 10, 2).concat(['2026-11-05T10']), ['2026-11-05', '2026-11-06'], cfg));
-  assert.deepEqual(f.hours.slice(0, 2), [null, null], 'fill hours: «—»');
+  // owner 2026-11-04, batch 24 (а): was [null, null] and days[1] null (X6)
+  assert.deepEqual(f.hours.slice(0, 2), [{ dust: 0, khamsin: false }, { dust: 0, khamsin: false }], 'an hour of 0 reads 0');
   assert.notEqual(f.hours[2], null, 'the day before is real');
-  assert.deepEqual([f.days[0] !== null, f.days[1]], [true, null], 'the fill day has no maximum');
+  assert.deepEqual([f.days[0] !== null, f.days[1]], [true, { dust: 0, khamsin: false }], 'the clean day\'s maximum is 0');
   const one = hourlyFix()[2]; one.hourly.dust[30] = 0;                       // Tel Aviv 2026-11-03 06:00: one real 0
   const g = plain(ctx.Air.forecast(ctx.Air.parse(one, cfg), ['2026-11-03T06'], ['2026-11-03'], cfg));
   assert.deepEqual(g.hours, [{ dust: 0, khamsin: false }], 'a single 0 stays 0');
   assert.notEqual(g.days[0], null, 'its day stays');
+});
+
+// Batch 24: the real answer of 2026-11-04 (09:46 UTC, Air.url exactly: home + the three regions, forecast_days 5). Rehovot:
+// Wed 17 · Thu 13 · Fri 2 · Sat 0 (24 × 0) · Sun 0 (24 × 0); the 7-day band's Mon and Tue are not in the answer at all.
+const todayFix = () => air('aq-4places-hourly-2026-11-04');
+const WEEK = ['2026-11-04', '2026-11-05', '2026-11-06', '2026-11-07', '2026-11-08', '2026-11-09', '2026-11-10'];
+test('B24 (а)+(в) the real 2026-11-04 answer: Rehovot\'s all-zero Sat and Sun read 0, Mon and Tue are beyond the horizon; the hours of 0 read 0', () => {
+  const ctx = load(FILES), cfg = ctx.Config.air, list = todayFix();
+  const rehovot = list[0].hourly.dust.slice(72, 120);
+  assert.deepEqual([rehovot.length, rehovot.every((v) => v === 0)], [48, true], 'the recording: Rehovot Sat and Sun are 48 × 0');
+  const f = plain(ctx.Air.forecast(ctx.Air.parse(list[0], cfg), keysOf('2026-11-07', 12, 2), WEEK, cfg));
+  assert.deepEqual(f.days, [17, 13, 2, 0, 0].map((d) => ({ dust: d, khamsin: false })).concat([{ beyond: true }, { beyond: true }]));
+  assert.deepEqual(f.hours, [{ dust: 0, khamsin: false }, { dust: 0, khamsin: false }]);
+  // Beer Sheva the same day: a real khamsin on Sat (337), then Sun 81 — the same rule everywhere
+  assert.deepEqual(plain(ctx.Air.forecast(ctx.Air.parse(list[3], cfg), [], WEEK, cfg)).days.map((c) => (c.beyond ? 'beyond' : c.dust)), [24, 17, 4, 337, 81, 'beyond', 'beyond']);
+});
+
+test('B24 (в): a partial last day (some values, fewer than 20) is «—» (null); a day with no value at all is beyond; an empty row and no model stay null', () => {
+  const ctx = load(FILES), cfg = ctx.Config.air, p = todayFix()[0];
+  for (let i = 96 + 15; i < 120; i++) p.hourly.dust[i] = null;              // Sun: 15 of 24 (as measured live on 2026-11-04)
+  const f = plain(ctx.Air.forecast(ctx.Air.parse(p, cfg), [], WEEK.slice(3).concat([null]), cfg));
+  assert.deepEqual(f.days, [{ dust: 0, khamsin: false }, null, { beyond: true }, { beyond: true }, null], 'Sat 0 · Sun partial «—» · Mon, Tue beyond · an empty row null');
+  const none = JSON.parse(JSON.stringify(todayFix()[0])); delete none.hourly;
+  assert.deepEqual(plain(ctx.Air.forecast(ctx.Air.parse(none, cfg), [], ['2026-11-04'], cfg)).days, [{ beyond: true }], 'an answer with no forecast at all: beyond');
+  assert.deepEqual(plain(ctx.Air.forecast(null, [], ['2026-11-04'], cfg)).days, [null], 'no air data: «—», never «нет прогноза»');
 });
 
 // Batch 14: the air store keeps its last good answer under 'air.v1'; a restarted app shows it, stale, for up to 12 h.
@@ -256,6 +282,7 @@ test('G5: a «__proto__» or «constructor» time in the answer touches no proto
   assert.equal(vm.runInContext('({}).max', ctx), undefined);
   assert.deepEqual(plain(m.forecast.byHour), JSON.parse('{"__proto__":50,"constructor":60,"2026-11-02T10":40}'), 'each its own key, as any other');
   const f = ctx.Air.forecast(m, ['toString', 'hasOwnProperty', '2026-11-02T10'], ['toString', 'valueOf', null], cfg);
-  assert.deepEqual(plain(f), { hours: [null, null, { dust: 40, khamsin: false }], days: [null, null, null] }, 'a prototype member is never a cell');
+  // owner 2026-11-04, batch 24 (в): was days [null, null, null] — a date the answer has no value for is beyond, never a value
+  assert.deepEqual(plain(f), { hours: [null, null, { dust: 40, khamsin: false }], days: [{ beyond: true }, { beyond: true }, null] }, 'a prototype member is never a value cell');
   assert.deepEqual(plain(ctx.Air.forecast(null, ['toString'], ['constructor'], cfg)), { hours: [null], days: [null] }, 'no model: the empty index, the same');
 });

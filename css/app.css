@@ -60,7 +60,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
    lightest card). Placed first, so a state class further down (stale, soon, now, khamsin) still overrides it. */
 .alerts-offline, .card-title, .clock-time .approx, .clock-time.is-unknown, .clock-date, .clock-diff,
 .clock-weather.is-stale .clock-temp, .now.is-stale .now-temp, .now-sub, .detail-label, .state-sub, .hour-label,
-.status, .dust-none, .day-min, .air-label, .air-none,
+.status, .dust-none, .dust-beyond, .band-beyond, .day-min, .air-label, .air-none,
 .air-unit, .air-uv.is-night .air-num, .air-uv.is-night .air-word, .region-air-label, .sh-date, .sh-tile-date, .sh-tile-in,
 .sh-row-date, .sh-row-in, .sh-read-label, .region-city, .region.is-stale .region-temp, .region-sub,
 .news-col-head .src-name, .news-time, .state.is-loading .state-text, .tw-time .unit, .tw.is-stale .tw-time, .tw-time.is-none,
@@ -250,7 +250,7 @@ html.is-booting #stage { opacity: 0; -webkit-animation: boot-reveal 0.01s linear
 .dust-legend .air-unit { -webkit-margin-start: 8px; }
 .dust-num.is-khamsin { border-radius: 13px; padding: 0 6px; }   /* FIX-18C K1 (the designer): real room inside every khamsin pill (was 2 px); «3400» still keeps ≥ 12 px to its neighbour in the hours */
 /* X5: «—» (no value) muted, never the dust colour; 62 % white is the legibility floor (layout test: 4.5:1) */
-.dust-none { display: inline-block; }   /* as tall as its line, like .dust-num */
+.dust-none, .dust-beyond { display: inline-block; }   /* as tall as its line, like .dust-num (batch 24 (в): the «…» too) */
 .hour-dust { height: 26px; margin-top: 2px; font-size: 24px; line-height: 26px; white-space: nowrap; }
 .day-dust { font-size: 24px; line-height: 26px; white-space: nowrap; }
 .dust-num { display: inline-block; }
@@ -732,7 +732,10 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 .region .dust-band { margin-top: 8px; padding-top: 10px; }
 #daily .dust-band, .region .dust-band { flex-wrap: wrap; }
 .band-label { flex: 0 0 auto; -webkit-margin-end: 16px; font-size: 24px; line-height: 26px; color: #e3cfa6; white-space: nowrap; }
-#daily .band-label, .region .band-label { flex: 0 0 100%; margin-bottom: 4px; }
+/* Batch 24 (в): the head line — the label, and at the other end (both directions) the quiet «… нет прогноза» key when a day
+   is beyond the forecast; one line in every state (the key never wraps), so nothing moves when it comes or goes */
+.band-head { flex: 0 0 100%; display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+.band-beyond { font-size: 24px; line-height: 26px; white-space: nowrap; }
 .band-cells { flex: 1 1 auto; display: flex; margin: 0 -20px; }   /* FIX-18C K1: the cells reach 20 px into the card's 40 px padding each side (70 → 75.7 px), so «3,4к» pills on their 5 px padding keep ≥ 12 px apart */
 .band-cell { flex: 1 1 0; text-align: center; }
 .band-cell:first-child { flex-grow: 1.1; }   /* D3: today's label («Сьог.») is the widest: a fixed larger share, never content-sized (nothing moves when the air lands) */

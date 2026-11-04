@@ -3,18 +3,19 @@
  * coordinate: an object); each element has current { time, european_aqi, dust (µg/m³), … } and, asked for, hourly
  * { time: ['YYYY-MM-DDTHH:00' (the place's wall time, timezone=auto)], dust: [µg/m³ | null] }; a bad request answers 400
  * { error: true, reason }. Only what the screens show is asked: the European AQI and dust now, and the dust forecast
- * (batch 13: cfg.forecastDays days from today's 00:00; CAMS reaches ~4 days, later cells are null).
+ * (batch 13: cfg.forecastDays days from today's 00:00; a day the answer has no value for is beyond its horizon).
  *   Air.url(places, cfg)          ONE request for every place (js/openmeteo.js)
  *   Air.parse(json, cfg)          one place → { aqi, dust, forecast: { byHour: { wall hour ("2026-11-02T16") → dust },
  *                                 byDay: { date → { n, max } } } } (a missing value is left out; no hourly block: empty;
- *                                 an all-zero day is a CAMS fill, left out); throws when there is no current block or
+ *                                 a 0 is a reading like any other — batch 24 (а)); throws when there is no current block or
  *                                 neither current value
  *   Air.summary(model, cfg)       what the screens show now: { aqi (rounded), level, dust (rounded), dustHigh } or null
  *   Air.grade(dust, cfg)          a reading's khamsin grade: 0 (none) … 4 (FIX-18B 13, the EEA PM10 bands)
  *   Air.forecast(model, hourKeys, dates, cfg)   the dust forecast for the cells on screen, built once per render:
- *                                 { hours: [cell], days: [cell] } in the order asked; cell = { dust (rounded), khamsin } or
- *                                 null (no value; a null key; or a day with fewer than cfg.dustDayMinHours values); a day's
- *                                 dust is its HOURLY MAXIMUM; no model: every cell null
+ *                                 { hours: [cell], days: [cell] } in the order asked; cell = { dust (rounded), khamsin }, or
+ *                                 { beyond: true } for a day the answer has no value for at all (beyond the source's
+ *                                 horizon, batch 24 (в)), or null (no value; a null key; or a day with some values but fewer
+ *                                 than cfg.dustDayMinHours); a day's dust is its HOURLY MAXIMUM; no model: every cell null
  *   Air.createStore(places, cfg, deps)   one request per refresh (js/placestore.js), last good data kept */
 var Air = (function () {
   var CURRENT = 'european_aqi,dust', HOURLY = 'dust', num = OpenMeteo.num;
@@ -28,25 +29,18 @@ var Air = (function () {
   function round(v) { return v === null ? null : Math.round(v); }
 
   // The dust forecast's index, built ONCE per answer (X10): each hour's value by its wall-clock key ("2026-11-02T16", as
-  // Weather's hourly keys) and each day's count of values and maximum. No block: an empty forecast. A day whose values are
-  // ALL exactly 0 is a CAMS fill, not a reading (X6: Haifa 2026-11-06 recorded 24 × 0 while Tel Aviv read 16): no data.
+  // Weather's hourly keys) and each day's count of values and maximum. No block: an empty forecast. Owner 2026-11-04, batch
+  // 24 (а): a 0 is a reading — a day whose values are all 0 is a clean day, shown 0 (the old X6 «CAMS fill» rule is gone).
   function forecastOf(h) {
     // G5: the maps are keyed by the answer's own strings — no prototype, so no key («__proto__», «constructor») finds a stranger
-    var times = h && h.time || [], dust = h && h.dust || [], hours = [], all = Object.create(null), byHour = Object.create(null), byDay = Object.create(null), i, v, key, d;
-    for (i = 0; i < times.length; i++) {                          // the values, and every day's count and maximum
+    var times = h && h.time || [], dust = h && h.dust || [], byHour = Object.create(null), byDay = Object.create(null), i, v, key, d;
+    for (i = 0; i < times.length; i++) {
       if ((v = num(dust[i])) === null) continue;
       key = String(times[i]).slice(0, 13);
-      var date = key.slice(0, 10);
-      d = all[date] || (all[date] = { n: 0, max: v });
+      byHour[key] = v;
+      d = byDay[key.slice(0, 10)] || (byDay[key.slice(0, 10)] = { n: 0, max: v });
       d.n++;
       if (v > d.max) d.max = v;
-      hours.push({ key: key, date: date, v: v, day: d });
-    }
-    for (i = 0; i < hours.length; i++) {                          // keep the hours and days that are readings
-      d = hours[i].day;
-      if (d.max === 0) continue;
-      byHour[hours[i].key] = hours[i].v;
-      byDay[hours[i].date] = d;
     }
     return { byHour: byHour, byDay: byDay };
   }
@@ -82,7 +76,8 @@ var Air = (function () {
 
   // The cells on screen (B13-D2, D3): lookups of the shown keys in the index built at parse (X10). A day counts only with
   // cfg.dustDayMinHours of its values (the CAMS horizon's last day is partial); today is the whole calendar day, its past
-  // hours included.
+  // hours included. Owner 2026-11-04, batch 24 (в): a day the answer has no value for at all is beyond the source's horizon
+  // ({ beyond: true }: «нет прогноза»), told apart from a day with too few values (null: «—»); decided from the data alone.
   function forecast(model, hourKeys, dates, cfg) {
     var ix = model ? model.forecast : NO_FORECAST, hours = [], days = [], i, d;
     for (i = 0; i < hourKeys.length; i++) {
@@ -90,7 +85,7 @@ var Air = (function () {
     }
     for (i = 0; i < dates.length; i++) {
       d = dates[i] !== null && Object.prototype.hasOwnProperty.call(ix.byDay, dates[i]) ? ix.byDay[dates[i]] : null;
-      days.push(d && d.n >= cfg.dustDayMinHours ? cell(Math.round(d.max), cfg) : null);
+      days.push(!model || dates[i] === null ? null : !d ? { beyond: true } : d.n >= cfg.dustDayMinHours ? cell(Math.round(d.max), cfg) : null);
     }
     return { hours: hours, days: days };
   }

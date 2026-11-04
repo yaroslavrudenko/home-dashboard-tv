@@ -302,7 +302,8 @@ test('OWNER-1LEG-C: a day row is the weather only (day · icon · min ─bar─ 
   assert.ok(!/<div class="day">[\s\S]*?day-dust[\s\S]*?<\/div><\/div><div class="day/.test(d.slice(0, d.indexOf('<div class="dust-band">'))), 'no dust inside a day row');
   assert.match(d, /<div class="day-max">[^<]*<\/div><\/div>/, 'the high temperature ends the row');
   const band = bandOf(d);
-  assert.match(band, /^<div class="dust-band"><div class="band-label">Пыль<\/div><div class="band-cells">/);
+  // batch 24 (в): the label sits in the band's head line (no day beyond the forecast here: no key)
+  assert.match(band, /^<div class="dust-band"><div class="band-head"><div class="band-label">Пыль<\/div><\/div><div class="band-cells">/);
   assert.deepEqual(slots(band, 'day-dust'), ['<span class="dust-num">38</span>', '<span class="dust-num is-khamsin kg-2">185</span>']);   // FIX-18B 13: the pill carries its grade
   assert.deepEqual([...band.matchAll(/<div class="band-day">([^<]*)<\/div>/g)].map((m) => m[1]).slice(0, 1), ['Сег.'], 'today, short');
   assert.match(band, /<div class="band-cell"><\/div><\/div><\/div>$/, 'L5: the day beyond the data an empty cell');
@@ -314,6 +315,26 @@ test('OWNER-1LEG-C: a day row is the weather only (day · icon · min ─bar─ 
     assert.match(b, new RegExp('<div class="band-label">' + label + '</div>'), lang);
     assert.match(b, new RegExp('<div class="band-day">' + today + '</div>'), lang);
   }
+});
+
+// Owner 2026-11-04, batch 24 (в): a day beyond the source's horizon (Air.forecast { beyond }) reads a quiet «…» in its cell —
+// never the «—» of a day with too few values — and the band's head line says once, at its other end, «… нет прогноза».
+test('B24 (в): a day beyond the forecast is a muted «…», distinct from «—»; the head line carries «… нет прогноза» in every language, only when such a day is on the band', () => {
+  const DUST_BEYOND = Object.assign({}, DUST_OK, { days: [{ dust: 0, khamsin: false }, { beyond: true }, null] });
+  for (const [lang, label, words] of [['ru', 'Пыль', 'нет прогноза'], ['he', 'אבק', 'אין תחזית'], ['uk', 'Пил', 'немає прогнозу'], ['en', 'Dust', 'no forecast']]) {
+    const band = bandOf(stripWith(lang, DUST_BEYOND).daily);
+    assert.match(band, new RegExp('^<div class="dust-band"><div class="band-head"><div class="band-label">' + label + '</div><div class="band-beyond">… ' + words + '</div></div>'), lang);
+    assert.deepEqual(slots(band, 'day-dust'), ['<span class="dust-num">0</span>', '<span class="dust-beyond">…</span>'], lang + ': a clean day 0 (а), the day beyond «…» (в)');
+  }
+  const partial = bandOf(stripWith('ru', Object.assign({}, DUST_OK, { days: [{ dust: 3, khamsin: false }, null, null] })).daily);
+  assert.deepEqual([slots(partial, 'day-dust')[1], /band-beyond/.test(partial)], ['<span class="dust-none">—</span>', false], 'too few values: «—», and no key');
+  const stale = bandOf(stripWith('ru', Object.assign({}, DUST_BEYOND, { stale: true })).daily);
+  assert.match(stale, /<div class="band-beyond">… нет прогноза<\/div>/, 'stale data keep the key');
+  // the current card's dust item: a forecast of beyond days only is no value (the item stays empty, as with no forecast)
+  const ctx = load(B12); ctx.I18n.setLang('ru');
+  const doc = fakeDoc(); ctx.View.init(doc, [], { hours: 4, days: 7 });
+  ctx.View.renderWeather(STRIP, { name: 'Реховот', kind: 'fresh', retryAt: '', uv: null, air: null, airKind: 'failed', dust: { hours: [null, null, null, null], days: [{ beyond: true }, { beyond: true }, null], stale: false, limit: 100 } });
+  assert.match(doc.nodes.now.innerHTML, /<div class="air-item air-dust is-none"><\/div>/, 'beyond is not a value');
 });
 
 test('B13 no air yet: every dust slot is there and empty (its room kept); stale: every slot dimmed; no weather yet: the band\'s placeholder (FIX-17B 5)', () => {

@@ -84,6 +84,9 @@ var View = (function () {
   // value (muted, X5: never the dust colour), the figure in the dust colour, on an amber pill on a khamsin; dimmed when the
   // air is stale. No dust object (a caller without it) reads as loading.
   var DUST_NONE = '<span class="dust-none">—</span>';
+  // Owner 2026-11-04, batch 24 (в): a day beyond the source's horizon (Air.forecast { beyond }) — a quiet «…» in its cell,
+  // said once in words on the band's head (bandHead): a 70 px cell has no room for «нет прогноза».
+  var DUST_BEYOND = '<span class="dust-beyond">…</span>';
   // FIX-18B 13: a khamsin value's pill is coloured by its grade (Air.grade: 1 amber … 4 red — the redder, the more dangerous);
   // an ordinary value (grade 0) keeps the dust colour. One class name for every place a reading is shown.
   function gradeOf(value) { return typeof value === 'number' ? Air.grade(value, Config.air) : 0; }
@@ -92,7 +95,7 @@ var View = (function () {
   // a value from 1000 on is said in thousands, one decimal — «1,5к», «3,4к» (the hours keep the whole figure: 88 px columns).
   function shortDust(v) { return v >= 1000 ? I18n.t('w.thousand', { n: I18n.number(Math.round(v / 100) / 10, 1) }) : String(v); }
   function dustSlot(cls, dust, c, short) {
-    var body = !dust || dust.loading ? '' : !c ? DUST_NONE : '<span class="' + numClass('dust-num', c.dust) + '">' + esc(short ? shortDust(c.dust) : String(c.dust)) + '</span>';
+    var body = !dust || dust.loading ? '' : !c ? DUST_NONE : c.beyond ? DUST_BEYOND : '<span class="' + numClass('dust-num', c.dust) + '">' + esc(short ? shortDust(c.dust) : String(c.dust)) + '</span>';
     return '<div class="' + cls + (dust && dust.stale ? ' is-stale' : '') + '">' + body + '</div>';
   }
   function cellOf(list, i) { return list ? list[i] : null; }
@@ -145,7 +148,7 @@ var View = (function () {
   // screen — the reading or a forecast cell (FIX-17B 2): with no reading its value line says «—». Nothing at all: the item is
   // not drawn, its slot stays (nothing moves). A khamsin reading sits on the same pill as a khamsin hour or day, coloured by
   // its grade (FIX-BATCH-18 part B, FIX-18B 13).
-  function hasValue(cells) { for (var i = 0; cells && i < cells.length; i++) if (cells[i]) return true; return false; }
+  function hasValue(cells) { for (var i = 0; cells && i < cells.length; i++) if (cells[i] && !cells[i].beyond) return true; return false; }
   function cellsOf(d) { return (d && d.hours || []).concat(d && d.days || []); }
   // The highest khamsin grade on the main screen: the current reading's and every cell's (FIX-18B 13).
   function topGrade(a, d) {
@@ -231,20 +234,29 @@ var View = (function () {
   // Design C: the dust leaves the rows — one band under the list: its own label «Пыль», then one cell per day (the day's
   // short name over its maximum; the khamsin pill when ≥ 100). Before the first weather answer (n: the slots) the band is
   // there with empty cells of the same size (FIX-17B 5: nothing moves when the data lands); no data and no n: no band.
+  // The band's head line: its label «Пыль», and — when a day on it is beyond the forecast (batch 24 (в)) — at the line's
+  // other end the quiet key «… нет прогноза» that says what those cells' «…» means. The line is there in every state, one
+  // line high, so nothing moves when the key comes or goes.
+  function bandHead(beyond) {
+    return '<div class="band-head"><div class="band-label">' + esc(I18n.t('w.dustLabel')) + '</div>' +
+      (beyond ? '<div class="band-beyond">' + esc('… ' + I18n.t('w.dustNoForecast')) + '</div>' : '') + '</div>';
+  }
   function dustBand(v, dust, n) {
-    var cells = '', k;
+    var cells = '', beyond = false, k, c;
     if (!v) {
       if (!n) return '';
       for (k = 0; k < n; k++) cells += '<div class="band-cell"><div class="band-day"></div><div class="day-dust"></div></div>';
-      return '<div class="dust-band is-empty"><div class="band-label">' + esc(I18n.t('w.dustLabel')) + '</div><div class="band-cells">' + cells + '</div></div>';
+      return '<div class="dust-band is-empty">' + bandHead(false) + '<div class="band-cells">' + cells + '</div></div>';
     }
     for (k = 0; k < v.daily.length; k++) {
       var day = v.daily[k];
       if (!day) { cells += '<div class="band-cell"></div>'; continue; }
+      c = dust && !dust.loading ? cellOf(dust.days, k) : null;
+      if (c && c.beyond) beyond = true;
       cells += '<div class="band-cell"><div class="band-day">' + esc(day === v.today ? I18n.t('w.todayShort') : I18n.weekdayBand(day.weekday)) + '</div>' +
-        dustSlot('day-dust', dust, cellOf(dust && dust.days, k), true) + '</div>';
+        dustSlot('day-dust', dust, c, true) + '</div>';
     }
-    return '<div class="dust-band"><div class="band-label">' + esc(I18n.t('w.dustLabel')) + '</div><div class="band-cells">' + cells + '</div></div>';
+    return '<div class="dust-band">' + bandHead(beyond) + '<div class="band-cells">' + cells + '</div></div>';
   }
 
   // v: Weather.forHour view or null (no data yet). s: { name (the home city in the interface language), kind ('fresh' |
