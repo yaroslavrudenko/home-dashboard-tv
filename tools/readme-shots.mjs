@@ -6,6 +6,14 @@
 //   hero.png                     a 1600-px collage of the eight Hebrew screens
 // The weather, news, traffic and alert screens at the moment their answers were recorded (2026-10-29, page.mjs FIXED_NOW);
 // the Markets and Shabbat screens and the air quality at theirs (2026-11-02 09:31 in Israel, batch 11 / 12).
+// The KHAMSIN shots (the list LIVE below: the home and Israel weather screens, and the banner and city picker over the home
+// screen) take the synthetic khamsin air recording with its hours moved back 4 days (page.mjs airForecastAnswer), so its
+// dust lines up with the weather recording's clock: the khamsin (18:00 on 29 October to 15:00 on 30 October after the move)
+// is on at 20:32, the shots' time, and the 7-day dust band has its real values. Every other shot keeps the recorded air.
+// The Markets shots (MARKETS_SHOTS) show the day's change of the currencies: the first Coinbase rates answer is an earlier
+// table of the day (BASIS: made up, a little off the recorded table) read at 09:31, every later one the recorded table, and the
+// app's Coinbase refresh is shortened to 1.5 s so that the recorded table arrives before the shot (the card says «% since
+// 09:31»), as the batch-23C evidence did.
 //   PUPPETEER_CORE_DIR=<dir with puppeteer-core> node tools/readme-shots.mjs [--map <png>] [--only a.png,b.png]
 // --only: write just these files (the hero is always composed from the screen shots on disk).
 // --live (needs MAPBOX_TOKEN in the environment): every shot at the real time with the real forecast. The home and Israel
@@ -18,7 +26,7 @@
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
-import { openApp, ROOT, FIXED_NOW } from '../tests/browser/page.mjs';
+import { openApp, ROOT, FIXED_NOW, airForecastAnswer, marketsRecorded } from '../tests/browser/page.mjs';
 
 const OUT = path.join(ROOT, 'docs', 'screenshots');
 const mapAt = process.argv.indexOf('--map');
@@ -40,6 +48,16 @@ const live = process.argv.includes('--live');
 const LIVE = ['he-1-main.png', 'he-2-israel.png', 'ru-1-main.png', 'he-banner.png', 'he-city.png'];
 const KHAMSIN_AIR = () => ({ status: 200, contentType: 'application/json',
   body: fs.readFileSync(path.join(ROOT, 'tests', 'fixtures', 'air', 'aq-4places-hourly-khamsin-synthetic-2026-11-02.json')) });
+// fixture mode: the same khamsin recording, its hours moved -4 days onto the weather recording's dates (see the header)
+const KHAMSIN_FIXTURE_AIR = airForecastAnswer('aq-4places-hourly-khamsin-synthetic-2026-11-02', -4);
+const MARKETS_SHOTS = ['he-4-markets.png', 'ru-4-markets.png', 'uk-4-markets.png'];
+const BASIS = JSON.stringify({ data: { currency: 'USD', rates: { USD: '1', ILS: '3.15', EUR: '0.89', UAH: '45.4', RUB: '81.5' } } });
+// a fresh answerer per shot: its first rates answer is the basis, every other request the recording
+function marketsWithBasis() {
+  let rates = 0;
+  return (n, url) => (url.includes('/v2/exchange-rates') && ++rates === 1
+    ? { status: 200, contentType: 'application/json', body: BASIS } : marketsRecorded(url));
+}
 const fetched = new Map();
 // One real answer per URL, fetched synchronously (the harness answers a request in the same tick).
 function real(url) {
@@ -67,17 +85,20 @@ const oref = async (n, url) => {
 async function shot(file, { lang, alerts = 'empty-bom.txt', screen = 'main', act }) {
   if (only && !only.includes(file)) return;
   const isLive = live && LIVE.includes(file), allLive = live && !LIVE.includes(file);
+  const basis = !allLive && MARKETS_SHOTS.includes(file);
   const app = await openApp({ lang, news: allLive ? 'live' : 'ok', alerts: allLive && !DEMO_ALERT.includes(file) ? oref : alerts,
-    history: allLive ? oref : 'history.json', traffic: allLive ? 'live' : 'ok', markets: allLive ? 'live' : 'ok', hebcal: allLive ? 'live' : 'ok',
-    air: isLive ? KHAMSIN_AIR : allLive ? 'live' : 'ok', weather: live ? (n, url) => real(url) : 'ok', now: live ? Date.now() : NOW[screen] || FIXED_NOW,
+    history: allLive ? oref : 'history.json', traffic: allLive ? 'live' : 'ok', markets: allLive ? 'live' : basis ? marketsWithBasis() : 'ok', hebcal: allLive ? 'live' : 'ok',
+    air: isLive ? KHAMSIN_AIR : allLive ? 'live' : LIVE.includes(file) ? KHAMSIN_FIXTURE_AIR : 'ok', weather: live ? (n, url) => real(url) : 'ok', now: live ? Date.now() : NOW[screen] || FIXED_NOW,
     map: allLive ? 'live' : realMap ? () => ({ status: 200, contentType: 'image/png', body: realMap }) : 'ok',
     // the source of a function the page runs (page.mjs): the token goes in as a literal, never through a closure
-    configure: '(c) => { c.traffic.token = ' + JSON.stringify(allLive ? TOKEN : 'pk.FIXTURE123') + '; c.rotation.enabled = false; }' });
+    configure: '(c) => { c.traffic.token = ' + JSON.stringify(allLive ? TOKEN : 'pk.FIXTURE123') + '; c.rotation.enabled = false;' + (basis ? ' c.markets.coinbase.refreshMs = 1500;' : '') + ' }' });
   try {
     const p = app.page;
     await p.waitForSelector('.day', { timeout: 10000 });
     for (let i = 0; i < SCREENS.indexOf(screen); i++) await press(p, RIGHT);
     if (act) await act(p);
+    // the basis table, then the recorded one: wait for the «% since» label and a fresh status
+    if (basis) { await p.waitForSelector('#mk-fx .mk-since', { timeout: 8000 }); await p.waitForSelector('#markets-status.is-fresh', { timeout: 8000 }); }
     await p.evaluate(() => document.fonts.ready);
     await wait(live ? 8000 : 1500);   // live answers (news, markets, routes, the map) take seconds to arrive
     if (app.errors.length) throw new Error(file + ': ' + app.errors.join('; '));

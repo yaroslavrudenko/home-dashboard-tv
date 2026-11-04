@@ -30,22 +30,22 @@
 **Eight screens that change by themselves every 45 seconds (Markets stays 90), or with ◀ ▶ on the remote:** clocks and the weather at home, the weather across Israel, the news, the markets, Shabbat and holidays, live traffic for ten routes, a live traffic map and the Pikud HaOref alerts. Calm dark glass cards readable from the sofa, the same app in Russian, Hebrew (fully right to left) and Ukrainian, and a red alert that takes over every screen when it matters. Below: all eight screens together, then each one on its own, then the other languages.
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home, weather across Israel, news, markets, Shabbat and holidays with the week's Torah reading, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen">
+  <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home during a khamsin, weather and dust across Israel, news, markets, Shabbat and holidays with the week's Torah reading, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen with the recent alerts in Israel">
 </p>
 
 ### Each screen
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew: clocks for Israel, Ukraine and Sydney, the weather in Rehovot with three labelled items (UV maximum, air quality, dust in µg/m³), a 12-hour strip with each hour's dust, and a 7-day forecast on one line per day (the chance of rain beside the icon) with the days' dust in a band under it, mirrored right to left"></td>
-    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with a labelled air-quality line, the temperature now with its icon, feels-like and wind on one line (an icon for each), and a 7-day forecast (the chance of rain beside the icon) with the days' dust in a band under it"></td>
+    <td><img src="docs/screenshots/he-1-main.png" alt="Home screen in Hebrew during a khamsin: clocks for Israel, Ukraine and Sydney; the Rehovot card with the temperature, its icon and three labelled items (air quality, dust 182 µg/m³ on its grade's pill, UV maximum), and wind, humidity, sunrise and sunset under a divider; a 12-hour strip whose title row carries the dust key (the grades 100, 121, 196 and 271, the current one lit) and each hour's dust on a pill in its grade's colour; and a 7-day forecast on one line per day with the days' dust in a band under it (five days forecast, the last two marked as no forecast yet), mirrored right to left"></td>
+    <td><img src="docs/screenshots/he-2-israel.png" alt="Weather across Israel in Hebrew: North (Haifa), Centre (Tel Aviv) and South (Beer Sheva), each with a labelled air-quality line, the temperature now with its icon, feels-like and wind on one line (an icon for each), and a 7-day forecast with the days' dust in a band under it (Beer Sheva's 185 µg/m³ day and Tel Aviv's 169 on their grade's pills, the last two days marked as no forecast yet)"></td>
   </tr>
   <tr><td align="center"><b>1 · Home</b> — clocks, the weather, air and UV at home</td><td align="center"><b>2 · Weather in Israel</b> — North, Centre, South</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-3-news.png" alt="News in Hebrew: Ynet and Globes columns, five headlines each, newest first"></td>
-    <td><img src="docs/screenshots/he-4-markets.png" alt="Markets in Hebrew: six cards of six rows, currencies, US shares and Israeli shares on top, crypto, US indices and commodities below, each price with the day's change, each commodity with what its price is for (per barrel, per ounce), mirrored right to left"></td>
+    <td><img src="docs/screenshots/he-4-markets.png" alt="Markets in Hebrew: six cards of six rows, currencies, US shares and Israeli shares on top, crypto (Bitcoin to Zcash), US indices and commodities below, each price with its change (the currencies since 09:31, as their card's header says; the US and Israeli cards marked closed), each commodity with what its price is for (per barrel, per ounce), mirrored right to left"></td>
   </tr>
-  <tr><td align="center"><b>3 · News</b> — the sources follow the language</td><td align="center"><b>4 · Markets</b> — six cards, the day's change</td></tr>
+  <tr><td align="center"><b>3 · News</b> — the sources follow the language</td><td align="center"><b>4 · Markets</b> — six cards, each price's change</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-5-shabbat.png" alt="Shabbat and holidays in Hebrew: Rehovot, today's date and Hebrew date, the weekly portion Chayei Sara with its verses, the haftarah and Shabbat Mevarchim for Kislev, candle lighting and havdalah, and the next holidays and fasts with a countdown"></td>
     <td><img src="docs/screenshots/he-6-traffic.png" alt="Traffic in Hebrew: ten routes from Rehovot in two columns, each with the travel time, the delay against a typical day in colour, and the distance"></td>
@@ -53,16 +53,16 @@
   <tr><td align="center"><b>5 · Shabbat &amp; holidays</b> — the reading, candles, havdalah, what is next</td><td align="center"><b>6 · Traffic</b> — ten routes, live</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-7-map.png" alt="Traffic map in Hebrew: a real Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot with its name beside it, and a key of the traffic colours in the top-left corner"></td>
-    <td><img src="docs/screenshots/he-8-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot, checked at 17:12, no alerts nearby with the nearby towns listed, and no Pikud HaOref alerts in Israel in the last 7 days"></td>
+    <td><img src="docs/screenshots/he-8-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot, checked at 20:32, no alerts nearby with the nearby towns listed, and the recent Pikud HaOref alerts in Israel, each with its date and time, its kind and its area"></td>
   </tr>
   <tr><td align="center"><b>7 · Traffic map</b> — a real Mapbox picture</td><td align="center"><b>8 · Alerts</b> — home, nearby, recent alerts in Israel</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 17:09, enter the protected space and stay 10 minutes"></td>
+    <td><img src="docs/screenshots/he-alert.png" alt="A full-screen deep-red alert in Hebrew: rocket and missile fire, Rehovot, since 20:32, enter the protected space and stay 10 minutes"></td>
     <td><img src="docs/screenshots/he-alert-preview.png" alt="The alert preview in Hebrew: the same overlay under a white band saying this is an alert test, not a real alert"></td>
   </tr>
   <tr><td align="center"><b>The alert</b> — the Alerts screen opens by itself</td><td align="center"><b>The alert preview</b> — the blue key, clearly not real</td></tr>
   <tr>
-    <td><img src="docs/screenshots/he-banner.png" alt="The home screen in Hebrew during an alert at home: a slim red banner at the top says alert in Rehovot since 17:10"></td>
+    <td><img src="docs/screenshots/he-banner.png" alt="The home screen in Hebrew during an alert at home: a slim red banner at the top says alert in Rehovot since 20:32"></td>
     <td><img src="docs/screenshots/he-city.png" alt="The home-city picker in Hebrew: a list of Israeli cities with their English names, Rehovot ticked, arrows to move and OK to choose"></td>
   </tr>
   <tr><td align="center"><b>Alert banner</b> — stays on top of every other screen</td><td align="center"><b>Home city</b> — OK opens the picker</td></tr>
@@ -72,28 +72,30 @@
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/ru-1-main.png" width="420" alt="The home screen in Russian"></td>
+    <td><img src="docs/screenshots/ru-1-main.png" width="420" alt="The home screen in Russian during a khamsin: the Rehovot card with dust 182 µg/m³, the hourly strip with the dust key and each hour's dust, and the 7-day forecast with the days' dust in a band under it"></td>
     <td><img src="docs/screenshots/uk-3-news.png" width="420" alt="News in Ukrainian: Ukraine and Economy columns from Ukrainska Pravda and Ekonomichna Pravda"></td>
   </tr>
   <tr><td align="center">Русский</td><td align="center">Українська</td></tr>
   <tr>
-    <td><img src="docs/screenshots/ru-4-markets.png" width="420" alt="Markets in Russian: currencies, US shares, Israeli shares, crypto, US indices and commodities"></td>
-    <td><img src="docs/screenshots/uk-4-markets.png" width="420" alt="Markets in Ukrainian: currencies, US shares, Israeli shares, crypto, US indices and commodities"></td>
+    <td><img src="docs/screenshots/ru-4-markets.png" width="420" alt="Markets in Russian: currencies (with the change since 09:31), US shares, Israeli shares, crypto, US indices and commodities"></td>
+    <td><img src="docs/screenshots/uk-4-markets.png" width="420" alt="Markets in Ukrainian: currencies (with the change since 09:31), US shares, Israeli shares, crypto, US indices and commodities"></td>
   </tr>
   <tr><td align="center">Русский · Рынки</td><td align="center">Українська · Ринки</td></tr>
 </table>
 
-<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs --live</code>), taken on 3 November 2026 at 17:08–17:10 (the Alerts screen at 17:12).
-<b>Live</b> (the real answers at that moment): the news (Ynet, Globes, Українська правда, Економічна правда, at 17:08–17:10),
-the Markets (Yahoo Finance, and the earlier free rates source for the currencies: since 4 November the crypto and every
-currency come from Coinbase, so the two Markets shots predate that), Shabbat and holidays (Hebcal), the traffic routes and the traffic map (Mapbox), the
-Alerts screen (Pikud HaOref's live feed and its recent-alerts history, both empty at 17:12: no alerts in the last 7 days), and the
-weather on every screen (Open-Meteo). <b>Recorded and demo air</b> on the home and Israel weather screens and on the banner and
-city-picker shots over the home screen (with their live weather), so they show a khamsin: Rehovot's dust is a synthetic khamsin laid over
-its recorded forecast (khamsin pills in the hours and in the 7-day dust band, each in its grade's colour, the one key — the grades «100 121 196 271» — lit on the current card, whose reading sits on its own grade's pill), and Beer Sheva's
-185 µg/m³ day is its real recorded forecast. <b>Demo alert:</b> there was no real alert, so the full-screen alert and the red
-banner show Pikud HaOref's recorded Rehovot alert drawn at the shot's time; the blue-key preview is the app's own built-in
-test alert.</sub>
+<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs</code>), drawn on 4 November 2026 from the
+recorded answers in <code>tests/fixtures</code>, each screen at the moment its answers were recorded: 20:32 on 29 October for the
+weather, news, traffic, map and alert screens, 09:31 on 2 November for Markets and Shabbat. <b>Recorded:</b> the news (Ynet,
+Globes, Українська правда, Економічна правда), the traffic routes (Mapbox Directions); the traffic map is a real Mapbox Static Images picture taken 4 November (`--map`), Pikud HaOref's recent alerts,
+Shabbat and holidays (Hebcal), the weather (Open-Meteo), and the Markets: Yahoo Finance's quotes (2 November) and Coinbase's
+crypto and dollar table (4 November). The currency changes are against an earlier table of the day made up for the shot (the
+first rates answer, read at 09:31), so the currencies card says «% since 09:31». <b>Khamsin:</b> on the home and Israel weather
+screens and on the banner and city-picker shots over the home screen, Rehovot's dust is a synthetic khamsin laid over its
+recorded forecast, its hours moved onto the weather recording's dates (khamsin pills in the hours and in the 7-day dust band,
+each in its grade's colour; the one key — the grades «100 121 196 271» — in the hourly strip's title row with the current grade
+lit; the current card's dust reading on its own grade's pill), and Beer Sheva's 185 µg/m³ day is its real recorded forecast; the air recording covers five days, so the band's
+last two days say there is no forecast yet. <b>Demo alert:</b> the full-screen alert and the red banner show Pikud HaOref's
+recorded Rehovot alert drawn at the shot's time; the blue-key preview is the app's own built-in test alert.</sub>
 
 ## Three languages, one remote
 
