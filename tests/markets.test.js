@@ -887,6 +887,20 @@ test('B25 F2: two Yahoo answers of different ages, the older one\'s symbols kept
   assert.ok(stale.length > 0 && stale.length < 24, 'only the first spark\'s rows are kept: ' + stale.join(','));
   assert.equal(st.updatedAt, AT - 20 * MIN, 'the older spark\'s time, never the newer one\'s (Yahoo\'s newest)');
 });
+// Native reviewer F1c (owner 2026-11-04, batch 25): in one Coinbase round the BTC stats answer is 10 min older than the rates
+// table; BTC then fails alone — the kept BTC row is timed by its own stats answer, never by the rates table of its round.
+test('B25 F1c: a kept crypto row is timed by its own stats answer', () => {
+  const h = controller();
+  h.c.setVisible(true, true);
+  const btc = (url) => kindOf(url) === 'stats' && url.includes('BTC-USD');
+  answerDated(h, (url) => (btc(url) ? AT - 10 * MIN : AT));                          // BTC «09:50», the rates and the rest «10:00»
+  assert.deepEqual([h.c.state().kind, h.c.state().updatedAt], ['fresh', AT]);
+  h.t.advance(MIN);                                                                  // «10:01»: Coinbase's next round, BTC fails
+  answerDated(h, () => AT + MIN, (url) => (btc(url) ? 'network' : null));
+  const st = h.c.state(), stale = st.snapshot.groups.flatMap((g) => g.rows.filter((r) => r.stale).map((r) => r.id));
+  assert.equal(stale.join(','), 'BTC', 'only BTC is kept');
+  assert.equal(st.updatedAt, AT - 10 * MIN, 'the header: BTC\'s own stats time («09:50»), never the rates table\'s («10:00»)');
+});
 test('B25 F4: the kept time travels with the snapshot — none on a snapshot with nothing kept, and the minute tick keeps it', () => {
   const h = controller();
   h.c.setVisible(true, true);
