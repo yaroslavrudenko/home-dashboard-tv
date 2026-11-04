@@ -9,7 +9,7 @@
          three languages (NEWSru; Ynet, Globes; Ukrainska Pravda, Ekonomichna Pravda), the Israel alert feed and its recent
          alerts (both on www.oref.org.il since 2026-11-04), and Mapbox:
          the routes' live traffic (connect-src) and the live-traffic map image (img-src), and the markets: Yahoo's quotes and
-         open.er-api's daily rates, the air quality (Open-Meteo's air-quality API) and the Shabbat & holidays calendar (Hebcal)
+         Coinbase's crypto stats (api.exchange) and currency rates (api), the air quality (Open-Meteo's air-quality API) and the Shabbat & holidays calendar (Hebcal)
          (connect-src). Widen it only when a new source
          ships. script-src file: covers $WEBAPIS/webapis/webapis.js, which the TV serves from its file system. -->
     <access origin="https://api.open-meteo.com" subdomains="false"/>
@@ -21,11 +21,12 @@
     <access origin="https://www.oref.org.il" subdomains="false"/>
     <access origin="https://api.mapbox.com" subdomains="false"/>
     <access origin="https://query1.finance.yahoo.com" subdomains="false"/>
-    <access origin="https://open.er-api.com" subdomains="false"/>
+    <access origin="https://api.exchange.coinbase.com" subdomains="false"/>
+    <access origin="https://api.coinbase.com" subdomains="false"/>
     <access origin="https://air-quality-api.open-meteo.com" subdomains="false"/>
     <access origin="https://www.hebcal.com" subdomains="false"/>
     <access origin="https://api.met.no" subdomains="false"/>
-    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://api.mapbox.com; connect-src https://api.open-meteo.com https://www.newsru.co.il https://www.ynet.co.il https://www.globes.co.il https://www.pravda.com.ua https://epravda.com.ua https://www.oref.org.il https://api.mapbox.com https://query1.finance.yahoo.com https://open.er-api.com https://air-quality-api.open-meteo.com https://www.hebcal.com https://api.met.no</tizen:content-security-policy>
+    <tizen:content-security-policy>default-src 'self'; script-src 'self' file:; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://api.mapbox.com; connect-src https://api.open-meteo.com https://www.newsru.co.il https://www.ynet.co.il https://www.globes.co.il https://www.pravda.com.ua https://epravda.com.ua https://www.oref.org.il https://api.mapbox.com https://query1.finance.yahoo.com https://api.exchange.coinbase.com https://api.coinbase.com https://air-quality-api.open-meteo.com https://www.hebcal.com https://api.met.no</tizen:content-security-policy>
     <tizen:privilege name="http://tizen.org/privilege/internet"/>
     <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
     <tizen:profile name="tv-samsung"/>

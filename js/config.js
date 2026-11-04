@@ -239,34 +239,57 @@ var Config = {
     }
   },
 
-  // Markets (js/markets.js): six groups of six rows. A row is { id, yahoo: Yahoo symbol } or { id, base, code }: `code`
-  // units for one `base` from open.er-api's daily table (UAH and RUB, which Yahoo has no shekel pair for). The Yahoo
-  // symbols go perRequest at a time (the spark endpoint's limit, checked 2026-11-02: 21 symbols answer 400) — 33 symbols
-  // = 2 requests — and the two rate tables are one request each, reused until the time the provider names for its next
-  // update (at most rateReuseMaxMs): 4 requests in one parallel round, 2 while the daily rates are still current.
-  // Asked only while the screen is on view (js/onview.js): at once on a ◀ ▶ open, else every refreshMs.
+  // Markets (js/markets.js): six groups of six rows from two sources, each asked only while the screen is on view
+  // (js/onview.js: at once on a ◀ ▶ open, else when ITS refreshMs has passed since its last attempt):
+  //   Yahoo (row { id, yahoo: symbol }): shares, indices, commodities — 24 symbols, perRequest at a time (the spark
+  //     endpoint's limit, checked 2026-11-02: 21 symbols answer 400) = 2 requests every refreshMs (5 min). Owner 2026-11-04:
+  //     the home IP is rate-limited by Yahoo (42 of 42 requests at one a minute answered 429, measured 2026-11-04
+  //     06:57–07:17 UTC), so Yahoo keeps its 5 minutes and the currencies and crypto moved to Coinbase.
+  //   Coinbase (`coinbase`), every coinbase.refreshMs (owner 2026-11-04: «крипту на Coinbase», «я хочу все валюты обновляться
+  //     быстрее»): 7 requests in one parallel round, no key, CORS *.
+  //     crypto (row { id, product }): each product's Exchange stats — price = last, change = last against open, the price
+  //       24 hours earlier (owner 2026-11-04: «24 часа ок»). No public endpoint gives a few products' open in one small
+  //       answer: products/stats lists all ~1,000 products (108 KB, 29 KB gzip, a minute; checked 2026-11-04).
+  //     currencies (row { id, base, code }: `code` units for ONE `base`): ONE exchange-rates table (units of each currency for
+  //       one dollar; X per Y = rates[X] / rates[Y]; every code checked present on 2026-11-04). Change = against the basis:
+  //       the FIRST table the dashboard read on the current Israel calendar day, kept on the TV under basisKey with its time,
+  //       and the card says that time («% с 07:31») — batch 23C, the owner's «а» (2026-11-04): an honest label from the actual
+  //       basis time. Coinbase has no public fiat rate for a past hour of the current day (its prices/<pair>/spot?date=<today>
+  //       is the LIVE spot; only an ended date gives its 00:00 UTC — the native reviewer, 2026-11-04). The first table of the
+  //       day is the basis itself, so it shows no change («—»); the change shows from the next table on. Across the Israel
+  //       day's boundary every currency row shows «—» until the new day's basis and a later table are in.
+  //     Measured 2026-11-04 07:22 UTC (tests/fixtures/markets/coinbase): Coinbase's UAH, 45.4954 per $, is about 0.4% below
+  //     the National Bank of Ukraine's official 45.67 — Coinbase's own reference rate, shown as given.
+  // A 429 (or any refusal that names a Retry-After) holds back that host only: until its Retry-After, else backoffMs.
   // The lists, checked 2026-11-02 (tests/fixtures/markets/ranking.json): us = the five largest US companies by market cap +
   // Intuit; il = the six largest companies listed on the Tel Aviv exchange; crypto = the six largest by market cap without
-  // stablecoins. Yahoo quotes TASE in agorot.
+  // stablecoins and tokenized assets that Coinbase trades (TRON, 8th, is not on Coinbase: its stats answer NotFound,
+  // 2026-11-04 — so Zcash, 10th, takes its place; owner 2026-11-04: «TRX заменить»). Yahoo quotes TASE in agorot.
   markets: {
     spark: 'https://query1.finance.yahoo.com/v7/finance/spark',
     perRequest: 20,
-    rates: 'https://open.er-api.com/v6/latest/',
-    rateReuseMaxMs: 24 * 60 * 60 * 1000,
     refreshMs: 5 * 60 * 1000,
+    coinbase: {
+      stats: 'https://api.exchange.coinbase.com/products/',      // + <product>/stats
+      rates: 'https://api.coinbase.com/v2/exchange-rates?currency=USD',
+      refreshMs: 60 * 1000,
+      basisKey: 'markets.fxBasis.v1'
+    },
+    backoffMs: 5 * 60 * 1000,           // a 429 without a Retry-After
+    backoffMaxMs: 60 * 60 * 1000,       // a longer Retry-After is read as this
     staleAfterMs: 15 * 60 * 1000,       // data older than this reads «not updating» even without a failure
     timeoutMs: 15 * 1000,
     // FIX-BATCH-19 4 (P10): the time an answer's data were made (Date − Age) shown in «Обновлено», never earlier than this
     // before it arrived — a guard against a TV clock far from the server's (measured 2026-11-03: Yahoo spark max-age 300 +
-    // stale-while-revalidate 120 s, open.er-api max-age 3600 s: no honest answer is older than an hour)
+    // stale-while-revalidate 120 s: no honest answer is older than an hour)
     httpAgeMaxMs: 60 * 60 * 1000,
     groups: [
       { id: 'fx', rows: [
-        { id: 'USDILS', yahoo: 'USDILS=X' },          // shekels per dollar
-        { id: 'EURILS', yahoo: 'EURILS=X' },          // shekels per euro
+        { id: 'USDILS', base: 'USD', code: 'ILS' },    // shekels per dollar
+        { id: 'EURILS', base: 'EUR', code: 'ILS' },    // shekels per euro
         { id: 'UAHperILS', base: 'ILS', code: 'UAH' }, // hryvnias per shekel
         { id: 'RUBperILS', base: 'ILS', code: 'RUB' }, // rubles per shekel
-        { id: 'EURUSD', yahoo: 'EURUSD=X' },          // dollars per euro
+        { id: 'EURUSD', base: 'EUR', code: 'USD' },    // dollars per euro
         { id: 'UAHperUSD', base: 'USD', code: 'UAH' }  // hryvnias per dollar
       ] },
       { id: 'us', rows: [
@@ -278,8 +301,8 @@ var Config = {
         { id: 'POLI.TA', yahoo: 'POLI.TA' }, { id: 'TSEM.TA', yahoo: 'TSEM.TA' }, { id: 'MZTF.TA', yahoo: 'MZTF.TA' }
       ] },
       { id: 'crypto', rows: [
-        { id: 'BTC', yahoo: 'BTC-USD' }, { id: 'ETH', yahoo: 'ETH-USD' }, { id: 'BNB', yahoo: 'BNB-USD' }, { id: 'XRP', yahoo: 'XRP-USD' },
-        { id: 'SOL', yahoo: 'SOL-USD' }, { id: 'TRX', yahoo: 'TRX-USD' }
+        { id: 'BTC', product: 'BTC-USD' }, { id: 'ETH', product: 'ETH-USD' }, { id: 'BNB', product: 'BNB-USD' }, { id: 'XRP', product: 'XRP-USD' },
+        { id: 'SOL', product: 'SOL-USD' }, { id: 'ZEC', product: 'ZEC-USD' }
       ] },
       { id: 'indices', rows: [
         { id: '^GSPC', yahoo: '^GSPC' }, { id: '^DJI', yahoo: '^DJI' }, { id: '^IXIC', yahoo: '^IXIC' }, { id: '^NDX', yahoo: '^NDX' },

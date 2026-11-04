@@ -182,10 +182,10 @@
           "stale": true
         },
         {
-          "id": "TRX",
-          "price": 0.3412,
+          "id": "ZEC",
+          "price": 1272.19,
           "currency": "USD",
-          "changePct": 0.66,
+          "changePct": 11.82,
           "closed": false
         }
       ]

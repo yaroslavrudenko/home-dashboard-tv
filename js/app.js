@@ -9,7 +9,8 @@
  * Nearby alerts keep their quiet corner line; alerts elsewhere in Israel are only in the Alerts screen's list.
  * A screen opened with ◀ ▶ — or on view when the language changes — refreshes its data at once.
  * The markets (js/markets.js) are asked only while their screen is on view (js/onview.js): at once on a ◀ ▶ open,
- * on a rotation arrival when the last attempt is Config.markets.refreshMs old, then every refreshMs while it stays.
+ * on a rotation arrival when that source's last attempt is its refreshMs old (Yahoo Config.markets.refreshMs, Coinbase
+ * Config.markets.coinbase.refreshMs), then every refreshMs while it stays.
  * The air quality (js/air.js, the home city and the Israel regions in one request) and the Shabbat calendar (js/shabbat.js,
  * the home city) refresh on their own cadence like the weather, start in the boot round and refresh when their screen is
  * opened; the Shabbat screen is recomputed from the held calendar on every draw (the time of day moves its state).
@@ -78,7 +79,9 @@ var App = (function () {
     src.air = Air.createStore(WeatherRender.airPlaces(Config), Config.air, env.withTimers({ getJson: Net.getJson, storage: env.storage(), onChange: nav.onData('main', 'israel') }));
     src.shabbat = Shabbat.createStore(Config.shabbat, env.withTimers({ getJson: Net.getJson, onChange: nav.onData('shabbat'), today: clock.today }));
     src.news = News.createStore(Config.news, env.withTimers({ getText: Net.getText, onChange: nav.onData('news') }), I18n.lang());
-    src.markets = Markets.createController(Config.markets, env.withTimers({ getJson: Net.getJsonDated, documentVisible: env.documentVisible, onChange: nav.onData('markets') }));
+    // Batch 23: the currencies' change is against 00:00 at home (the home clock, Israel), its rates kept on the TV for the day.
+    src.markets = Markets.createController(Config.markets, env.withTimers({ getJson: Net.getJsonDated, documentVisible: env.documentVisible, onChange: nav.onData('markets'),
+      storage: env.storage(), wallAt: clock.placeWall({ id: 'home' }) }));
     src.traffic = null;
     src.map = null;
     if (Traffic.hasToken(Config.traffic)) {

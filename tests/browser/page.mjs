@@ -105,7 +105,7 @@ function loadPuppeteer() {
 // answered, for any source but the weather's own form below: D-T4); `opts.traffic` / `opts.map` 'live': straight to the
 // real Mapbox (a measurement with a real token).
 // `opts.met` (batch 15: MET Norway, the weather's fallback) 'ok' (metAnswer) | 'fail' | 'live' | (n, url) => { status, body }.
-// `opts.markets` (batch 11: Yahoo Finance, open.er-api.com) 'ok' (the recorded answers in tests/fixtures/markets:
+// `opts.markets` (batch 11: Yahoo Finance; batch 23: Coinbase) 'ok' (the recorded answers in tests/fixtures/markets:
 // marketsRecorded) | 'fail' | 'live' (fetched from the real sources by Node at that moment) | (n, url) => { status, body }.
 // Left out: the request is aborted (a network failure), as before these screens existed.
 // Every news feed of every language, the most specific address first (NEWSru serves both of its sections).
@@ -113,19 +113,27 @@ const NEWS_FEEDS = [['https://www.newsru.co.il/il/www/section/finance', 'newsruf
   ['https://www.ynet.co.il/', 'ynet'], ['https://www.globes.co.il/', 'globes'], ['https://www.pravda.com.ua/', 'pravda'], ['https://epravda.com.ua/', 'epravda']];
 const MAP = /^https:\/\/api\.mapbox\.com\/styles\//;
 const HISTORY = 'https://www.oref.org.il/api/v1/AlertHistory/';   // on the alert feed's host: matched first
-// Batch 11: the Markets screen's sources (Yahoo Finance's spark quotes, open.er-api.com's daily rates; js/config.js `markets`).
-// FIX-11B C8: their recorded answers (tests/fixtures/markets, 2026-11-02): each spark request gets the recorded entries of
-// exactly the symbols it asks for, a rates request its base's table.
+// Batch 11: the Markets screen's sources (Yahoo Finance's spark quotes; js/config.js `markets`); batch 23: Coinbase's crypto
+// stats (api.exchange.coinbase.com) and its dollar table (api.coinbase.com).
+// FIX-11B C8: their recorded answers (tests/fixtures/markets: Yahoo 2026-11-02, Coinbase 2026-11-04): each spark request gets
+// the recorded entries of exactly the symbols it asks for, a stats request its product's answer (a product without one: the
+// 404 Coinbase gives an unknown product), the rates request the recorded table.
 export function marketsRecorded(url) {
   const u = new URL(url);
+  const json = (body, status = 200) => ({ status, contentType: 'application/json', body });
   if (u.pathname.startsWith('/v7/finance/spark')) {
     const want = u.searchParams.get('symbols').split(',');
     const all = ['spark-1', 'spark-2'].flatMap((f) => JSON.parse(fixtureText('markets/' + f + '.json')).spark.result);
-    return { status: 200, contentType: 'application/json', body: JSON.stringify({ spark: { result: all.filter((r) => want.includes(r.symbol)), error: null } }) };
+    return json(JSON.stringify({ spark: { result: all.filter((r) => want.includes(r.symbol)), error: null } }));
   }
-  return { status: 200, contentType: 'application/json', body: fixtureText('markets/rates-' + u.pathname.split('/').pop() + '.json') };
+  const stats = /^\/products\/([^/]+)\/stats$/.exec(u.pathname);
+  if (stats) {
+    const file = path.join(FIXTURES, 'markets', 'coinbase', 'stats-' + decodeURIComponent(stats[1]) + '.json');
+    return fs.existsSync(file) && !/NotFound/.test(fs.readFileSync(file, 'utf8')) ? json(fs.readFileSync(file)) : json('{"message":"NotFound"}', 404);
+  }
+  return json(fixtureText('markets/coinbase/exchange-rates-USD.json'));
 }
-const MARKETS = /^https:\/\/(query1\.finance\.yahoo\.com|open\.er-api\.com)\//;
+const MARKETS = /^https:\/\/(query1\.finance\.yahoo\.com|api\.exchange\.coinbase\.com|api\.coinbase\.com)\//;
 const fixtureText = (rel) => fs.readFileSync(path.join(FIXTURES, rel));
 // The Mapbox answers of one round, in route order (tests/fixtures/mapbox/routes.json), and which route a GET asks for
 // (its destination, lon,lat, is the answer's second waypoint).

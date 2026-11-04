@@ -65,11 +65,9 @@ var Traffic = (function () {
   var ROW_ERRORS = { key: 1, busy: 1, route: 1, item: 1, timeout: 1, shape: 1 };
   var usedOn = Ledger.usedOn, utcDate = Ledger.utcDate, copyRecord = Ledger.copy, count = Num.count;   // the accounting: js/ledger.js
 
-  // A Retry-After header (delta seconds or an HTTP date) as a moment, or 0 when absent, malformed or already past.
-  function retryAfterAt(value, now) {
-    var t = /^\s*\d+\s*$/.test(value) ? now + 1000 * +value : value ? Date.parse(value) : NaN;
-    return isFinite(t) && t > now ? Math.ceil(t) : 0;
-  }
+  // A Retry-After header (delta seconds or an HTTP date) as a moment, or 0 when absent, malformed or already past: js/net.js,
+  // bound when called (Net is the transport, loaded before this file in index.html).
+  function retryAfterAt(value, now) { return Net.retryAfterAt(value, now); }
   var DEADLINE_STATUS = { 'http 403': 1, 'http 429': 1, 'http 503': 1 };   // the answers whose Retry-After is recorded
 
   // THE gate: may a round be sent now? facts: { selected (the traffic screen is on view), visible (the TV shows the

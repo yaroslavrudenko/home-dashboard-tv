@@ -12,7 +12,9 @@
  * GETs carry no custom header: a plain GET needs no CORS preflight (the alert feed never answers one).
  * done(error, result) is called exactly once: error is a short string ('timeout', 'http 503', 'network', 'parse')
  * or null; result is the parsed JSON (json: true) or the response text. An HTTP error also passes a third argument,
- * { retryAfter }: the response's Retry-After header as sent ('' when absent), for callers that must honour it. */
+ * { retryAfter }: the response's Retry-After header as sent ('' when absent), for callers that must honour it;
+ *   Net.retryAfterAt(value, now)        that header (delta seconds or an HTTP date) as a moment, or 0 when absent, malformed
+ *                                       or already past (batch 23: one parser for the traffic and the markets). */
 var Net = (function () {
   function request(opts, done) {
     var finished = false;
@@ -54,6 +56,11 @@ var Net = (function () {
     var date = Date.parse(headerOf(all, DATE_HEADER) || ''), age = ageText === null ? 0 : Number(ageText);
     return isNaN(date) || !(age >= 0) ? NaN : date - age * 1000;
   }
+  var RETRY_SECONDS = /^\s*\d+\s*$/;   // built once
+  function retryAfterAt(value, now) {
+    var t = RETRY_SECONDS.test(value) ? now + 1000 * +value : value ? Date.parse(value) : NaN;
+    return isFinite(t) && t > now ? Math.ceil(t) : 0;
+  }
   function getJson(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true }, done); }
   function getJsonDated(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true, dated: true }, done); }
   function getJsonExpiring(url, timeoutMs, done) { return request({ url: url, timeoutMs: timeoutMs, json: true, expires: true }, done); }
@@ -76,5 +83,5 @@ var Net = (function () {
     return { img: img, cancel: function () { finish('cancelled'); } };
   }
 
-  return { request: request, getJson: getJson, getJsonDated: getJsonDated, getJsonExpiring: getJsonExpiring, getText: getText, getImage: getImage };
+  return { request: request, getJson: getJson, getJsonDated: getJsonDated, getJsonExpiring: getJsonExpiring, getText: getText, getImage: getImage, retryAfterAt: retryAfterAt };
 })();

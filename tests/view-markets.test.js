@@ -78,7 +78,12 @@ test('Markets: prices in display units with the language\'s own marks; indices c
   assert.deepEqual(price('fx'), ['3,6912', '4,0137', '14,5455', '25,6776', '1,0874', '45,4363']);
   assert.ok(rows(scr.card('fx').innerHTML).every((r) => r.signInPrice), 'every currency sign sits inside its price cell');
   assert.deepEqual(unit('fx'), ['₪', '₪', '₴', '₽', '$', '₴']);
-  assert.deepEqual(price('crypto'), ['108' + NNBSP + '452,31', '3' + NNBSP + '912,55', '1' + NNBSP + '084,20', '2,41', '186,33', '0,34']);   // FIX-11B-B1a: crypto always 2 places, TRX included
+  assert.deepEqual(price('crypto'), ['108' + NNBSP + '452,31', '3' + NNBSP + '912,55', '1' + NNBSP + '084,20', '2,41', '186,33', '1' + NNBSP + '272,19']);   // FIX-11B-B1a: crypto always 2 places
+  // FIX-11B-B1a: a coin under $1 keeps 2 places too (batch 23: ZEC replaced TRX, $0.34, in the fixture; the case is kept here)
+  const cheap = fixture('markets-view-snapshot');
+  cheap.groups.find((g) => g.id === 'crypto').rows[5].price = 0.3412;
+  ctx.MarketsView.render(cheap, { kind: 'fresh', updated: '14:32' });
+  assert.equal(price('crypto')[5], '0,34');
   assert.deepEqual(price('indices'), ['6' + NNBSP + '812,44', '47' + NNBSP + '315,80', '23' + NNBSP + '104,61', '25' + NNBSP + '377,12', '2' + NNBSP + '481,06', '17,84']);
   assert.deepEqual(unit('indices'), ['', '', '', '', '', ''], 'points: no sign at all');
   assert.equal(price('il')[1], '1' + NNBSP + '642,00', 'shekels, not agorot: the data side divides, the view shows');
@@ -353,3 +358,28 @@ test('N2: the commodities card says «· $» once in its head and no sign in its
   assert.ok(!/mk-head-sign/.test(scr.card('us').innerHTML));
 });
 
+
+// Batch 23B: the currencies card says what its changes are measured from — «% с 09:31» (batch 23C: the Israel time the day's first rates table was read) — in the
+// place and look of «закрыто» (mk-closed), only when the snapshot's group carries `since`; the time left to right inside Hebrew;
+// a change of `since` alone redraws the card.
+test('23B: the FX card head says «% с 02:00» / «% מ־02:00» / «% з 03:00» / «% since 02:00» where «закрыто» sits; none without since', () => {
+  for (const [lang, since, want] of [['ru', '02:00', '% с 02:00'], ['he', '02:00', '% מ־' + LRE + '02:00' + PDF], ['uk', '03:00', '% з 03:00'], ['en', '02:00', '% since 02:00']]) {
+    const { ctx, scr } = setup(lang), snap = fixture('markets-view-snapshot');
+    for (const r of snap.groups[0].rows) r.closed = null;            // the Coinbase rates: no trading hours
+    snap.groups[0].since = since;
+    ctx.MarketsView.render(snap, { kind: 'fresh', updated: '14:32' });
+    const h = head(scr.card('fx').innerHTML);
+    assert.match(h, /<span class="mk-closed mk-since">/, lang + ': in the closed mark\'s place and look');
+    assert.equal(text(h).replace(text(head(scr.card('fx').innerHTML).split('<span class="mk-closed')[0]), ''), want, lang);
+    assert.ok(!/mk-since/.test(scr.card('us').innerHTML), lang + ': only the card whose group says it');
+  }
+  const { ctx, scr } = setup('ru'), snap = fixture('markets-view-snapshot');
+  for (const r of snap.groups[0].rows) r.closed = null;
+  ctx.MarketsView.render(snap, { kind: 'fresh', updated: '14:32' });
+  assert.ok(!/mk-since/.test(scr.card('fx').innerHTML), 'no since: no label');
+  const writes = scr.card('fx').writes, next = fixture('markets-view-snapshot');
+  for (const r of next.groups[0].rows) r.closed = null;
+  next.groups[0].since = '02:00';
+  ctx.MarketsView.render(next, { kind: 'fresh', updated: '14:32' });
+  assert.equal(scr.card('fx').writes, writes + 1, 'since alone changed: the card is redrawn');
+});

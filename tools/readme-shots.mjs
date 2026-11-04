@@ -48,7 +48,7 @@ function real(url) {
 }
 
 // --live, every other shot (FIX-16C, the owner: the README shots are current): every source answers live at the real time —
-// the news feeds, Yahoo Finance / open.er-api, Hebcal, Open-Meteo (weather and air), Pikud HaOref's live feed and history,
+// the news feeds, Yahoo Finance / Coinbase, Hebcal, Open-Meteo (weather and air), Pikud HaOref's live feed and history,
 // and Mapbox (the routes and the map, with the real token from the MAPBOX_TOKEN environment variable: never written into a
 // file). The alert itself (he-alert, he-banner) stays the recorded Rehovot alert: a live one exists only during a real alert.
 const TOKEN = process.env.MAPBOX_TOKEN || '';

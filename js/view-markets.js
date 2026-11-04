@@ -18,7 +18,7 @@ var MarketsView = (function () {
   var esc = Html.esc;
   var SYMBOL = { USD: '$', ILS: '₪', UAH: '₴', RUB: '₽', EUR: '€' };
   // Decimal places, and the prices that pick them: the currencies always WIDE (the source's own four digits); the indices
-  // and crypto always NARROW (FIX-11B-B1a: TRX «0,32» included); a share or commodity under SMALL WIDE (two places would
+  // and crypto always NARROW (FIX-11B-B1a: a coin under $1 included, «0,32»); a share or commodity under SMALL WIDE (two places would
   // read 0,20 for a price of 0,1987), from BIG up none, else NARROW.
   var WIDE = 4, NARROW = 2, WHOLE = 0, SMALL = 1, BIG = 10000;
   var DASH = '—';
@@ -73,9 +73,13 @@ var MarketsView = (function () {
     for (var i = 0; i < rows.length; i++) if (priced(rows[i]) && typeof rows[i].closed === 'boolean') { hours++; if (rows[i].closed) closed++; }
     return !closed ? '' : closed === hours ? 'markets.closed' : 'markets.partlyClosed';
   }
-  function headHtml(id, markKey, none, sign) {
-    return '<div class="mk-head"><span class="mk-title">' + esc(I18n.t('markets.group.' + id)) + '</span>' + (sign ? '<span class="mk-head-sign"> · ' + esc(sign) + '</span>' : '') +
-      (none ? '<span class="mk-state">' + esc(ViewState.partText('none')) + '</span>' : markKey ? '<span class="mk-closed">' + esc(I18n.t(markKey)) + '</span>' : '') + '</div>';
+  // since (batch 23B): what the card's changes are measured from, «% с 02:00», in the place and look of «закрыто» (a card
+  // with a closed mark never has one: the currencies have no trading hours); the time stays left to right inside Hebrew.
+  function headHtml(id, markKey, none, sign, since) {
+    var mark = none ? '<span class="mk-state">' + esc(ViewState.partText('none')) + '</span>'
+      : markKey ? '<span class="mk-closed">' + esc(I18n.t(markKey)) + '</span>'
+      : since ? '<span class="mk-closed mk-since">' + esc(I18n.t('markets.since', { time: I18n.ltr(since) })) + '</span>' : '';
+    return '<div class="mk-head"><span class="mk-title">' + esc(I18n.t('markets.group.' + id)) + '</span>' + (sign ? '<span class="mk-head-sign"> · ' + esc(sign) + '</span>' : '') + mark + '</div>';
   }
   // A card whose rows say what they are priced per (the commodities: «Brent · барр.») and all in one currency says that
   // currency once, in its head («Сырьё · $»), so each name has the room for its unit on one line (N2).
@@ -93,7 +97,7 @@ var MarketsView = (function () {
     var c = { id: group.id, none: true, sign: cardSign(group.rows) }, rows = '', i;
     for (i = 0; i < group.rows.length; i++) if (priced(group.rows[i])) c.none = false;
     for (i = 0; i < group.rows.length; i++) rows += rowHtml(c, group.rows[i]);
-    return headHtml(group.id, closedKey(group.rows), c.none, c.sign) + '<div class="mk-rows">' + rows + '</div>';
+    return headHtml(group.id, closedKey(group.rows), c.none, c.sign, group.since) + '<div class="mk-rows">' + rows + '</div>';
   }
   function placeholderHtml(slot) {
     var rows = '';
@@ -115,7 +119,7 @@ var MarketsView = (function () {
     if (none) { els.none.innerHTML = ViewState.block('failed', { glyph: Icons.glyph('chart'), retryAt: '' }); return; }
     if (snapshot) for (i = 0; i < snapshot.groups.length; i++) byId[snapshot.groups[i].id] = snapshot.groups[i];
     for (i = 0; i < layout.length; i++) {
-      var slot = layout[i], group = byId[slot.id], key = (group ? JSON.stringify(group.rows) : 'none') + '|' + I18n.lang();
+      var slot = layout[i], group = byId[slot.id], key = (group ? JSON.stringify(group.rows) + '|' + (group.since || '') : 'none') + '|' + I18n.lang();
       if (drawn[slot.id] === key) continue;
       drawn[slot.id] = key;
       els.cards[slot.id].innerHTML = group ? cardHtml(group) : placeholderHtml(slot);

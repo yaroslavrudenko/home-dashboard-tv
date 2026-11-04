@@ -180,22 +180,25 @@ test('M1: the Markets screen comes right after the news — eight page dots, the
   } finally { await app.close(); }
 });
 
-test('M3: on view a round every refreshMs; another screen on view: nothing; a ◀ ▶ open asks at once whatever the age', async () => {
-  const app = await openApp({ ...QUIET, configure: (c) => { c.markets.refreshMs = 1500; c.rotation.enabled = false; } });
+// Batch 23: two sources, each on its own cadence — Coinbase (6 stats + 1 rates) every coinbase.refreshMs (60 s), Yahoo (2
+// spark) every refreshMs (5 min); shortened here to 1.5 s and 6 s.
+const coinbaseGets = (app) => app.requests.markets.filter((r) => r.method === 'GET' && /coinbase\.com/.test(r.url)).length;
+test('M3: on view each source every ITS refreshMs (Coinbase 7, Yahoo 2); another screen on view: nothing; a ◀ ▶ open asks both at once', async () => {
+  const app = await openApp({ ...QUIET, configure: (c) => { c.markets.coinbase.refreshMs = 1500; c.markets.refreshMs = 6000; c.rotation.enabled = false; } });
   try {
     await ready(app);
     const p = app.page;
     await toMarkets(p);
     await wait(400);
-    assert.equal(gets(app), 4, '◀ ▶ open, cold: one round of 4 (2 spark + 2 rates)');
+    assert.deepEqual([gets(app), coinbaseGets(app)], [9, 7], '◀ ▶ open, cold: Yahoo 2 + Coinbase 7, at once');
     await wait(1500);
-    assert.equal(gets(app), 6, 'staying on view: the next round after refreshMs, 2 (the daily rates are current)');
-    await press(p, RIGHT); await wait(300);                    // traffic
+    assert.deepEqual([gets(app), coinbaseGets(app)], [16, 14], 'staying on view: Coinbase again after its refreshMs, Yahoo not yet');
+    await press(p, RIGHT); await wait(300);                    // Shabbat
     const left = gets(app);
     await wait(3500);
     assert.equal(gets(app), left, 'another screen on view: not a single request');
     await press(p, LEFT); await wait(400);                     // back: an explicit open
-    assert.equal(gets(app), left + 2, '◀ ▶ back: one warm round (2) at once');
+    assert.equal(gets(app), left + 9, '◀ ▶ back: both sources at once (9)');
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
 });
@@ -209,7 +212,7 @@ test('M3: a rotation arrival asks only when the last attempt is refreshMs old (5
     await p.waitForFunction(() => document.querySelector('.screen.is-active').id === 'screen-markets', { timeout: 5000, polling: 50 });
     await wait(400);
     const round = gets(app);
-    assert.equal(round, 4, 'the first arrival (no data yet): one cold round of 4');
+    assert.equal(round, 9, 'the first arrival (no data yet): both sources, 9 (Yahoo 2 + Coinbase 7)');
     await p.waitForFunction(() => document.querySelector('.screen.is-active').id === 'screen-traffic', { timeout: 3000, polling: 50 });
     await p.waitForFunction(() => document.querySelector('.screen.is-active').id === 'screen-markets', { timeout: 8000, polling: 50 });
     await wait(400);
@@ -225,12 +228,12 @@ test('M1: a language change on the Markets screen redraws it in that language an
     const p = app.page;
     await toMarkets(p);
     await wait(400);
-    assert.equal(gets(app), 4);
+    assert.equal(gets(app), 9);
     const before = await p.$eval('#screen-markets', (e) => e.textContent);
     await press(p, DOWN); await wait(80); await press(p, DOWN);   // ru → he → uk
     await wait(1100);
     assert.equal(await p.evaluate(() => document.documentElement.lang), 'uk');
-    assert.equal(gets(app), 6, 'one warm round (2) for the language the remote settled on');
+    assert.equal(gets(app), 18, 'one round of both sources (9) for the language the remote settled on');
     assert.notEqual(await p.$eval('#screen-markets', (e) => e.textContent), before, 'redrawn in Ukrainian');
     assert.equal(await screenOn(p), 'screen-markets', 'the language never changes the screen');
     assert.deepEqual(app.errors, []);
@@ -271,21 +274,21 @@ test('Batch 11: the rotation keeps the Markets screen its own dwell (90 s; 2 s h
 });
 
 // FIX-11B C8: the header tells the truth across rounds — a good recorded round reads «Обновлено в …» (fresh); a round
-// whose quotes fail keeps the last prices and reads «Не обновляется · данные от …» (stale). Exact counts: 4 cold, 2 warm.
-test('C8: a good round then a failed round — the header goes fresh → stale, the prices stay; 4 requests cold, 2 warm', async () => {
-  const app = await openApp({ ...QUIET, markets: (n, url) => (n <= 4 ? marketsRecorded(url) : { status: 503, body: '' }),
+// whose quotes fail keeps the last prices and reads «Не обновляется · данные от …» (stale). Exact counts (batch 23): 9 a round, both sources.
+test('C8: a good round then a failed round — the header goes fresh → stale, the prices stay; 9 requests a round', async () => {
+  const app = await openApp({ ...QUIET, markets: (n, url) => (n <= 9 ? marketsRecorded(url) : { status: 503, body: '' }),
     configure: (c) => { c.rotation.enabled = false; } });
   try {
     await ready(app);
     const p = app.page;
     await toMarkets(p);
     await p.waitForSelector('#markets-status.is-fresh', { timeout: 5000 });
-    assert.equal(gets(app), 4);
+    assert.equal(gets(app), 9);
     const priced = await p.$$eval('#screen-markets .mk-price', (e) => e.length);
     assert.equal(priced, 36, 'every row priced');
     await press(p, RIGHT); await wait(300); await press(p, LEFT);          // an explicit reopen: the quotes fail
     await p.waitForSelector('#markets-status.is-stale', { timeout: 5000 });
-    assert.equal(gets(app), 6, 'the warm round: 2 spark requests, both refused');
+    assert.equal(gets(app), 18, 'the reopen: both sources (9), every request refused');
     assert.match(await p.$eval('#markets-status', (e) => e.textContent), /^Не обновляется · данные от \d\d:\d\d$/);
     assert.equal(await p.$$eval('#screen-markets .mk-price', (e) => e.length), 36, 'the last prices stay, dimmed');
     assert.ok(await p.$$eval('#screen-markets .mk-row.is-stale', (e) => e.length) >= 30, 'the quote rows are marked stale');
@@ -293,21 +296,61 @@ test('C8: a good round then a failed round — the header goes fresh → stale, 
   } finally { await app.close(); }
 });
 
-// FIX-11B A9 [P1]: one slow source never holds the screen — the quotes are drawn as soon as Yahoo has answered (300 ms
-// here) while open.er-api hangs (until its 15 s timeout): the perf reviewer's erApiHangs case, < 1000 ms.
-test('A9: open.er-api hanging: the first prices are drawn in under 1 s (Yahoo answering in 300 ms), not after the 15 s timeout', async () => {
-  const app = await openApp({ ...QUIET, configure: (c) => { c.rotation.enabled = false; },
-    markets: (n, url) => (url.includes('er-api') ? { hang: true } : new Promise((r) => setTimeout(() => r(marketsRecorded(url)), 300))) });
-  try {
-    await ready(app);
-    const p = app.page;
-    await p.evaluate(() => { window.__t0 = performance.now(); });
-    await toMarkets(p);
-    await p.waitForFunction(() => document.querySelectorAll('#screen-markets .mk-price').length > 0, { timeout: 5000, polling: 20 });
-    const ms = await p.evaluate(() => performance.now() - window.__t0);
-    assert.ok(ms < 1000, 'first priced render after ' + Math.round(ms) + ' ms');
-    assert.equal(await p.$$eval('#mk-us .mk-price', (e) => e.length), 6, 'the quotes are all there');
-    assert.match(await p.$eval('#markets-status', (e) => e.className), /is-stale/, 'the rates still out: not called fresh');
-    assert.deepEqual(app.errors, []);
-  } finally { await app.close(); }
-});
+// FIX-11B A9 [P1]: one slow source never holds the screen (the perf reviewer's erApiHangs case). Batch 23: the two sources are
+// two rounds — with Coinbase hanging (until its 15 s timeout) Yahoo's prices are drawn as soon as it answers (300 ms here),
+// and with Yahoo hanging Coinbase's are; < 1000 ms either way.
+for (const [hangs, card, other] of [['coinbase.com', '#mk-us', 'Yahoo'], ['finance.yahoo.com', '#mk-crypto', 'Coinbase']]) {
+  test('A9: ' + hangs + ' hanging: ' + other + '\'s prices are drawn in under 1 s (answering in 300 ms), not after the 15 s timeout', async () => {
+    const app = await openApp({ ...QUIET, configure: (c) => { c.rotation.enabled = false; },
+      markets: (n, url) => (url.includes(hangs) ? { hang: true } : new Promise((r) => setTimeout(() => r(marketsRecorded(url)), 300))) });
+    try {
+      await ready(app);
+      const p = app.page;
+      await p.evaluate(() => { window.__t0 = performance.now(); });
+      await toMarkets(p);
+      await p.waitForFunction(() => document.querySelectorAll('#screen-markets .mk-price').length > 0, { timeout: 5000, polling: 20 });
+      const ms = await p.evaluate(() => performance.now() - window.__t0);
+      assert.ok(ms < 1000, 'first priced render after ' + Math.round(ms) + ' ms');
+      assert.equal(await p.$$eval(card + ' .mk-price', (e) => e.length), 6, other + '\'s rows are all there');
+      assert.match(await p.$eval('#markets-status', (e) => e.className), /is-stale/, 'the other source still out: not called fresh');
+      assert.deepEqual(app.errors, []);
+    } finally { await app.close(); }
+  });
+}
+
+// Batch 23C (the owner's «а»): the currencies card says what its changes are measured from — the Israel time the day's first
+// rates table was read (the app's clock starts at FIXED_NOW, 20:32 in Israel) — in the place of «закрыто» (the head's end), one
+// line, clear of the title, the time left to right in Hebrew. The first table is the basis itself: no change, no label; the
+// second table (Coinbase's cadence shortened to 1.5 s) brings both.
+for (const [lang, want] of [['ru', /^% с 20:32$/], ['he', /^% מ־‪20:32‬$/], ['uk', /^% з 20:32$/]]) {
+  test('23C, ' + lang + ': the FX card head says the basis time from the second table on, at the head\'s end, on one line, clear of the title', async () => {
+    const app = await openApp({ ...QUIET, lang, configure: (c) => { c.rotation.enabled = false; c.markets.coinbase.refreshMs = 1500; } });
+    try {
+      await ready(app);
+      const p = app.page;
+      await toMarkets(p);
+      await p.waitForFunction(() => document.querySelectorAll('#mk-fx .mk-price').length === 6, { timeout: 5000, polling: 20 });
+      const first = await p.evaluate(() => ({ since: !!document.querySelector('#mk-fx .mk-since'), changes: [...document.querySelectorAll('#mk-fx .mk-pct')].map((e) => e.textContent) }));
+      assert.deepEqual(first, { since: false, changes: ['—', '—', '—', '—', '—', '—'] }, 'the first table: the basis itself — «—», no label');
+      await p.waitForSelector('#mk-fx .mk-since', { timeout: 5000 });
+      await p.evaluate(() => document.fonts.ready);
+      const m = await p.evaluate(() => {
+        const head = document.querySelector('#mk-fx .mk-head'), since = head.querySelector('.mk-since'), title = head.querySelector('.mk-title');
+        const r = (e) => e.getBoundingClientRect(), hb = r(head), sb = r(since), tb = r(title), q = document.createRange();
+        q.selectNodeContents(since);
+        return { text: since.textContent, lines: new Set([...q.getClientRects()].map((x) => Math.round(x.top))).size,
+          gap: getComputedStyle(head).direction === 'rtl' ? tb.left - sb.right : sb.left - tb.right,
+          atEnd: getComputedStyle(head).direction === 'rtl' ? Math.round(sb.left - hb.left) : Math.round(hb.right - sb.right),
+          inside: sb.top >= hb.top - 1 && sb.bottom <= hb.bottom + 1, closedLook: getComputedStyle(since).fontSize };
+      });
+      assert.match(m.text, want);
+      assert.equal(m.lines, 1, 'one line');
+      assert.ok(m.gap >= 16, 'clear of the title: ' + m.gap);
+      assert.ok(m.atEnd <= 1 && m.inside, 'at the head\'s end, inside it: ' + JSON.stringify(m));
+      assert.equal(m.closedLook, '24px', 'the look of «закрыто»');
+      const boxes = await p.evaluate(measure, '#screen-markets *');
+      assert.deepEqual(boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent), [], lang + ': nothing cut or spilling');
+      assert.deepEqual(app.errors, []);
+    } finally { await app.close(); }
+  });
+}
