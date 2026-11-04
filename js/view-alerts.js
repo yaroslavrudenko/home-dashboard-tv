@@ -95,8 +95,11 @@ var AlertsScreenView = (function () {
     var body = '', i;
     if (h.events.length) for (body = headsHtml(h.events), i = 0; i < h.events.length; i++) body += rowHtml(h.events[i], m.today);
     else {
-      // the one state block; «no alerts in N days» is content, said in the same calm block (kind 'none')
-      body = h.kind === 'loading' || h.kind === 'failed' ? ViewState.block(h.kind, { retryAt: '' }) : ViewState.block('none', { text: I18n.t('a.recent.none', { n: m.days }) });
+      // the one state block; «no alerts in N days» is content, said in the same calm block (kind 'none') — only for a fresh
+      // list (a round read to its end). Batch 21C C1: an empty list that is stale (a later round failed, or was capped with
+      // nothing complete, during a war day) never says «none»: the failed block, under the header's «not updating · data from»
+      body = h.kind === 'fresh' ? ViewState.block('none', { text: I18n.t('a.recent.none', { n: m.days }) })
+        : ViewState.block(h.kind === 'loading' ? 'loading' : 'failed', { retryAt: '' });
     }
     return '<section class="card al-recent">' + block('card-title', I18n.t('a.recent')) + '<div class="al-rows">' + body + '</div></section>';
   }

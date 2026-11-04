@@ -97,7 +97,7 @@ function loadPuppeteer() {
 
 // News feeds, the alert feed and Mapbox: `opts.news` 'ok' (tests/fixtures/news) | 'fail' | 'live' (fetched from the real
 // feeds by Node at that moment) | (url) => { status, body }; `opts.alerts` (the live feed) and `opts.history` (the recent
-// alerts, alerts-history.oref.org.il) a file in tests/fixtures/oref | 'fail' |
+// alerts, www.oref.org.il/api/v1/AlertHistory since batch 21) a file in tests/fixtures/oref | 'fail' |
 // (n) => { status, body }; `opts.traffic` (one GET per route) 'ok' (that route's answer in tests/fixtures/mapbox/routes.json)
 // | 'fail' | (round, url) => { status, body } (round: 1 for the first ten GETs, …); `opts.map` (the traffic map image)
 // 'ok' (tests/fixtures/mapbox/static.png: a real traffic-night-v2 image at the configured centre and zoom — Rehovot's view —
@@ -112,7 +112,7 @@ function loadPuppeteer() {
 const NEWS_FEEDS = [['https://www.newsru.co.il/il/www/section/finance', 'newsrufin'], ['https://www.newsru.co.il/', 'newsru'],
   ['https://www.ynet.co.il/', 'ynet'], ['https://www.globes.co.il/', 'globes'], ['https://www.pravda.com.ua/', 'pravda'], ['https://epravda.com.ua/', 'epravda']];
 const MAP = /^https:\/\/api\.mapbox\.com\/styles\//;
-const HISTORY = 'https://alerts-history.oref.org.il/';
+const HISTORY = 'https://www.oref.org.il/api/v1/AlertHistory/';   // on the alert feed's host: matched first
 // Batch 11: the Markets screen's sources (Yahoo Finance's spark quotes, open.er-api.com's daily rates; js/config.js `markets`).
 // FIX-11B C8: their recorded answers (tests/fixtures/markets, 2026-11-02): each spark request gets the recorded entries of
 // exactly the symbols it asks for, a rates request its base's table.
@@ -216,7 +216,7 @@ export async function openApp(opts = {}) {
       // batch 13: { hang: true } never answers (a refresh still in flight: the weather on screen does not change)
       done = answer.hang ? null : req.respond({ status: answer.status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: answer.body });
     } else {
-      const kind = newsSource(url) ? 'news' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : url.startsWith(HISTORY) ? 'history' : MAP.test(url) ? 'map'
+      const kind = newsSource(url) ? 'news' : url.startsWith(HISTORY) ? 'history' : url.startsWith('https://www.oref.org.il/') ? 'alerts' : MAP.test(url) ? 'map'
         : url.startsWith('https://api.mapbox.com/') ? 'traffic' : MARKETS.test(url) ? 'markets'
         : url.startsWith('https://air-quality-api.open-meteo.com/') ? 'air' : url.startsWith('https://www.hebcal.com/') ? 'hebcal'
         : url.startsWith('https://api.met.no/') ? 'met' : null;

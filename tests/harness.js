@@ -66,4 +66,20 @@ function fakeTimers(start) {
   };
 }
 
-module.exports = { ROOT, load, fixture, fakeTimers, applyHomeCity };
+// Batch 21 (OWNER-2026-11-04): Pikud HaOref's alert-history answer (www.oref.org.il/api/v1/AlertHistory, recorded
+// tests/fixtures/oref/history*.json) holding these area records, in their order, one group per run of the same day.
+// orefRecord: one area record of that answer (the recorded field names), `o` overriding any field.
+function orefRecord(o) {
+  return Object.assign({ data: 'רחובות', date: '29.10.2026', time: '20:01:12', dateTime: '2026-10-29T20:01:00', category: 1,
+    category_Desc: 'ירי רקטות וטילים', matrixId: 1, rid: 1 }, o);
+}
+function orefHistory(records) {
+  const days = [];
+  for (const r of records) {
+    const last = days[days.length - 1], key = r && r.date;
+    if (last && last.key === key) last.value.push(r); else days.push({ key, value: [r] });
+  }
+  return { alarmsGroupedByDate: days };
+}
+
+module.exports = { ROOT, load, fixture, fakeTimers, applyHomeCity, orefRecord, orefHistory };

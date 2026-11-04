@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="737 automated tests passing" src="https://img.shields.io/badge/tests-737%20passing-brightgreen?style=for-the-badge">
+  <img alt="748 automated tests passing" src="https://img.shields.io/badge/tests-748%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -155,7 +155,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 737 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 748 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -427,12 +427,16 @@ alerts". Under it, the nearby towns («Рядом тревог нет», or the 
 Israel**, newest first, under the column labels «Время», «Тревога», «Районы»: the time (with the date when it is not today), the
 kind in the interface language and the areas (every town of the city catalogue in the language, a town once however many of
 its districts are listed; others as Pikud HaOref writes them, in Hebrew, and then the label says «Районы (на иврите)»), up to seven rows, with «За последние 7
-дней тревог не было» on a quiet week. That list comes from Pikud HaOref's history feed
-(`alerts-history.oref.org.il/Shared/Ajax/GetAlarmsHistory.aspx?lang=he&mode=2`, the last 7 days, checked 2026-10-30: a
-plain GET answers 200 with one JSON record per area; `www.oref.org.il/…/AlertsHistory.json` answers 403). Records of one
-siren are one row; "the event has ended" and "the threat has been removed" are not rows. It is asked for only while this
+дней тревог не было» on a quiet week. That list comes from Pikud HaOref's site API
+(`www.oref.org.il/api/v1/AlertHistory/heb?period=lastWeek&cities=`, the request its own «last week» tab sends, checked
+2026-11-04: a plain GET answers 200 with the newest 200 area records, newest first, grouped by day; the old
+`alerts-history.oref.org.il/…/GetAlarmsHistory.aspx` now answers 301 to an HTML page). Records of one
+siren are one row; end and all-clear messages (category 13, in any wording) are not rows. One siren or all-clear can cover
+hundreds of areas, so a full page is followed by the page's own cursor until seven alerts are complete, at most 5 requests
+(1 on an ordinary week); when that cap leaves no complete alert, or a later page fails, the last list stays on screen
+marked stale — an incomplete answer never reads as a quiet week. It is asked for only while this
 screen is on view and the TV shows it: at once on a ◀ ▶ open or a language change, otherwise at most once per rotation
-cycle (6 min 45 s with the default rotation: the 7-day list is not downloaded again within one turn of the screens), never
+cycle (6 min 45 s with the default rotation: the week's list is not downloaded again within one turn of the screens), never
 while hidden; a failed answer keeps the last list and the header turns amber. While the list is current the header says
 nothing (the home card's «Проверено в …» is the screen's one time).
 

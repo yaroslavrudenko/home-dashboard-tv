@@ -16,10 +16,11 @@ const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 // Decision 21 (F13): least privilege — the app's own files plus exactly the hosts it reads (batch 2: news, alerts, traffic;
 // batch 6: Mapbox instead of TomTom).
 // Batch 6: the news feeds of the three languages (L2) and Mapbox; batch 7: the traffic map is a Mapbox image (img-src),
-// the Waze frame and its hosts are gone. Batch 8: the Alerts screen's recent alerts (alerts-history.oref.org.il).
+// the Waze frame and its hosts are gone. Batch 8: the Alerts screen's recent alerts (alerts-history.oref.org.il; batch 21,
+// OWNER-2026-11-04: moved to www.oref.org.il's API, so that origin is gone).
 // Batch 11: the Markets screen's quotes (Yahoo's spark endpoint on query1) and daily rates (open.er-api).
 const DATA = ['https://api.open-meteo.com', 'https://www.newsru.co.il', 'https://www.ynet.co.il', 'https://www.globes.co.il',
-  'https://www.pravda.com.ua', 'https://epravda.com.ua', 'https://www.oref.org.il', 'https://alerts-history.oref.org.il', 'https://api.mapbox.com',
+  'https://www.pravda.com.ua', 'https://epravda.com.ua', 'https://www.oref.org.il', 'https://api.mapbox.com',
   'https://query1.finance.yahoo.com', 'https://open.er-api.com',
   // Batch 12: the air quality (Open-Meteo's air-quality API) and the Shabbat & holidays calendar (Hebcal).
   'https://air-quality-api.open-meteo.com', 'https://www.hebcal.com',

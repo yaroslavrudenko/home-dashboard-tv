@@ -217,14 +217,23 @@ var Config = {
     // nearby or other alerts; the preview plays it once.
     sound: { enabled: true, repeatMs: 30 * 1000, maxPlays: 5 },
     // The Alerts screen's list of recent alerts in Israel (js/alerts-history.js): asked only while that screen is on
-    // view. mode=2 is the last 7 days (`days`, said on screen when the list is empty); mode=3 (a month) can run to
-    // megabytes in a busy month, too much for the TV. Its cadence is NOT set here: the 7-day list is downloaded at most
-    // once per rotation cycle (the owner's «б», 2026-11-02) — js/app.js gives it Screens.cycleMs(screens, rotation), 405 s
-    // with the values above (longer than the feed's own 2-minute cache); a ◀ ▶ open still refreshes it at once.
+    // view. period=lastWeek is the last 7 days (`days`, said on screen when the list is empty) — the value Pikud HaOref's own
+    // «last week» tab sends (lastDay / lastWeek / lastMonth; measured 2026-11-04: the old alerts-history.oref.org.il address
+    // answers 301 to an HTML page). The server counts the week, so the TV's clock never shifts it. A page is the newest
+    // `pageSize` area records, newest minute first, end messages included, and one siren or one all-clear can cover hundreds
+    // of areas: of 122 recorded days (Mar–Jun 2026) 10 had a first page of end messages only, and on 2026-03-05 the first
+    // real alert was on page 4 (batch 21B, measured 2026-11-04). So a round reads on by the page's cursor while a page is
+    // full and fewer than `max` events are complete — 1 request on an ordinary week, at most `maxPages`; capped with no
+    // complete event, the round counts as failed (the last list stays, marked stale), never as a quiet week.
+    // Its cadence is NOT set here: the week's list (one round) is downloaded at most once per rotation cycle (the owner's «б»,
+    // 2026-11-02) — js/app.js gives it Screens.cycleMs(screens, rotation), 405 s with the values above (the API's own cache
+    // is 10 s, max-age=10); a ◀ ▶ open still refreshes it at once.
     history: {
-      url: 'https://alerts-history.oref.org.il/Shared/Ajax/GetAlarmsHistory.aspx?lang=he&mode=2',
+      url: 'https://www.oref.org.il/api/v1/AlertHistory/heb?period=lastWeek&cities=',
       days: 7,
       max: 7,                           // rows on screen
+      pageSize: 200,                    // the API's page, measured 2026-11-04: a full page means more may follow
+      maxPages: 5,                      // requests per round at most (2026-03-05 needs 5 for five complete events)
       timeoutMs: 15 * 1000,
       staleAfterMs: 10 * 60 * 1000
     }

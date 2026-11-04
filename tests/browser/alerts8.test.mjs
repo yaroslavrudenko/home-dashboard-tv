@@ -141,7 +141,7 @@ test('B1: the Alerts screen is the eighth (◀ from the main screen), quiet: «�
     assert.match(v.home, /^Тревог нетРеховотПроверено в 20:3\d$/);
     assert.match(v.near, /^РядомРядом тревог нет/);
     // L13 (batch 16): the column labels first; the two areas no catalogue city covers stay Hebrew, and the label says so
-    assert.deepEqual(v.rows, [['Время', 'Тревога', 'Районы (на иврите)'], ['19.10 19:38', 'Проникновение террористов', 'אביתר'], ['10.10 19:57', 'Вражеский беспилотник', 'ערב אל עראמשה']]);
+    assert.deepEqual(v.rows, [['Время', 'Тревога', 'Районы (на иврите)'], /* OWNER-2026-11-04: the new source's minute, 19:37 (was 19:38) */ ['19.10 19:37', 'Проникновение террористов', 'אביתר'], ['10.10 19:57', 'Вражеский беспилотник', 'ערב אל עראמשה']]);
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-alerts *')), []);
     assert.deepEqual(app.errors, []);
   } finally { await app.close(); }
