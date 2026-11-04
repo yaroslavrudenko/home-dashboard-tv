@@ -17,8 +17,12 @@ test('Russian is the default language; the switch cycles Russian, Hebrew, Ukrain
 test('every string key exists in both languages and is not empty', () => {
   const ctx = load(FILES);
   const keys = ['city.israel', 'city.ukraine', 'city.sydney', 'place.kyiv', 'place.sydney', 'clock.same', 'clock.ahead',
-    'clock.behind', 'clock.unknown', 'w.feels', 'w.high', 'w.low', 'w.wind', 'w.humidity', 'w.rain', 'w.sunrise',
+    'clock.behind', 'clock.unknown', 'w.feels', 'w.wind', 'w.humidity', 'w.sunrise',
     'w.sunset', 'w.kmh', 'w.now', 'w.today', 'w.hourly', 'w.days', 'st.fresh', 'st.stale', 'st.loading', 'st.failed', 'st.retry', 'st.retrySoon', 'st.partStale', 'st.noData'];   // B17-V6: one state vocabulary
+  // B22 (owner 2026-11-04, judges' common decision, city card, fix 3): «Макс.» / «Мин.» left the city card, their only reader
+  for (const k of ['w.high', 'w.low']) assert.equal(ctx.I18n.t(k), k, k + ' is gone (dead key)');
+  // B22 fix 6 residue (coordinator's decision, 2026-11-04): «Осадки» left the city card, its only reader
+  assert.equal(ctx.I18n.t('w.rain'), 'w.rain', 'w.rain is gone (dead key)');
   for (const lang of ['ru', 'en']) {
     ctx.I18n.setLang(lang);
     for (const k of keys) assert.ok(ctx.I18n.t(k) && ctx.I18n.t(k) !== k, lang + ' ' + k);

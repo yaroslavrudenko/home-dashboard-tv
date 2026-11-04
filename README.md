@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="748 automated tests passing" src="https://img.shields.io/badge/tests-748%20passing-brightgreen?style=for-the-badge">
+  <img alt="772 automated tests passing" src="https://img.shields.io/badge/tests-772%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -155,7 +155,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, open.er-api, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 748 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 772 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -212,16 +212,17 @@ language, Hebcal and the alert feed (measured on 2026-11-02 with live answers, a
   time with the weekday, the date, the difference to Israel and each city's current temperature. A card is
   tinted for the night from that city's sunrise and sunset.
 - **Weather** for the home city (Rehovot by default; see [Home city](#home-city)) from [Open-Meteo](https://open-meteo.com/) (free, no API key): temperature, feels-like,
-  condition, wind, humidity, today's high/low, chance of rain, sunrise/sunset, a 12-hour strip (each hour's dust under its temperature, the row labelled «Пыль» on the card's title line) and a 7-day list: one line per day — the day, its icon with the
+  condition, wind, humidity, sunrise/sunset (today's high/low and chance of rain are the 7-day list's), a 12-hour strip (each hour's dust under its temperature, the row labelled «Пыль» on the card's title line, followed by the khamsin key — below) and a 7-day list: one line per day — the day, its icon with the
   chance of rain beside it, the low, the range bar, the high — and under the list the dust band: «Пыль», then each day's short
   name over its maximum, on a pill from 100 µg/m³ coloured by the khamsin's grade (below).
 - **Air and UV**, between the city and the big weather icon. «УФ макс.» is today's highest UV index with its level
-  (низкий, умеренный, высокий, очень высокий, экстремальный); after sunset the level word is dimmed, because the day's peak
+  (низкий, умеренный, высокий, очень высокий, экстремальный); after sunset the figure and the level word are dimmed, because the day's peak
   is past. «Качество воздуха» is the European air-quality index with its level (хорошее up to 20, приемлемое to 40,
   умеренное to 60, плохое to 80, очень плохое to 100, опасное above). When the dust reaches 100 µg/m³ — twice the EU daily
-  PM10 limit from dust alone, a khamsin — the dust's label line carries the screen's one dust key: «Пыль», then the khamsin grades «100 121 196 271» as ONE segmented bar (each grade a segment
-  in its colour), always shown — quiet grey, lit in the grades' colours when a khamsin is on screen (also when an hour or a day on screen is a khamsin; with no current reading but a forecast on screen
-  the key stays and the value reads «—»), over «240 мкг/м³» (so even a four-digit value fits), even when the index itself is missing.
+  PM10 limit from dust alone, a khamsin — the reading «240 мкг/м³» sits on its grade's pill under its grey label «Пыль» (with no current reading but a forecast on screen
+  the value reads «—»), even when the index itself is missing. The screen's one dust key is on the 12-hour strip's title line, after its «Пыль»: the khamsin grades
+  «100 121 196 271» as ONE segmented bar, then «мкг/м³», always shown — quiet grey, with only the highest grade on screen lit in its colour when a khamsin is
+  on screen (the reading, an hour or a day).
   **The redder, the more dangerous** (the owner): a khamsin value — the reading, an hour, a day, an Israel region's day, and the «хамсин»
   word of every Israel region's air chip — sits on a
   solid pill under dark ink in its grade's colour: amber 100–120, orange 121–195, red-orange 196–270, red above 270 µg/m³. The

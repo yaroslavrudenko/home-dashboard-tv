@@ -1,8 +1,8 @@
 // FIX-18B 13 (the owner, 2026-11-03: «Цвет хамсина должен быть в зависимости от его опасности. Чем опаснее, тем краснее»): a
 // khamsin reading's pill takes the colour of its grade (js/air.js Air.grade, the EEA PM10 bands: 100–120 amber, 121–195
 // orange, 196–270 red-orange, > 270 red) — on the current card, in the hourly strip, in the 7-day band and in the Israel bands;
-// a solid fill under dark ink; the main screen's one key (FIX-18B 13B) is the scale of the four grades on the current card's
-// dust label, lit when a khamsin is on screen.
+// a solid fill under dark ink; the main screen's one key (FIX-18B 13B) is the scale of the four grades — since B22 (owner
+// 2026-11-04, judges' common decision, city card, fix 1) on the hourly title row, only the top grade on screen lit.
 // At 1920×1080 in ru and he, with every place's current and forecast dust set to the reading: the computed colour per level,
 // the text against its own pill ≥ 4.5:1, nothing cut. FIX-18B 7: the current card keeps the pill's colour (never the plain
 // dust colour). KHAMSIN_SHOTS=<dir> writes the screens for 120, 250, 600, 1500 and 3400.
@@ -51,10 +51,12 @@ for (const lang of ['ru', 'he']) {
         assert.deepEqual([...seen].sort(), ['band', 'current', 'hour'], lang + ' ' + v + ': the reading, the hours and the days are all pills');
         for (const x of main.filter((y) => y.where !== 'scale')) assert.deepEqual([x.grade, x.colour], [g, COLOUR[g]], lang + ' ' + v + ' ' + x.where + ' "' + x.text + '"');
         const scale = main.filter((x) => x.where === 'scale');
-        assert.deepEqual(scale.map((x) => [x.text, x.grade, x.colour]), [['100', 1, COLOUR[1]], ['121', 2, COLOUR[2]], ['196', 3, COLOUR[3]], ['271', 4, COLOUR[4]]], lang + ': the scale, once');
+        // B22 (owner 2026-11-04, judges' common decision, city card, fix 1): only the top grade on screen lit, the other three quiet
+        assert.deepEqual(scale.map((x) => [x.text, x.grade, x.colour]), [['100', 1], ['121', 2], ['196', 3], ['271', 4]].map(([t, k]) => [t, k, k === g ? COLOUR[k] : 'rgba(255, 255, 255, 0.06)']), lang + ': the scale, once');
         for (const x of main) assert.ok(x.contrast >= 4.5, lang + ' ' + v + ' ' + x.where + ' "' + x.text + '": ' + x.contrast + ':1 on its pill');
-        assert.deepEqual(await p.$$eval('#screen-main .dust-legend-scale', (e) => e.map((x) => [x.className, !!x.closest('.now-air .air-dust')])), [['dust-legend-scale is-active', true]], 'FIX-18B 13B: ONE key — the scale, lit, on the current card\'s dust item');
-        assert.equal(await p.$$eval('#screen-main .card-head .dust-num', (e) => e.length), 0, 'no grades in a title row');
+        // B22 fix 1: ONE key — the scale, lit, on the hourly title row (it left the current card's dust item)
+        assert.deepEqual(await p.$$eval('#screen-main .dust-legend-scale', (e) => e.map((x) => [x.className, !!x.closest('#hourly .card-head')])), [['dust-legend-scale is-active', true]], 'FIX-18B 13B / B22 fix 1: ONE key — the scale, lit, on the hourly title row');
+        assert.equal(await p.$$eval('#screen-main #now .dust-num.is-khamsin', (e) => e.length), 1, 'B22 fix 1: in the city card only the reading\'s own pill');
         assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' ' + v + ' main');
         if (process.env.KHAMSIN_SHOTS && v !== 150) { fs.mkdirSync(process.env.KHAMSIN_SHOTS, { recursive: true }); await p.screenshot({ path: path.join(process.env.KHAMSIN_SHOTS, 'khamsin-' + lang + '-' + v + '-main.png') }); }
         await press(p, 39); await wait(1200);
@@ -122,29 +124,30 @@ for (const lang of ['ru', 'he', 'uk']) {
 
 // FIX-18C K2 (the designer): the one legend is ONE segmented bar «[100|121|196|271]» after «Пыль» — the four segments touch
 // (0 px), square inside, rounded only at the bar's two ends (mirrored right to left); greyed with no khamsin on screen, lit with
-// one; ≥ 16 px clear of the weather icon's drawing, in ru, he and uk; nothing cut.
+// one; B22 (owner 2026-11-04, judges' common decision, city card, fix 1): on the hourly title row, in ru, he and uk; nothing cut.
 for (const lang of ['ru', 'he', 'uk']) {
-  test('FIX-18C K2 ' + lang + ': the legend is one segmented bar — contiguous segments, rounded ends only, ≥ 16 px clear of the icon', async () => {
+  test('FIX-18C K2 ' + lang + ': the legend is one segmented bar — contiguous segments, rounded ends only, on the hourly title row (B22 fix 1)', async () => {
     for (const v of [25, 250]) {
       const app = await openApp({ lang, weather: 'ok', air: every(v), alerts: 'empty-bom.txt', configure: (c) => { c.rotation.enabled = false; } });
       try {
         const p = app.page;
-        await p.waitForSelector('.now-air .dust-legend-scale', { timeout: 10000 });
+        await p.waitForSelector('#hourly .card-head .dust-legend-scale', { timeout: 10000 });   // B22 fix 1: the key on the hourly title row
         await p.evaluate(() => document.fonts.ready); await wait(300);
         const r = await p.evaluate(() => {
-          const rtl = document.documentElement.dir === 'rtl', bar = document.querySelector('.now-air .dust-legend-scale');
+          const rtl = document.documentElement.dir === 'rtl', bar = document.querySelector('#hourly .card-head .dust-legend-scale');
           const segs = [...bar.querySelectorAll('.dust-num')], box = segs.map((e) => e.getBoundingClientRect());
           // the radius on the bar's start side and end side of each segment (start = left in ltr, right in rtl)
           const radii = segs.map((e) => { const cs = getComputedStyle(e), l = parseFloat(cs.borderTopLeftRadius) + parseFloat(cs.borderBottomLeftRadius), rr = parseFloat(cs.borderTopRightRadius) + parseFloat(cs.borderBottomRightRadius); return rtl ? [rr, l] : [l, rr]; });
-          const ink = [...document.querySelectorAll('#now .now-icon svg *')].map((e) => e.getBoundingClientRect()).filter((x) => x.width);
-          const il = Math.min(...ink.map((x) => x.left)), ir = Math.max(...ink.map((x) => x.right)), bl = Math.min(...box.map((x) => x.left)), br = Math.max(...box.map((x) => x.right));
+          // B22 fix 1: the bar left the city card, so its old ≥ 16 px clearance to the weather icon is moot (city22: the air text's
+          // ≥ 48 px ink gap); here: the bar sits inside its title row, on the row's one line
+          const head = document.querySelector('#hourly .card-head').getBoundingClientRect(), title = document.querySelector('#hourly .card-title').getBoundingClientRect();
           return { active: bar.classList.contains('is-active'), n: segs.length,
             gaps: box.slice(1).map((b, i) => Math.round((rtl ? box[i].left - b.right : b.left - box[i].right) * 10) / 10),
             ends: [radii[0][0] > 0, radii[0][1] === 0, radii[1][0] + radii[1][1] === 0, radii[2][0] + radii[2][1] === 0, radii[3][0] === 0, radii[3][1] > 0],
-            clear: Math.round(rtl ? bl - ir : il - br) };
+            inRow: box.every((b) => b.left >= head.left - 0.5 && b.right <= head.right + 0.5 && b.top < title.bottom && title.top < b.bottom) };
         });
         assert.deepEqual([r.n, r.gaps, r.ends, r.active], [4, [0, 0, 0], [true, true, true, true, true, true], v >= 100], lang + ' ' + v + ': ' + JSON.stringify(r));
-        assert.ok(r.clear >= 16, lang + ' ' + v + ': ' + r.clear + ' px to the weather icon');
+        assert.ok(r.inRow, lang + ' ' + v + ': the bar inside the hourly title row, on its line');
         assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' ' + v + ' main');
       } finally { await app.close(); }
     }

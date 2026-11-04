@@ -29,7 +29,7 @@ const head = () => {
   const r = (e) => e.getBoundingClientRect(), st = document.getElementById('status'), h = document.querySelector('#hourly .card-head');
   const s = r(st), t = r(h.querySelector('.card-title')), rtl = document.dir === 'rtl';
   return { text: st.textContent, gap: Math.round(rtl ? t.left - s.right : s.left - t.right), titleLegends: h.querySelectorAll('.dust-legend').length,
-    sameRow: s.top < t.bottom && t.top < s.bottom, pill: !!document.querySelector('#now .air-dust .dust-legend-scale.is-active') };
+    sameRow: s.top < t.bottom && t.top < s.bottom, pill: !!document.querySelector('#hourly .card-head .dust-legend-scale.is-active') };   // B22 fix 1: the key on the hourly title row
 };
 
 for (const lang of ['ru', 'he', 'uk']) {
@@ -39,7 +39,7 @@ for (const lang of ['ru', 'he', 'uk']) {
     try {
       const p = app.page;
       await p.waitForFunction(() => /MET/.test(document.getElementById('status').textContent), { timeout: 15000 });
-      await p.waitForSelector('#now .air-dust .dust-legend-scale.is-active', { timeout: 10000 });   // OWNER-1LEG-C
+      await p.waitForSelector('#hourly .card-head .dust-legend-scale.is-active', { timeout: 10000 });   // B22 (owner 2026-11-04, judges' common decision, city card, fix 1)
       await p.evaluate(() => document.fonts.ready); await wait(500);
       assert.equal(app.weatherRequests.length, 1, 'Open-Meteo asked once');
       assert.equal(app.requests.met.length, 12, 'MET: one forecast and one sunrise request per place');
@@ -49,7 +49,7 @@ for (const lang of ['ru', 'he', 'uk']) {
       assert.match(h.text, SOURCE[lang], 'the source is named: ' + h.text);
       assert.match(h.text, /17:25/);
       assert.ok(h.pill, 'the khamsin pill is on');
-      assert.equal(h.titleLegends, 0, 'OWNER-1LEG-C: no legend in the title row');
+      assert.equal(h.titleLegends, 1, 'B22 fix 1: the one khamsin key on the hourly title row');
       assert.ok(!h.sameRow || h.gap >= 24, lang + ': the status ' + h.gap + ' px from the title: ' + h.text);
       const main = await p.evaluate(() => ({ temp: (document.querySelector('#now .now-temp') || {}).textContent || null, text: document.getElementById('screen-main').textContent,
         sunrise: [...document.querySelectorAll('#now .detail')].map((d) => d.textContent.replace(/\s+/g, ' ').trim()) }));
@@ -57,7 +57,8 @@ for (const lang of ['ru', 'he', 'uk']) {
       // FIX-15B Y3 (owner D-F1 «прочерк»): MET starts at the current hour, so today's max, min and UV max are «—»
       const today = await p.evaluate(() => ({ sub: [...document.querySelectorAll('#now .now-sub span')].map((e) => e.textContent.trim()),
         uv: document.querySelector('#now .air-uv .air-num').textContent.trim() }));
-      assert.deepEqual([today.sub.slice(-2).map((t) => t.slice(-1)), today.uv], [['—', '—'], '—'], JSON.stringify(today));
+      // B22 (owner 2026-11-04, judges' common decision, city card, fix 3): the line holds only «feels like» — no max / min left to say «—»
+      assert.deepEqual([today.sub.length, today.uv], [1, '—'], JSON.stringify(today));
       assert.equal(main.text.indexOf(FAILED[lang]), -1);
       assert.ok(main.sunrise.some((t) => /05:57/.test(t)) && main.sunrise.some((t) => /16:50/.test(t)), 'the sun from MET: ' + JSON.stringify(main.sunrise));
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' main');

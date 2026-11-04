@@ -61,7 +61,7 @@ body { position: relative; }   /* contains and clips the shifted #stage: the doc
 .alerts-offline, .card-title, .clock-time .approx, .clock-time.is-unknown, .clock-date, .clock-diff,
 .clock-weather.is-stale .clock-temp, .now.is-stale .now-temp, .now-sub, .detail-label, .state-sub, .hour-label,
 .status, .dust-none, .day-min, .air-label, .air-none,
-.air-unit, .air-uv.is-night .air-word, .region-air-label, .sh-date, .sh-tile-date, .sh-tile-in,
+.air-unit, .air-uv.is-night .air-num, .air-uv.is-night .air-word, .region-air-label, .sh-date, .sh-tile-date, .sh-tile-in,
 .sh-row-date, .sh-row-in, .sh-read-label, .region-city, .region.is-stale .region-temp, .region-sub,
 .news-col-head .src-name, .news-time, .state.is-loading .state-text, .tw-time .unit, .tw.is-stale .tw-time, .tw-time.is-none,
 .tw-km, .tnodata, .tw.is-stale .chip, .al-home-sub, .al-near-places, .al-time,
@@ -174,10 +174,10 @@ html.is-booting #stage { opacity: 0; -webkit-animation: boot-reveal 0.01s linear
 .now-temp, .region-temp { font-size: 136px; font-weight: 300; line-height: 1; text-indent: -6px; }   /* the big figure; text-indent: optical alignment of its digits */
 .now-temp { margin-top: 4px; }
 .now-cond { font-size: 34px; color: rgba(255, 255, 255, 0.9); margin-top: 4px; }
-.now-sub { font-size: 28px; margin-top: 4px; white-space: nowrap; }
+/* owner 2026-11-04 (judges' common decision, city card, fix 3): only «Ощущается как», one line pinned at 34 px with or without a value */
+.now-sub { height: 34px; line-height: 34px; font-size: 28px; margin-top: 4px; white-space: nowrap; }
 .now-sub span { display: inline-block; }
-.now-sub span + span { -webkit-margin-start: 24px; }
-.now-icon .icon { width: 210px; height: 210px; margin: 8px 0 0 0; stroke-width: 1.6; }
+.now-icon .icon { width: 176px; height: 176px; margin: 8px 0 0 0; stroke-width: 1.9; }   /* owner 2026-11-04 (judges' common decision, city card, fix 7): 210 → 176 px; the stroke 1.6 → 1.9 draws the same line weight (176 × 1.9 ≈ 210 × 1.6) */
 .now-icon .ic-cloud, .region-icon .ic-cloud { fill: rgba(227, 233, 243, 0.1); }   /* the big icons: a soft fill */
 .now-icon .ic-sun circle, .region-icon .ic-sun circle { fill: rgba(255, 213, 143, 0.18); }
 .now-icon .ic-moon path, .region-icon .ic-moon path { fill: rgba(216, 220, 255, 0.14); }
@@ -218,14 +218,15 @@ html.is-booting #stage { opacity: 0; -webkit-animation: boot-reveal 0.01s linear
 
 /* ---- Batch 13 / design C: the dust forecast. Each hour's dust under its temperature (the hourly card's title row carries
    its «Пыль» label, FIX-17B 1); each day's maximum in the band under the 7-day list (.dust-band below). The screen's one
-   khamsin key, «хамсин ≥ 100», sits on the current card's dust item (.air-dust .dust-legend). A cell: the figure in the dust
+   khamsin key, the grades' scale, sits on that title row after «Пыль» (owner 2026-11-04, judges' common decision, city card,
+   fix 1: .card-head .dust-legend). A cell: the figure in the dust
    colour; a khamsin: amber on an amber pill; «—» with no value; empty before the first air answer (the room is fixed, so
    nothing moves); dimmed when stale. Sand for dust, amber for a khamsin. ---- */
-.card-head { display: flex; flex-wrap: wrap; align-items: baseline; }
+.card-head { display: flex; flex-wrap: nowrap; align-items: baseline; }   /* fix 1: one line in ru, he, uk, en (the key included) */
 .card-head .card-title { -webkit-margin-end: 32px; }
 .dust-legend { display: flex; align-items: baseline; font-size: 24px; line-height: 26px; white-space: nowrap;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space them apart */
-.dust-legend-key, .hour-dust, .day-dust { color: #e3cfa6; }
+.hour-dust, .day-dust { color: #e3cfa6; }
 /* FIX-18B 13 (the owner: «Чем опаснее, тем краснее»): a khamsin's pill by its grade (js/air.js grade, the EEA PM10 bands):
    1 amber (100–120) · 2 orange (121–195) · 3 red-orange (196–270) · 4 red (> 270) — a solid fill under dark ink (a tinted pill
    cannot carry red text at 4.5:1 on this dark glass: measured 2.9–4.3). Ink on fill, measured: 12.1 · 8.6 · 6.7 · 5.1 : 1
@@ -235,8 +236,8 @@ html.is-booting #stage { opacity: 0; -webkit-animation: boot-reveal 0.01s linear
 .dust-num.is-khamsin.kg-2 { background: #ffa05a; }
 .dust-num.is-khamsin.kg-3 { background: #ff7a59; }
 .dust-num.is-khamsin.kg-4 { background: #f25555; }
-/* FIX-18B 13B: the one legend — the grades on the current card's dust label line, after «Пыль»: four pills (each grade's lower
-   bound in its colour), quiet grey until a khamsin is on screen; sized to fit the 256 px air block in ru, he and uk */
+/* FIX-18B 13B: the one legend — four pills, each grade's lower bound; owner 2026-11-04 (judges' common decision, city card,
+   fix 1): on the hourly title row after «Пыль», then «мкг/м³»; only the top grade on screen lit (is-top), the rest quiet grey */
 .dust-legend-scale { display: flex; -webkit-margin-start: 8px; }
 /* FIX-18C K2 (the designer): ONE segmented bar «[100|121|196|271]» — the segments touch, square inside, rounded only at the
    bar's two ends (mirrored right to left) */
@@ -245,7 +246,8 @@ html.is-booting #stage { opacity: 0; -webkit-animation: boot-reveal 0.01s linear
 .dust-legend-scale .dust-num:last-child { border-top-right-radius: 13px; border-bottom-right-radius: 13px; }
 [dir="rtl"] .dust-legend-scale .dust-num:first-child { border-radius: 0 13px 13px 0; }
 [dir="rtl"] .dust-legend-scale .dust-num:last-child { border-radius: 13px 0 0 13px; }
-.dust-legend-scale:not(.is-active) .dust-num { color: rgba(255, 255, 255, 0.62); background: rgba(255, 255, 255, 0.06); }
+.dust-legend-scale .dust-num:not(.is-top) { color: rgba(255, 255, 255, 0.62); background: rgba(255, 255, 255, 0.06); }
+.dust-legend .air-unit { -webkit-margin-start: 8px; }
 .dust-num.is-khamsin { border-radius: 13px; padding: 0 6px; }   /* FIX-18C K1 (the designer): real room inside every khamsin pill (was 2 px); «3400» still keeps ≥ 12 px to its neighbour in the hours */
 /* X5: «—» (no value) muted, never the dust colour; 62 % white is the legibility floor (layout test: 4.5:1) */
 .dust-none { display: inline-block; }   /* as tall as its line, like .dust-num */
@@ -286,7 +288,7 @@ html.is-booting #stage { opacity: 0; -webkit-animation: boot-reveal 0.01s linear
 /* ---- Batch 12. The air & UV block in the "now" card: in the free gap between the place's text and the big icon, no
    glyphs; a label, then the figure and the level word (atomic, a line wraps only between them); the dust line only
    when the dust is high. .now-top keeps its height. Level colours are soft and always come with the word. ---- */
-.now-air { flex: 0 0 288px; width: 288px; -webkit-margin-start: auto; -webkit-margin-end: 0; display: flex; flex-direction: column; justify-content: flex-start; }   /* fixed and top-aligned: the dust line moves nothing. FIX-18C K2: 256 + its 32 px end margin → 288 and 0 (the left edge, and the icon, stay where they were): room for the segmented legend */
+.now-air { flex: 0 0 256px; width: 256px; -webkit-margin-start: auto; -webkit-margin-end: 32px; display: flex; flex-direction: column; justify-content: flex-start; }   /* fixed and top-aligned: the dust line moves nothing. FIX-18C K2 made it 288 and 0 for the segmented legend; owner 2026-11-04 (judges' common decision, city card, fix 5): the legend left the card, so 256 + its 32 px end margin again — the start edge unchanged, 32 px kept clear of the icon */
 .air-item + .air-item { margin-top: 20px; }
 .air-label { height: 30px; font-size: 24px; line-height: 30px; white-space: nowrap;
   -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* words: tabular figures would space «УФ-индекс» apart */
@@ -301,7 +303,8 @@ html.is-booting #stage { opacity: 0; -webkit-animation: boot-reveal 0.01s linear
    nothing moves; the unit in the label's quiet grey */
 .air-item { height: 68px; }   /* label 30 + value 38, fixed: the dust item takes the same room with or without a value */
 .air-unit { display: inline-block; white-space: nowrap; }
-.now.is-stale .air-uv .air-num, .now.is-stale .air-uv .air-word, .now-air.is-stale .air-aq .air-num,
+/* fix 4: a stale night UV is not dimmed twice (62 % × 0.72 fell under 4.5:1) */
+.now.is-stale .air-uv:not(.is-night) .air-num, .now.is-stale .air-uv:not(.is-night) .air-word, .now-air.is-stale .air-aq .air-num,
 .now-air.is-stale .air-aq .air-word, .now-air.is-stale .air-dust .air-num, .now-air.is-stale .air-dust .air-word { opacity: 0.72; }
 .lv-low, .lv-good { color: #8ce6b4; }
 .lv-fair { color: #b9e6c9; }
@@ -738,6 +741,4 @@ html[dir="rtl"] .city-check { margin-left: 8px; }
 .band-cell .dust-num.is-khamsin { padding: 0 5px; -webkit-font-feature-settings: normal; font-feature-settings: normal; }   /* FIX-18C K1: 5 px inside (was 1); proportional figures so «1,5к» and its neighbours keep ≥ 12 px between pills in a 75.7 px cell (.band-cells) */
 /* the hourly card's own «Пыль» label, on its title row after the title (FIX-17B 1: every value has its label) */
 .card-head .band-label { -webkit-margin-end: 0; }
-/* the one legend: «Пыль» in the dust colour, the khamsin grades beside it (FIX-18B 13B), in the current card's dust item */
-.air-dust .dust-legend { display: flex; align-items: center; font-size: 24px; line-height: 30px; }
 .air-dust .air-num:not(.is-khamsin) { color: #e3cfa6; }   /* FIX-18B 7: an ordinary reading in the dust colour; a khamsin keeps its grade's pill colour */

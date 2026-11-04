@@ -34,8 +34,9 @@ for (const lang of ['ru', 'he', 'uk']) {
         const v = await p.evaluate(() => {
           const q = (s) => document.querySelector(s), r = (e) => e.getBoundingClientRect();
           const b = r(q('.now-air')), top = r(q('.now-top')), d = q('.now-air .air-dust'), items = [...document.querySelectorAll('.now-air .air-item')];
-          // OWNER-1LEG-C: the dust label IS the screen's one legend — its key «Пыль» and the pill «хамсин ≥ 100» (bidi marks stripped)
-          const key = d.querySelector('.air-label.dust-legend .dust-legend-key'), pill = d.querySelector('.air-label.dust-legend .dust-legend-scale'), value = d.querySelector('.air-value');
+          // B22 (owner 2026-11-04, judges' common decision, city card, fixes 1–2): the dust item's label is a plain «Пыль»; the one
+          // key, the grades' scale, is on the hourly title row (bidi marks stripped)
+          const key = d.querySelector('.air-label'), pill = document.querySelector('#hourly .card-head .dust-legend-scale'), value = d.querySelector('.air-value');
           return { box: [Math.round(b.width), Math.round(b.height)], cls: d.className, label: key ? key.textContent : null,
             pill: pill ? pill.textContent.replace(/[\u202a-\u202e\u2066-\u2069\u200e\u200f]/g, '') : null, active: pill ? pill.classList.contains('is-active') : null,
             legends: document.querySelectorAll('#screen-main .dust-legend').length,
@@ -46,7 +47,7 @@ for (const lang of ['ru', 'he', 'uk']) {
             inside: b.bottom <= top.bottom + 0.5 };
         });
         boxes[dust] = v.box;
-        assert.equal(v.heights.length, 3, 'three items: UV, air quality, dust');
+        assert.equal(v.heights.length, 3, 'three items: air quality, dust, UV (B22 fix 4)');
         assert.ok(v.inside, lang + ' ' + dust + ': the three items fit the card');
         assert.deepEqual(v.gaps, [20, 20], 'the same gap between the items');
         // OWNER-1LEG-C: the label is the one legend «Пыль [хамсин ≥ 100]» — the pill quiet on an ordinary day, amber in a khamsin
@@ -54,7 +55,7 @@ for (const lang of ['ru', 'he', 'uk']) {
         if (dust === 25) assert.deepEqual([v.cls, v.label, v.pill, v.active, v.value, v.word, v.legends], ['air-item air-dust', WORD[lang][0], '100121196271', false, WORD[lang][1], null, 1], lang);
         // N1 (batch 16) kept: even a 4-digit value and its unit fit the block on one line
         if (dust >= 240) assert.deepEqual([v.cls, v.label, v.pill, v.active, v.word, v.wordInValue, v.lines, v.legends], ['air-item air-dust', WORD[lang][0], '100121196271', true, null, false, 1, 1], lang + ' ' + dust + ': the key amber on the label line, the value one line');
-        if (dust === null) assert.deepEqual([v.cls, v.label, v.value, v.legends], ['air-item air-dust is-none', null, null, 0], 'no value: no item drawn');
+        if (dust === null) assert.deepEqual([v.cls, v.label, v.value, v.legends], ['air-item air-dust is-none', null, null, 1], 'no value: no item drawn (B22 fix 1: the key stays on the hourly title row)');
         assert.deepEqual(v.heights, [68, 68, 68], 'every item the same height, the dust slot reserved when empty');
         assert.deepEqual(clean(await p.evaluate(measure, '#screen-main *')), [], lang + ' ' + dust + ' main');
         assert.deepEqual((await p.evaluate(legibility, '#screen-main .now-air *')).bad, [], lang + ' ' + dust + ' legible');

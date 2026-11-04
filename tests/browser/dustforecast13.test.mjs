@@ -28,10 +28,11 @@ const shot = async (p, name) => { if (process.env.B13_SHOTS) { fs.mkdirSync(proc
 function mainState() {
   const q = (s) => document.querySelector(s), all = (s) => [...document.querySelectorAll(s)], box = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom }; };
   const rtl = document.documentElement.dir === 'rtl';
-  // OWNER-1LEG-C: the one legend (null when the dust item is not drawn), and how many legends there are on the screen / in titles
+  // B22 (owner 2026-11-04, judges' common decision, city card, fix 1): the one legend — the grades' scale and its unit — on the hourly
+  // title row after its «Пыль» (null when there are no rows), and how many legends there are on the screen / in titles
   const lg = q('#screen-main .dust-legend');
-  const legend = lg ? { key: lg.querySelector('.dust-legend-key').textContent, khamsin: lg.querySelector('.dust-legend-scale').textContent,   // FIX-18B 13B: the grades' scale
-    active: lg.querySelector('.dust-legend-scale').classList.contains('is-active'), onDustItem: !!lg.closest('.now-air .air-item.air-dust'), box: box(lg) } : null;
+  const legend = lg ? { key: q('#hourly .card-head .band-label').textContent, khamsin: lg.querySelector('.dust-legend-scale').textContent,   // FIX-18B 13B: the grades' scale
+    active: lg.querySelector('.dust-legend-scale').classList.contains('is-active'), onHourlyHead: !!lg.closest('#hourly .card-head'), box: box(lg) } : null;
   const hourly = q('.hourly-card'), daily = q('#daily'), band = q('#daily .dust-band');
   const nowNum = q('.now-air .air-dust .air-num');
   return { rtl, legend, legends: all('#screen-main .dust-legend').length, titleLegends: all('#screen-main .card-head .dust-legend').length,
@@ -74,8 +75,9 @@ for (const lang of ['ru', 'he', 'uk']) {
       assert.deepEqual(m.hours, ['27', '32', '30', '30', '32', '34', '36', '38', '35', '31', '31', '38'], lang);
       assert.equal(m.nowAir, '27', 'the same value as the current card');
       assert.equal(m.legend.active, false, 'X4: no khamsin on screen: the legend\'s «хамсин ≥ 100» is quiet');
-      // OWNER-1LEG-C (replaces X3): ONE legend, on the current card's dust item; the hourly / 7-day title rows carry their title only
-      assert.deepEqual([m.legends, m.legend.onDustItem, m.titleLegends], [1, true, 0], lang + ': one legend, on the dust item, none in a title row');
+      // B22 (owner 2026-11-04, judges' common decision, city card, fix 1; replaces OWNER-1LEG-C's placement): ONE legend, on the
+      // hourly title row; none in the city card
+      assert.deepEqual([m.legends, m.legend.onHourlyHead, m.titleLegends], [1, true, 1], lang + ': one legend, on the hourly title row');
       assert.deepEqual(m.days, ['32', '38', '19', '16', '16', '—', '—'], lang + ': past the 5-day forecast «—»');
       assert.equal(m.khamsinHours + m.khamsinDays, 0, 'no khamsin in the real recording at home');
       assert.deepEqual([m.legend.key, m.legend.khamsin, m.bandLabel], [LEGEND[lang][0], LEGEND[lang][1], LEGEND[lang][0]], lang + ': the legend and the band\'s label');
@@ -128,7 +130,7 @@ test('B13 / OWNER-1LEG-C ru khamsin: amber pills on the khamsin hours and band d
     const m = await p.evaluate(mainState);
     assert.equal(m.khamsinHours, 12, 'the synthetic khamsin covers the whole strip');
     assert.deepEqual([m.hours[0], m.nowAir], ['182', '182'], 'X2: «Сейчас» is the current reading (the forecast said 144)');
-    assert.deepEqual([m.legend.active, m.legends, m.titleLegends], [true, 1, 0], 'X4 / OWNER-1LEG-C: the one legend\'s pill lit');
+    assert.deepEqual([m.legend.active, m.legends, m.titleLegends], [true, 1, 1], 'X4 / B22 fix 1: the one legend lit, on the hourly title row');
     assert.deepEqual([m.days.slice(0, 2), m.khamsinDays], [['197', '240'], 2], 'today and tomorrow');
     assert.deepEqual(m.hourBoxes.map((b) => b.t), normal.hourBoxes.map((b) => b.t), 'the hour lines stay where they were');
     assert.deepEqual(m.dayBoxes.map((b) => [b.l, b.r, b.t]), normal.dayBoxes.map((b) => [b.l, b.r, b.t]), 'the band cells stay where they were');
@@ -157,8 +159,8 @@ test('B13 / OWNER-1LEG-C ru no air yet: every slot there and empty, the band and
     await wait(800);
     const m = await p.evaluate(mainState);
     assert.deepEqual([m.hours, m.days], [Array(12).fill(''), Array(7).fill('')], 'empty slots');
-    // OWNER-1LEG-C: the band and its label stand before the air; no legend in a title row (the one legend comes with the dust reading)
-    assert.deepEqual([m.bandLabel, m.bandDays, m.titleLegends], [LEGEND.ru[0], normal.bandDays, 0]);
+    // OWNER-1LEG-C: the band and its label stand before the air; B22 fix 1: the one legend is on the hourly title row already, quiet
+    assert.deepEqual([m.bandLabel, m.bandDays, m.titleLegends, m.legend.active, m.legend.box], [LEGEND.ru[0], normal.bandDays, 1, false, normal.legend.box]);
     assert.deepEqual(m.hourBoxes.map((b) => [b.t, b.b]), normal.hourBoxes.map((b) => [b.t, b.b]), 'the hour slots keep their height: nothing moves when the air lands');
     assert.deepEqual(m.band, normal.band, 'the band keeps its box: nothing moves when the air lands');
     assert.deepEqual(m.bandDayBoxes, normal.bandDayBoxes, 'the day names in the band stay where they will be with data');
@@ -172,7 +174,7 @@ test('B13 / OWNER-1LEG-C ru no air yet: every slot there and empty, the band and
     const m = await failed.page.evaluate(mainState);
     assert.deepEqual([m.hours, m.days], [Array(12).fill('—'), Array(7).fill('—')]);
     assert.equal(await failed.page.$$eval('.hour-dust .dust-none, .day-dust .dust-none', (e) => e.length), 19, 'X5: every «—» muted');
-    assert.deepEqual([m.bandLabel, m.bandDays, m.titleLegends], [LEGEND.ru[0], normal.bandDays, 0], 'the band stays, no legend in a title row');
+    assert.deepEqual([m.bandLabel, m.bandDays, m.titleLegends], [LEGEND.ru[0], normal.bandDays, 1], 'the band stays; B22 fix 1: the one legend on the hourly title row');
     assert.deepEqual(m.band, normal.band, 'the band keeps its box');
     await shot(failed.page, 'b13-main-ru-airfailed');
   } finally { await failed.close(); }

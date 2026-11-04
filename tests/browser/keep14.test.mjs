@@ -55,7 +55,7 @@ test('B14: restarted while Open-Meteo answers 503 — the main card and the Isra
     assert.equal(main.status, STALE + hhmm, 'the stale line with the kept time (20 minutes before the restart)');
     const gap = await p.evaluate(() => { const r = (e) => e.getBoundingClientRect(), h = document.querySelector('#hourly .card-head');
       return { legends: h.querySelectorAll('.dust-legend').length, gap: Math.round(r(document.getElementById('status')).left - r(h.querySelector('.card-title')).right) }; });
-    assert.equal(gap.legends, 0, 'OWNER-1LEG-C: no legend in the title row');
+    assert.equal(gap.legends, 1, 'B22 (owner 2026-11-04, judges\' common decision, city card, fix 1): the one khamsin key on the hourly title row');
     assert.ok(gap.gap >= 24, 'the status ' + gap.gap + ' px from the title');
     assert.ok(main.temp, 'the kept temperature is on the card');
     assert.equal(main.text.indexOf(FAILED), -1, 'no «weather unavailable»');

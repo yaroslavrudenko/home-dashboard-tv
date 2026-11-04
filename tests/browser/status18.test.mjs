@@ -28,7 +28,8 @@ for (const lang of ['ru', 'he', 'uk']) {
           nowRoom: Math.round(document.getElementById('now').getBoundingClientRect().bottom - Math.max.apply(null, [...document.querySelectorAll('#now .detail-value')].map((e) => e.getBoundingClientRect().bottom))) };
       }, box.toString());
       assert.equal(m.parent, 'screen-main', 'the screen\'s status, not a card\'s');
-      assert.deepEqual(m.head, ['card-title', 'band-label'], 'the hourly title row: its title and «Пыль» only (the grades are on the current card: FIX-18B 13B)');
+      // B22 (owner 2026-11-04, judges' common decision, city card, fix 1): the grades moved from the current card to this row
+      assert.deepEqual(m.head, ['card-title', 'band-label', 'dust-legend'], 'the hourly title row: its title, «Пыль» and the one khamsin key');
       assert.deepEqual([m.now[1], m.now[3]], [376, 768], 'FIX-18B 9: the current card\'s edges unchanged');
       assert.ok(m.nowRoom >= 20, lang + ': FIX-18B 9: ' + m.nowRoom + ' px under the details (was 13)');
       assert.ok(m.status[1] >= 48 && m.status[3] <= m.clocks[1], lang + ': inside the safe top margin, above the clocks: ' + JSON.stringify([m.status, m.clocks]));

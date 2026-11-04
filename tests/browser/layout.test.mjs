@@ -38,7 +38,7 @@ test('1920×1080, Russian: clocks, current weather, 12-hour strip, 7 days; every
     assert.match(await p.$eval('.now-temp', (e) => e.textContent), /^−?\d+°$/);
     assert.equal(await p.$$eval('.hour', (e) => e.length), 12);
     assert.equal(await p.$$eval('.day', (e) => e.length), 7);
-    assert.equal(await p.$$eval('.detail', (e) => e.length), 5);
+    assert.equal(await p.$$eval('.detail', (e) => e.length), 4);   // B22 (owner 2026-11-04, judges' common decision, city card, fix 6): «Осадки» gone
     // FIX-BATCH-18 item 8: the main weather status is the screen status (the component every other screen uses)
     assert.equal(await p.$eval('#status', (e) => e.className), 'status screen-status main-status is-fresh');
     assert.match(await p.$eval('#status', (e) => e.textContent), /^Обновлено в 20:3\d$/);
@@ -193,7 +193,7 @@ test('a failed refresh marks the temperature stale on every clock card and on th
     // B15 (B14-1) / OWNER-1LEG-C: the title row carries the title only, so the full line fits, 24 px clear of the title
     assert.match(await p.$eval('#status', (e) => e.textContent), /^Не обновляется · данные от 20:3\d$/);
     assert.ok(await p.evaluate(() => { const r = (e) => e.getBoundingClientRect(), h = document.querySelector('#hourly .card-head');
-      return !h.querySelector('.dust-legend') && r(document.getElementById('status')).left - r(h.querySelector('.card-title')).right >= 24; }), 'no legend; the status 24 px clear of the title');
+      return h.querySelectorAll('.dust-legend').length === 1 && r(document.getElementById('status')).left - r(h.querySelector('.card-title')).right >= 24; }), 'B22 fix 1: the one key on the title row; the status 24 px clear of the title');
     const dim = await p.$eval('.clock-weather.is-stale .clock-temp', (e) => getComputedStyle(e).color);
     assert.equal(dim, 'rgba(255, 255, 255, 0.62)', 'the stale temperature is dimmed');
   } finally { await app.close(); }
