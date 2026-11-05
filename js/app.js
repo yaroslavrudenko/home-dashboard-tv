@@ -43,6 +43,7 @@ var App = (function () {
   // sources are read at call time, so the sources may follow it); the data sets; the alert layer; the remote and the tick.
   function start() {
     env.mark('dash:start');   // FIX-BATCH-19 7: the boot's first moment (tools/tv-boot.mjs)
+    env.life('launch');       // D7: the dashboard's life journal (dashLife)
     // src: the data sets, ui: the navigation and the alert layer — records filled below and read at call time (late binding).
     var src = {}, ui = {}, flow = null, city;
     ToastView.init(document.getElementById('toast'), env.timers());
@@ -100,10 +101,11 @@ var App = (function () {
     // areas named by the city catalogue (L13).
     src.history = AlertsHistory.createController(copyWith(Config.alerts.history, { refreshMs: Screens.cycleMs(Config.screens, Config.rotation) }),
       env.withTimers({ getJson: Net.getJson, documentVisible: env.documentVisible, places: Cities.list, onChange: nav.onData('alerts') }));
-    var player = PlayerBehind.create(env.withTimers({ send: PlayerBehind.port(env.log), documentVisible: env.documentVisible }));
+    var toPlayer = PlayerBehind.port(env.log);
+    var player = PlayerBehind.create(env.withTimers({ send: function (cmd) { env.life('send ' + cmd); toPlayer(cmd); }, documentVisible: env.documentVisible }));
     ui.nav = nav;
     ui.flow = flow;
-    keys = AppKeys.create({ env: env, nav: nav, flow: flow, lang: lang, cityView: CityView, homeId: function () { return Config.home.id; } });
+    keys = AppKeys.create({ env: env, player: player, nav: nav, flow: flow, lang: lang, cityView: CityView, homeId: function () { return Config.home.id; } });
     wake = AppWake.create({ env: env, timers: env.timers(), nav: nav, sources: src, player: player, doc: document });
 
     wake.tick();
@@ -125,7 +127,7 @@ var App = (function () {
     document.addEventListener('visibilitychange', onVisible);
   }
   function onKey(e) { keys.onKey(e); }
-  function onVisible() { wake.onVisible(); }
+  function onVisible() { env.life(env.documentVisible() ? 'visible' : 'hidden'); wake.onVisible(); }
 
   return { start: start, onKey: onKey, onVisible: onVisible };
 })();

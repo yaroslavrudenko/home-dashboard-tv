@@ -37,6 +37,25 @@ test('hidden: stop-behind at once and the pending retry cancelled; shown again: 
   assert.deepEqual(h.sent.map((s) => s[1]), ['play-behind', 'stop-behind', 'play-behind', 'play-behind']);
 });
 
+// D5 (COMMON-DECISION player-behind 2026-11-05): Back on the dashboard stops the player behind before the dashboard exits.
+test('D5: stop() sends stop-behind at once and cancels the pending retry', () => {
+  const h = make();
+  h.p.start();
+  h.p.stop();
+  assert.deepEqual(h.sent.map((s) => s[1]), ['play-behind', 'stop-behind']);
+  assert.deepEqual(h.t.pending(), [], 'a retry is left waiting after stop()');
+  h.t.advance(5000);
+  assert.equal(h.sent.length, 2, 'the retry fired after stop()');
+});
+
+// D7: the dashboard's life journal (localStorage dashLife) — launch, visible / hidden, every message sent to the player.
+test('D7: the App journals launch, visibility and every message sent to the player (dashLife)', () => {
+  const app = fs.readFileSync(path.join(ROOT, 'js', 'app.js'), 'utf8');
+  assert.match(app, /env\.life\('launch/);
+  assert.match(app, /env\.life\('send ' \+ cmd\)/);
+  assert.match(app, /env\.life\(env\.documentVisible\(\) \? 'visible' : 'hidden'\)/);
+});
+
 test('the retry checks the page again: hidden by then (another app came up), nothing is sent', () => {
   const ctx = load(['js/player-behind.js']), t = fakeTimers(0), sent = [];
   let visible = true;

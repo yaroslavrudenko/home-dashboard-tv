@@ -127,6 +127,7 @@ function keysWorld(o = {}) {
   const calls = [];
   const ctx = load(['js/app-keys.js']);
   const keys = ctx.AppKeys.create({ env: { canRegisterKeys: () => true, registerKey: (n) => { calls.push('register ' + n); return n !== 'ColorF2Yellow' || !o.noYellow; }, exit: () => calls.push('exit') },
+    player: { stop: () => calls.push('player.stop') },
     nav: { touch: () => calls.push('touch'), step: (d) => calls.push('step ' + d) },
     flow: { previewing: () => !!o.preview, togglePreview: () => calls.push('preview'), alertUp: () => !!o.alert },
     lang: { switch: (s) => calls.push('lang ' + s) },
@@ -143,7 +144,8 @@ test('AppKeys: the routing table — the city sheet first, the preview second, B
   assert.deepEqual(w.calls, ['preview', 'touch'], 'any key only ends the preview');
   w = keysWorld();
   w.press(10009); w.press(37); w.press(13); w.press(40); w.press(38); w.press(405);
-  assert.deepEqual(w.calls, ['exit', 'step -1', 'city.open', 'touch', 'lang 1', 'touch', 'lang -1', 'touch', 'lang 1', 'touch']);
+  // D5 (COMMON-DECISION player-behind 2026-11-05): Back stops the player behind, then exits.
+  assert.deepEqual(w.calls, ['player.stop', 'exit', 'step -1', 'city.open', 'touch', 'lang 1', 'touch', 'lang -1', 'touch', 'lang 1', 'touch']);
   w = keysWorld({ alert: true });
   w.press(13);
   assert.deepEqual(w.calls, ['touch'], 'OK never opens the city sheet over an alert');
@@ -155,6 +157,36 @@ test('AppKeys: the language key is the first colour key the TV lets the app regi
   w.calls.length = 0;
   w.press(403);
   assert.deepEqual(w.calls, ['lang 1', 'touch']);
+});
+
+test('D5: Back stops the player behind before the dashboard exits', () => {
+  const w = keysWorld();
+  w.press(10009);
+  assert.deepEqual(w.calls, ['player.stop', 'exit']);
+});
+
+// ---- AppEnv: the life journal (D7) ----------------------------------------------------------------------------------
+function envWorld(o = {}) {
+  const store = {}, logs = [];
+  const localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { if (o.refuse) throw new Error('QuotaExceededError'); store[k] = String(v); } };
+  const ctx = load(['js/app-env.js'], { window: { localStorage }, console: { error: (m) => logs.push(m), log: () => {} } });
+  return { env: ctx.AppEnv, store, logs };
+}
+test('D7: AppEnv.life keeps the last 100 dated lines in dashLife, across launches', () => {
+  const w = envWorld();
+  for (let i = 0; i < 105; i++) w.env.life('line ' + i);
+  const lines = JSON.parse(w.store.dashLife);
+  assert.equal(lines.length, 100);
+  assert.match(lines[0], /^\d{4}-\d\d-\d\dT\S+Z line 5$/);
+  assert.match(lines[99], / line 104$/);
+});
+test('D7: AppEnv.exit journals the exit first; a storage refusing the journal is logged, never thrown', () => {
+  const w = envWorld();
+  w.env.exit();                                            // desktop: no tizen — logged
+  assert.match(JSON.parse(w.store.dashLife).pop(), / exit$/);
+  const r = envWorld({ refuse: true });
+  r.env.life('launch');
+  assert.ok(r.logs.some((m) => /dashLife/.test(m)), 'the refusal was not said');
 });
 
 // ---- AppLang ---------------------------------------------------------------------------------------------------

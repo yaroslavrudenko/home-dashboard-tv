@@ -28,7 +28,21 @@ var AppEnv = (function () {
       }
     } catch (e) { console.error('screensaver: ' + e.message); }
   }
+  // D7 (COMMON-DECISION player-behind 2026-11-05): the dashboard's life journal, localStorage 'dashLife' — the last LIFE_LINES
+  // dated lines (launch, visible / hidden, every message to the player, exit), kept across launches. Read on the TV with sdb.
+  var LIFE_KEY = 'dashLife', LIFE_LINES = 100;
+  function life(text) {
+    try {
+      var s = storage();
+      if (!s) return;
+      var raw = s.getItem(LIFE_KEY), lines = raw ? JSON.parse(raw) : [];
+      if (!(lines instanceof Array)) lines = [];
+      lines.push(new Date().toISOString() + ' ' + text);
+      s.setItem(LIFE_KEY, JSON.stringify(lines.slice(-LIFE_LINES)));
+    } catch (e) { log('dashLife: ' + e.message); }
+  }
   function exit() {
+    life('exit');
     try { tizen.application.getCurrentApplication().exit(); } catch (err) { log('exit: ' + err.message); }   // desktop preview: no tizen
   }
   // The TV delivers a colour key only after the app registers it. True when it did; what: the key's role, for the log.
@@ -44,5 +58,5 @@ var AppEnv = (function () {
   }
 
   return { log: log, timers: timers, withTimers: withTimers, storage: storage, sessionStore: sessionStore, documentVisible: documentVisible,
-    keepScreenOn: keepScreenOn, exit: exit, canRegisterKeys: canRegisterKeys, registerKey: registerKey, reload: reload, mark: mark };
+    keepScreenOn: keepScreenOn, life: life, exit: exit, canRegisterKeys: canRegisterKeys, registerKey: registerKey, reload: reload, mark: mark };
 })();

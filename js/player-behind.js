@@ -8,9 +8,11 @@
 //                  already playing behind does nothing.
 //   'stop-behind': the dashboard left the front: the player is suspended again as by any other app; if the player
 //                  itself is coming to the front it is ignored there (it simply keeps playing).
-//   PlayerBehind.create(deps)   deps: { send(cmd), setTimeout, clearTimeout, documentVisible() } → { start(), visibilityChanged() }:
+//   PlayerBehind.create(deps)   deps: { send(cmd), setTimeout, clearTimeout, documentVisible() } → { start(), stop(), visibilityChanged() }:
 //                               App owns the page's visibility (C-17) and calls start() once and visibilityChanged() on
-//                               every change; nothing happens at load.
+//                               every change; nothing happens at load. stop(): 'stop-behind' now (D5, COMMON-DECISION
+//                               player-behind 2026-11-05: Back sends it before the dashboard exits; the later
+//                               visibilitychange repeat is ignored by the player).
 //   PlayerBehind.port(log)      send(cmd) through the TV's message port; the player not running (or not installed):
 //                               requestRemoteMessagePort throws NotFoundError — logged, nothing else happens.
 var PlayerBehind = (function () {
@@ -37,7 +39,7 @@ var PlayerBehind = (function () {
     }
     // The dashboard went to the background (another app, or the player, came to the front).
     function stopBehind() { cancelRetry(); deps.send('stop-behind'); }
-    return { start: playBehind, visibilityChanged: function () { if (deps.documentVisible()) playBehind(); else stopBehind(); } };
+    return { start: playBehind, stop: stopBehind, visibilityChanged: function () { if (deps.documentVisible()) playBehind(); else stopBehind(); } };
   }
 
   return { create: create, port: port, RETRY_MS: RETRY_MS };
