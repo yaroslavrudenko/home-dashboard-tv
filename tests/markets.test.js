@@ -632,6 +632,141 @@ test('B26: without the home clock the change still shows; the cards say the UTC 
     [NOV3_PCT, NOV3_CRYPTO_PCT, '2026-11-03', '2026-11-03']);
 });
 
+// Batch 27 (TAIL-5): the basis's retry budget. A part — one currency pair, or the coins' one answer — that fails 3 rounds in a
+// row for the same D (not a 429: the host hold covers that) is then asked no more often than cfg.backoffMs (5 min), riding the
+// minute rounds; a success or a new D starts it again; nothing is kept on the TV for it.
+const spotParts = (h) => spotsOf(h).map((u) => /prices\/([A-Z-]+)\/spot/.exec(u)[1]);
+
+test('B27 budget: a currency pair failing 3 rounds in a row is skipped until backoffMs (5 min), then asked again; another pair with fewer failures is still asked; the rest of the round unchanged', () => {
+  const h = controller({ start: NOV4, storage: memoryStorage() }), per = [];
+  h.c.setVisible(true, true);
+  for (let r = 1; r <= 9; r++) {
+    const n = h.count();
+    per.push([n.stats + n.rates + (n.spot || 0), spotParts(h).join(' ')]);
+    h.answer({ 'USD-EUR/spot': 'timeout', ...(r <= 2 ? { 'USD-RUB/spot': 'http 503' } : {}) });   // EUR always fails; RUB twice
+    h.t.advance(MIN);
+  }
+  assert.deepEqual(per, [
+    [12, 'USD-EUR USD-ILS USD-RUB USD-UAH USD'],   // round 1 (07:31): EUR fails (1), RUB fails (1)
+    [9, 'USD-EUR USD-RUB'],                        // 07:32: EUR (2), RUB (2)
+    [9, 'USD-EUR USD-RUB'],                        // 07:33: EUR (3) → waits until 07:38; RUB answers
+    [7, ''], [7, ''], [7, ''], [7, ''],            // 07:34–07:37: EUR waits, nothing else missing
+    [8, 'USD-EUR'],                                // 07:38: backoffMs after its 3rd failure — asked again (fails: next at 07:43)
+    [7, '']
+  ], 'EUR skipped after its 3rd failure, RUB (2 failures, then a success) never was');
+  assert.ok(noChange(h.c.snapshot()), 'never half a table: the currencies wait for EUR');
+  assert.deepEqual(coinChanges(h.c.snapshot()), NOV3_CRYPTO_PCT, 'the coins unaffected');
+  assert.ok(h.t.pending().length <= 2 && h.t.pending().every((ms) => ms <= h.ctx.Config.markets.refreshMs), 'no new timer: at most the two sources\' cadences ' + h.t.pending());
+  console.log('# markets basis budget: Coinbase requests per minute with one pair always failing: ' + per.map((x) => x[0]).join(', '));
+});
+
+test('B27 budget: the coins\' answer failing 3 rounds (a timeout, an unreadable answer, an answer without one coin) waits backoffMs; then a whole answer brings the change', () => {
+  const h = controller({ start: NOV4, storage: memoryStorage() }), seen = [];
+  h.c.setVisible(true, true);
+  const fails = [{ [COINS_KEY]: 'timeout' }, { [COINS_KEY]: { data: { amount: '1', base: 'BTC', currency: 'USD' } } }, { [COINS_KEY]: coinsWithout('2026-11-03', 'ZEC') }];
+  for (let r = 0; r < 8; r++) {
+    seen.push(spotParts(h).filter((p) => p === 'USD').length);
+    h.answer(fails[r] || {});
+    h.t.advance(MIN);
+  }
+  assert.deepEqual(seen, [1, 1, 1, 0, 0, 0, 0, 1], 'asked in rounds 1–3, skipped 4–7, asked again 5 min after the 3rd failure');
+  assert.deepEqual(coinChanges(h.c.snapshot()), NOV3_CRYPTO_PCT, 'the whole answer: every coin measured');
+  assert.deepEqual(fxChanges(h.c.snapshot()), NOV3_PCT, 'the currencies were never held by the coins\' budget');
+  h.t.advance(MIN);
+  assert.equal(h.count().spot, undefined, 'whole: nothing more asked');
+});
+
+test('B27 budget: a 429 never counts (the host hold covers it), and a restart asks again at once (nothing kept for the budget)', () => {
+  const storage = memoryStorage(), h = controller({ start: NOV4, storage });
+  h.c.setVisible(true, true);
+  h.answer({ 'USD-EUR/spot': { error: 'http 429', retryAfter: '60' } });   // refused: the host is held 60 s, the budget untouched
+  h.t.advance(MIN);
+  h.answer({ 'USD-EUR/spot': 'timeout' });
+  h.t.advance(MIN);
+  h.answer({ 'USD-EUR/spot': 'timeout' });
+  h.t.advance(MIN);
+  assert.deepEqual(spotParts(h), ['USD-EUR'], 'after a 429 and 2 failures: still asked (only 2 count)');
+  h.answer({ 'USD-EUR/spot': 'timeout' });
+  h.t.advance(MIN);
+  assert.equal(h.count().spot, undefined, 'the 3rd failure: waits');
+  assert.ok(!storage.m.get(KEY).includes('fails') && Object.keys(JSON.parse(storage.m.get(KEY))).join() === 'date,prices', 'the kept basis carries no budget');
+  const again = controller({ start: h.t.now(), storage });
+  again.c.setVisible(true, true);
+  assert.deepEqual(spotParts(again), ['USD-EUR'], 'a restart asks the missing pair at once');
+});
+
+test('B27 budget: a new D starts it again — a pair that waits on 3 November is asked at once on the 4th, and its first failure there does not make it wait', () => {
+  const h = controller({ start: Date.parse('2026-11-04T23:56:00Z'), storage: memoryStorage() }), seen = [];
+  h.c.setVisible(true, true);
+  for (let r = 0; r < 7; r++) {                       // 23:56 … 00:02 UTC
+    seen.push(spotsOf(h).filter((u) => u.includes('USD-EUR')).map((u) => u.slice(-10)).join());
+    h.answer({ 'USD-EUR/spot': 'timeout' });
+    h.t.advance(MIN);
+  }
+  assert.deepEqual(seen, ['2026-11-03', '2026-11-03', '2026-11-03', '', '2026-11-04', '2026-11-04', '2026-11-04'],
+    'D 3 Nov: failed 23:56–23:58, waits at 23:59; at 00:00 D is 4 Nov: asked at once, and twice more before it waits');
+  assert.equal(spotsOf(h).filter((u) => u.includes('USD-EUR')).length, 0, '00:03: the new D\'s own 3 failures — now it waits');
+});
+
+// FIX-27B (Codex P2): a basis part's failure counts when ITS answer comes — a round cancelled afterwards (the screen left
+// before any good answer, the TV hiding the page) keeps it; the answer to a request the cancellation aborted itself never
+// counts. The app's Net calls done('network') for an aborted request (its onabort), so the tests below deliver that too.
+const eurOpen = (h) => h.calls.filter((x) => x.url.includes('USD-EUR/spot') && !x.aborted);
+// A round of the cancelled kind: EUR answers `fail` first, then the screen is left (no good answer yet: the round is
+// cancelled), every other request aborted — and each aborted one answered as Net answers an abort.
+function failThenLeave(h, fail) {
+  const eur = eurOpen(h);
+  assert.equal(eur.length, 1, 'EUR asked');
+  h.reply(eur[0], { 'USD-EUR/spot': fail });
+  h.c.setVisible(false);
+  const open = h.calls.splice(0);
+  assert.ok(open.filter((x) => x !== eur[0]).every((x) => x.aborted), 'the round was cancelled: its other requests aborted');
+  for (const x of open) if (x !== eur[0]) x.done('network');
+}
+
+test('FIX-27B: 3 EUR failures in rounds cancelled right after them (screen left, reopened 10 s later) → no 4th EUR request before backoffMs; then asked again', () => {
+  const h = controller({ start: NOV4, storage: memoryStorage() });
+  for (let r = 1; r <= 3; r++) {
+    h.c.setVisible(true, true);
+    failThenLeave(h, r === 2 ? 'http 503' : 'timeout');
+    h.t.advance(10 * 1000);
+  }
+  h.c.setVisible(true, true);                         // 30 s after the first: an explicit reopen asks Coinbase at once
+  assert.ok(h.count().rates === 1, 'the reopen is a real round');
+  assert.equal(eurOpen(h).length, 0, 'the 3 failures were kept although every round was cancelled: no 4th EUR request');
+  h.answer();
+  h.c.setVisible(false);
+  h.t.advance(5 * MIN - 10 * 1000);                   // 5 min after the 3rd failure (it came 20 s in; now 30 s in)
+  h.c.setVisible(true, true);
+  assert.equal(eurOpen(h).length, 1, 'backoffMs after the 3rd failure: asked again');
+});
+
+test('FIX-27B: a request aborted by the cancellation is not counted — 5 rounds cancelled before any answer, then 2 real failures: EUR is still asked; the 3rd makes it wait', () => {
+  const h = controller({ start: NOV4, storage: memoryStorage() });
+  for (let r = 1; r <= 5; r++) {
+    h.c.setVisible(true, true);
+    assert.equal(eurOpen(h).length, 1, 'round ' + r + ': EUR asked');
+    h.c.setVisible(false);                            // left before any answer: the round is cancelled
+    const open = h.calls.splice(0);
+    assert.ok(open.every((x) => x.aborted), 'every request aborted');
+    for (const x of open) x.done('network');          // Net's onabort answer: after the cancel, never counted
+    h.t.advance(5 * 1000);
+  }
+  for (let r = 1; r <= 2; r++) {
+    h.c.setVisible(true, true);
+    h.answer({ 'USD-EUR/spot': 'timeout' });
+    h.c.setVisible(false);
+    h.t.advance(5 * 1000);
+  }
+  h.c.setVisible(true, true);
+  assert.equal(eurOpen(h).length, 1, 'only the 2 real failures count: EUR still asked');
+  h.answer({ 'USD-EUR/spot': 'timeout' });
+  h.c.setVisible(false);
+  h.t.advance(5 * 1000);
+  h.c.setVisible(true, true);
+  assert.equal(eurOpen(h).length, 0, 'the 3rd real failure: EUR waits');
+});
+
 test('back-off: a 429 from Coinbase Exchange holds back that host only (Retry-After 120 s honoured); the rates, Yahoo and the kept prices go on', () => {
   const h = controller();
   h.c.setVisible(true, true);

@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="813 automated tests passing" src="https://img.shields.io/badge/tests-813%20passing-brightgreen?style=for-the-badge">
+  <img alt="819 automated tests passing" src="https://img.shields.io/badge/tests-819%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -158,7 +158,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, Coinbase, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 813 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 819 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -323,9 +323,9 @@ The lists were checked on 2026-11-02 (`tests/fixtures/markets/ranking.json`); th
   gives the 00:00 UTC price of a date that has ended, the same instant for currencies and coins. The basis is asked once a
   UTC day, in the same round as the prices (5 more requests: one per currency, one for every coin), and kept on the TV; the
   change shows from the first reading on. If any of the 4 currency answers fails, every currency row shows a muted «—»; a coin
-  missing from its answer shows «—» alone; the next round asks again only what is missing. From 00:00 UTC (02:00 in Israel, 03:00 in
-  summer) the old basis is no longer used: the rows show «—» until the new date's basis is in. A stale or guessed basis is
-  never shown.
+  missing from its answer shows «—» alone; the next round asks again only what is missing — and a part that has failed 3
+  rounds in a row waits 5 minutes between tries. From 00:00 UTC (02:00 in Israel, 03:00 in summer) the old basis is no
+  longer used: the rows show «—» until the new date's basis is in. A stale or guessed basis is never shown.
 - **Closed markets** are said once, in the card's head: «закрыто» when every quote with trading hours is closed,
   «частично закрыто» when some are; each closed price is dimmed. Crypto trades around the clock and the currency rates
   have no trading hours, so neither card ever reads «закрыто».

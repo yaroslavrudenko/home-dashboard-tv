@@ -256,10 +256,13 @@ var Config = {
   //       11-04 and 10-28 — coordinator, 2026-11-05). Requests: each currency's `spot` + USD-<CODE>/spot?date=<D> (4; Coinbase
   //       has no batched fiat answer: prices/ILS/spot answers 400, exchange-rates ignores a date) and ALL the coins in ONE
   //       `spot` + USD/spot?date=<D> (every asset's dated dollar price, 414 entries, ~22 KB; measured 2026-11-05 — NOT in
-  //       Coinbase's documented v2 reference: if it changes or fails, the coins' change shows «—», never a wrong figure).
+  //       Coinbase's documented v2 reference: if it fails or its shape changes, the coins' change shows «—». NOT guarded: an
+  //       answer of the same shape that stopped honouring `date` (today's live prices instead of D's) would parse, and the
+  //       coins' change would read about 0% — nothing in the answer says which instant it is).
   //       The basis is kept on the TV under basisKey { date, prices: { pair: price } }; only what it lacks for the current D
   //       is asked, in the same round (once per UTC day while on view; after a failure only the missing pair, or the coins'
-  //       one request); until then a row without its basis shows «—».
+  //       one request — after 3 failed rounds in a row for the same D no more often than backoffMs, batch 27); until then a
+  //       row without its basis shows «—».
   //       The currencies' and the crypto cards say D 00:00 UTC as an Israel date («% с 4 ноября»), from the first answer on.
   //     crypto (row { id, product }): price = each product's Exchange stats `last` (the last trade, 6 requests on their own
   //       host). The trade-off (measured 2026-11-05): the exchange-rates table already asked every round carries all six coins
@@ -296,7 +299,7 @@ var Config = {
       refreshMs: 60 * 1000,
       basisKey: 'markets.fxBasis.v2'
     },
-    backoffMs: 5 * 60 * 1000,           // a 429 without a Retry-After
+    backoffMs: 5 * 60 * 1000,           // a 429 without a Retry-After; a basis part after 3 failed rounds in a row (batch 27)
     backoffMaxMs: 60 * 60 * 1000,       // a longer Retry-After is read as this
     staleAfterMs: 15 * 60 * 1000,       // data older than this reads «not updating» even without a failure
     timeoutMs: 15 * 1000,

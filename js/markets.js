@@ -37,11 +37,12 @@
  * home day, which measured minutes and read 0%, and the coins' price 24 hours earlier), from the first answer on. The basis is
  * dated spot answers — one per currency the rows read but the dollar (4), one for all the coins — asked in the Coinbase round
  * itself, only what it lacks for the current D (so once per UTC day while the screen is on view: 5 requests; after a failure
- * only the missing pair, or the coins' one), and kept on the TV as { date, prices: { pair: price } }. The currencies' change
- * needs all four (a cross needs every code: never half a table on screen); each coin's is its own (a missing one leaves only
- * that row without a change). While a row has no basis for the current D (asked, failed, or the UTC date just changed:
- * checked on every state(), no request needed) its change is null — never a stale day's basis. since: on a group whose rows carry such a change, the home (Israel) calendar date of D 00:00 UTC,
- * "2026-11-04" (the card: «% с 4 ноября»).
+ * only the missing pair, or the coins' one; a part failing 3 rounds in a row then waits cfg.backoffMs, batch 27), and kept on
+ * the TV as { date, prices: { pair: price } }. The currencies' change needs all four (a cross needs every code: never half a
+ * table on screen); each coin's is its own (a missing one leaves only that row without a change). While a row has no basis
+ * for the current D (asked, failed, or the UTC date just changed: checked on every state(), no request needed) its change is
+ * null — never a stale day's basis. since: on a group whose rows carry such a change, the home (Israel) calendar date of
+ * D 00:00 UTC, "2026-11-04" (the card: «% с 4 ноября»).
  * A row its source did not give in that source's last round keeps its last good values with stale: true (as weather and news
  * keep theirs); one that never had a value has price null (never dropped, never made up). closed: a quote's market is outside
  * its regular session (true / false; it follows the clock between rounds, A2); false for crypto (it trades around the
@@ -52,6 +53,8 @@
 var Markets = (function () {
   var CURRENCIES = { USD: true, ILS: true, UAH: true, RUB: true, EUR: true };
   var DOLLAR = 'USD';                              // the base of every Coinbase rate: units of a currency for one dollar
+  var COINS = 'coins';                             // the basis's part that is every coin's price (one answer)
+  var BASIS_TRIES = 3;                             // failed rounds in a row before a basis part waits backoffMs (TAIL-5)
   var LAST_MINUTE_S = 60;                          // a 24-hour session's `end` is its last minute, not its end
   var DAY_SESSION_S = 24 * 3600 - LAST_MINUTE_S;   // 00:00–23:59: how Yahoo names a 24-hour market's session
 
@@ -231,6 +234,7 @@ var Markets = (function () {
     pairs = pairs.concat(products);
     // { date (a UTC date D), prices: { pair: its price at D 00:00 UTC }, rates: the currencies' table they make, or null }
     var basis = readBasis(deps.now());
+    var tries = {};                      // the basis's retry budget: part → { date, n (attempts for D), next (not asked before) }
     eachRow(cfg, function (r) { if (r.yahoo) bySymbol[r.yahoo] = r.id; });
 
     // FIX-BATCH-19 4 (P10): «Обновлено» is the time the data were made — the answer's Date − Age (js/net.js getJsonDated) when
@@ -283,23 +287,43 @@ var Markets = (function () {
     // A currency's dated spot (one pair a request: Coinbase has no batched fiat answer), and every coin's in ONE request (the
     // dollar's dated spots of every asset: the configured coins are picked from it).
     function pairJob(date, pair) {
-      return { url: cb.spot + encodeURIComponent(pair) + '/spot?date=' + date,
-        take: function (into, json) { into.spot[pair] = spotRate(json, pair); into.spotDate = date; } };
+      return { part: pair, date: date, url: cb.spot + encodeURIComponent(pair) + '/spot?date=' + date,
+        take: function (into, json) { into.spot[pair] = spotRate(json, pair); into.spotDate = date; },
+        missed: function (into) { return !positive(into.spot[pair]); } };
     }
     function coinsJob(date) {
-      return { url: cb.spot + DOLLAR + '/spot?date=' + date,
-        take: function (into, json) { var got = coinPrices(json, products); for (var k in got) if (got.hasOwnProperty(k)) into.spot[k] = got[k]; into.spotDate = date; } };
+      return { part: COINS, date: date, url: cb.spot + DOLLAR + '/spot?date=' + date,
+        take: function (into, json) { var found = coinPrices(json, products); for (var k in found) if (found.hasOwnProperty(k)) into.spot[k] = found[k]; into.spotDate = date; },
+        // a coin neither in this answer nor kept for D: the answer failed for it
+        missed: function (into) {
+          var kept = basis && basis.date === date ? basis.prices : {};
+          for (var i = 0; i < products.length; i++) if (!positive(into.spot[products[i]]) && !positive(kept[products[i]])) return true;
+          return false;
+        } };
     }
     // The requests for what D's basis still lacks — each missing currency's pair, and one request for the coins while any is
-    // missing; none once D's basis is whole.
+    // missing — and that its retry budget lets through now; none once D's basis is whole.
     function basisJobs(now) {
       var date = basisDate(now), b = basisFor(now), jobs = [], coins = false;
       for (var i = 0; i < pairs.length; i++) {
         if (b && positive(b.prices[pairs[i]])) continue;
-        if (products.indexOf(pairs[i]) < 0) jobs.push(pairJob(date, pairs[i])); else coins = true;
+        if (products.indexOf(pairs[i]) >= 0) coins = true;
+        else if (due(pairs[i], date, now)) jobs.push(pairJob(date, pairs[i]));
       }
-      if (coins) jobs.push(coinsJob(date));
+      if (coins && due(COINS, date, now)) jobs.push(coinsJob(date));
       return jobs;
+    }
+    // ---- the basis's retry budget (TAIL-5, batch 27): a part — one currency pair, or the coins' answer — asked BASIS_TRIES
+    // rounds for the same D (a refusal the 429 hold covers is not counted) is then asked no more often than cfg.backoffMs.
+    // An attempt counts when its own answer comes and the part is still missing (an error other than such a refusal, an
+    // unreadable answer, an answer without every coin) — even if the round is cancelled afterwards (FIX-27B); an answer to a
+    // request the cancellation aborted itself never counts. A part is asked only while D's basis lacks it, so a success
+    // needs no reset: it is never asked again for D; a new D starts from 0. It rides the existing rounds (no timer) and
+    // lives in memory only (a restart asks again at once).
+    function due(part, date, now) { var t = tries[part]; return !t || t.date !== date || t.n < BASIS_TRIES || now >= t.next; }
+    function tried(part, date, now) {
+      var n = (tries[part] && tries[part].date === date ? tries[part].n : 0) + 1;
+      tries[part] = { date: date, n: n, next: n >= BASIS_TRIES ? now + cfg.backoffMs : 0 };
     }
     // D's basis with one round's spot answers added (a new object, never the kept one changed): every price kept, every one
     // that came; the same basis when nothing was added.
@@ -319,12 +343,13 @@ var Markets = (function () {
 
     // ---- back-off: a 429, or any refusal naming a Retry-After still ahead, holds back that host only ----
     function held(url, now) { var h = hold[hostOf(url)]; return !!h && now < h; }
-    // C2 (Codex): parallel refusals never shorten a hold — the later deadline wins.
+    // C2 (Codex): parallel refusals never shorten a hold — the later deadline wins. True when it held the host back.
     function holdBack(url, err, meta) {
       var now = deps.now(), until = Net.retryAfterAt(meta ? meta.retryAfter : '', now), host = hostOf(url);   // until 0: none named
-      if (err !== 'http 429' && !until) return;
+      if (err !== 'http 429' && !until) return false;
       hold[host] = Math.max(hold[host] || 0, now + Math.min(until ? until - now : cfg.backoffMs, cfg.backoffMaxMs));
       log('markets: ' + host + ' answered ' + err + ': held back ' + Math.round((hold[host] - now) / 1000) + ' s');
+      return true;
     }
 
     // ---- what one answer gives a round: take(into (the round's own collection), json, readAt (its data's time)) ----
@@ -418,9 +443,11 @@ var Markets = (function () {
         if (!left) { finish(); return; }
         for (i = 0; i < live.length; i++) (function (job) {
           pending.push(deps.getJson(job.url, cfg.timeoutMs, function (err, json, meta) {
-            if (cancelled) return;
-            if (err) holdBack(job.url, err, meta);
-            else { arrived++; try { job.take(into, json, dataAt(meta, deps.now())); } catch (e) { log(e.message); } }   // unreadable or incomplete: its rows stay empty
+            if (cancelled) return;   // the answer to a request this round aborted itself: nothing came, nothing is counted
+            var refused = err ? holdBack(job.url, err, meta) : false;
+            if (!err) { arrived++; try { job.take(into, json, dataAt(meta, deps.now())); } catch (e) { log(e.message); } }   // unreadable or incomplete: its rows stay empty
+            // FIX-27B (Codex P2): a basis part's failure counts when ITS answer comes, so a round cancelled later keeps it.
+            if (job.part && !refused && job.missed(into)) tried(job.part, job.date, deps.now());
             if (!--left) finish();
           }));
         })(live[i]);
