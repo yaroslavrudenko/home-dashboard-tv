@@ -9,6 +9,10 @@
 # FIX-BATCH-19 2: a FULL run (--browser) that passes also checks README.md's count against the tests it ran — a mismatch
 # exits 4 with both numbers, so the count cannot drift again.
 # Options combine in any order.
+# N4 (batch 5): started by another shell (sh tests/run.sh, bash tests/run.sh), it runs itself again under zsh, before set -u
+# and the cd (under sh the zsh-only ${0:A:h} stopped it with no test run and exit 0). A run that reports no tests exits 2
+# (NO TESTS RAN); an emptied test file still counts as one passing test in Node 22: the by-name diff catches that.
+[ -n "${ZSH_VERSION:-}" ] || exec zsh "$0" "$@"
 set -u
 cd "${0:A:h}/.."
 NODE="${NODE:-/Users/yaroslavr/.nvm/versions/node/v22.22.0/bin/node}"

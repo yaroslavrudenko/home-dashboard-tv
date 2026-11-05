@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="824 automated tests passing" src="https://img.shields.io/badge/tests-824%20passing-brightgreen?style=for-the-badge">
+  <img alt="829 automated tests passing" src="https://img.shields.io/badge/tests-829%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -158,7 +158,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, Coinbase, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 824 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 829 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -622,6 +622,8 @@ PUPPETEER_CORE_DIR=<dir with puppeteer-core> tests/run.sh --browser   # + every 
 #   a dead run's lock is taken over; a lock with no readable pid is reported with the rm command that clears it)
 #   a passing full run also checks README.md's test count against the tests it ran (exit 4 on a mismatch);
 #   tests/run.sh --readme-count N checks only that
+#   started with sh or bash it runs itself again under zsh; a run that reports no tests exits 2 (an emptied test file
+#   still counts as one passing test in Node 22: the by-name diff against the last run, VG-4, is what catches it)
 node tools/tv-boot.mjs http://127.0.0.1:9222 --runs 5             # boot time on the TV from the page's own marks (after sdb forward to its inspector port)
 ACORN=<path to acorn> tools/es5-gate.sh                               # every script must parse as ES5
 PUPPETEER_CORE_DIR=... node tools/screenshot.mjs                      # regenerate docs/screenshot.png
