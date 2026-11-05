@@ -248,18 +248,36 @@ var Config = {
   //     the home IP is rate-limited by Yahoo (42 of 42 requests at one a minute answered 429, measured 2026-11-04
   //     06:57–07:17 UTC), so Yahoo keeps its 5 minutes and the currencies and crypto moved to Coinbase.
   //   Coinbase (`coinbase`), every coinbase.refreshMs (owner 2026-11-04: «крипту на Coinbase», «я хочу все валюты обновляться
-  //     быстрее»): 7 requests in one parallel round, no key, CORS *.
-  //     crypto (row { id, product }): each product's Exchange stats — price = last, change = last against open, the price
-  //       24 hours earlier (owner 2026-11-04: «24 часа ок»). No public endpoint gives a few products' open in one small
-  //       answer: products/stats lists all ~1,000 products (108 KB, 29 KB gzip, a minute; checked 2026-11-04).
+  //     быстрее»): 7 requests in one parallel round (12 once a UTC day: + the basis below, 4 + 1), no key, CORS *.
+  //     ONE rule for the currencies' and the coins' change (batch 26, owner 2026-11-05: «все проценты должны считаться
+  //       одинаково» — currencies and crypto «с 00:00 UTC вчера»; shares, indices and commodities keep Yahoo's day change):
+  //       against Coinbase's price at 00:00 UTC of the PREVIOUS UTC date D — fiat and crypto at the same instant (BTC-USD of
+  //       2026-11-04 = 77336.755 = the Exchange's daily candle OPEN; BTC-ILS / BTC-USD = USD-ILS of the same date on 11-03,
+  //       11-04 and 10-28 — coordinator, 2026-11-05). Requests: each currency's `spot` + USD-<CODE>/spot?date=<D> (4; Coinbase
+  //       has no batched fiat answer: prices/ILS/spot answers 400, exchange-rates ignores a date) and ALL the coins in ONE
+  //       `spot` + USD/spot?date=<D> (every asset's dated dollar price, 414 entries, ~22 KB; measured 2026-11-05 — NOT in
+  //       Coinbase's documented v2 reference: if it changes or fails, the coins' change shows «—», never a wrong figure).
+  //       The basis is kept on the TV under basisKey { date, prices: { pair: price } }; only what it lacks for the current D
+  //       is asked, in the same round (once per UTC day while on view; after a failure only the missing pair, or the coins'
+  //       one request); until then a row without its basis shows «—».
+  //       The currencies' and the crypto cards say D 00:00 UTC as an Israel date («% с 4 ноября»), from the first answer on.
+  //     crypto (row { id, product }): price = each product's Exchange stats `last` (the last trade, 6 requests on their own
+  //       host). The trade-off (measured 2026-11-05): the exchange-rates table already asked every round carries all six coins
+  //       at a MID price for 0 extra requests (BTC 1 / 0.0000128187707824 = 78010.60 against the last trade 78015.4), and the
+  //       undated prices/<P>/spot is a mid price too (BTC 80342.505 against 80346.04, 170–200 ms against the Exchange's
+  //       35–190 ms); the last trade, on a host apart from the rates and the basis (one 429 there never holds the coins'
+  //       prices), is kept by the owner's earlier choice. The change: the one rule above (it replaced «last against open,
+  //       24 hours earlier», owner 2026-11-04 «24 часа ок»).
   //     currencies (row { id, base, code }: `code` units for ONE `base`): ONE exchange-rates table (units of each currency for
-  //       one dollar; X per Y = rates[X] / rates[Y]; every code checked present on 2026-11-04). Change = against the basis:
-  //       the FIRST table the dashboard read on the current Israel calendar day, kept on the TV under basisKey with its time,
-  //       and the card says that time («% с 07:31») — batch 23C, the owner's «а» (2026-11-04): an honest label from the actual
-  //       basis time. Coinbase has no public fiat rate for a past hour of the current day (its prices/<pair>/spot?date=<today>
-  //       is the LIVE spot; only an ended date gives its 00:00 UTC — the native reviewer, 2026-11-04). The first table of the
-  //       day is the basis itself, so it shows no change («—»); the change shows from the next table on. Across the Israel
-  //       day's boundary every currency row shows «—» until the new day's basis and a later table are in.
+  //       one dollar; X per Y = rates[X] / rates[Y]; every code checked present on 2026-11-04). Change: the one rule above —
+  //       batch 26, the owner's «да - исправляй» (2026-11-05). It replaces batch 23C's basis (the first table read on the
+  //       Israel day: Markets is asked only while on view, so it was minutes old and every cross but the euro's read 0%;
+  //       measured 2026-11-05: ILS −0.004% over 80 s against −0.13% over the day). Coinbase has no public fiat rate for an hour
+  //       of the current day: the dated spot is the 00:00 UTC rate of an ENDED date only (the same date as today gives the
+  //       LIVE spot; /historic?period=day answers 404 — checked 2026-11-05). The currencies' part is 4 dated spots (USD-EUR,
+  //       USD-ILS, USD-UAH, USD-RUB; the dollar is 1), all four or none (a cross needs every code), retried next round.
+  //       Coinbase's dated shekel follows the market: its −3% / +3% days (10-28, 10-29) match Yahoo ILS=X's daily closes and
+  //       the ECB's 3.0496 → 3.1259 (coordinator, 2026-11-05).
   //     Measured 2026-11-04 07:22 UTC (tests/fixtures/markets/coinbase): Coinbase's UAH, 45.4954 per $, is about 0.4% below
   //     the National Bank of Ukraine's official 45.67 — Coinbase's own reference rate, shown as given.
   // A 429 (or any refusal that names a Retry-After) holds back that host only: until its Retry-After, else backoffMs.
@@ -274,8 +292,9 @@ var Config = {
     coinbase: {
       stats: 'https://api.exchange.coinbase.com/products/',      // + <product>/stats
       rates: 'https://api.coinbase.com/v2/exchange-rates?currency=USD',
+      spot: 'https://api.coinbase.com/v2/prices/',              // + <PAIR>/spot?date=<D> (a currency) or USD/spot?date=<D> (every coin)
       refreshMs: 60 * 1000,
-      basisKey: 'markets.fxBasis.v1'
+      basisKey: 'markets.fxBasis.v2'
     },
     backoffMs: 5 * 60 * 1000,           // a 429 without a Retry-After
     backoffMaxMs: 60 * 60 * 1000,       // a longer Retry-After is read as this

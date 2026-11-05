@@ -12,12 +12,8 @@ var Ledger = (function () {
   var VERSION = 1, DAY_MS = 86400000, utcDate = Tz.isoDate, count = Num.count;     // calendar dates: js/tz.js; counts: js/num.js
 
   function nextUtcMidnight(ms) { return (Math.floor(ms / DAY_MS) + 1) * DAY_MS; }
-  // A real calendar date "YYYY-MM-DD": it survives the round trip through Date.UTC (2026-02-31 and 0000-00-00 do not).
-  function validDate(d) {
-    if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
-    var t = Tz.dateMs(d);
-    return t >= 0 && utcDate(t) === d;
-  }
+  // A real calendar date "YYYY-MM-DD" (js/tz.js, its home since batch 26; Ledger.validDate stays as its alias).
+  var validDate = Tz.validDate;
   function validRecord(r) {
     return !!r && r.v === VERSION && validDate(r.utcDate) && count(r.used) && count(r.lastAttemptAt) && count(r.retryNotBefore);
   }

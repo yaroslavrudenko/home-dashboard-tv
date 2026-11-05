@@ -5,10 +5,10 @@
 // быстрее», «TRX заменить, процент к полуночи, 24 часа ок»): crypto and every currency from Coinbase, answers recorded
 // 2026-11-04 07:22 UTC (tests/fixtures/markets/coinbase: each product's Exchange stats, TRX-USD's NotFound, the dollar
 // table), refreshed every minute on view; Yahoo (shares, indices, commodities) stays at 5 minutes; a 429 holds back only
-// its own host. Batch 23C (the owner's «а», 2026-11-04): the currencies' change is against the FIRST rates table the dashboard
-// read on the current Israel calendar day (kept on the TV with its time), said on the card as «% с HH:MM» — that table's home
-// time (Coinbase's dated spot of the current day turned out to be the live rate: native reviewer, 23B). Codex C1–C3, native
-// N2/N3/S1 pinned below.
+// its own host. Batch 26 (the owner's «да - исправляй» and «все проценты должны считаться одинаково», 2026-11-05; it replaces
+// batch 23C's first table of the Israel day and the coins' «24 hours earlier»): the currencies' and the coins' change is against
+// Coinbase's price at 00:00 UTC of the previous UTC date (dated spots recorded 2026-11-05), asked with the rates table once per
+// UTC day, kept on the TV, said on both cards as that date at home. Codex C3, native N2 pinned below.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -31,33 +31,40 @@ const CODES = ['USD', 'ILS', 'EUR', 'UAH', 'RUB'];
 const sparkFor = (symbols) => ({ spark: { result: SPARK.filter((r) => symbols.includes(r.symbol)), error: null } });
 const symbolsOf = (url) => decodeURIComponent(new URL(url).searchParams.get('symbols')).split(',');
 const kindOf = (url) => (url.includes('finance.yahoo.com') ? 'yahoo' : url.includes('api.exchange.coinbase.com') ? 'stats'
-  : url.includes('api.coinbase.com/v2/exchange-rates') ? 'rates' : 'other');
+  : url.includes('api.coinbase.com/v2/exchange-rates') ? 'rates' : url.includes('api.coinbase.com/v2/prices/') ? 'spot' : 'other');
 const productOf = (url) => decodeURIComponent(/products\/([^/]+)\/stats/.exec(url)[1]);
-// An earlier table of the day (made up, round numbers) — the basis the recorded table is measured against in these tests.
+// A basis table (made up, round numbers) — the recorded table is measured against it where a test only needs a basis there.
 const BASIS = { USD: 1, ILS: 3.15, EUR: 0.89, UAH: 45.4, RUB: 81.5 };
+// The coins' basis prices where a test only needs one (made up, round numbers), and BASIS as the currencies' pair prices.
+const CRYPTO_BASIS = { 'BTC-USD': 76000, 'ETH-USD': 2200, 'BNB-USD': 690, 'XRP-USD': 1.2, 'SOL-USD': 90, 'ZEC-USD': 1100 };
+const BASIS_PRICES = Object.assign({ 'USD-ILS': 3.15, 'USD-EUR': 0.89, 'USD-UAH': 45.4, 'USD-RUB': 81.5 }, CRYPTO_BASIS);
 // Every currency row's exact change: the recorded table (2026-11-04 07:22 UTC) against BASIS, from the same crosses.
 const FX_PCT = { USDILS: 0.5199206349206342, EURILS: 0.4588881214512952, UAHperILS: -0.3082204825170187, RUBperILS: -0.11708367189144919,
   EURUSD: -0.060716834119889374, UAHperUSD: 0.2100976505139629 };
 const FX_IDS = Object.keys(FX_PCT);
-// The recorded answer to one request: [error, body]; a product Coinbase does not trade answers 404 (TRX-USD).
+// The recorded answer to one request: [error, body]; a product Coinbase does not trade answers 404 (TRX-USD); a dated spot the
+// recording of that pair (or of every asset: USD) and date (tests/fixtures/markets/coinbase/spot-<PAIR|USD>-<date>.json), else 404.
 function recordedAnswer(url) {
   const k = kindOf(url);
   if (k === 'yahoo') return [null, sparkFor(symbolsOf(url))];
   if (k === 'stats') return STATS[productOf(url)] && !STATS[productOf(url)].message ? [null, STATS[productOf(url)]] : ['http 404'];
   if (k === 'rates') return [null, RATES];
+  if (k === 'spot') {
+    const m = /\/prices\/([A-Z]+(?:-[A-Z]{3})?)\/spot\?date=(\d{4}-\d\d-\d\d)$/.exec(url), file = m && path.join(DIR, 'coinbase', 'spot-' + m[1] + '-' + m[2] + '.json');
+    return file && fs.existsSync(file) ? [null, JSON.parse(fs.readFileSync(file, 'utf8'))] : ['http 404'];
+  }
   throw new Error('unexpected request ' + url);
 }
 // A dollar table in Coinbase's answer shape (strings).
 const ratesAnswer = (table) => ({ data: { currency: 'USD', rates: Object.fromEntries(Object.entries(table).map(([k, v]) => [k, String(v)])) } });
 // A localStorage stand-in.
 function memoryStorage(entries) { const m = new Map(entries || []); return { m, getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)) }; }
-const KEY = 'markets.fxBasis.v1';
-// The home (Israel) day of a moment, with the app's own Tz (Intl, else the IL rule).
-const israelDay = (ctx, ms) => ctx.Tz.wallDate(ctx.Tz.wallTime(ctx.Tz.resolve(ctx.Config.clocks[0], ms), ms));
-// A kept basis: BASIS read 1 s before `ms` (the same home day in every test here).
-const basisRecord = (ctx, ms, rates) => ({ day: israelDay(ctx, ms - 1000), at: ms - 1000, rates: rates || BASIS });
+const KEY = 'markets.fxBasis.v2';
+// A kept basis: BASIS and CRYPTO_BASIS as the prices of the previous UTC date of `ms` (the current D: no basis request).
+const basisRecord = (ms) => ({ date: new Date(ms - 86400000).toISOString().slice(0, 10), prices: BASIS_PRICES });
 
-// The snapshot of the recorded answers as the app would build it at `now` (every request succeeded; basis: none unless given).
+// The snapshot of the recorded answers as the app would build it at `now` (every request succeeded; basis { rates, crypto }:
+// none unless given).
 function recordedSnapshot(ctx, now, basis) {
   const quotes = ctx.Markets.quotes(sparkFor(SPARK.map((r) => r.symbol)));
   const stats = Object.fromEntries(PRODUCTS.map((p) => [p, ctx.Markets.stats(STATS[p])]));
@@ -136,11 +143,18 @@ test('TASE prices: Yahoo\'s agorot (ILA) divided by 100 into shekels; the curren
   for (const r of s.groups[2].rows) assert.ok(r.currency === 'ILS' && r.price > 5 && r.price < 5000, r.id + ' ' + r.price);
 });
 
-test('batch 23: crypto from Coinbase stats — price = last, change = last against the open 24 hours earlier; USD; never closed', () => {
-  const ctx = load(FILES), s = recordedSnapshot(ctx, AT);
-  const want = { BTC: [78015.4, 1.7430358249979072], ETH: [2298.24, 1.9550433197141226], BNB: [700.02, 0.940158615717368],
-    XRP: [1.2727, 1.726480696986643], SOL: [92.91, 1.044045676998362], ZEC: [1272.19, 11.823184023627032] };
-  for (const [id, [price, changePct]] of Object.entries(want)) assert.deepEqual(plain(rowOf(s, id)), { id, price, currency: 'USD', changePct, closed: false }, id);
+test('B26: crypto from Coinbase stats — price = last; the change against the basis\'s coin price (none without one); USD; never closed', () => {
+  const ctx = load(FILES), s = recordedSnapshot(ctx, AT), b = recordedSnapshot(ctx, AT, { rates: null, prices: NOV3_CRYPTO });
+  const price = { BTC: 78015.4, ETH: 2298.24, BNB: 700.02, XRP: 1.2727, SOL: 92.91, ZEC: 1272.19 };
+  for (const [id, p] of Object.entries(price)) {
+    assert.deepEqual(plain(rowOf(s, id)), { id, price: p, currency: 'USD', changePct: null, closed: false }, id + ': no basis, no change (never «24 hours earlier» any more)');
+    assert.deepEqual(plain(rowOf(b, id)), { id, price: p, currency: 'USD', changePct: NOV3_CRYPTO_PCT[id], closed: false }, id + ': against D 00:00 UTC');
+  }
+  const one = recordedSnapshot(ctx, AT, { rates: null, prices: { 'BTC-USD': NOV3_CRYPTO['BTC-USD'] } });
+  assert.deepEqual(COIN_IDS.map((id) => rowOf(one, id).changePct), [NOV3_CRYPTO_PCT.BTC, null, null, null, null, null], 'each coin its own');
+  // N-2: a basis without coin prices (the currencies' table alone) never throws — coinAt() guards like cross()
+  const fiatOnly = recordedSnapshot(ctx, AT, { rates: BASIS });
+  assert.deepEqual([COIN_IDS.map((id) => rowOf(fiatOnly, id).changePct), rowOf(fiatOnly, 'USDILS').changePct], [[null, null, null, null, null, null], FX_PCT.USDILS]);
 });
 
 test('batch 23: currencies from Coinbase\'s one dollar table — X per Y = rates[X] / rates[Y], exact; no hours (closed null); no change without a basis', () => {
@@ -152,15 +166,15 @@ test('batch 23: currencies from Coinbase\'s one dollar table — X per Y = rates
   assert.ok(Math.abs(rowOf(s, 'UAHperUSD').price / rowOf(s, 'UAHperILS').price - rowOf(s, 'USDILS').price) < 1e-12);
   assert.ok(Math.abs(rowOf(s, 'EURILS').price / rowOf(s, 'USDILS').price - rowOf(s, 'EURUSD').price) < 1e-12);
   // with a basis (an earlier table of the day): each change exact, from the same cross
-  const b = recordedSnapshot(ctx, AT, BASIS);
+  const b = recordedSnapshot(ctx, AT, { rates: BASIS, prices: {} });
   for (const [id, pct] of Object.entries(FX_PCT)) assert.equal(rowOf(b, id).changePct, pct, id);
 });
 
 test('batch 23: stats() and rateTable() refuse what is not a usable answer (never half a table, never a NotFound priced)', () => {
   const ctx = load(FILES);
   assert.throws(() => ctx.Markets.stats(STATS['TRX-USD']), /stats/);
-  for (const bad of [null, {}, { last: '1', open: '0' }, { last: '-1', open: '2' }, { last: 'x', open: '2' }, { last: true, open: true }]) assert.throws(() => ctx.Markets.stats(bad), /stats/, JSON.stringify(bad));
-  assert.deepEqual(plain(ctx.Markets.stats(STATS['BTC-USD'])), { last: 78015.4, open: 76678.86 });
+  for (const bad of [null, {}, { last: '0' }, { last: '-1' }, { last: 'x' }, { last: true }, { open: '2' }]) assert.throws(() => ctx.Markets.stats(bad), /stats/, JSON.stringify(bad));
+  assert.deepEqual(plain(ctx.Markets.stats(STATS['BTC-USD'])), { last: 78015.4 }, 'only the last trade is read');
   assert.throws(() => ctx.Markets.rateTable({ data: { currency: 'EUR', rates: RATES.data.rates } }, CODES), /rates/, 'another base');
   assert.throws(() => ctx.Markets.rateTable({ errors: [{ id: 'not_found' }] }, CODES), /rates/);
   const noRub = JSON.parse(JSON.stringify(RATES)); delete noRub.data.rates.RUB;
@@ -208,7 +222,7 @@ test('a failed row stays, with price null: a symbol missing from the answer, a c
   const partial = sparkFor(SPARK.map((r) => r.symbol).filter((s) => s !== 'INTU'));
   partial.spark.result = JSON.parse(JSON.stringify(partial.spark.result));
   partial.spark.result.find((x) => x.symbol === 'AAPL').response[0].meta.regularMarketPrice = null;
-  const s = ctx.Markets.snapshot(cfg, { quotes: ctx.Markets.quotes(partial), stats: { 'BTC-USD': { last: 78000, open: 77000 } },
+  const s = ctx.Markets.snapshot(cfg, { quotes: ctx.Markets.quotes(partial), stats: { 'BTC-USD': { last: 78000 } },
     rates: { USD: 1, ILS: 3.2 }, basis: null, updatedAt: AT }, AT);
   const UNIT = { 'BZ=F': 'barrel', 'CL=F': 'barrel' };   // Codex L1: a commodity row carries its unit, priced or not
   const empty = (id, closed) => Object.assign({ id, price: null, currency: null, changePct: null, closed }, UNIT[id] ? { unit: UNIT[id] } : {});
@@ -221,17 +235,18 @@ test('a failed row stays, with price null: a symbol missing from the answer, a c
 });
 
 // ---- the controller: two sources, each on view only, on its own cadence ------------------------------------------------
-// opts: { start, storage (default: one holding BASIS, read 1 s before the start; null: none), wallAt (false: none),
+// opts: { start, storage (default: one holding BASIS as the basis of the start's D; null: none), wallAt (false: none; a
+// function: that home clock),
 // intl (undefined: remove Intl) }. answer(fail): answers every open request — by URL part → an error label (a string),
 // { error, retryAfter } (a refusal with its header) or another body (an object); otherwise the recorded answer.
 function controller(opts = {}) {
   const ctx = 'intl' in opts ? load(FILES, { Intl: opts.intl }) : load(FILES), t = fakeTimers(opts.start || AT), calls = [], snaps = [], logs = [];
   let visible = true;
   const home = ctx.Tz.resolve(ctx.Config.clocks[0], t.now());
-  const storage = 'storage' in opts ? opts.storage : memoryStorage([[KEY, JSON.stringify(basisRecord(ctx, t.now()))]]);
+  const storage = 'storage' in opts ? opts.storage : memoryStorage([[KEY, JSON.stringify(basisRecord(t.now()))]]);
   const c = ctx.Markets.createController(ctx.Config.markets, { now: t.now, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout,
     documentVisible: () => visible, onChange: (s) => snaps.push(s), log: (m) => logs.push(m), storage,
-    wallAt: opts.wallAt === false ? undefined : (ms) => ctx.Tz.wallTime(home, ms),
+    wallAt: opts.wallAt === false ? undefined : typeof opts.wallAt === 'function' ? opts.wallAt : (ms) => ctx.Tz.wallTime(home, ms),
     getJson: (url, ms, done) => { const x = { url, ms, done, aborted: false, abort() { this.aborted = true; } }; calls.push(x); return x; } });
   const reply = (call, fail) => {
     const key = fail && Object.keys(fail).find((k) => call.url.includes(k));
@@ -246,7 +261,7 @@ function controller(opts = {}) {
     call.done(err, body, err ? { retryAfter: '' } : undefined);
   };
   const answer = (fail) => { const open = calls.splice(0, calls.length); for (const call of open) reply(call, fail); return open.length; };
-  // the open requests by kind: { yahoo, stats, rates }
+  // the open requests by kind: { yahoo, stats, rates, spot (only when asked) }
   const count = () => { const n = { yahoo: 0, stats: 0, rates: 0 }; for (const x of calls) n[kindOf(x.url)] = (n[kindOf(x.url)] || 0) + 1; return n; };
   return { ctx, t, c, calls, snaps, logs, storage, answer, reply, count, hide: () => { visible = false; c.visibilityChanged(); } };
 }
@@ -340,178 +355,281 @@ test('the 6 coins: with every stats request failing, the currencies still come (
   for (const r of s.groups[0].rows) assert.ok(r.price > 0, r.id);
 });
 
-// Batch 23C — the basis (the owner's «а», 2026-11-04): each currency row's change is against the FIRST rates table the dashboard
-// read on the current Israel calendar day, kept on the TV with its time; the card says that time («% с 09:31»). The first table
-// of the day is the basis itself — no change and no label — and the change shows from the next table on.
-const NOV4 = Date.parse('2026-11-04T07:31:00Z');   // 09:31 in Israel (winter, +02:00)
+// Batch 26 — the basis (the owner's «да - исправляй» and «все проценты должны считаться одинаково», 2026-11-05; it replaces
+// batch 23C's first table of the Israel day, which read 0% on every cross but the euro's, and the coins' «24 hours earlier»):
+// each currency's and coin's change is against Coinbase's price at 00:00 UTC of the PREVIOUS UTC date D — dated spots recorded
+// 2026-11-05 (tests/fixtures/markets/coinbase): one per currency (spot-USD-<CODE>-<D>.json; the change needs all four) and ONE
+// answer with every asset's dollar price for the coins (spot-USD-<D>.json, 414 entries; each coin its own) — asked in the
+// Coinbase round itself for what the TV lacks for the current D, kept on the TV as { date, prices }. The currencies' and the
+// crypto cards say D 00:00 UTC as an Israel date, from the first answer on.
+const NOV4 = Date.parse('2026-11-04T07:31:00Z');   // 09:31 in Israel (winter, +02:00): D = 2026-11-03
+const FIAT_PAIRS = ['USD-EUR', 'USD-ILS', 'USD-UAH', 'USD-RUB'];
+// D = 2026-11-03 (recorded): the pair prices, and every currency's and coin's exact change of the recorded answers (2026-11-04
+// 07:22 UTC) against them (computed once from the fixtures, outside the app).
+const NOV3_FIAT = { 'USD-ILS': 3.140450000000002, 'USD-EUR': 0.8934554389099844, 'USD-UAH': 45.65037099999956, 'USD-RUB': 81.25001600000097 };
+const NOV3_CRYPTO = { 'BTC-USD': 76674.89500010452, 'ETH-USD': 2249.6149999999084, 'BNB-USD': 698.0550000000097, 'XRP-USD': 1.248,
+  'SOL-USD': 91.8250000000003, 'ZEC-USD': 1133.3149999999591 };
+const NOV3_BASIS = { date: '2026-11-03', prices: Object.assign({}, NOV3_FIAT, NOV3_CRYPTO) };
+const NOV3_PCT = { USDILS: 0.8255982422900487, EURILS: 1.1555994117799617, UAHperILS: -1.1555659215069292, RUBperILS: -0.11352267954539697,
+  EURUSD: 0.32729899474228663, UAHperUSD: -0.3395080111533555 };
+const NOV3_CRYPTO_PCT = { BTC: 1.7482971445786255, ETH: 2.1614809645247535, BNB: 0.28149644368857807, XRP: 1.9791666666666652,
+  SOL: 1.181595426081894, ZEC: 12.253874695035893 };
+// D = 2026-11-04 (recorded), the same way (SOL from the batched answer: 92.755, where the per-pair answer reads 92.735).
+const NOV4_PCT = { USDILS: 0.11311179967132823, EURILS: 0.3287319441537928, UAHperILS: -0.4820485857642387, RUBperILS: 0.07472808065700498,
+  EURUSD: 0.2153765282153497, UAHperUSD: -0.3694820399235743 };
+const NOV4_CRYPTO_PCT = { BTC: 0.8775193629428468, ETH: 1.1694014328745617, BNB: 0.3900760074541765, XRP: -0.18430649778439223,
+  SOL: 0.16710689450716298, ZEC: 4.480406690022143 };
+const COIN_IDS = Object.keys(NOV3_CRYPTO_PCT);
+const COINS_KEY = 'prices/USD/spot';
+const spotsOf = (h) => h.calls.filter((x) => kindOf(x.url) === 'spot').map((x) => x.url).sort();
+const pairUrls = (pairs, date) => pairs.map((p) => 'https://api.coinbase.com/v2/prices/' + p + '/spot?date=' + date).sort();
+const fiatUrls = (date) => pairUrls(FIAT_PAIRS, date);
+const coinsUrls = (date) => ['https://api.coinbase.com/v2/prices/USD/spot?date=' + date];
+const spotUrls = (date) => fiatUrls(date).concat(coinsUrls(date)).sort();
+const without = (o, key) => { const c = Object.assign({}, o); delete c[key]; return c; };
+// The recorded every-asset answer of D without one coin (a test vector made from the real answer: that coin absent).
+const coinsWithout = (date, base) => ({ data: recorded('coinbase/spot-USD-' + date).data.filter((e) => e.base !== base) });
+const fxChanges = (snap) => Object.fromEntries(FX_IDS.map((id) => [id, rowOf(snap, id).changePct]));
+const coinChanges = (snap) => Object.fromEntries(COIN_IDS.map((id) => [id, rowOf(snap, id).changePct]));
+const cryptoGroup = (snap) => snap.groups.find((g) => g.id === 'crypto');
+const noChange = (snap) => FX_IDS.every((id) => rowOf(snap, id).changePct === null) && !('since' in fxGroup(snap));
+const noCoinChange = (snap) => COIN_IDS.every((id) => rowOf(snap, id).changePct === null) && !('since' in cryptoGroup(snap));
 
-test('23C basis: the day\'s first table is the basis (shown with «—», no label, kept with its time); the next table shows each change exactly, «since» = the basis time', () => {
+test('B26 basis: the first Coinbase round asks the previous UTC date\'s 4 currency spots + ONE coins answer WITH its 7 requests (12 at once); currencies and crypto measured from the first answer, both cards say D at home', () => {
   const h = controller({ start: NOV4, storage: memoryStorage() });
   h.c.setVisible(true, true);
-  assert.deepEqual(h.count(), { yahoo: 2, stats: 6, rates: 1 }, 'no extra request for the basis');
-  h.answer({ [RATES_HOST]: ratesAnswer(BASIS) });
-  let s = h.c.snapshot();
-  for (const id of FX_IDS) assert.deepEqual([rowOf(s, id).price > 0, rowOf(s, id).changePct], [true, null], id + ': priced, no change yet');
-  assert.ok(!('since' in fxGroup(s)), 'no label on the basis itself');
-  assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), { day: '2026-11-04', at: NOV4, rates: BASIS }, 'kept on the TV with its time');
-  h.t.advance(MIN);
+  assert.deepEqual(h.count(), { yahoo: 2, stats: 6, rates: 1, spot: 5 }, 'every request before any answer: one parallel round, no extra hop');
+  assert.deepEqual(spotsOf(h), spotUrls('2026-11-03'), 'D = the previous UTC date (never today\'s: that is the live price)');
+  assert.ok(h.calls.every((c) => c.ms === 15000), 'the same timeout');
   h.answer();
-  s = h.c.snapshot();
-  for (const [id, pct] of Object.entries(FX_PCT)) assert.equal(rowOf(s, id).changePct, pct, id);
-  assert.equal(fxGroup(s).since, '09:31', 'the home time the basis was read');
-  for (const g of s.groups) if (g.id !== 'fx') assert.ok(!('since' in g), g.id + ': no basis label');
-  console.log('# markets FX basis: the first table of the day; USD/ILS +' + FX_PCT.USDILS.toFixed(4) + '% «% с 09:31»');
+  const s = h.c.snapshot();
+  assert.deepEqual(fxChanges(s), NOV3_PCT, 'the currencies: the first rates table already measured against D 00:00 UTC');
+  assert.deepEqual(coinChanges(s), NOV3_CRYPTO_PCT, 'the coins: the same rule, last against D 00:00 UTC, picked from the one answer');
+  assert.deepEqual([fxGroup(s).since, cryptoGroup(s).since], ['2026-11-03', '2026-11-03'], 'D 00:00 UTC is 02:00 on 3 November in Israel, on both cards');
+  for (const g of s.groups) if (g.id !== 'fx' && g.id !== 'crypto') assert.ok(!('since' in g), g.id + ': Yahoo\'s own day change, no basis label');
+  assert.deepEqual(plain(rowOf(s, 'INTU')).changePct, plain(rowOf(recordedSnapshot(h.ctx, NOV4), 'INTU')).changePct, 'a share keeps Yahoo\'s figure');
+  assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), NOV3_BASIS, 'kept on the TV: the date and every pair\'s price (the table is derived, not kept)');
+  console.log('# markets basis: Coinbase 00:00 UTC of 2026-11-03; USD/ILS +' + NOV3_PCT.USDILS.toFixed(4) + '%, BTC +' + NOV3_CRYPTO_PCT.BTC.toFixed(4) + '% «% с 3 ноября» from the first answer');
 });
 
-test('23C basis: «since» is the basis table\'s own data time (Date − Age), as a home time — not the arrival', () => {
-  const h = controller({ start: NOV4, storage: memoryStorage() });
+test('B26 round trip: 3 rounds on one UTC day = 12, 7, 7 Coinbase requests; across 00:00 UTC the change goes with no request, the next round asks the new D once (12), then 7', () => {
+  const h = controller({ start: Date.parse('2026-11-04T23:57:30Z'), storage: memoryStorage() }), per = [];
+  const coinbase = () => { const n = h.count(); return n.stats + n.rates + (n.spot || 0); };
   h.c.setVisible(true, true);
-  for (const x of h.calls.splice(0)) {
-    const [err, body] = recordedAnswer(x.url);
-    x.done(err, kindOf(x.url) === 'rates' ? ratesAnswer(BASIS) : body, kindOf(x.url) === 'rates' ? { dataAt: NOV4 - 5 * MIN } : undefined);
-  }
-  assert.equal(JSON.parse(h.storage.m.get(KEY)).at, NOV4 - 5 * MIN);
-  h.t.advance(MIN);
-  h.answer();
-  assert.equal(fxGroup(h.c.snapshot()).since, '09:26');
-});
-
-// N3 (native): the first basis of the day stays — a later table of the same day never replaces it, in memory or on the TV, and
-// a restart the same day reuses it.
-test('23C basis / N3: later tables of the same day never replace the basis (5 more, all different); a restart the same day reuses it', () => {
-  const storage = memoryStorage(), h = controller({ start: NOV4, storage });
-  h.c.setVisible(true, true);
-  h.answer({ [RATES_HOST]: ratesAnswer(BASIS) });
-  const kept = storage.m.get(KEY);
-  for (let m = 1; m <= 5; m++) {
-    h.t.advance(MIN);
-    h.answer({ [RATES_HOST]: ratesAnswer(Object.assign({}, BASIS, { ILS: 3.15 + m / 100 })) });
-    assert.equal(rowOf(h.c.snapshot(), 'USDILS').changePct, ((3.15 + m / 100) / 3.15 - 1) * 100, 'round ' + m + ': against the first table');
-    assert.equal(fxGroup(h.c.snapshot()).since, '09:31');
-  }
-  assert.equal(storage.m.get(KEY), kept, 'the kept basis unchanged');
-  const restarted = controller({ start: NOV4 + 6 * 60 * MIN, storage });   // 15:31 in Israel, the same day
-  restarted.c.setVisible(true, true);
-  restarted.answer();
-  assert.equal(rowOf(restarted.c.snapshot(), 'UAHperUSD').changePct, FX_PCT.UAHperUSD, 'restored: the first table after a restart already has its change');
-  assert.equal(fxGroup(restarted.c.snapshot()).since, '09:31');
-  assert.equal(storage.m.get(KEY), kept);
-});
-
-// S1 (native): a late or cached answer from before midnight (its data time on the previous home day) never replaces today's
-// basis, and shows no change.
-test('S1: a rates answer dated the previous home day (a cached copy, 23:50) never overwrites today\'s basis and shows no change', () => {
-  const start = Date.parse('2026-11-03T22:30:00Z');   // 00:30 on 4 November in Israel
-  const h = controller({ start });                      // today's basis kept at 00:29:59
-  const kept = h.storage.m.get(KEY);
-  h.c.setVisible(true, true);
-  for (const x of h.calls.splice(0)) {
-    const [err, body] = recordedAnswer(x.url);
-    x.done(err, body, kindOf(x.url) === 'rates' ? { dataAt: Date.parse('2026-11-03T21:50:00Z') } : undefined);   // 23:50 on 3 November
-  }
-  assert.equal(h.storage.m.get(KEY), kept, 'today\'s basis kept');
-  for (const id of FX_IDS) assert.equal(rowOf(h.c.snapshot(), id).changePct, null, id + ': read yesterday — no change against today');
-  h.t.advance(MIN);
-  h.answer();
-  for (const id of FX_IDS) assert.equal(rowOf(h.c.snapshot(), id).changePct, FX_PCT[id], id + ': the next (today\'s) table against today\'s basis');
-  assert.equal(fxGroup(h.c.snapshot()).since, '00:29');
-});
-
-// C1 (Codex): across 00:00 Israel time the change goes at once — on state() alone (no request), on fresh and kept rows, with the
-// rates failing or held back; the new day's first table is its basis (no change), the next one brings the change back.
-test('C1: across 00:00 Israel time yesterday\'s change goes on state() alone (off view, no request) — kept rows too, the rates failing or held back', () => {
-  const h = controller({ start: Date.parse('2026-11-04T21:58:00Z') });   // 23:58 in Israel
-  h.c.setVisible(true, true);
-  h.answer();
-  assert.equal(rowOf(h.c.state().snapshot, 'USDILS').changePct, FX_PCT.USDILS);
+  per.push([coinbase(), spotsOf(h)]); h.answer();
+  for (let m = 1; m <= 2; m++) { h.t.advance(MIN); per.push([coinbase(), spotsOf(h)]); h.answer(); }
+  assert.deepEqual(per, [[12, spotUrls('2026-11-03')], [7, []], [7, []]], 'one day: the basis asked once');
+  assert.deepEqual([fxChanges(h.c.state().snapshot), coinChanges(h.c.state().snapshot)], [NOV3_PCT, NOV3_CRYPTO_PCT]);
   h.c.setVisible(false);
-  h.t.advance(2 * MIN + 30 * 1000);                  // 00:00:30 on 5 November in Israel, no request at all
-  assert.equal(h.calls.length, 0);
-  let s = h.c.state().snapshot;
-  for (const id of FX_IDS) assert.deepEqual([rowOf(s, id).price > 0, rowOf(s, id).changePct], [true, null], id + ': the price stays, yesterday\'s change goes');
-  assert.ok(!('since' in fxGroup(s)), 'and the card says no basis');
+  h.t.advance(MIN);                                   // 00:00:30 UTC on 5 November, off view
+  assert.equal(h.calls.length, 0, 'off view: nothing asked');
+  assert.ok(noChange(h.c.state().snapshot) && noCoinChange(h.c.state().snapshot), 'the old D\'s change goes on state() alone, on both cards: never a stale day\'s basis');
+  assert.ok(FX_IDS.concat(COIN_IDS).every((id) => rowOf(h.c.state().snapshot, id).price > 0), 'the prices stay');
   h.c.setVisible(true, true);
-  h.answer({ [RATES_HOST]: 'timeout' });
-  s = h.c.state().snapshot;
-  for (const id of FX_IDS) assert.deepEqual([rowOf(s, id).stale, rowOf(s, id).changePct], [true, null], id + ': kept, read yesterday: no change');
-  h.t.advance(MIN);
-  h.answer({ [RATES_HOST]: { error: 'http 429', retryAfter: '600' } });
-  for (let m = 1; m <= 3; m++) { h.t.advance(MIN); assert.equal(h.count().rates, 0, 'held'); h.answer(); }
-  for (const id of FX_IDS) assert.equal(rowOf(h.c.state().snapshot, id).changePct, null, id + ' while held back');
-  for (let m = 1; m <= 9; m++) { h.t.advance(MIN); h.answer(); }   // the hold over (00:11:30): the new day's first table (basis), then more
-  const day = JSON.parse(h.storage.m.get(KEY));
-  assert.equal(day.day, '2026-11-05', 'the new day\'s basis');
-  for (const id of FX_IDS) assert.equal(rowOf(h.c.state().snapshot, id).changePct, 0, id + ': the same recorded table again: 0%');
-  assert.equal(fxGroup(h.c.state().snapshot).since, h.ctx.Tz.hhmm(h.ctx.Tz.wallTime(h.ctx.Tz.resolve(h.ctx.Config.clocks[0], day.at), day.at)));
+  const next = [[coinbase(), spotsOf(h)]];
+  h.answer();
+  assert.deepEqual([fxChanges(h.c.snapshot()), coinChanges(h.c.snapshot())], [NOV4_PCT, NOV4_CRYPTO_PCT], 'the new D (2026-11-04) from its first answer');
+  assert.deepEqual([fxGroup(h.c.snapshot()).since, cryptoGroup(h.c.snapshot()).since], ['2026-11-04', '2026-11-04']);
+  for (let m = 1; m <= 2; m++) { h.t.advance(MIN); next.push([coinbase(), spotsOf(h)]); h.answer(); }
+  assert.deepEqual(next, [[12, spotUrls('2026-11-04')], [7, []], [7, []]], 'the new day: once more, then never again that day');
+  assert.equal(JSON.parse(h.storage.m.get(KEY)).date, '2026-11-04');
+  console.log('# markets Coinbase requests per round across a UTC day change: ' + per.concat(next).map((x) => x[0]).join(', '));
 });
 
-// The day boundary is Israel's, by the zone's rule, on a DST day too: 25 Oct 2026 begins at 21:00 UTC on the 24th (summer time),
-// so at 21:00:30 UTC the change is gone though the UTC date is still the 24th; a basis read at 01:30 UTC on the 25th (after
-// summer time ended at 23:00 UTC) is said as 03:30. Through Intl and through the built-in IL rule.
-test('C1 / DST: on 25 Oct 2026 the Israel day begins at 21:00 UTC (summer time) — the change goes then; a basis read at 01:30 UTC says «03:30»', () => {
-  for (const intl of [Intl, undefined]) {
-    const h = controller({ start: Date.parse('2026-10-24T20:58:00Z'), intl });   // 23:58 on 24 October in Israel (+03:00)
+test('B26: one currency spot failing (timeout, 404, another pair, amount 0, another base) → every currency change null (never half a table); the other 3 pairs and the coins kept; the next round asks that ONE pair', () => {
+  const ils = recorded('coinbase/spot-USD-ILS-2026-11-03');
+  const fails = [['timeout', 'timeout'], ['404', 'http 404'], ['another pair', ils],
+    ['amount 0', { data: { amount: '0', base: 'USD', currency: 'EUR' } }], ['another base', { data: { amount: '0.89', base: 'EUR', currency: 'EUR' } }]];
+  for (const [what, answer] of fails) {
+    const h = controller({ start: NOV4, storage: memoryStorage() });
     h.c.setVisible(true, true);
+    h.answer({ 'USD-EUR/spot': answer });
+    assert.ok(noChange(h.c.snapshot()), what + ': no currency table, no change, no label');
+    assert.ok(FX_IDS.every((id) => rowOf(h.c.snapshot(), id).price > 0), what + ': the prices are there');
+    assert.deepEqual([coinChanges(h.c.snapshot()), cryptoGroup(h.c.snapshot()).since], [NOV3_CRYPTO_PCT, '2026-11-03'], what + ': the coins are their own');
+    assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), { date: '2026-11-03', prices: without(NOV3_BASIS.prices, 'USD-EUR') }, what + ': the 3 pairs and the coins kept');
+    if (typeof answer === 'object') assert.ok(h.logs.includes('markets: unexpected spot shape for USD-EUR'), what + ': logged');
+    h.t.advance(MIN);
+    assert.deepEqual(spotsOf(h), pairUrls(['USD-EUR'], '2026-11-03'), what + ': only the missing pair asked again (1 request)');
     h.answer();
-    assert.equal(rowOf(h.c.state().snapshot, 'EURUSD').changePct, FX_PCT.EURUSD, 'intl ' + !!intl);
-    h.c.setVisible(false);
-    h.t.advance(2 * MIN + 30 * 1000);                 // 21:00:30 UTC: 00:00:30 on 25 October in Israel
-    assert.equal(rowOf(h.c.state().snapshot, 'EURUSD').changePct, null, 'the Israel day changed (the UTC date did not), intl ' + !!intl);
-    const late = controller({ start: Date.parse('2026-10-25T01:30:00Z'), storage: memoryStorage(), intl });
-    late.c.setVisible(true, true);
-    late.answer({ [RATES_HOST]: ratesAnswer(BASIS) });
-    late.t.advance(MIN);
-    late.answer();
-    assert.equal(fxGroup(late.c.snapshot()).since, '03:30', 'after summer time: +02:00, intl ' + !!intl);
-    assert.equal(JSON.parse(late.storage.m.get(KEY)).day, '2026-10-25');
+    assert.deepEqual(fxChanges(h.c.snapshot()), NOV3_PCT, what + ': then the change');
+    assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), NOV3_BASIS, what + ': the kept basis whole');
   }
 });
 
-// C3 (Codex): a kept basis counts only when whole and possible; anything else is ignored, and the day's first table becomes it.
-test('C3: an invalid kept basis is ignored (future time, read on another day, a missing / ≤ 0 / string / unknown rate, a bad day, no time) — the next table becomes the basis', () => {
-  const day = '2026-11-04', at = NOV4 - MIN, bad = [
-    ['read in the future', { day, at: NOV4 + MIN, rates: BASIS }],
-    ['read on another home day', { day, at: Date.parse('2026-11-03T21:59:00Z'), rates: BASIS }],   // 23:59 on 3 November
-    ['labelled a later day', { day: '2026-11-05', at, rates: BASIS }],
-    ['a rate missing', { day, at, rates: { USD: 1, ILS: 3.15, EUR: 0.89, UAH: 45.4 } }],
-    ['a rate 0', { day, at, rates: Object.assign({}, BASIS, { UAH: 0 }) }],
-    ['a rate negative', { day, at, rates: Object.assign({}, BASIS, { EUR: -0.9 }) }],
-    ['a rate as a string', { day, at, rates: Object.assign({}, BASIS, { ILS: '3.16' }) }],
-    ['a currency the rows do not read', { day, at, rates: Object.assign({}, BASIS, { GBP: 0.8 }) }],
-    ['a day in another form', { day: '04.11.2026', at, rates: BASIS }],
-    ['no time', { day, rates: BASIS }],
-    ['rates not an object', { day, at, rates: 3 }]
+test('B26: each coin is its own — a coin missing from the one answer leaves only its row without a change; the coins\' one request is asked again; the whole answer failing touches no currency', () => {
+  const h = controller({ start: NOV4, storage: memoryStorage() });
+  h.c.setVisible(true, true);
+  h.answer({ [COINS_KEY]: coinsWithout('2026-11-03', 'ZEC') });
+  const s = h.c.snapshot();
+  assert.deepEqual(coinChanges(s), Object.assign({}, NOV3_CRYPTO_PCT, { ZEC: null }), 'ZEC: no change; the other five measured');
+  assert.ok(rowOf(s, 'ZEC').price > 0, 'ZEC keeps its price');
+  assert.equal(cryptoGroup(s).since, '2026-11-03', 'the card says the date of the changes it shows');
+  assert.deepEqual(fxChanges(s), NOV3_PCT, 'the currencies unaffected');
+  assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), { date: '2026-11-03', prices: without(NOV3_BASIS.prices, 'ZEC-USD') }, 'kept without ZEC');
+  h.t.advance(MIN);
+  assert.deepEqual(spotsOf(h), coinsUrls('2026-11-03'), 'the coins\' one request asked again');
+  assert.equal(h.count().stats + h.count().rates + h.count().spot, 8, '7 + 1');
+  h.answer();
+  assert.deepEqual(coinChanges(h.c.snapshot()), NOV3_CRYPTO_PCT);
+  assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), NOV3_BASIS);
+  h.t.advance(MIN);
+  assert.equal(h.count().spot, undefined, 'whole: nothing more asked');
+  // the whole answer failing or foreign: every coin without a change, the currencies measured; a foreign one logged. Inside the
+  // list, an entry in another currency or with an amount not > 0 is no price (test vectors on the real shape).
+  const odd = [{ base: 'BTC', currency: 'EUR', amount: '70000' }, { base: 'ETH', currency: 'USD', amount: '0' }, { base: 'BNB', currency: 'USD', amount: '-1' }];
+  for (const [what, answer] of [['timeout', 'timeout'], ['foreign shape', { data: { amount: '1', base: 'BTC', currency: 'USD' } }], ['another currency, amount ≤ 0', { data: odd }]]) {
+    const o = controller({ start: NOV4, storage: memoryStorage() });
+    o.c.setVisible(true, true);
+    o.answer({ [COINS_KEY]: answer });
+    assert.ok(noCoinChange(o.c.snapshot()) && COIN_IDS.every((id) => rowOf(o.c.snapshot(), id).price > 0), what + ': coins priced, no change, no label');
+    assert.deepEqual(fxChanges(o.c.snapshot()), NOV3_PCT, what + ': the currencies measured');
+    if (what === 'foreign shape') assert.ok(o.logs.includes('markets: unexpected spot shape for USD'), what + ': logged');
+    assert.deepEqual(JSON.parse(o.storage.m.get(KEY)), { date: '2026-11-03', prices: NOV3_FIAT }, what + ': no coin price kept (never a 0 or a foreign one)');
+    o.t.advance(MIN);
+    assert.deepEqual(spotsOf(o), coinsUrls('2026-11-03'), what + ': 1 request again');
+  }
+});
+
+test('B26: the spot answers alone are no data on screen — with every other request failing the basis is kept, updatedAt stays 0, the screen says failed', () => {
+  const h = controller({ start: NOV4, storage: memoryStorage() });
+  h.c.setVisible(true, true);
+  h.t.advance(800);
+  h.answer({ 'spark?': 'network', [STATS_HOST]: 'network', [RATES_HOST]: 'network' });
+  assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), NOV3_BASIS, 'the basis came');
+  assert.deepEqual([h.c.snapshot().updatedAt, h.c.state().kind], [0, 'failed'], 'a historical price is never «Обновлено»');
+  h.t.advance(MIN);
+  assert.equal(h.count().spot, undefined, 'the basis is there: not asked again');
+  h.answer();
+  assert.deepEqual([fxChanges(h.c.snapshot()), coinChanges(h.c.snapshot())], [NOV3_PCT, NOV3_CRYPTO_PCT]);
+  assert.equal(h.c.snapshot().updatedAt, NOV4 + 800 + MIN, 'the newest data: the rates table and the stats');
+});
+
+test('B26 back-off: a 429 on a spot holds api.coinbase.com — the rates table and every spot wait together; then one round asks the table and the missing pair', () => {
+  const h = controller({ start: NOV4, storage: memoryStorage() });
+  h.c.setVisible(true, true);
+  h.answer({ 'USD-RUB/spot': { error: 'http 429', retryAfter: '120' } });
+  assert.ok(noChange(h.c.snapshot()), 'no currency table');
+  h.t.advance(MIN);
+  assert.deepEqual([h.count().rates, h.count().spot, h.count().stats], [0, undefined, 6], 'held: neither the table nor the spots; the Exchange stats go on');
+  h.answer();
+  h.t.advance(MIN);
+  assert.deepEqual([h.count().rates, spotsOf(h)], [1, pairUrls(['USD-RUB'], '2026-11-03')], 'the hold over: the table and the one missing pair');
+  h.answer();
+  assert.deepEqual(fxChanges(h.c.snapshot()), NOV3_PCT);
+});
+
+test('B26: a kept basis of the current D is reused after a restart (0 basis requests); a part kept is completed; an older D is asked again and replaced; the v1 key is not read', () => {
+  const storage = memoryStorage([[KEY, JSON.stringify(NOV3_BASIS)]]);
+  const h = controller({ start: NOV4, storage });
+  h.c.setVisible(true, true);
+  assert.deepEqual(h.count(), { yahoo: 2, stats: 6, rates: 1 }, 'restored: no spot asked');
+  h.answer();
+  assert.deepEqual([fxChanges(h.c.snapshot()), coinChanges(h.c.snapshot())], [NOV3_PCT, NOV3_CRYPTO_PCT], 'the restored basis counts from the first answer');
+  assert.deepEqual([fxGroup(h.c.snapshot()).since, cryptoGroup(h.c.snapshot()).since], ['2026-11-03', '2026-11-03']);
+  const part = memoryStorage([[KEY, JSON.stringify({ date: '2026-11-03', prices: { 'USD-ILS': NOV3_FIAT['USD-ILS'], 'BTC-USD': NOV3_CRYPTO['BTC-USD'] } })]]);
+  const p = controller({ start: NOV4, storage: part });
+  p.c.setVisible(true, true);
+  assert.deepEqual(spotsOf(p), pairUrls(['USD-EUR', 'USD-UAH', 'USD-RUB'], '2026-11-03').concat(coinsUrls('2026-11-03')).sort(), 'only what is missing: 3 pairs + the coins\' one');
+  p.answer();
+  assert.deepEqual(JSON.parse(part.m.get(KEY)), NOV3_BASIS, 'completed on the TV');
+  const old = memoryStorage([[KEY, JSON.stringify({ date: '2026-11-02', prices: BASIS_PRICES })]]);
+  const o = controller({ start: NOV4, storage: old });
+  assert.deepEqual(o.logs, [], 'an older D is a valid record, not an error');
+  o.c.setVisible(true, true);
+  assert.deepEqual(spotsOf(o), spotUrls('2026-11-03'), 'an older D: asked again');
+  o.answer();
+  assert.deepEqual([fxChanges(o.c.snapshot()), coinChanges(o.c.snapshot())], [NOV3_PCT, NOV3_CRYPTO_PCT], 'never measured against the older day');
+  assert.deepEqual(JSON.parse(old.m.get(KEY)), NOV3_BASIS, 'replaced on the TV');
+  const v1 = memoryStorage([['markets.fxBasis.v1', JSON.stringify({ day: '2026-11-04', at: NOV4 - MIN, rates: BASIS })]]);
+  const w = controller({ start: NOV4, storage: v1 });
+  w.c.setVisible(true, true);
+  assert.deepEqual(spotsOf(w), spotUrls('2026-11-03'), 'batch 23C\'s v1 record is not read');
+  w.answer();
+  assert.equal(v1.m.get('markets.fxBasis.v1'), JSON.stringify({ day: '2026-11-04', at: NOV4 - MIN, rates: BASIS }), 'and left as it was');
+});
+
+// The UTC/Israel boundary: from 00:00 to 02:00 in Israel (winter, +02:00; to 03:00 in summer) the UTC date is still the previous
+// one, so D is two Israel days back; D 00:00 UTC is 02:00 (03:00) in Israel, the same calendar date. Through Intl and through
+// the built-in IL rule.
+test('B26 boundary: 01:30 in Israel on 5 Nov (23:30 UTC on the 4th) measures against 3 Nov; at 00:00 UTC (02:00 in Israel) D moves to 4 Nov — the change goes, the next round asks it', () => {
+  for (const intl of [Intl, undefined]) {
+    const h = controller({ start: Date.parse('2026-11-04T23:30:00Z'), storage: memoryStorage(), intl });
+    h.c.setVisible(true, true);
+    assert.deepEqual(spotsOf(h), spotUrls('2026-11-03'), 'the UTC date is still the 4th: D = the 3rd, intl ' + !!intl);
+    h.answer();
+    assert.equal(fxGroup(h.c.snapshot()).since, '2026-11-03', 'intl ' + !!intl);
+    h.c.setVisible(false);
+    h.t.advance(30 * MIN + 30 * 1000);                // 00:00:30 UTC: 02:00:30 on 5 November in Israel
+    assert.ok(noChange(h.c.state().snapshot) && noCoinChange(h.c.state().snapshot), 'D moved at 00:00 UTC, not at the Israel midnight, intl ' + !!intl);
+    h.c.setVisible(true, true);
+    assert.deepEqual(spotsOf(h), spotUrls('2026-11-04'), 'intl ' + !!intl);
+    h.answer();
+    assert.deepEqual([fxGroup(h.c.snapshot()).since, fxChanges(h.c.snapshot()), coinChanges(h.c.snapshot())], ['2026-11-04', NOV4_PCT, NOV4_CRYPTO_PCT], 'intl ' + !!intl);
+  }
+  // summer time (+03:00): D 00:00 UTC is 03:00 in Israel, still D's date
+  const summer = controller({ start: Date.parse('2026-10-24T22:30:00Z'), storage: memoryStorage([[KEY, JSON.stringify({ date: '2026-10-23', prices: BASIS_PRICES })]]) });
+  summer.c.setVisible(true, true);
+  summer.answer();
+  assert.deepEqual([fxGroup(summer.c.snapshot()).since, cryptoGroup(summer.c.snapshot()).since], ['2026-10-23', '2026-10-23'], '01:30 on 25 October in Israel: D = 23 October');
+});
+
+// C3 (Codex, batch 23C; kept for v2): a kept basis counts only when whole and possible; anything else is logged and asked again.
+test('B26 C3: an invalid kept basis is ignored (a bad date, a broken or unknown price, no prices) — logged, asked again', () => {
+  const date = '2026-11-03', prices = NOV3_BASIS.prices, bad = [
+    ['a date after D (today\'s)', { date: '2026-11-04', prices }],
+    ['not a real date', { date: '2026-02-30', prices }],
+    ['a date in another form', { date: '03.11.2026', prices }],
+    ['no date', { prices }],
+    ['no prices', { date }],
+    ['prices not an object', { date, prices: 3 }],
+    ['prices an array', { date, prices: [] }],
+    ['a currency price 0', { date, prices: Object.assign({}, prices, { 'USD-UAH': 0 }) }],
+    ['a currency price negative', { date, prices: Object.assign({}, prices, { 'USD-EUR': -0.9 }) }],
+    ['a price as a string', { date, prices: Object.assign({}, prices, { 'USD-ILS': '3.14' }) }],
+    ['a currency the rows do not read', { date, prices: Object.assign({}, prices, { 'USD-GBP': 0.8 }) }],
+    ['a coin price 0', { date, prices: Object.assign({}, prices, { 'BTC-USD': 0 }) }],
+    ['a coin the rows do not read', { date, prices: Object.assign({}, prices, { 'TRX-USD': 0.3 }) }],
+    ['batch 26\'s first draft shape { rates, crypto }', { date, rates: BASIS, crypto: CRYPTO_BASIS }]
   ];
   for (const [what, record] of bad) {
     const h = controller({ start: NOV4, storage: memoryStorage([[KEY, JSON.stringify(record)]]) });
     assert.ok(h.logs.includes(KEY + ': not restored: invalid'), what + ': said through log');
     h.c.setVisible(true, true);
-    h.answer({ [RATES_HOST]: ratesAnswer(BASIS) });
-    assert.ok(FX_IDS.every((id) => rowOf(h.c.snapshot(), id).changePct === null), what + ': not measured against it');
-    assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), { day, at: NOV4, rates: BASIS }, what + ': the day\'s first table took its place');
-    h.t.advance(MIN);
+    assert.deepEqual(spotsOf(h), spotUrls('2026-11-03'), what + ': asked again');
     h.answer();
-    for (const id of FX_IDS) assert.equal(rowOf(h.c.snapshot(), id).changePct, FX_PCT[id], what + ' → ' + id);
+    assert.deepEqual([fxChanges(h.c.snapshot()), coinChanges(h.c.snapshot())], [NOV3_PCT, NOV3_CRYPTO_PCT], what + ': measured against the recorded basis, never the kept one');
+    assert.deepEqual(JSON.parse(h.storage.m.get(KEY)), NOV3_BASIS, what + ': replaced on the TV');
   }
   const rubbish = controller({ start: NOV4, storage: memoryStorage([[KEY, '{not json']]) });
   assert.ok(rubbish.logs.some((m) => /not restored/.test(m)));
   const broken = controller({ start: NOV4, storage: { getItem: () => { throw new Error('quota'); }, setItem: () => { throw new Error('quota'); } } });
   broken.c.setVisible(true, true);
-  broken.answer({ [RATES_HOST]: ratesAnswer(BASIS) });
-  broken.t.advance(MIN);
   broken.answer();
-  assert.equal(rowOf(broken.c.snapshot(), 'USDILS').changePct, FX_PCT.USDILS, 'the basis still counts in memory');
+  broken.t.advance(MIN);
+  assert.equal(broken.count().spot, undefined, 'the basis still counts in memory: not asked again');
+  broken.answer();
+  assert.deepEqual([fxChanges(broken.c.snapshot()), coinChanges(broken.c.snapshot())], [NOV3_PCT, NOV3_CRYPTO_PCT]);
   assert.ok(broken.logs.some((m) => /not restored: quota/.test(m)) && broken.logs.some((m) => /not kept: quota/.test(m)), broken.logs.join(' | '));
 });
 
-test('23C: without the home clock there is no home day — no basis kept, no change, no label', () => {
+// «since» is D 00:00 UTC as a HOME date: Israel (+02:00 / +03:00) keeps it on D itself, so only a home clock behind UTC shows
+// the conversion is real — the label follows the clock, it is not the UTC date copied.
+test('B26: «since» is D 00:00 UTC read on the home clock — a home clock 5 h behind UTC says the day before D', () => {
+  const behind = (ms) => { const d = new Date(ms - 5 * 3600000); return { ok: true, approx: false, offset: -300, hours: d.getUTCHours(), minutes: d.getUTCMinutes(),
+    weekday: d.getUTCDay(), day: d.getUTCDate(), month: d.getUTCMonth(), year: d.getUTCFullYear() }; };
+  const h = controller({ start: NOV4, wallAt: behind, storage: memoryStorage() });
+  h.c.setVisible(true, true);
+  h.answer();
+  assert.deepEqual([fxGroup(h.c.snapshot()).since, cryptoGroup(h.c.snapshot()).since, fxChanges(h.c.snapshot())], ['2026-11-02', '2026-11-02', NOV3_PCT], '2026-11-03 00:00 UTC is 19:00 on 2 November there');
+});
+
+test('B26: without the home clock the change still shows; the cards say the UTC date D', () => {
   const h = controller({ start: NOV4, wallAt: false, storage: memoryStorage() });
   h.c.setVisible(true, true);
-  h.answer({ [RATES_HOST]: ratesAnswer(BASIS) });
-  h.t.advance(MIN);
   h.answer();
-  assert.ok(FX_IDS.every((id) => rowOf(h.c.snapshot(), id).changePct === null) && !('since' in fxGroup(h.c.snapshot())));
-  assert.equal(h.storage.m.has(KEY), false);
+  assert.deepEqual([fxChanges(h.c.snapshot()), coinChanges(h.c.snapshot()), fxGroup(h.c.snapshot()).since, cryptoGroup(h.c.snapshot()).since],
+    [NOV3_PCT, NOV3_CRYPTO_PCT, '2026-11-03', '2026-11-03']);
 });
 
 test('back-off: a 429 from Coinbase Exchange holds back that host only (Retry-After 120 s honoured); the rates, Yahoo and the kept prices go on', () => {
@@ -763,9 +881,11 @@ test('C-19: an unreadable markets answer is logged with its message', () => {
 });
 test('N2: snapshot() turns a rate ≤ 0 (or missing) into an empty row (its own guard, not only rateTable()\'s)', () => {
   const ctx = load(FILES), cfg = ctx.Config.markets;
-  const s = ctx.Markets.snapshot(cfg, { quotes: {}, stats: { 'BTC-USD': { last: 0, open: 1 } }, rates: { USD: 1, ILS: 0, UAH: -25.6, EUR: 0.9 }, basis: { USD: 1, EUR: 0 }, updatedAt: AT }, AT);
+  const s = ctx.Markets.snapshot(cfg, { quotes: {}, stats: { 'BTC-USD': { last: 0 }, 'ETH-USD': { last: 2298.24 } }, rates: { USD: 1, ILS: 0, UAH: -25.6, EUR: 0.9 },
+    basis: { rates: { USD: 1, EUR: 0 }, prices: { 'ETH-USD': 0 } }, updatedAt: AT }, AT);
   for (const id of ['USDILS', 'EURILS', 'UAHperILS', 'RUBperILS', 'UAHperUSD', 'BTC']) assert.equal(rowOf(s, id).price, null, id + ': no price');
   assert.deepEqual([rowOf(s, 'EURUSD').price, rowOf(s, 'EURUSD').changePct], [1 / 0.9, null], 'a basis rate ≤ 0: a price, no change');
+  assert.deepEqual([rowOf(s, 'ETH').price, rowOf(s, 'ETH').changePct], [2298.24, null], 'a coin\'s basis price ≤ 0: a price, no change');
 });
 
 // FIX-BATCH-19 3 (P7): leaving the screen (or the TV hiding the page) during a round aborts every request still in flight; a

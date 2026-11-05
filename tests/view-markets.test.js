@@ -359,18 +359,20 @@ test('N2: the commodities card says «· $» once in its head and no sign in its
 });
 
 
-// Batch 23B: the currencies card says what its changes are measured from — «% с 09:31» (batch 23C: the Israel time the day's first rates table was read) — in the
-// place and look of «закрыто» (mk-closed), only when the snapshot's group carries `since`; the time left to right inside Hebrew;
-// a change of `since` alone redraws the card.
-test('23B: the FX card head says «% с 02:00» / «% מ־02:00» / «% з 03:00» / «% since 02:00» where «закрыто» sits; none without since', () => {
-  for (const [lang, since, want] of [['ru', '02:00', '% с 02:00'], ['he', '02:00', '% מ־' + LRE + '02:00' + PDF], ['uk', '03:00', '% з 03:00'], ['en', '02:00', '% since 02:00']]) {
+// Batch 23B / batch 26: the currencies card says what its changes are measured from — the home date of the basis, D 00:00 UTC
+// («% с 4 ноября») — in the place and look of «закрыто» (mk-closed), only when the snapshot's group carries `since` (a home date
+// "YYYY-MM-DD"); the day and the month in the interface language (I18n.dayMonth: the month's own form, the day first or last as
+// the language says); a change of `since` alone redraws the card.
+test('B26: the FX (and crypto) card head says «% с 4 ноября» / «% מ־4 בנובמבר» / «% з 4 листопада» / «% since November 4» where «закрыто» sits; none without since', () => {
+  for (const [lang, since, want] of [['ru', '2026-11-04', '% с 4 ноября'], ['he', '2026-11-04', '% מ־4 בנובמבר'], ['uk', '2026-11-04', '% з 4 листопада'],
+    ['en', '2026-11-04', '% since November 4'], ['ru', '2026-01-31', '% с 31 января'], ['uk', '2026-12-01', '% з 1 грудня']]) {
     const { ctx, scr } = setup(lang), snap = fixture('markets-view-snapshot');
     for (const r of snap.groups[0].rows) r.closed = null;            // the Coinbase rates: no trading hours
     snap.groups[0].since = since;
     ctx.MarketsView.render(snap, { kind: 'fresh', updated: '14:32' });
     const h = head(scr.card('fx').innerHTML);
     assert.match(h, /<span class="mk-closed mk-since">/, lang + ': in the closed mark\'s place and look');
-    assert.equal(text(h).replace(text(head(scr.card('fx').innerHTML).split('<span class="mk-closed')[0]), ''), want, lang);
+    assert.equal(text(h).replace(text(head(scr.card('fx').innerHTML).split('<span class="mk-closed')[0]), ''), want, lang + ' ' + since);
     assert.ok(!/mk-since/.test(scr.card('us').innerHTML), lang + ': only the card whose group says it');
   }
   const { ctx, scr } = setup('ru'), snap = fixture('markets-view-snapshot');
@@ -379,7 +381,16 @@ test('23B: the FX card head says «% с 02:00» / «% מ־02:00» / «% з 03:00
   assert.ok(!/mk-since/.test(scr.card('fx').innerHTML), 'no since: no label');
   const writes = scr.card('fx').writes, next = fixture('markets-view-snapshot');
   for (const r of next.groups[0].rows) r.closed = null;
-  next.groups[0].since = '02:00';
+  next.groups[0].since = '2026-11-04';
   ctx.MarketsView.render(next, { kind: 'fresh', updated: '14:32' });
   assert.equal(scr.card('fx').writes, writes + 1, 'since alone changed: the card is redrawn');
+  // the crypto card (batch 26: the same rule as the currencies) says it the same way, in the same place
+  const both = fixture('markets-view-snapshot');
+  for (const r of both.groups[0].rows) r.closed = null;
+  both.groups[0].since = '2026-11-04';
+  both.groups[3].since = '2026-11-04';
+  ctx.MarketsView.render(both, { kind: 'fresh', updated: '14:32' });
+  const ch = head(scr.card('crypto').innerHTML);
+  assert.match(ch, /<span class="mk-closed mk-since">/, 'crypto: in the closed mark\'s place and look');
+  assert.equal(text(ch).replace(text(ch.split('<span class="mk-closed')[0]), ''), '% с 4 ноября', 'crypto: the same label');
 });

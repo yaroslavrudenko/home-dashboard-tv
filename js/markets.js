@@ -6,29 +6,42 @@
  *     exchange), .instrumentType, .currentTradingPeriod.regular { start, end } (epoch seconds; a 24-hour market's session
  *     runs 00:00–23:59).
  *   Coinbase (checked 2026-11-04, owner 2026-11-04: crypto and every currency from Coinbase, every minute):
- *     api.exchange.coinbase.com/products/<P>/stats — { open (the price 24 hours earlier), high, low, last, volume, … } as
- *       strings; a product Coinbase does not trade answers { message: 'NotFound' } (TRX-USD).
+ *     api.exchange.coinbase.com/products/<P>/stats — { open, high, low, last, volume, … } as strings (only `last`, the last
+ *       trade, is read); a product Coinbase does not trade answers { message: 'NotFound' } (TRX-USD).
  *     api.coinbase.com/v2/exchange-rates?currency=USD — { data: { currency: 'USD', rates: { ILS: '3.1663775', … } } }:
  *       units of each currency for ONE dollar, as strings.
+ *     api.coinbase.com/v2/prices/<BASE>-<CURRENCY>/spot?date=<YYYY-MM-DD> (checked 2026-11-05) — { data: { amount: '3.14045…',
+ *       base: 'USD', currency: 'ILS' } }: units of CURRENCY for one BASE at 00:00 UTC of that date, when the date has ENDED
+ *       (for today's date it is the live rate); an unknown pair answers 404. The same instant for fiat and crypto: BTC-USD of
+ *       2026-11-04 = 77336.755, the Exchange's daily candle OPEN; BTC-ILS / BTC-USD = USD-ILS of the same date (11-03, 11-04,
+ *       10-28; coordinator, 2026-11-05).
+ *     api.coinbase.com/v2/prices/USD/spot?date=<YYYY-MM-DD> (checked 2026-11-05; not in Coinbase's documented v2 reference) —
+ *       { data: [{ base: 'BTC', currency: 'USD', amount: '76674.8950001045146293' }, … 414 assets] }: every asset's dated
+ *       dollar price in ONE answer (the coins' basis; the per-pair answers round it — SOL of 2026-11-04 reads 92.755 here and
+ *       92.735 per pair, 0.02%). There is no such answer for a currency (prices/ILS/spot answers 400).
  *   Markets.plan(cfg)                the requests: { spark: [url], stats: [{ product, url }], rates: url }
  *   Markets.quotes(json)             one spark answer → { symbol: meta } for every symbol with a price; a foreign shape throws
- *   Markets.stats(json)              one stats answer → { last, open } (numbers > 0); anything else throws
+ *   Markets.stats(json)              one stats answer → { last } (a number > 0); anything else throws
  *   Markets.rateTable(json, codes)   one exchange-rates answer → { code: units for one dollar } of exactly `codes`; a foreign
  *                                    shape, another base, or a code missing or not > 0 throws (never half a table)
- *   Markets.snapshot(cfg, data, nowMs)   the MarketsSnapshot of data = { quotes, stats: { product: { last, open } },
- *                                    rates (a rateTable or null), basis (a rateTable to measure the currencies against, or
- *                                    null), updatedAt }
+ *   Markets.snapshot(cfg, data, nowMs)   the MarketsSnapshot of data = { quotes, stats: { product: { last } }, rates (a
+ *                                    rateTable or null), basis (what the currencies and crypto are measured against, or null:
+ *                                    { rates: a rateTable or null, prices: { product: price } }), updatedAt }
  *   Markets.createController(cfg, deps)  two sources, each on its own on-view gate (js/onview.js) and cadence: Yahoo every
  *                                    cfg.refreshMs, Coinbase every cfg.coinbase.refreshMs; snapshot() is null until the
  *                                    first answers, then the latest snapshot; state() says what the header says
  * MarketsSnapshot: { updatedAt, groups: [{ id, rows: [{ id, price, currency, changePct, closed, stale?, unit? }], since? }] } —
- * every configured row in the configured order. changePct: a quote's — Yahoo's own day change; a crypto row's — against its
- * price 24 hours earlier; a currency row's — against the basis: the FIRST rates table the dashboard read on the current home
- * (Israel) calendar day (batch 23C, the owner's «а», 2026-11-04: an honest label from the actual basis time), and only for a
- * LATER table of that same day — the first table of the day IS the basis, so it shows no change; across the home day's
- * boundary it is null until the new day's basis and a later table are in (checked on every state(), no request needed) —
- * never a stale or guessed basis. since: on a group whose rows carry such a change, the home wall time the basis was read
- * ("% с 07:31": what the card says it is measured from).
+ * every configured row in the configured order. changePct: a share's, index's or commodity's — Yahoo's own day change; a
+ * currency's and a coin's — ONE rule (batch 26, the owner's «да - исправляй» and «все проценты должны считаться одинаково»,
+ * 2026-11-05): against Coinbase's price at 00:00 UTC of the PREVIOUS UTC date D (it replaces batch 23C's first table of the
+ * home day, which measured minutes and read 0%, and the coins' price 24 hours earlier), from the first answer on. The basis is
+ * dated spot answers — one per currency the rows read but the dollar (4), one for all the coins — asked in the Coinbase round
+ * itself, only what it lacks for the current D (so once per UTC day while the screen is on view: 5 requests; after a failure
+ * only the missing pair, or the coins' one), and kept on the TV as { date, prices: { pair: price } }. The currencies' change
+ * needs all four (a cross needs every code: never half a table on screen); each coin's is its own (a missing one leaves only
+ * that row without a change). While a row has no basis for the current D (asked, failed, or the UTC date just changed:
+ * checked on every state(), no request needed) its change is null — never a stale day's basis. since: on a group whose rows carry such a change, the home (Israel) calendar date of D 00:00 UTC,
+ * "2026-11-04" (the card: «% с 4 ноября»).
  * A row its source did not give in that source's last round keeps its last good values with stale: true (as weather and news
  * keep theirs); one that never had a value has price null (never dropped, never made up). closed: a quote's market is outside
  * its regular session (true / false; it follows the clock between rounds, A2); false for crypto (it trades around the
@@ -38,6 +51,7 @@
  * carried it (its spark answer, its product's stats, the rates table). */
 var Markets = (function () {
   var CURRENCIES = { USD: true, ILS: true, UAH: true, RUB: true, EUR: true };
+  var DOLLAR = 'USD';                              // the base of every Coinbase rate: units of a currency for one dollar
   var LAST_MINUTE_S = 60;                          // a 24-hour session's `end` is its last minute, not its end
   var DAY_SESSION_S = 24 * 3600 - LAST_MINUTE_S;   // 00:00–23:59: how Yahoo names a 24-hour market's session
 
@@ -84,17 +98,36 @@ var Markets = (function () {
     return out;
   }
   function stats(json) {
-    var last = numberOf(json && json.last), open = numberOf(json && json.open);
-    if (!positive(last) || !positive(open)) throw new Error('markets: unexpected stats shape');
-    return { last: last, open: open };
+    var last = numberOf(json && json.last);
+    if (!positive(last)) throw new Error('markets: unexpected stats shape');
+    return { last: last };
   }
   function rateTable(json, codes) {
     var d = json && json.data, rates = d && d.rates, out = {};
-    if (!d || d.currency !== 'USD' || !rates || typeof rates !== 'object') throw new Error('markets: unexpected rates shape');
+    if (!d || d.currency !== DOLLAR || !rates || typeof rates !== 'object') throw new Error('markets: unexpected rates shape');
     for (var i = 0; i < codes.length; i++) {
       var v = numberOf(rates[codes[i]]);
       if (!positive(v)) throw new Error('markets: no rate for ' + codes[i]);
       out[codes[i]] = v;
+    }
+    return out;
+  }
+  // One dated spot answer for `pair` ('USD-ILS', 'BTC-USD') → units of its currency for one of its base; another pair, or an
+  // amount not > 0, throws.
+  function spotRate(json, pair) {
+    var d = json && json.data, v = numberOf(d && d.amount), p = pair.split('-');
+    if (!d || d.base !== p[0] || d.currency !== p[1] || !positive(v)) throw new Error('markets: unexpected spot shape for ' + pair);
+    return v;
+  }
+  // The dollar's dated spots of every asset (prices/USD/spot?date=…: { data: [{ base, currency, amount }, …] }) → { product:
+  // amount as a number } for each of `products` found as base-currency (a coin not in it is simply absent; an amount not > 0
+  // is dropped where every price is, withSpots); a foreign shape throws.
+  function coinPrices(json, products) {
+    var list = json && json.data, out = {};
+    if (!Array.isArray(list)) throw new Error('markets: unexpected spot shape for ' + DOLLAR);
+    for (var i = 0; i < list.length; i++) {
+      var e = list[i], key = e ? e.base + '-' + e.currency : '';
+      if (products.indexOf(key) >= 0) out[key] = numberOf(e.amount);
     }
     return out;
   }
@@ -118,11 +151,11 @@ var Markets = (function () {
     return { id: id, price: price, currency: currency, changePct: finite(m.regularMarketChangePercent) ? m.regularMarketChangePercent : null,
       closed: closedAt(m, nowS) };
   }
-  // A crypto product: its last price in the product's quote currency (BTC-USD: USD), the change against 24 hours earlier.
-  function statsRow(row, s) {
-    if (!s || !positive(s.last) || !positive(s.open)) return emptyRow(row.id, false);
+  // A crypto product: its last price in the product's quote currency (BTC-USD: USD), the change against the basis.
+  function statsRow(row, s, basis) {
+    if (!s || !positive(s.last)) return emptyRow(row.id, false);
     var currency = row.product.split('-')[1];
-    return { id: row.id, price: s.last, currency: CURRENCIES.hasOwnProperty(currency) ? currency : null, changePct: (s.last / s.open - 1) * 100, closed: false };
+    return { id: row.id, price: s.last, currency: CURRENCIES.hasOwnProperty(currency) ? currency : null, changePct: changeFrom(s.last, basis, row), closed: false };
   }
   // `code` units for one `base` from a dollar table; null without both as numbers > 0 (N2: snapshot() is a public pure
   // function, so it keeps its own guard, whatever table it is handed).
@@ -130,9 +163,16 @@ var Markets = (function () {
     var x = table ? table[row.code] : undefined, y = table ? table[row.base] : undefined;
     return positive(x) && positive(y) ? x / y : null;
   }
-  // A currency's change against a basis table (null without one, or without its two codes).
+  // A coin's basis price from a basis's prices; null without one as a number > 0 (N-2: snapshot() is a public pure function,
+  // so it keeps its own guard, like cross()).
+  function coinAt(prices, product) {
+    var v = prices ? prices[product] : undefined;
+    return positive(v) ? v : null;
+  }
+  // A currency's or a coin's change against a basis { rates, prices } (null without one, or without the row's own figure:
+  // a currency's two codes, a coin's price).
   function changeFrom(price, basis, row) {
-    var m = cross(basis, row);
+    var m = !basis ? null : row.product ? coinAt(basis.prices, row.product) : cross(basis.rates, row);
     return price === null || m === null ? null : (price / m - 1) * 100;
   }
   function rateRow(row, rates, basis) {
@@ -142,7 +182,7 @@ var Markets = (function () {
   }
   function rowOf(r, data, nowS) {
     if (r.yahoo) return quoteRow(r.id, data.quotes[r.yahoo], nowS);
-    if (r.product) return statsRow(r, data.stats[r.product]);
+    if (r.product) return statsRow(r, data.stats[r.product], data.basis);
     return rateRow(r, data.rates, data.basis);
   }
 
@@ -175,18 +215,22 @@ var Markets = (function () {
   function hostOf(url) { return url.split('/')[2]; }
 
   // deps: { getJson(url, timeoutMs, done), now(), setTimeout, clearTimeout, documentVisible() (optional), onChange(snapshot),
-  //         log(message) (optional), wallAt(ms) (optional: the home clock's Tz.wallTime — says the basis as a home time;
-  //         without it no currency change), storage (optional: localStorage or null; the day's basis kept on the TV) }
+  //         log(message) (optional), wallAt(ms) (optional: the home clock's Tz.wallTime — says the basis date at home;
+  //         without it the card says the UTC date D), storage (optional: localStorage or null; the basis kept on the TV) }
   function createController(cfg, deps) {
     var log = deps.log || function () {}, cb = cfg.coinbase, codes = rateCodes(cfg), requests = plan(cfg);
     var lastGood = {}, lastMeta = {}, current = null, hold = {}, bySymbol = {};   // hold: host → not asked before (ms)
-    // What each source's last round gave (got), the time of its newest data (at), and the data time of the last good rates
-    // table (lastRatesAt: the FX rows shown, fresh or kept, are from it).
+    // What each source's last round gave (got) and the time of its newest data (at).
     // Batch 25 T5: each answer's data time per row it carried — quoteAt (symbol), statsAt (product), ratesAt (the table).
-    var got = { quotes: {}, quoteAt: {}, stats: {}, statsAt: {}, rates: null, ratesAt: 0 }, at = { yahoo: 0, coinbase: 0 }, lastRatesAt = 0;
+    var got = { quotes: {}, quoteAt: {}, stats: {}, statsAt: {}, rates: null, ratesAt: 0 }, at = { yahoo: 0, coinbase: 0 };
     // Batch 25 T5: each row's own data time when it was last good — the snapshot's keptAt is the oldest of the kept ones.
     var lastGoodAt = {};
-    var basis = readBasis(deps.now());   // { day (home), at (the table's data time), rates: { code: units for one dollar } }
+    var products = [], pairs = [], p;    // the coins, in row order; every pair the basis holds: the currencies', then the coins
+    for (p = 0; p < requests.stats.length; p++) products.push(requests.stats[p].product);
+    for (p = 0; p < codes.length; p++) if (codes[p] !== DOLLAR) pairs.push(DOLLAR + '-' + codes[p]);
+    pairs = pairs.concat(products);
+    // { date (a UTC date D), prices: { pair: its price at D 00:00 UTC }, rates: the currencies' table they make, or null }
+    var basis = readBasis(deps.now());
     eachRow(cfg, function (r) { if (r.yahoo) bySymbol[r.yahoo] = r.id; });
 
     // FIX-BATCH-19 4 (P10): «Обновлено» is the time the data were made — the answer's Date − Age (js/net.js getJsonDated) when
@@ -196,46 +240,81 @@ var Markets = (function () {
       return finite(d) ? Math.max(now - cfg.httpAgeMaxMs, Math.min(now, d)) : now;
     }
 
-    // ---- the basis (batch 23C, the owner's «а»): the first rates table read on the home calendar day, kept on the TV ----
-    // The home (Israel) calendar day of a moment, by the home clock's zone rule (js/tz.js); null when the zone is unknown.
-    function homeDay(ms) {
-      var w = deps.wallAt ? deps.wallAt(ms) : null;
-      return w && w.ok ? Tz.wallDate(w) : null;
-    }
-    // C3 (Codex): a kept record counts only when it is whole and possible — read never in the future, on the very home day it
-    // names (so a day in any other form never matches), and exactly the rates the rows read, each a number > 0; anything
-    // else is ignored (the day's first table then becomes the basis).
-    function validBasis(e, now) {
-      if (!e || !finite(e.at) || e.at > now || homeDay(e.at) !== e.day || !e.rates || typeof e.rates !== 'object') return false;
-      for (var k in e.rates) if (e.rates.hasOwnProperty(k) && codes.indexOf(k) < 0) return false;
-      for (var i = 0; i < codes.length; i++) if (!positive(e.rates[codes[i]])) return false;
+    // ---- the basis (batch 26): Coinbase's prices at 00:00 UTC of the previous UTC date, kept on the TV ----
+    // The basis date at `now`: the previous UTC date D — the latest ENDED date, whose dated spot is its 00:00 UTC price.
+    function basisDate(now) { return Tz.addDays(Tz.isoDate(now), -1); }
+    // A kept record { date, prices } counts only when it is whole and possible: a real date, not after the current D (an
+    // older one is kept but asked again), and prices of configured pairs only, each a number > 0 (any subset: what is
+    // missing is asked again); anything else is ignored (and asked again).
+    function validPrices(m) {
+      if (!m || typeof m !== 'object' || Array.isArray(m)) return false;
+      for (var k in m) if (m.hasOwnProperty(k) && (pairs.indexOf(k) < 0 || !positive(m[k]))) return false;
       return true;
     }
+    function validBasis(e, now) { return !!e && Tz.validDate(e.date) && e.date <= basisDate(now) && validPrices(e.prices); }
+    // D's currencies' table from its prices: every code's rate, or none (never half a table on screen).
+    function ratesOf(prices) {
+      var rates = {};
+      for (var i = 0; i < codes.length; i++) {
+        rates[codes[i]] = codes[i] === DOLLAR ? 1 : prices[DOLLAR + '-' + codes[i]];
+        if (!positive(rates[codes[i]])) return null;
+      }
+      return rates;
+    }
+    // The basis in memory: the kept prices and the currencies' table they make (never kept on the TV: it is derived).
+    function basisOf(date, prices) { return { date: date, prices: prices, rates: ratesOf(prices) }; }
     function readBasis(now) {
       if (!deps.storage) return null;
       try {
         var e = JSON.parse(deps.storage.getItem(cb.basisKey));
-        if (e === null || validBasis(e, now)) return e;
+        if (e === null) return null;
+        if (validBasis(e, now)) return basisOf(e.date, e.prices);
         log(cb.basisKey + ': not restored: invalid');
         return null;
       } catch (err) { log(cb.basisKey + ': not restored: ' + err.message); return null; }
     }
-    // A rates table read at readAt becomes the basis when it is the first of its home day: a later table of the same day never
-    // replaces it (N3), and a table of an earlier day — a late or cached answer from before midnight — never replaces today's
-    // (S1).
-    function noteBasis(readAt, table) {
-      var day = homeDay(readAt);
-      if (!day || (basis && basis.day >= day)) return;
-      basis = { day: day, at: readAt, rates: table };
+    function keepBasis(b) {
+      basis = b;
       if (!deps.storage) return;
-      try { deps.storage.setItem(cb.basisKey, JSON.stringify(basis)); } catch (err) { log(cb.basisKey + ': not kept: ' + err.message); }
+      try { deps.storage.setItem(cb.basisKey, JSON.stringify({ date: b.date, prices: b.prices })); } catch (err) { log(cb.basisKey + ': not kept: ' + err.message); }
     }
-    // C1 (Codex): the basis that counts at `now` — today's (home day), for a LATER table (the first table is the basis itself:
-    // no change yet; a table read after today's basis is today's) — with its home time («since»); else none.
-    function basisAt(now) {
-      var today = homeDay(now);
-      if (!today || !basis || basis.day !== today || !(lastRatesAt > basis.at)) return null;
-      return { since: Tz.hhmm(deps.wallAt(basis.at)), table: basis.rates };
+    // The basis that counts at `now`: the current D's, else none (a stale day's basis never counts).
+    function basisFor(now) { return basis && basis.date === basisDate(now) ? basis : null; }
+    // A currency's dated spot (one pair a request: Coinbase has no batched fiat answer), and every coin's in ONE request (the
+    // dollar's dated spots of every asset: the configured coins are picked from it).
+    function pairJob(date, pair) {
+      return { url: cb.spot + encodeURIComponent(pair) + '/spot?date=' + date,
+        take: function (into, json) { into.spot[pair] = spotRate(json, pair); into.spotDate = date; } };
+    }
+    function coinsJob(date) {
+      return { url: cb.spot + DOLLAR + '/spot?date=' + date,
+        take: function (into, json) { var got = coinPrices(json, products); for (var k in got) if (got.hasOwnProperty(k)) into.spot[k] = got[k]; into.spotDate = date; } };
+    }
+    // The requests for what D's basis still lacks — each missing currency's pair, and one request for the coins while any is
+    // missing; none once D's basis is whole.
+    function basisJobs(now) {
+      var date = basisDate(now), b = basisFor(now), jobs = [], coins = false;
+      for (var i = 0; i < pairs.length; i++) {
+        if (b && positive(b.prices[pairs[i]])) continue;
+        if (products.indexOf(pairs[i]) < 0) jobs.push(pairJob(date, pairs[i])); else coins = true;
+      }
+      if (coins) jobs.push(coinsJob(date));
+      return jobs;
+    }
+    // D's basis with one round's spot answers added (a new object, never the kept one changed): every price kept, every one
+    // that came; the same basis when nothing was added.
+    function withSpots(date, spot) {
+      var kept = basis && basis.date === date ? basis.prices : {}, prices = {}, added = false;
+      for (var i = 0; i < pairs.length; i++) {
+        var v = positive(kept[pairs[i]]) ? kept[pairs[i]] : spot[pairs[i]];
+        if (positive(v)) { prices[pairs[i]] = v; added = added || v !== kept[pairs[i]]; }
+      }
+      return added ? basisOf(date, prices) : basis;
+    }
+    // What the card says the change is measured from: D 00:00 UTC as a home date (the UTC date D without the home clock).
+    function sinceOf(date) {
+      var w = deps.wallAt ? deps.wallAt(Tz.dateMs(date)) : null;
+      return w && w.ok ? Tz.wallDate(w) : date;
     }
 
     // ---- back-off: a 429, or any refusal naming a Retry-After still ahead, holds back that host only ----
@@ -293,43 +372,44 @@ var Markets = (function () {
         updatedAt: Math.max(at.yahoo, at.coinbase) }, now), now), now);
     }
     function groupWith(g, rows, since) { var o = { id: g.id, rows: rows }; if (since) o.since = since; return o; }
-    // C1: every currency row's change (fresh or kept) and its card's «since» for `now` — the same snapshot object while
-    // nothing changes, so the minute tick redraws nothing; across 00:00 Israel time the change goes with no request.
+    // Every currency's and coin's change (fresh or kept) and its card's «since» for `now` — the same snapshot object while
+    // nothing changes, so the minute tick redraws nothing; across 00:00 UTC the old day's change goes with no request.
     function fxNow(snap, now) {
       if (!snap) return snap;
-      var b = basisAt(now), groups = null;
+      var b = basisFor(now), groups = null;
       for (var i = 0; i < snap.groups.length; i++) {
         var spec = cfg.groups[i].rows, rows = snap.groups[i].rows, out = null, any = false;
         for (var j = 0; j < rows.length; j++) {
-          if (!spec[j].code) continue;
-          var pct = b ? changeFrom(rows[j].price, b.table, spec[j]) : null;
+          if (!spec[j].code && !spec[j].product) continue;
+          var pct = changeFrom(rows[j].price, b, spec[j]);
           if (pct !== null) any = true;
           if (pct === rows[j].changePct) continue;
           out = out || rows.slice();
           out[j] = copyRow(rows[j], { changePct: pct });
         }
-        var since = any ? b.since : undefined;
+        var since = any ? sinceOf(b.date) : undefined;
         if (out || since !== snap.groups[i].since) { groups = groups || snap.groups.slice(); groups[i] = groupWith(snap.groups[i], out || rows, since); }
       }
       return groups ? Obj.copyWith(snap, { groups: groups }) : snap;
     }
 
-    // One source, s: { name, jobs ([{ url, take }]), fields (of `got` its round replaces), refreshMs (its cadence) }. A round
-    // sends every job whose host is not held back, all at once, and is shown when its last answer is in; a source's rows it
-    // did not give this round are kept (stale). FIX-BATCH-19 3 (P7) / FIX-19B: the round returns cancel(reason) — the TV hid
+    // One source, s: { name, jobsAt(now) (the round's requests: [{ url, take }]), fields (of `got` its round replaces),
+    // refreshMs (its cadence) }. A round sends every job whose host is not held back, all at once, and is shown when its last
+    // answer is in; a source's rows it did not give this round are kept (stale). FIX-BATCH-19 3 (P7) / FIX-19B: the round returns cancel(reason) — the TV hid
     // the page, or the screen was left before any answer came: every request still in flight is aborted and the round draws
     // nothing (OnView asks again on the next arrival). Left once an answer has come, the round declines (false) and ends in
     // the background, so a slow network never starves the screen; its snapshot is there on the return.
     function source(s) {
       function round(done) {
-        var start = deps.now(), into = { quotes: {}, quoteAt: {}, stats: {}, statsAt: {}, rates: null, ratesAt: 0, newest: 0 }, live = [], pending = [];
+        var start = deps.now(), jobs = s.jobsAt(start), live = [], pending = [];
+        var into = { quotes: {}, quoteAt: {}, stats: {}, statsAt: {}, rates: null, ratesAt: 0, spot: {}, spotDate: '', newest: 0 };
         var left, arrived = 0, cancelled = false, i;
-        for (i = 0; i < s.jobs.length; i++) if (!held(s.jobs[i].url, start)) live.push(s.jobs[i]);
+        for (i = 0; i < jobs.length; i++) if (!held(jobs[i].url, start)) live.push(jobs[i]);
         // The round is over before it is drawn: a render that throws never stops the cadence.
         function finish() {
           for (var f = 0; f < s.fields.length; f++) got[s.fields[f]] = into[s.fields[f]];
           if (into.newest) at[s.name] = into.newest;
-          if (into.rates) { lastRatesAt = into.ratesAt; noteBasis(into.ratesAt, into.rates); }
+          if (into.spotDate) { var b = withSpots(into.spotDate, into.spot); if (b && b !== basis) keepBasis(b); }
           current = build();
           done();
           deps.onChange(current);
@@ -357,8 +437,10 @@ var Markets = (function () {
     for (i = 0; i < requests.spark.length; i++) yahooJobs.push({ url: requests.spark[i], take: takeQuotes });
     for (i = 0; i < requests.stats.length; i++) coinbaseJobs.push(statsJob(requests.stats[i]));
     coinbaseJobs.push({ url: requests.rates, take: takeRates });
-    var gates = [source({ name: 'yahoo', jobs: yahooJobs, fields: ['quotes', 'quoteAt'], refreshMs: cfg.refreshMs }),
-      source({ name: 'coinbase', jobs: coinbaseJobs, fields: ['stats', 'statsAt', 'rates', 'ratesAt'], refreshMs: cb.refreshMs })];
+    // Coinbase's round also asks for what the current D's basis lacks (once per UTC day, in parallel with the rest).
+    function coinbaseJobsAt(now) { var extra = basisJobs(now); return extra.length ? coinbaseJobs.concat(extra) : coinbaseJobs; }
+    var gates = [source({ name: 'yahoo', jobsAt: function () { return yahooJobs; }, fields: ['quotes', 'quoteAt'], refreshMs: cfg.refreshMs }),
+      source({ name: 'coinbase', jobsAt: coinbaseJobsAt, fields: ['stats', 'statsAt', 'rates', 'ratesAt'], refreshMs: cb.refreshMs })];
 
     // A2: the closed marks for `now`, from each priced quote's last session (no request); the same snapshot object while no
     // mark changes, so the minute tick redraws nothing.

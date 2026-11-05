@@ -147,8 +147,15 @@ var Tz = (function () {
   function addDays(date, n) { return isoDate(dateMs(date) + n * DAY); }
   function weekdayOf(date) { return new Date(dateMs(date)).getUTCDay(); }
   function daysBetween(from, to) { return Math.round((dateMs(to) - dateMs(from)) / DAY); }
+  // A real calendar date "YYYY-MM-DD": it survives the round trip through Date.UTC (2026-02-31 and 0000-00-00 do not).
+  // (Batch 26: moved here from js/ledger.js, which keeps Ledger.validDate as its alias.)
+  function validDate(d) {
+    if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
+    var t = dateMs(d);
+    return t >= 0 && isoDate(t) === d;
+  }
 
   return { resolve: resolve, wallTime: wallTime, intlOffset: intlOffset, rules: RULES, pad2: pad2, hhmm: hhmm, hourKey: hourKey,
     wallDate: wallDate, ddmm: ddmm, ddmmyyyy: ddmmyyyy, instant: instant,
-    dateMs: dateMs, isoDate: isoDate, addDays: addDays, weekdayOf: weekdayOf, daysBetween: daysBetween };
+    dateMs: dateMs, isoDate: isoDate, addDays: addDays, weekdayOf: weekdayOf, daysBetween: daysBetween, validDate: validDate };
 })();

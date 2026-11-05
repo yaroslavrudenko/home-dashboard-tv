@@ -117,7 +117,9 @@ const HISTORY = 'https://www.oref.org.il/api/v1/AlertHistory/';   // on the aler
 // stats (api.exchange.coinbase.com) and its dollar table (api.coinbase.com).
 // FIX-11B C8: their recorded answers (tests/fixtures/markets: Yahoo 2026-11-02, Coinbase 2026-11-04): each spark request gets
 // the recorded entries of exactly the symbols it asks for, a stats request its product's answer (a product without one: the
-// 404 Coinbase gives an unknown product), the rates request the recorded table.
+// 404 Coinbase gives an unknown product), the rates request the recorded table; batch 26: a dated spot (the currencies' and the
+// coins' basis) the recording of that pair — or of every asset, USD — and date (coinbase/spot-<PAIR|USD>-<date>.json, recorded
+// 2026-11-05), else Coinbase's 404.
 export function marketsRecorded(url) {
   const u = new URL(url);
   const json = (body, status = 200) => ({ status, contentType: 'application/json', body });
@@ -130,6 +132,11 @@ export function marketsRecorded(url) {
   if (stats) {
     const file = path.join(FIXTURES, 'markets', 'coinbase', 'stats-' + decodeURIComponent(stats[1]) + '.json');
     return fs.existsSync(file) && !/NotFound/.test(fs.readFileSync(file, 'utf8')) ? json(fs.readFileSync(file)) : json('{"message":"NotFound"}', 404);
+  }
+  const spot = /^\/v2\/prices\/([A-Z]+(?:-[A-Z]{3})?)\/spot$/.exec(u.pathname);
+  if (spot) {
+    const file = path.join(FIXTURES, 'markets', 'coinbase', 'spot-' + spot[1] + '-' + u.searchParams.get('date') + '.json');
+    return fs.existsSync(file) ? json(fs.readFileSync(file)) : json('{"error":"rpc error: code = NotFound desc = rate not found","code":5,"message":"rpc error: code = NotFound desc = rate not found"}', 404);
   }
   return json(fixtureText('markets/coinbase/exchange-rates-USD.json'));
 }

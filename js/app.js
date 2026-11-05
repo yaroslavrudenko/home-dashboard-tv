@@ -79,7 +79,8 @@ var App = (function () {
     src.air = Air.createStore(WeatherRender.airPlaces(Config), Config.air, env.withTimers({ getJson: Net.getJson, storage: env.storage(), onChange: nav.onData('main', 'israel') }));
     src.shabbat = Shabbat.createStore(Config.shabbat, env.withTimers({ getJson: Net.getJson, onChange: nav.onData('shabbat'), today: clock.today }));
     src.news = News.createStore(Config.news, env.withTimers({ getText: Net.getText, onChange: nav.onData('news') }), I18n.lang());
-    // Batch 23: the currencies' change is against 00:00 at home (the home clock, Israel), its rates kept on the TV for the day.
+    // Batch 26: the currencies' and the coins' change is against Coinbase's price at 00:00 UTC of the previous UTC date, kept on the
+    // TV for that date; the home clock says that date at home on the cards («% с 4 ноября»).
     src.markets = Markets.createController(Config.markets, env.withTimers({ getJson: Net.getJsonDated, documentVisible: env.documentVisible, onChange: nav.onData('markets'),
       storage: env.storage(), wallAt: clock.placeWall({ id: 'home' }) }));
     src.traffic = null;

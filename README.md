@@ -21,7 +21,7 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="807 automated tests passing" src="https://img.shields.io/badge/tests-807%20passing-brightgreen?style=for-the-badge">
+  <img alt="813 automated tests passing" src="https://img.shields.io/badge/tests-813%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
@@ -43,7 +43,7 @@
   <tr><td align="center"><b>1 · Home</b> — clocks, the weather, air and UV at home</td><td align="center"><b>2 · Weather in Israel</b> — North, Centre, South</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-3-news.png" alt="News in Hebrew: Ynet and Globes columns, five headlines each, newest first"></td>
-    <td><img src="docs/screenshots/he-4-markets.png" alt="Markets in Hebrew: six cards of six rows, currencies, US shares and Israeli shares on top, crypto (Bitcoin to Zcash), US indices and commodities below, each price with its change (the currencies since 09:31, as their card's header says; the US and Israeli cards marked closed), each commodity with what its price is for (per barrel, per ounce), mirrored right to left"></td>
+    <td><img src="docs/screenshots/he-4-markets.png" alt="Markets in Hebrew: six cards of six rows, currencies, US shares and Israeli shares on top, crypto (Bitcoin to Zcash), US indices and commodities below, each price with its change (the currencies and crypto since 1 November, as their cards' headers say; the US and Israeli cards marked closed), each commodity with what its price is for (per barrel, per ounce), mirrored right to left"></td>
   </tr>
   <tr><td align="center"><b>3 · News</b> — the sources follow the language</td><td align="center"><b>4 · Markets</b> — six cards, each price's change</td></tr>
   <tr>
@@ -77,19 +77,19 @@
   </tr>
   <tr><td align="center">Русский</td><td align="center">Українська</td></tr>
   <tr>
-    <td><img src="docs/screenshots/ru-4-markets.png" width="420" alt="Markets in Russian: currencies (with the change since 09:31), US shares, Israeli shares, crypto, US indices and commodities"></td>
-    <td><img src="docs/screenshots/uk-4-markets.png" width="420" alt="Markets in Ukrainian: currencies (with the change since 09:31), US shares, Israeli shares, crypto, US indices and commodities"></td>
+    <td><img src="docs/screenshots/ru-4-markets.png" width="420" alt="Markets in Russian: currencies and crypto (with the change since 1 November), US shares, Israeli shares, US indices and commodities"></td>
+    <td><img src="docs/screenshots/uk-4-markets.png" width="420" alt="Markets in Ukrainian: currencies and crypto (with the change since 1 November), US shares, Israeli shares, US indices and commodities"></td>
   </tr>
   <tr><td align="center">Русский · Рынки</td><td align="center">Українська · Ринки</td></tr>
 </table>
 
-<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs</code>), drawn on 4 November 2026 from the
+<sub>Screenshots at 1920×1080 in desktop Chrome (<code>tools/readme-shots.mjs</code>), drawn on 4 November 2026 (the Markets ones on 5 November) from the
 recorded answers in <code>tests/fixtures</code>, each screen at the moment its answers were recorded: 20:32 on 29 October for the
 weather, news, traffic, map and alert screens, 09:31 on 2 November for Markets and Shabbat. <b>Recorded:</b> the news (Ynet,
 Globes, Українська правда, Економічна правда), the traffic routes (Mapbox Directions); the traffic map is a real Mapbox Static Images picture taken 4 November (`--map`), Pikud HaOref's recent alerts,
 Shabbat and holidays (Hebcal), the weather (Open-Meteo), and the Markets: Yahoo Finance's quotes (2 November) and Coinbase's
-crypto and dollar table (4 November). The currency changes are against an earlier table of the day made up for the shot (the
-first rates answer, read at 09:31), so the currencies card says «% since 09:31». <b>Khamsin:</b> on the home and Israel weather
+crypto and dollar table (4 November). The currency and crypto changes are against Coinbase's recorded prices at 00:00 UTC on
+1 November (the previous UTC date at the shot's clock), so the currencies and crypto cards say «% since 1 November». <b>Khamsin:</b> on the home and Israel weather
 screens and on the banner and city-picker shots over the home screen, Rehovot's dust is a synthetic khamsin laid over its
 recorded forecast, its hours moved onto the weather recording's dates (khamsin pills in the hours and in the 7-day dust band,
 each in its grade's colour; the one key — the grades «100 121 196 271» — in the hourly strip's title row with the current grade
@@ -158,7 +158,7 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, Coinbase, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 807 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 813 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -199,7 +199,7 @@ forecast and the air quality together (+2), an open of the Shabbat screen asks H
 | Open-Meteo forecast (with UV) | Home, Israel | every 15 min, and on an open | 1 for all six places |
 | Open-Meteo air quality | Home, Israel | every 60 min, and on an open | 1 for the home city and the three regions |
 | News feeds | News | every 10 min | the language's 2, in parallel |
-| Coinbase | Markets | only while on view: on an open, then every minute | 7 (6 coins + 1 currency table), 0 off view |
+| Coinbase | Markets | only while on view: on an open, then every minute | 7 (6 coins + 1 currency table); once a UTC day 5 more (the currencies' and coins' basis), in the same round; 0 off view |
 | Yahoo Finance | Markets | only while on view: on an open, then every 5 min | 2, 0 off view |
 | Hebcal | Shabbat & holidays | once a day, on an open, and on waking with old data | 1 |
 | Mapbox Directions | Traffic | only while on view, at most every 10 min, ≤ 3,000 a UTC date | 10 per round |
@@ -317,12 +317,15 @@ The lists were checked on 2026-11-02 (`tests/fixtures/markets/ranking.json`); th
 - **Each row**: the name in the interface language, the price and its change with a soft green ▲ or a soft red ▼.
   Every price in a card sits on one numeric grid: the currency sign in its own column, currencies to 4 decimals, indices
   and crypto to 2. The Tel Aviv exchange quotes in agorot; the app divides by 100 and shows ₪.
-- **What the change is measured against**: shares, indices and commodities — the source's own day change; crypto — the
-  price 24 hours earlier; currencies — the first rates the dashboard read that day (Israel time), and the card says when,
-  in its head: «% с 07:31». No public source gives the shekel's rate at an hour of the current day, so the basis is the
-  dashboard's own first reading, kept on the TV for the day. That first reading shows a muted «—» (it is the basis itself);
-  the change shows from the next minute on. From 00:00 Israel time every currency row shows «—» until the new day's first
-  reading and the one after it are in: a stale or guessed basis is never shown.
+- **What the change is measured against**: shares, indices and commodities — the exchange's own day change (Yahoo's
+  figure); currencies and crypto — ONE rule: Coinbase's price at 00:00 UTC of the previous UTC date, and both cards say
+  that date in their head: «% с 4 ноября». No public source gives the shekel's rate at an hour of the current day; Coinbase
+  gives the 00:00 UTC price of a date that has ended, the same instant for currencies and coins. The basis is asked once a
+  UTC day, in the same round as the prices (5 more requests: one per currency, one for every coin), and kept on the TV; the
+  change shows from the first reading on. If any of the 4 currency answers fails, every currency row shows a muted «—»; a coin
+  missing from its answer shows «—» alone; the next round asks again only what is missing. From 00:00 UTC (02:00 in Israel, 03:00 in
+  summer) the old basis is no longer used: the rows show «—» until the new date's basis is in. A stale or guessed basis is
+  never shown.
 - **Closed markets** are said once, in the card's head: «закрыто» when every quote with trading hours is closed,
   «частично закрыто» when some are; each closed price is dimmed. Crypto trades around the clock and the currency rates
   have no trading hours, so neither card ever reads «закрыто».
@@ -339,16 +342,19 @@ The lists were checked on 2026-11-02 (`tests/fixtures/markets/ranking.json`); th
 Sources, all without a key, each asked only while the screen is on view (at once on a ◀ ▶ open or a language change,
 else on its own cadence, one round at a time per source, a 15-second deadline per request):
 
-- [Coinbase](https://www.coinbase.com/), **every minute** (checked 2026-11-04): the Exchange's 24-hour stats of each coin
-  (6 requests) and one table of every currency for one dollar (1 request) — the currencies are crosses of that table
-  (₴ per ₪ = UAH per $ ÷ ILS per $). Its hryvnia is Coinbase's own reference rate, about 0.4% below the National Bank of
-  Ukraine's official one on 2026-11-04.
+- [Coinbase](https://www.coinbase.com/), **every minute** (checked 2026-11-04): the Exchange's stats of each coin (6
+  requests: the last trade is its price) and one table of every currency for one dollar (1 request) — the currencies are
+  crosses of that table (₴ per ₪ = UAH per $ ÷ ILS per $). Its hryvnia is Coinbase's own reference rate, about 0.4% below
+  the National Bank of Ukraine's official one on 2026-11-04. Once a UTC day, in the same round, the 00:00 UTC price of the
+  previous UTC date of each currency but the dollar (4 requests, `prices/USD-<code>/spot?date=…`) and of every coin (1
+  request, `prices/USD/spot?date=…`, every asset in one answer), checked 2026-11-05: the basis of the currencies' and the
+  coins' change.
 - [Yahoo Finance](https://finance.yahoo.com/)'s spark endpoint, **every 5 minutes** (checked 2026-11-02): the 24 shares,
   indices and commodities in 2 batched requests (it takes at most 20 symbols per request; 21 answer 400). It stays at 5
   minutes: from the home network Yahoo answered 429 (too many requests) to every one of 42 requests made once a minute.
 
-That makes **9 requests on an open (Coinbase 7, Yahoo 2), then 7 a minute plus 2 every 5 minutes while the screen stays
-on view, and 0 off view**. Each source's prices appear as soon as it answers, without waiting for the other. A 429 holds back
+That makes **9 requests on an open (Coinbase 7, Yahoo 2; 14 on the first open of a UTC day, with the 5 basis requests), then
+7 a minute plus 2 every 5 minutes while the screen stays on view, and 0 off view**. Each source's prices appear as soon as it answers, without waiting for the other. A 429 holds back
 only that source's host: for the time its Retry-After names, else 5 minutes; its rows keep their last prices, dimmed.
 
 **5 · Shabbat & holidays**: the home city's calendar on two cards.
@@ -628,9 +634,9 @@ The browser tests answer Open-Meteo (forecast and air quality), the news feeds, 
 alert feed, its history and Mapbox from `tests/fixtures/` (the recorded or documented shape of each source; the batch-2 news
 stories in them are invented, the batch-6 ones recorded, Yahoo's market answers (`tests/fixtures/markets/`), the air answers
 (`tests/fixtures/air/`) and the Hebcal calendars (`tests/fixtures/hebcal/`) recorded on 2026-11-02, Coinbase's
-(`tests/fixtures/markets/coinbase/`) on 2026-11-04, the map image a real traffic-night-v2 picture made smaller); they fail
-(never skip) without puppeteer-core. The Markets browser test also counts the requests: 9 on an open (Coinbase 7, Yahoo 2), then each source on
-its own cadence. The Shabbat browser test (`tests/browser/shabbat12.test.mjs`) draws the
+(`tests/fixtures/markets/coinbase/`) on 2026-11-04 and its dated spots on 2026-11-05, the map image a real traffic-night-v2 picture made smaller); they fail
+(never skip) without puppeteer-core. The Markets browser test also counts the requests: 14 on the first open (Coinbase 7 + the 5 basis requests, Yahoo 2), 9 on
+the next, then each source on its own cadence. The Shabbat browser test (`tests/browser/shabbat12.test.mjs`) draws the
 Shabbat screen from the recorded calendar, pins the boot round, and checks the air & UV block on Home and the air chip on
 every Israel card in all three languages; `tests/shabbat-contract.test.js` feeds the calendar code's own output into the
 Shabbat view.

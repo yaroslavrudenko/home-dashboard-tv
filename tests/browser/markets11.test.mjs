@@ -181,7 +181,8 @@ test('M1: the Markets screen comes right after the news — eight page dots, the
 });
 
 // Batch 23: two sources, each on its own cadence — Coinbase (6 stats + 1 rates) every coinbase.refreshMs (60 s), Yahoo (2
-// spark) every refreshMs (5 min); shortened here to 1.5 s and 6 s.
+// spark) every refreshMs (5 min); shortened here to 1.5 s and 6 s. Batch 26: Coinbase's first round also asks the currencies'
+// and the coins' basis — 4 currency spots + 1 answer for every coin, once per UTC day (the app keeps it): 12 then 7.
 const coinbaseGets = (app) => app.requests.markets.filter((r) => r.method === 'GET' && /coinbase\.com/.test(r.url)).length;
 test('M3: on view each source every ITS refreshMs (Coinbase 7, Yahoo 2); another screen on view: nothing; a ◀ ▶ open asks both at once', async () => {
   const app = await openApp({ ...QUIET, configure: (c) => { c.markets.coinbase.refreshMs = 1500; c.markets.refreshMs = 6000; c.rotation.enabled = false; } });
@@ -190,9 +191,9 @@ test('M3: on view each source every ITS refreshMs (Coinbase 7, Yahoo 2); another
     const p = app.page;
     await toMarkets(p);
     await wait(400);
-    assert.deepEqual([gets(app), coinbaseGets(app)], [9, 7], '◀ ▶ open, cold: Yahoo 2 + Coinbase 7, at once');
+    assert.deepEqual([gets(app), coinbaseGets(app)], [14, 12], '◀ ▶ open, cold: Yahoo 2 + Coinbase 7 + the 5 basis requests (batch 26), at once');
     await wait(1500);
-    assert.deepEqual([gets(app), coinbaseGets(app)], [16, 14], 'staying on view: Coinbase again after its refreshMs, Yahoo not yet');
+    assert.deepEqual([gets(app), coinbaseGets(app)], [21, 19], 'staying on view: Coinbase again after its refreshMs (7: the basis kept), Yahoo not yet');
     await press(p, RIGHT); await wait(300);                    // Shabbat
     const left = gets(app);
     await wait(3500);
@@ -212,7 +213,7 @@ test('M3: a rotation arrival asks only when the last attempt is refreshMs old (5
     await p.waitForFunction(() => document.querySelector('.screen.is-active').id === 'screen-markets', { timeout: 5000, polling: 50 });
     await wait(400);
     const round = gets(app);
-    assert.equal(round, 9, 'the first arrival (no data yet): both sources, 9 (Yahoo 2 + Coinbase 7)');
+    assert.equal(round, 14, 'the first arrival (no data yet): both sources, 14 (Yahoo 2 + Coinbase 7 + the 5 basis requests)');
     await p.waitForFunction(() => document.querySelector('.screen.is-active').id === 'screen-traffic', { timeout: 3000, polling: 50 });
     await p.waitForFunction(() => document.querySelector('.screen.is-active').id === 'screen-markets', { timeout: 8000, polling: 50 });
     await wait(400);
@@ -228,12 +229,12 @@ test('M1: a language change on the Markets screen redraws it in that language an
     const p = app.page;
     await toMarkets(p);
     await wait(400);
-    assert.equal(gets(app), 9);
+    assert.equal(gets(app), 14, 'the first round: 9 + the 5 basis requests');
     const before = await p.$eval('#screen-markets', (e) => e.textContent);
     await press(p, DOWN); await wait(80); await press(p, DOWN);   // ru → he → uk
     await wait(1100);
     assert.equal(await p.evaluate(() => document.documentElement.lang), 'uk');
-    assert.equal(gets(app), 18, 'one round of both sources (9) for the language the remote settled on');
+    assert.equal(gets(app), 23, 'one round of both sources (9: the basis kept) for the language the remote settled on');
     assert.notEqual(await p.$eval('#screen-markets', (e) => e.textContent), before, 'redrawn in Ukrainian');
     assert.equal(await screenOn(p), 'screen-markets', 'the language never changes the screen');
     assert.deepEqual(app.errors, []);
@@ -274,21 +275,22 @@ test('Batch 11: the rotation keeps the Markets screen its own dwell (90 s; 2 s h
 });
 
 // FIX-11B C8: the header tells the truth across rounds — a good recorded round reads «Обновлено в …» (fresh); a round
-// whose quotes fail keeps the last prices and reads «Не обновляется · данные от …» (stale). Exact counts (batch 23): 9 a round, both sources.
+// whose quotes fail keeps the last prices and reads «Не обновляется · данные от …» (stale). Exact counts (batch 23): 9 a round, both sources
+// (batch 26: 14 the first, the 5 basis requests with it).
 test('C8: a good round then a failed round — the header goes fresh → stale, the prices stay; 9 requests a round', async () => {
-  const app = await openApp({ ...QUIET, markets: (n, url) => (n <= 9 ? marketsRecorded(url) : { status: 503, body: '' }),
+  const app = await openApp({ ...QUIET, markets: (n, url) => (n <= 14 ? marketsRecorded(url) : { status: 503, body: '' }),
     configure: (c) => { c.rotation.enabled = false; } });
   try {
     await ready(app);
     const p = app.page;
     await toMarkets(p);
     await p.waitForSelector('#markets-status.is-fresh', { timeout: 5000 });
-    assert.equal(gets(app), 9);
+    assert.equal(gets(app), 14);
     const priced = await p.$$eval('#screen-markets .mk-price', (e) => e.length);
     assert.equal(priced, 36, 'every row priced');
     await press(p, RIGHT); await wait(300); await press(p, LEFT);          // an explicit reopen: the quotes fail
     await p.waitForSelector('#markets-status.is-stale', { timeout: 5000 });
-    assert.equal(gets(app), 18, 'the reopen: both sources (9), every request refused');
+    assert.equal(gets(app), 23, 'the reopen: both sources (9), every request refused');
     assert.match(await p.$eval('#markets-status', (e) => e.textContent), /^Не обновляется · данные от \d\d:\d\d$/);
     assert.equal(await p.$$eval('#screen-markets .mk-price', (e) => e.length), 36, 'the last prices stay, dimmed');
     assert.ok(await p.$$eval('#screen-markets .mk-row.is-stale', (e) => e.length) >= 30, 'the quote rows are marked stale');
@@ -318,36 +320,43 @@ for (const [hangs, card, other] of [['coinbase.com', '#mk-us', 'Yahoo'], ['finan
   });
 }
 
-// Batch 23C (the owner's «а»): the currencies card says what its changes are measured from — the Israel time the day's first
-// rates table was read (the app's clock starts at FIXED_NOW, 20:32 in Israel) — in the place of «закрыто» (the head's end), one
-// line, clear of the title, the time left to right in Hebrew. The first table is the basis itself: no change, no label; the
-// second table (Coinbase's cadence shortened to 1.5 s) brings both.
-for (const [lang, want] of [['ru', /^% с 20:32$/], ['he', /^% מ־‪20:32‬$/], ['uk', /^% з 20:32$/]]) {
-  test('23C, ' + lang + ': the FX card head says the basis time from the second table on, at the head\'s end, on one line, clear of the title', async () => {
-    const app = await openApp({ ...QUIET, lang, configure: (c) => { c.rotation.enabled = false; c.markets.coinbase.refreshMs = 1500; } });
+// Batch 26 (the owner's «да - исправляй», «все проценты должны считаться одинаково»): the currencies and the crypto cards say
+// what their changes are measured from — the Israel date of D 00:00 UTC, D the previous UTC date (the app's clock starts at
+// FIXED_NOW, 20:32 on 29 October in Israel: D = 28 October) — in the place of «закрыто» (the head's end), one line, clear of
+// the title (≥ 24 px: the designer's D26-1, the worst case measured 26 px), from the FIRST answer on (the 5 basis requests come
+// with it). The crypto card's title is the longest of the two. The longest month of each language with a two-digit day too (Russian «сентября», Ukrainian «листопада»; Hebrew's
+// longest, «באוקטובר», is the base case): there the clock is moved and the 28 October recording answers for that D (layout
+// only — no recording exists for a date not yet ended).
+const FIXED_D = (url) => marketsRecorded(url.replace(/date=\d{4}-\d\d-\d\d/, 'date=2026-10-28'));
+for (const [lang, now, want] of [['ru', null, /^% с 28 октября$/], ['he', null, /^% מ־28 באוקטובר$/], ['uk', null, /^% з 28 жовтня$/],
+  ['ru', Date.parse('2026-10-01T09:00:00Z'), /^% с 30 сентября$/], ['uk', Date.parse('2026-12-01T09:00:00Z'), /^% з 30 листопада$/]]) {
+  test('B26, ' + lang + (now ? ', the longest month' : '') + ': the FX and crypto card heads say the basis date from the first answer on, at the head\'s end, on one line, clear of the title', async () => {
+    const app = await openApp({ ...QUIET, lang, ...(now ? { now, markets: (n, url) => FIXED_D(url) } : {}), configure: (c) => { c.rotation.enabled = false; } });
     try {
       await ready(app);
       const p = app.page;
       await toMarkets(p);
-      await p.waitForFunction(() => document.querySelectorAll('#mk-fx .mk-price').length === 6, { timeout: 5000, polling: 20 });
-      const first = await p.evaluate(() => ({ since: !!document.querySelector('#mk-fx .mk-since'), changes: [...document.querySelectorAll('#mk-fx .mk-pct')].map((e) => e.textContent) }));
-      assert.deepEqual(first, { since: false, changes: ['—', '—', '—', '—', '—', '—'] }, 'the first table: the basis itself — «—», no label');
-      await p.waitForSelector('#mk-fx .mk-since', { timeout: 5000 });
+      await p.waitForFunction(() => document.querySelectorAll('#mk-fx .mk-price, #mk-crypto .mk-price').length === 12, { timeout: 5000, polling: 20 });
       await p.evaluate(() => document.fonts.ready);
-      const m = await p.evaluate(() => {
-        const head = document.querySelector('#mk-fx .mk-head'), since = head.querySelector('.mk-since'), title = head.querySelector('.mk-title');
-        const r = (e) => e.getBoundingClientRect(), hb = r(head), sb = r(since), tb = r(title), q = document.createRange();
-        q.selectNodeContents(since);
-        return { text: since.textContent, lines: new Set([...q.getClientRects()].map((x) => Math.round(x.top))).size,
-          gap: getComputedStyle(head).direction === 'rtl' ? tb.left - sb.right : sb.left - tb.right,
-          atEnd: getComputedStyle(head).direction === 'rtl' ? Math.round(sb.left - hb.left) : Math.round(hb.right - sb.right),
-          inside: sb.top >= hb.top - 1 && sb.bottom <= hb.bottom + 1, closedLook: getComputedStyle(since).fontSize };
-      });
-      assert.match(m.text, want);
-      assert.equal(m.lines, 1, 'one line');
-      assert.ok(m.gap >= 16, 'clear of the title: ' + m.gap);
-      assert.ok(m.atEnd <= 1 && m.inside, 'at the head\'s end, inside it: ' + JSON.stringify(m));
-      assert.equal(m.closedLook, '24px', 'the look of «закрыто»');
+      for (const card of ['#mk-fx', '#mk-crypto']) {
+        const first = await p.evaluate((card) => ({ since: !!document.querySelector(card + ' .mk-since'), changes: [...document.querySelectorAll(card + ' .mk-pct')].map((e) => e.textContent) }), card);
+        assert.equal(first.since, true, card + ': the first answer already has its label');
+        assert.ok(first.changes.every((c) => c !== '—'), card + ': and every change: ' + first.changes.join(' '));
+        const m = await p.evaluate((card) => {
+          const head = document.querySelector(card + ' .mk-head'), since = head.querySelector('.mk-since'), title = head.querySelector('.mk-title');
+          const r = (e) => e.getBoundingClientRect(), hb = r(head), sb = r(since), tb = r(title), q = document.createRange();
+          q.selectNodeContents(since);
+          return { text: since.textContent, lines: new Set([...q.getClientRects()].map((x) => Math.round(x.top))).size,
+            gap: getComputedStyle(head).direction === 'rtl' ? tb.left - sb.right : sb.left - tb.right,
+            atEnd: getComputedStyle(head).direction === 'rtl' ? Math.round(sb.left - hb.left) : Math.round(hb.right - sb.right),
+            inside: sb.top >= hb.top - 1 && sb.bottom <= hb.bottom + 1, closedLook: getComputedStyle(since).fontSize };
+        }, card);
+        assert.match(m.text, want, card);
+        assert.equal(m.lines, 1, card + ': one line');
+        assert.ok(m.gap >= 24, card + ': clear of the title: ' + m.gap);
+        assert.ok(m.atEnd <= 1 && m.inside, card + ': at the head\'s end, inside it: ' + JSON.stringify(m));
+        assert.equal(m.closedLook, '24px', card + ': the look of «закрыто»');
+      }
       const boxes = await p.evaluate(measure, '#screen-markets *');
       assert.deepEqual(boxes.filter((b) => b.cut || b.outsideCard || b.overflowsParent), [], lang + ': nothing cut or spilling');
       assert.deepEqual(app.errors, []);

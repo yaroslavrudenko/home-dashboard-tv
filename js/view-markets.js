@@ -73,12 +73,13 @@ var MarketsView = (function () {
     for (var i = 0; i < rows.length; i++) if (priced(rows[i]) && typeof rows[i].closed === 'boolean') { hours++; if (rows[i].closed) closed++; }
     return !closed ? '' : closed === hours ? 'markets.closed' : 'markets.partlyClosed';
   }
-  // since (batch 23B): what the card's changes are measured from, «% с 02:00», in the place and look of «закрыто» (a card
-  // with a closed mark never has one: the currencies have no trading hours); the time stays left to right inside Hebrew.
+  // since (batch 23B; batch 26: a home date "2026-11-04"): what the card's changes are measured from, «% с 4 ноября», in the
+  // place and look of «закрыто» (a card with a closed mark never has one: the currencies have no trading hours).
+  function sinceText(since) { return I18n.t('markets.since', { date: I18n.dayMonth(+since.slice(8, 10), +since.slice(5, 7) - 1) }); }
   function headHtml(id, markKey, none, sign, since) {
     var mark = none ? '<span class="mk-state">' + esc(ViewState.partText('none')) + '</span>'
       : markKey ? '<span class="mk-closed">' + esc(I18n.t(markKey)) + '</span>'
-      : since ? '<span class="mk-closed mk-since">' + esc(I18n.t('markets.since', { time: I18n.ltr(since) })) + '</span>' : '';
+      : since ? '<span class="mk-closed mk-since">' + esc(sinceText(since)) + '</span>' : '';
     return '<div class="mk-head"><span class="mk-title">' + esc(I18n.t('markets.group.' + id)) + '</span>' + (sign ? '<span class="mk-head-sign"> · ' + esc(sign) + '</span>' : '') + mark + '</div>';
   }
   // A card whose rows say what they are priced per (the commodities: «Brent · барр.») and all in one currency says that

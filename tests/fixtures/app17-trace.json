@@ -16,7 +16,7 @@
    "air": 2,
    "hebcal": 1,
    "news": 2,
-   "markets": 9,
+   "markets": 14,
    "traffic": 10,
    "map": 1,
    "history": 1,
@@ -199,7 +199,7 @@
   "air": 0,
   "hebcal": 0,
   "news": 0,
-  "markets": 9,
+  "markets": 14,
   "traffic": 10,
   "map": 1,
   "history": 1,
@@ -209,6 +209,7 @@
   "tick.traffic.screen-traffic": "recorded false on 64c0203; true by B17-V3 / FIX-17B 9 (P17-2): the fresh traffic header says its age («· 12 мин назад»), so the minute tick rewrites it — kept on purpose",
   "session.walk.markets+rotation.markets": "4 until batch 23; 9 by B23 (owner 2026-11-04: crypto and every currency from Coinbase every minute): one Markets open asks Yahoo 2 + Coinbase 7 (6 coin stats + 1 dollar table); open.er-api's 2 rate tables are gone. Re-recorded with RECORD=1 on the batch-23 tree: no other count moved",
   "session.walk.markets+rotation.markets (B23B)": "13 by B23B (the coordinator's decision on the owner's option (a), 2026-11-04): the first Markets open of a UTC date (the scripted session's fresh profile) also asks the 4 dated spots of 00:00 UTC, the basis of the currencies' change (Yahoo 2 + Coinbase 7 + 4). Re-recorded with RECORD=1 on the batch-23B tree: no other count moved",
-  "session.walk.markets+rotation.markets (B23C)": "9 again by B23C (the owner's «а», 2026-11-04): the dated spots are gone — the basis is the day's first rates table, no extra request. Re-recorded with RECORD=1 on the batch-23C tree: no other count moved"
+  "session.walk.markets+rotation.markets (B23C)": "9 again by B23C (the owner's «а», 2026-11-04): the dated spots are gone — the basis is the day's first rates table, no extra request. Re-recorded with RECORD=1 on the batch-23C tree: no other count moved",
+  "session.walk.markets+rotation.markets (B26)": "14 by batch 26 (the owner's «да - исправляй» and «все проценты должны считаться одинаково», 2026-11-05; FIX-26B: the coins in ONE request): the first Markets open of a UTC date (the scripted session's fresh profile) also asks the PREVIOUS UTC date's 00:00 UTC dated spots — the basis of the currencies' (4 pairs) and the coins' (1 answer for every asset) change — in the same round (Yahoo 2 + Coinbase 7 + 5); B23C's first-table basis read 0% on every cross but the euro's. Re-recorded with RECORD=1 on the FIX-26B tree: no other count moved"
  }
 }

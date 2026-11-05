@@ -186,3 +186,13 @@ test('FIX-18B: Tz.instant refuses what Date.parse refuses, and agrees on the edg
   for (const s of valid) assert.equal(Tz.instant(s), Date.parse(s), s);
   assert.equal(Tz.instant('2026-11-02T12:00:00.999Z'), Date.parse('2026-11-02T12:00:00Z'), 'a fraction is dropped (truncated), never rounded up');
 });
+
+// Batch 26 (native N-1, EN-4): the calendar-date validator lives in js/tz.js — the markets basis and the request ledger both
+// read it; Ledger.validDate stays its alias (the same function, NN-7).
+test('B26 N-1: Tz.validDate — a real "YYYY-MM-DD" only (leap days, no 30 February, no other form); Ledger.validDate is the same function', () => {
+  const { Tz, Ledger } = load(['js/tz.js', 'js/ledger.js']);
+  for (const d of ['2026-11-03', '2028-02-29', '2000-02-29', '1970-01-01']) assert.equal(Tz.validDate(d), true, d);
+  for (const d of ['2026-02-29', '2026-02-30', '2026-13-01', '2026-11-3', '03.11.2026', '2026-11-03T00:00Z', '0000-00-00', '1969-12-31', '', null, 20261103])
+    assert.equal(Tz.validDate(d), false, String(d));
+  assert.equal(Ledger.validDate, Tz.validDate, 'one function, two names');
+});
