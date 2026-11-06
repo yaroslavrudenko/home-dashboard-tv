@@ -1,5 +1,5 @@
-/* The home city: which one it is, and everything the dashboard derives from it — the main weather card, the traffic
- * routes and their two columns, the traffic map, the alert areas at home and nearby, the Shabbat calendar's place. Written into Config once, at boot,
+/* The home city: which one it is, and everything the dashboard derives from it — the main weather card, the twenty
+ * traffic routes and their two columns of ten, the traffic map, the alert areas at home and nearby, the Shabbat calendar's place. Written into Config once, at boot,
  * before anything is made (a change of city reloads the app: js/app.js). ES5. No DOM.
  *   HomeCity.resolve(cities, storedId, buildId)  the stored choice when it names a catalogue city, else the build's
  *                                                (Config.homeCity), else 'rehovot'
@@ -14,10 +14,14 @@
 var HomeCity = (function () {
   var DEFAULT = 'rehovot';
   var HOME_PLACE = 'home';                        // the main weather card's place id (never a region's: 'haifa' is one)
-  // «Города»: the first CITY_ROUTES of these that are not home.
-  var MAJOR = ['tlv', 'jlm', 'haifa', 'beersheva', 'ashkelon', 'netanya'], CITY_ROUTES = 5;
-  // «Рядом»: the NEAR_ROUTES nearest catalogue cities, at least NEAR_MIN_KM away (a twin centre is no trip).
-  var NEAR_ROUTES = 5, NEAR_MIN_KM = 2;
+  // «Города» (the owner, 2026-11-06): from any home city the airport, Haifa, Nazareth, Tel Aviv, Jerusalem, Eilat and
+  // Beer Sheva, then the largest Israeli cities by population — the first CITY_ROUTES of these that are not home.
+  var CITY_CANDIDATES = ['airport', 'haifa', 'nazareth', 'tlv', 'jlm', 'eilat', 'beersheva',
+    'rishon', 'petahtikva', 'ashdod', 'netanya', 'bneibrak', 'holon', 'ramatgan', 'ashkelon', 'rehovot', 'batyam'];
+  var CITY_ROUTES = 10;
+  // «Рядом»: the city's own `near` first (Rehovot's), then the nearest catalogue cities at least NEAR_MIN_KM away (a twin
+  // centre is no trip) — NEAR_ROUTES of them, none already in «Города».
+  var NEAR_ROUTES = 10, NEAR_MIN_KM = 2;
   var MAP_ZOOM = 9.6;                             // the owner's zoom: home and the cities around it fill the card
   // Alerts nearby: the cities within NEARBY_KM, nearest first, NEARBY_MAX at most; fewer than NEARBY_MIN: the
   // NEARBY_MIN nearest within NEARBY_FAR_KM.
@@ -50,15 +54,15 @@ var HomeCity = (function () {
   function ids(list) { var out = []; for (var i = 0; i < list.length; i++) out.push(list[i].id); return out; }
   function within(list, maxKm) { var out = []; for (var i = 0; i < list.length; i++) if (list[i].km <= maxKm) out.push(list[i]); return out; }
 
-  function majors(id) {
+  function beyond(list, minKm) { var out = []; for (var i = 0; i < list.length; i++) if (list[i].km >= minKm) out.push(list[i]); return out; }
+  // The ids the catalogue has (a city's own `near` naming a missing one never takes a slot).
+  function known(cities, list) { var out = []; for (var i = 0; i < list.length; i++) if (find(cities, list[i])) out.push(list[i]); return out; }
+  // A column of routes: the first n candidate ids, in order, that are not in skip, each once.
+  function pick(candidates, n, skip) {
     var out = [];
-    for (var i = 0; i < MAJOR.length && out.length < CITY_ROUTES; i++) if (MAJOR[i] !== id) out.push(MAJOR[i]);
-    return out;
-  }
-  function nearRoutes(dist, taken) {
-    var out = [];
-    for (var i = 0; i < dist.length && out.length < NEAR_ROUTES; i++) {
-      if (dist[i].km >= NEAR_MIN_KM && taken.indexOf(dist[i].id) < 0) out.push(dist[i].id);
+    for (var i = 0; i < candidates.length && out.length < n; i++) {
+      var id = candidates[i];
+      if (skip.indexOf(id) < 0 && out.indexOf(id) < 0) out.push(id);
     }
     return out;
   }
@@ -71,7 +75,9 @@ var HomeCity = (function () {
 
   function derive(cities, id) {
     var city = inList(cities.list, id) || inList(cities.list, DEFAULT), dist = around(cities, city), i;
-    var columns = majors(city.id), near = city.near || nearRoutes(dist, columns), dests = columns.concat(near);
+    var columns = pick(CITY_CANDIDATES, CITY_ROUTES, [city.id]);
+    var near = pick(known(cities, city.near || []).concat(ids(beyond(dist, NEAR_MIN_KM))), NEAR_ROUTES, [city.id].concat(columns));
+    var dests = columns.concat(near);
     var routes = [], names = {}, nearby = city.alertsNearby || nearbyAlerts(dist), areas = [];
     names[city.id] = city;
     for (i = 0; i < dests.length; i++) {

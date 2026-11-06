@@ -19,13 +19,17 @@ const NOON = Date.parse('2026-10-30T12:00:00Z');
 const FUTURE = Date.parse('2099-01-01T12:00:00Z');
 const MIN = 60000, DAY = 86400000;
 const TOKEN = 'pk.eyJ1IjoiZml4dHVyZSJ9.fixture_token-1';
-// The ten answers of one round, in route order: a Directions answer (JSON) or a transport error ('timeout', 'http 503').
+// The ten recorded answers, in the 5df4e33 route order: a Directions answer (JSON) or a transport error ('timeout', 'http 503').
 const ok = () => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'mapbox', 'routes.json'), 'utf8'));
+// D-ROUTES20 (2026-11-06): a round is one GET per route of the home city — twenty (js/homecity.js). Its answers: the ten
+// recordings, reused past ten (index i answers with recording i % 10, so rows 0–9 keep their recorded figures).
+const N = load(FILES).Config.traffic.routes.length;
+const round = () => { const rec10 = ok(); return Array.from({ length: N }, (_, i) => rec10[i % rec10.length]); };
 const plain = (v) => JSON.parse(JSON.stringify(v));
 const withToken = (ctx) => { ctx.Config.traffic.token = TOKEN; return ctx.Config.traffic; };
 const NO_ROUTE = { code: 'NoRoute', message: 'No route found', routes: [] };
-const MALFORMED = Array.from({ length: 10 }, () => ({ message: 'Not Found' }));
-const withItems = (map) => { const b = ok(); for (const k of Object.keys(map)) b[k] = map[k]; return b; };
+const MALFORMED = Array.from({ length: N }, () => ({ message: 'Not Found' }));
+const withItems = (map) => { const b = round(); for (const k of Object.keys(map)) b[k] = map[k]; return b; };
 
 // localStorage stand-in with an operation log. mode: 'throw' (every call throws: private mode, a TV without storage),
 // 'throw-set' (writes throw), 'readback' (writes land but read back as something else).
@@ -39,7 +43,7 @@ function memoryStorage(mode) {
 const rec = (storage) => JSON.parse(storage.map.get('tt-quota'));
 
 // opts: start, storage (null: none), preset (the stored record text), documentVisible, onPost(storage) when a round starts.
-// calls: one entry per ROUND (the ten GETs the store starts together): { urls, dones, timeoutMs }.
+// calls: one entry per ROUND (the N GETs the store starts together): { urls, dones, timeoutMs }.
 function makeStore(ctx, opts) {
   opts = opts || {};
   const clock = fakeTimers(opts.start || T0);
@@ -48,7 +52,7 @@ function makeStore(ctx, opts) {
   const store = ctx.Traffic.createStore(withToken(ctx), {
     getJson: (url, timeoutMs, done) => {
       let round = calls[calls.length - 1];
-      if (!round || round.urls.length === 10) {
+      if (!round || round.urls.length === N) {
         if (storage) storage.log.push('post');
         if (opts.onPost) opts.onPost(storage);
         calls.push(round = { urls: [], dones: [], timeoutMs });
@@ -59,7 +63,7 @@ function makeStore(ctx, opts) {
     storage, onChange: () => {} });
   return { store, clock, calls, storage };
 }
-// Answers the last round: x a transport error for all ten ('timeout', 'http 429') or the ten answers (ok(), withItems()).
+// Answers the last round: x a transport error for all N ('timeout', 'http 429') or the N answers (round(), withItems()).
 const answer = (s, x) => {
   const r = s.calls[s.calls.length - 1];
   r.dones.forEach((done, i) => { const v = typeof x === 'string' ? x : x[i]; if (typeof v === 'string') done(v); else done(null, v); });
@@ -72,13 +76,14 @@ test('no token until the build injects one: the committed placeholder and anythi
   assert.equal(ctx.Traffic.hasToken({ token: TOKEN }), true);
 });
 
-test('Mapbox: one GET per route, the ten routes (no roads), driving-traffic, no geometry, lon,lat order, the token encoded', () => {
+test('Mapbox: one GET per route, the twenty routes (no roads), driving-traffic, no geometry, lon,lat order, the token encoded', () => {
   const ctx = load(FILES);
   const cfg = withToken(ctx);
   assert.equal(cfg.roads, undefined, 'the road widgets are gone: the live picture is on the map screen');
   const u = ctx.Traffic.urls(cfg);
-  assert.equal(u.length, 10);
-  assert.equal(u[0], 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/34.8113,31.8928;34.7818,32.0853?overview=false&access_token=' + encodeURIComponent(TOKEN));
+  assert.equal(u.length, 20);
+  assert.equal(N, 20);
+  assert.equal(u[0], 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/34.8113,31.8928;34.8706,32.0004?overview=false&access_token=' + encodeURIComponent(TOKEN), 'the airport first');
   for (const x of u) assert.match(x, /^https:\/\/api\.mapbox\.com\/directions\/v5\/mapbox\/driving-traffic\/34\.8113,31\.8928;[\d.]+,[\d.]+\?overview=false&access_token=/);
 });
 
@@ -167,12 +172,12 @@ test('FB5C-1: rotation arrivals, the tick on view and wake share the 10-min gate
   s.store.setVisible(true);
   assert.equal(s.calls.length, 1, '03:00: sent');
   assert.equal(s.calls[0].timeoutMs, 20000);
-  s.clock.advance(400); answer(s, ok());
+  s.clock.advance(400); answer(s, round());
   for (let i = 0; i < 9; i++) { s.store.setVisible(false); s.clock.advance(30000); s.store.setVisible(true); s.store.wake(); s.clock.advance(30000); }
   assert.equal(s.calls.length, 1, '9 min of rotation arrivals and wakes: nothing');
   s.clock.advance(MIN);
   assert.equal(s.calls.length, 2, 'on view at 10:00: the timer');
-  answer(s, ok());
+  answer(s, round());
   s.store.setVisible(false);
   s.clock.advance(3 * 60 * MIN);
   assert.equal(s.calls.length, 2, 'hidden: nothing');
@@ -187,7 +192,7 @@ test('FB5C-1: an explicit ◀ ▶ open sends every time — 5 s after the last a
   const ctx = load(FILES);
   const s = makeStore(ctx);
   s.store.setVisible(true);
-  s.clock.advance(400); answer(s, ok());
+  s.clock.advance(400); answer(s, round());
   s.clock.advance(5000);
   s.store.setVisible(false);
   s.store.setVisible(true, true);
@@ -195,22 +200,22 @@ test('FB5C-1: an explicit ◀ ▶ open sends every time — 5 s after the last a
   s.store.setVisible(false);
   s.store.setVisible(true, true);
   assert.equal(s.calls.length, 2, 'open while that batch is in flight: nothing');
-  answer(s, ok());
+  answer(s, round());
   s.store.setVisible(false); s.clock.advance(1000);
   s.store.setVisible(true);
   assert.equal(s.calls.length, 2, 'a rotation arrival 1 s later: the 10-min gate');
-  assert.equal(rec(s.storage).used, 20);
+  assert.equal(rec(s.storage).used, 2 * N, 'two rounds');
 });
 
-test('FB5C-2: the reservation {utcDate, used + 10, lastAttemptAt} is written and read back before every POST; completion never moves it', () => {
+test('FB5C-2: the reservation {utcDate, used + N, lastAttemptAt} is written and read back before every POST; completion never moves it', () => {
   const ctx = load(FILES);
   const seen = [];
   const s = makeStore(ctx, { onPost: (storage) => seen.push(rec(storage)) });
   s.store.setVisible(true);
-  assert.deepEqual(seen[0], { v: 1, utcDate: '2026-10-29', used: 10, lastAttemptAt: T0, retryNotBefore: 0 }, 'stored before the POST');
+  assert.deepEqual(seen[0], { v: 1, utcDate: '2026-10-29', used: N, lastAttemptAt: T0, retryNotBefore: 0 }, 'stored before the POST');
   const log = s.storage.log, post = log.indexOf('post');
   assert.deepEqual(log.slice(post - 2, post + 1), ['set tt-quota', 'get tt-quota', 'post'], 'written, read back, then sent: ' + log);
-  s.clock.advance(19000); answer(s, ok());
+  s.clock.advance(19000); answer(s, round());
   assert.equal(rec(s.storage).lastAttemptAt, T0, 'the answer does not move lastAttemptAt');
 });
 
@@ -220,7 +225,7 @@ test('FB5C-2: no refunds, no separate retry path — failure, timeout, malformed
     const s = makeStore(ctx);
     s.store.setVisible(true);
     answer(s, x);
-    assert.equal(rec(s.storage).used, 10, JSON.stringify(x).slice(0, 24) + ': no refund');
+    assert.equal(rec(s.storage).used, N, JSON.stringify(x).slice(0, 24) + ': no refund');
     s.clock.advance(10 * MIN - 1);
     assert.equal(s.calls.length, 1, JSON.stringify(x).slice(0, 24) + ': nothing sooner');
     s.clock.advance(1);
@@ -251,11 +256,11 @@ test('FB5C-5: storage unusable, missing, corrupt, non-finite, or a failed read-b
 test('FB5C-3: 3,000 requests per UTC date — the cap stops at 3,000 with no refund; the next UTC date starts again; the resume time', () => {
   const ctx = load(FILES);
   const storage = memoryStorage();
-  storage.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-30', used: 2990, lastAttemptAt: 0, retryNotBefore: 0 }));
+  storage.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-30', used: 3000 - N, lastAttemptAt: 0, retryNotBefore: 0 }));
   const s = makeStore(ctx, { start: Date.parse('2026-10-30T23:00:00Z'), storage });
   s.store.setVisible(true);
   answer(s, 'timeout');
-  assert.equal(rec(storage).used, 3000, 'the 300th round: 3,000, failed, not refunded');
+  assert.equal(rec(storage).used, 3000, 'the 150th round: 3,000, failed, not refunded');
   s.store.setVisible(false); s.store.setVisible(true, true);
   assert.equal(s.calls.length, 1, 'capped: an explicit open sends nothing');
   const st = s.store.status();
@@ -263,7 +268,7 @@ test('FB5C-3: 3,000 requests per UTC date — the cap stops at 3,000 with no ref
   assert.equal(st.resumeAt, Date.parse('2026-10-31T00:00:00Z'), 'max(next 00:00 UTC, last + 10 min)');
   s.clock.advance(60 * MIN);
   assert.equal(s.calls.length, 2, 'the next UTC date');
-  assert.deepEqual([rec(storage).utcDate, rec(storage).used], ['2026-10-31', 10]);
+  assert.deepEqual([rec(storage).utcDate, rec(storage).used], ['2026-10-31', N]);
   // the resume time is the later of the two when the attempt was close to midnight
   const late = memoryStorage();
   late.setItem('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-30', used: 3000, lastAttemptAt: Date.parse('2026-10-30T23:55:00Z'), retryNotBefore: 0 }));
@@ -274,14 +279,14 @@ test('FB5C-4: a restart at +9:59.999 is blocked, +10:00 allowed; a restart costs
   const ctx = load(FILES);
   const storage = memoryStorage();
   const a = makeStore(ctx, { storage });
-  a.store.setVisible(true); answer(a, ok()); a.store.stop();
+  a.store.setVisible(true); answer(a, round()); a.store.stop();
   const b = makeStore(ctx, { storage, start: T0 + 10 * MIN - 1 });
   b.store.setVisible(true); b.store.wake();
   assert.equal(b.calls.length, 0, '+9:59.999');
   const c = makeStore(ctx, { storage, start: T0 + 10 * MIN });
   c.store.setVisible(true);
   assert.equal(c.calls.length, 1, '+10:00');
-  assert.equal(rec(storage).used, 20);
+  assert.equal(rec(storage).used, 2 * N, 'two rounds');
 });
 
 test('FB5C-4: an attempt time in the future is rebased to now: nothing sent then, the next attempt 10 min later', () => {
@@ -296,7 +301,7 @@ test('FB5C-4: an attempt time in the future is rebased to now: nothing sent then
   assert.equal(s.calls.length, 0);
   s.clock.advance(1);
   assert.equal(s.calls.length, 1, '10 min after the rebase');
-  assert.equal(rec(storage).used, 50);
+  assert.equal(rec(storage).used, 40 + N);
 });
 
 test('FB5C-4: a future accounting date is carried: no immediate POST, used unchanged, no new budget', () => {
@@ -331,14 +336,14 @@ test('FB5C-7: 401/403/429 (every request or one) → refused, retry not before l
   const ctx = load(FILES);
   for (const x of ['http 429', 'http 403', 'http 401', withItems({ 1: 'http 429' }), withItems({ 0: 'http 403', 1: 'http 503' })]) {
     const s = makeStore(ctx);
-    s.store.setVisible(true); answer(s, ok());
+    s.store.setVisible(true); answer(s, round());
     s.clock.advance(11 * MIN);
     answer(s, x);
     const st = s.store.status();
     assert.equal(st.problem, 'refused', JSON.stringify(x).slice(0, 40));
     assert.equal(st.kind, 'stale', 'the last good cards stay, marked out of date');
     assert.equal(st.resumeAt, T0 + 10 * MIN + 10 * MIN, 'the 10-min gate after the attempt at +10 min');
-    s.clock.advance(10 * MIN); answer(s, ok());
+    s.clock.advance(10 * MIN); answer(s, round());
     assert.equal(s.store.status().problem, null);
   }
 });
@@ -347,7 +352,7 @@ test('FB5C-6: cached rows show at once after a restart — their own times and f
   const ctx = load(FILES);
   const storage = memoryStorage();
   const a = makeStore(ctx, { storage });
-  a.store.setVisible(true); answer(a, ok());
+  a.store.setVisible(true); answer(a, round());
   a.clock.advance(11 * MIN); answer(a, withItems({ 4: 'http 429' }));
   a.store.stop();
   const b = makeStore(ctx, { storage, start: T0 + 12 * MIN });
@@ -365,7 +370,7 @@ test('FB5D-CE-V1: good answer at T0, an explicit open at +5 min that crashes bef
   const ctx = load(FILES);
   const storage = memoryStorage();
   const a = makeStore(ctx, { storage });
-  a.store.setVisible(true); answer(a, ok()); a.store.stop();
+  a.store.setVisible(true); answer(a, round()); a.store.stop();
   const b = makeStore(ctx, { storage, start: T0 + 5 * MIN });
   b.store.setVisible(true, true);
   assert.equal(b.calls.length, 1, 'the explicit open sent');
@@ -373,7 +378,7 @@ test('FB5D-CE-V1: good answer at T0, an explicit open at +5 min that crashes bef
   const c = makeStore(ctx, { storage, start: T0 + 6 * MIN });
   const st = c.store.status();
   assert.deepEqual([st.kind, st.updatedAt], ['stale', T0], 'rows 6 min old, otherwise fresh: stale only because the last attempt failed');
-  const control = makeStore(ctx, { storage: (() => { const m = memoryStorage(); m.map.set('tt-cache', storage.map.get('tt-cache')); m.map.set('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-29', used: 10, lastAttemptAt: T0, retryNotBefore: 0 })); return m; })(), start: T0 + 6 * MIN });
+  const control = makeStore(ctx, { storage: (() => { const m = memoryStorage(); m.map.set('tt-cache', storage.map.get('tt-cache')); m.map.set('tt-quota', JSON.stringify({ v: 1, utcDate: '2026-10-29', used: N, lastAttemptAt: T0, retryNotBefore: 0 })); return m; })(), start: T0 + 6 * MIN });
   assert.equal(control.store.status().kind, 'fresh', 'control: the same rows with an answered last attempt are fresh');
 });
 
@@ -381,7 +386,7 @@ test('FB5C-6: a future-dated row is stale, its time never rewritten, never a neg
   const ctx = load(FILES);
   const storage = memoryStorage();
   const a = makeStore(ctx, { storage, start: T0 + 60 * MIN });
-  a.store.setVisible(true); answer(a, ok()); a.store.stop();
+  a.store.setVisible(true); answer(a, round()); a.store.stop();
   const b = makeStore(ctx, { storage, start: T0 });            // the clock went back an hour
   const st = b.store.status();
   assert.deepEqual([st.kind, st.future, st.updatedAt], ['stale', true, T0 + 60 * MIN]);
@@ -391,7 +396,7 @@ test('FB5C-6: a future-dated row is stale, its time never rewritten, never a neg
 test('FB5C-6: stale after 30 min (30:00 fresh, 30:00.001 stale) or when the last attempt failed; with no cache a failure says failed', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  s.store.setVisible(true); answer(s, ok());
+  s.store.setVisible(true); answer(s, round());
   s.store.setVisible(false);
   s.clock.advance(30 * MIN);
   assert.equal(s.store.status().kind, 'fresh', '30:00');
@@ -408,7 +413,7 @@ test('FB5C-6: stale after 30 min (30:00 fresh, 30:00.001 stale) or when the last
 // any answer every row has data or a failure.
 test('C5: no row is ever "loading" once any answer arrived (the whole screen shows loading before that)', () => {
   const ctx = load(FILES);
-  for (const x of ['timeout', 'http 429', MALFORMED, withItems({ 0: 'http 503' }), withItems({ 0: NO_ROUTE }), ok()]) {
+  for (const x of ['timeout', 'http 429', MALFORMED, withItems({ 0: 'http 503' }), withItems({ 0: NO_ROUTE }), round()]) {
     const s = makeStore(ctx);
     assert.ok(s.store.status().routes.every((v) => v.kind === 'loading'), 'before: all rows loading together');
     s.store.setVisible(true);
@@ -423,7 +428,7 @@ test('C1 / FB4-C7: a malformed answer, any request 5xx or 422 InvalidInput is a 
   const ctx = load(FILES);
   for (const x of [MALFORMED, withItems({ 2: { code: 'Ok', routes: [] } }), withItems({ 2: 'http 422' }), withItems({ 2: 'http 502' })]) {
     const s = makeStore(ctx);
-    s.store.setVisible(true); answer(s, ok());
+    s.store.setVisible(true); answer(s, round());
     s.clock.advance(11 * MIN);
     answer(s, x);
     assert.equal(s.store.status().kind, 'stale', JSON.stringify(x).slice(0, 30));
@@ -435,8 +440,8 @@ test('C1 / FB4-C7: a malformed answer, any request 5xx or 422 InvalidInput is a 
 test('FB5-N1: the header time is the oldest row with data', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  s.store.setVisible(true); answer(s, ok());
-  s.clock.advance(10 * MIN); answer(s, ok());
+  s.store.setVisible(true); answer(s, round());
+  s.clock.advance(10 * MIN); answer(s, round());
   assert.deepEqual([s.store.status().kind, s.store.status().updatedAt], ['fresh', T0 + 10 * MIN], 'fresh: the round on screen');
   s.clock.advance(10 * MIN);
   answer(s, withItems({ 6: 'http 422' }));
@@ -447,7 +452,7 @@ test('FB5-N1: the header time is the oldest row with data', () => {
 test('FB5-N3: NO_ROUTE after good data shows that row as no data and leaves the screen fresh; the next good answer restores it', () => {
   const ctx = load(FILES);
   const s = makeStore(ctx);
-  s.store.setVisible(true); answer(s, ok());
+  s.store.setVisible(true); answer(s, round());
   s.clock.advance(10 * MIN);
   answer(s, withItems({ 3: NO_ROUTE }));
   assert.deepEqual(plain(s.store.status().routes[3]), { kind: 'failed', data: null }, 'the unroutable row: no data, not its old value');
@@ -455,16 +460,16 @@ test('FB5-N3: NO_ROUTE after good data shows that row as no data and leaves the 
   assert.equal(s.store.status().updatedAt, T0 + 10 * MIN);
   s.clock.advance(10 * MIN);
   assert.equal(s.calls.length, 3, 'a successful round: the regular 10 min');
-  answer(s, ok());
+  answer(s, round());
   assert.equal(s.store.status().routes[3].kind, 'fresh', 'routable again: back with data');
 });
 
-test('FB5B-T1: columns «Города» and «Рядом» — five routes each, every route exactly once, all from Rehovot', () => {
+test('FB5B-T1 (D-ROUTES20): columns «Города» and «Рядом» — ten routes each, every route exactly once, all from Rehovot', () => {
   const ctx = load(FILES);
   const t = ctx.Config.traffic;
-  assert.deepEqual(plain(t.columns.map((c) => [c.id, c.legs.length])), [['cities', 5], ['near', 5]]);
-  assert.deepEqual(plain(t.columns[0].legs), ['tlv', 'jlm', 'haifa', 'beersheva', 'ashkelon']);
-  assert.deepEqual(plain(t.columns[1].legs), ['modiin', 'rishon', 'airport', 'holon', 'glilot']);
+  assert.deepEqual(plain(t.columns.map((c) => [c.id, c.legs.length])), [['cities', 10], ['near', 10]]);
+  assert.deepEqual(plain(t.columns[0].legs), ['airport', 'haifa', 'nazareth', 'tlv', 'jlm', 'eilat', 'beersheva', 'rishon', 'petahtikva', 'ashdod']);
+  assert.deepEqual(plain(t.columns[1].legs), ['modiin', 'holon', 'glilot', 'kiryatekron', 'nessziona', 'mazkeretbatya', 'ramla', 'beeryaakov', 'yavne', 'gedera']);
   const all = plain(t.columns.reduce((a, c) => a.concat(c.legs), [])).sort();
   assert.deepEqual(all, plain(t.routes.map((l) => l.id)).sort(), 'each route once, none missing');
   for (const r of t.routes) assert.deepEqual(plain(r.from), [31.8928, 34.8113], r.id + ' starts in Rehovot');
@@ -491,17 +496,17 @@ test('FB5D-V2: impossible accounting dates (2026-00-00, 2026-02-31, 0000-00-00) 
 // FB5D-V1 (Codex V1), batch 6 (Mapbox): a Retry-After on 429 / 403 / 503 (seconds or an HTTP date) is read through Net,
 // recorded in the accounting record (written and read back), and enforced through the one gate — explicit opens
 // included, and across a restart. The refusal copy shows max(last attempt + 10 min, that deadline).
-// answers: one per ROUND, given to all ten GETs of that round ({ status, retryAfter, body }); posts: one XHR per round
+// answers: one per ROUND, given to all N GETs of that round ({ status, retryAfter, body }); posts: one XHR per round
 // (its first), so posts.length counts rounds.
 function retryAfterStore(ctx, storage, start, answers) {
-  const clock = fakeTimers(start), posts = [], routes = ok();
+  const clock = fakeTimers(start), posts = [], routes = round();
   let sent = 0;
   function XMLHttpRequest() {
     const x = this; x.readyState = 0; x.status = 0; x.responseText = ''; x.reads = [];
     x.open = () => {}; x.setRequestHeader = () => {};
     x.getResponseHeader = (h) => { x.reads.push(h); return /^retry-after$/i.test(h) ? x.retryAfter : null; };
-    x.send = () => { const i = sent++, a = answers[Math.floor(i / 10)] || { status: 200 }; if (i % 10 === 0) posts.push(x);
-      x.readyState = 4; x.status = a.status; x.responseText = a.body || (a.status === 200 ? JSON.stringify(routes[i % 10]) : '');
+    x.send = () => { const i = sent++, a = answers[Math.floor(i / N)] || { status: 200 }; if (i % N === 0) posts.push(x);
+      x.readyState = 4; x.status = a.status; x.responseText = a.body || (a.status === 200 ? JSON.stringify(routes[i % N]) : '');
       x.retryAfter = a.retryAfter === undefined ? null : a.retryAfter; x.onreadystatechange(); };
   }
   const net = load(['js/net.js'], { XMLHttpRequest });
@@ -562,7 +567,7 @@ test('FB5D-V1: Retry-After as an HTTP date on 403 and as seconds on 503; a short
 test('C-2: a clock that went back makes every row stale and future-dated', () => {
   const ctx = load(FILES), s = makeStore(ctx);
   s.store.setVisible(true, true);
-  answer(s, ok());
+  answer(s, round());
   assert.equal(s.store.status().kind, 'fresh');
   s.clock.advance(-60 * 60000);
   const st = s.store.status();
@@ -572,11 +577,11 @@ test('C-2: a clock that went back makes every row stale and future-dated', () =>
 test('PERF-4: one status() reads the ledger once and carries every route\'s view', () => {
   const ctx = load(FILES), s = makeStore(ctx);
   s.store.setVisible(true, true);
-  answer(s, ok());
+  answer(s, round());
   s.storage.log.length = 0;
   const st = s.store.status();
   assert.equal(s.storage.log.filter((l) => l === 'get tt-quota').length, 1, 'one read');
-  assert.equal(st.routes.length, 10);
+  assert.equal(st.routes.length, N);
   assert.equal(st.routes[2].data.travel, 5922.3);
   assert.equal(s.store.routes, undefined, 'no second way to read the rows');
   assert.equal(ctx.Traffic.validDate, undefined, 'C-14: the re-export is gone (Ledger.validDate is the one)');
@@ -589,7 +594,7 @@ test('C-19: the row cache not written is logged, the rows stay for this run', ()
   const store = ctx.Traffic.createStore(withToken(ctx), { getJson: (u, ms, done) => calls.push(done), now: clock.now, setTimeout: clock.setTimeout,
     clearTimeout: clock.clearTimeout, storage, onChange: () => {}, log: (m) => logs.push(m) });
   store.setVisible(true, true);
-  ok().forEach((a, i) => calls[i](null, a));
+  round().forEach((a, i) => calls[i](null, a));
   assert.deepEqual(logs, ['traffic: rows not cached: quota']);
   assert.equal(store.status().kind, 'fresh');
 });

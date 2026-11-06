@@ -42,7 +42,7 @@ function trafficDays(opts) {
     traffic = ctx.Traffic.createStore(C.traffic, Object.assign({}, deps, { wall, storage, onChange() {},
       getJson(url, timeoutMs, done) {
         const t = clock.now(), w = wall(t), i = inRound;
-        if (i === 0) {                                 // the first request of a round: the ten start together
+        if (i === 0) {                                 // the first request of a round: every route starts together
           batches++;
           if (!onTraffic) hidden++;
           minutes.push(w.hours * 60 + w.minutes);
@@ -55,7 +55,7 @@ function trafficDays(opts) {
         add(perHomeDate, w.year + '-' + String(w.month + 1).padStart(2, '0') + '-' + String(w.day).padStart(2, '0'), 1);
         const a = answer;
         clock.setTimeout(() => {
-          if (a === 'ok') done(null, JSON.parse(JSON.stringify(OK[i]))); else done(a);
+          if (a === 'ok') done(null, JSON.parse(JSON.stringify(OK[i % OK.length]))); else done(a);   // ten recorded answers, reused past ten
           if (opts.restart && i === legs - 1) { traffic.stop(); boot(); if (onTraffic) traffic.setVisible(true); }
         }, 400 + i);
       } }));

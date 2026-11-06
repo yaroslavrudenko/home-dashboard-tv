@@ -113,7 +113,7 @@ await shot('uk-4-markets.png', { lang: 'uk', screen: 'markets' });
 
 // The hero: the eight Hebrew screens in a 4 × 2 grid, each with its caption.
 const CAPTIONS = ['Clocks, weather, UV and air at home', 'Weather and air across Israel', 'News in the interface language', 'Markets: currencies, shares, crypto',
-  'Shabbat and holidays', 'Live traffic, ten routes', 'Live traffic map', 'Pikud HaOref alerts'];
+  'Shabbat and holidays', 'Live traffic, twenty routes', 'Live traffic map', 'Pikud HaOref alerts'];
 const tiles = HE.map((f, i) => '<figure><img src="data:image/png;base64,' + fs.readFileSync(path.join(OUT, f)).toString('base64') + '"><figcaption>' +
   CAPTIONS[i] + '</figcaption></figure>').join('');
 const html = '<!DOCTYPE html><html><head><style>' +

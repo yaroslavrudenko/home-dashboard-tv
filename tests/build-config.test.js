@@ -286,7 +286,8 @@ test('build.sh refuses a MAPBOX_TOKEN that is not a public token (pk. then lette
 });
 
 // FB5C (quota; the judges' COMMON DECISION 2026-10-30 + the owner's explicit-open rule), batch 6 (Mapbox): Mapbox's free
-// tier is 100,000 Directions requests a MONTH; every refresh costs one request per route (10). The app sends at any hour
+// tier is 100,000 Directions requests a MONTH; every refresh costs one request per route (20 since D-ROUTES20, 2026-11-06:
+// two columns of ten). The app sends at any hour
 // while the screen is on view, at most every 10 min (rotation, staying open, wake), on every explicit ◀ ▶ open, and never
 // past 3,000 requests per UTC date (a verified localStorage reservation before every round, no refunds): 32 × 3,000 =
 // 96,000 (any 31 days touch at most 32 UTC dates). Simulated from the app's own code for every pattern, failures and restarts included.
@@ -308,10 +309,10 @@ test('Mapbox quota (FB5C-10): every pattern ≤ 3,000 requests per UTC date — 
   const days = {};
   for (const [name, o] of Object.entries(patterns)) {
     const d = trafficDays(Object.assign({ days: 2 }, o));
-    assert.equal(d.legs, 10);
+    assert.equal(d.legs, 20);
     assert.equal(d.cap, 3000);
     assert.equal(d.hidden, 0, name + ': a request while another screen was on view');
-    assert.equal(d.items, d.batches * 10, name + ': ten requests per round');
+    assert.equal(d.items, d.batches * 20, name + ': twenty requests per round');
     for (const [date, n] of Object.entries(d.perUtcDate)) assert.ok(n <= 3000, name + ': ' + n + ' requests on ' + date);
     days[name] = d.perUtcDate;
   }
@@ -323,20 +324,31 @@ test('Mapbox quota (FB5C-10): every pattern ≤ 3,000 requests per UTC date — 
   assert.ok(32 * 3000 < 100000, 'any 31 days (at most 32 UTC dates) stay under the free month');
 });
 
-test('Mapbox quota (FB5C-10): parked on traffic — 144 rounds per UTC date, requests at every hour, 31 days = 44,650 requests', () => {
+// D5 (review-1, 2026-11-06): the explicit-open budget D-ROUTES20 halved, kept at the 3,000 cap by decision — pinned. Every
+// ◀ ▶ open sends a round of twenty (openMinIntervalMs: 0), so a UTC date holds 150 opens (300 with ten routes).
+test('Mapbox quota (D5, D-ROUTES20): 3,000 / 20 = 150 explicit opens a UTC date; ◀ ▶ every minute from 00:00 in Israel sends its 150th round at 02:29 and nothing more until 03:00, when the UTC date turns', () => {
+  const d = trafficDays({ visits: 60000, days: 1 });
+  assert.equal(d.cap / d.legs, 150, '150 rounds of twenty under the daily cap');
+  assert.equal(d.perUtcDate['2026-09-30'], 3000, 'the first UTC date (00:00–02:59 in Israel, summer time): 150 rounds');
+  assert.deepEqual(d.minutes.slice(148, 152), [148, 149, 180, 181], 'round 150 at 02:29 in Israel; the cap holds from 02:30 to 03:00 (UTC midnight)');
+});
+
+test('Mapbox quota (FB5C-10, D-ROUTES20): parked on traffic — 144 rounds of 20 per UTC date (2,880 ≤ the 3,000 cap: never refused), requests at every hour, 31 days = 89,300 requests < 100,000', () => {
   const day = trafficDays({ park: true, start: Date.parse('2026-10-30T00:00:00Z') - 1000, hours: 24 });
-  assert.equal(day.perUtcDate['2026-10-30'], 1440, '144 rounds on the UTC date');
+  assert.equal(day.perUtcDate['2026-10-30'], 2880, '144 rounds × 20 on the UTC date');
+  assert.ok(2880 + 20 <= 3000, 'one more round still fits under the cap: parking is never capped');
   assert.deepEqual([...new Set(day.hours)].sort((a, b) => a - b), [...Array(24).keys()], 'any hour: requests at every Israel hour');
   const failing = trafficDays({ park: true, restart: true, answer: () => 'timeout', start: Date.parse('2026-10-30T00:00:00Z') - 1000, hours: 24 });
-  assert.equal(failing.perUtcDate['2026-10-30'], 1440, 'failing + a restart after every round: still 144, 0 extra requests per restart');
+  assert.equal(failing.perUtcDate['2026-10-30'], 2880, 'failing + a restart after every round: still 144 rounds, 0 extra requests per restart');
   const month = trafficDays({ park: true, days: 31 });
-  assert.equal(month.items, 44650, 'healthy cadence: 10 × (31 × 1440 / 10 + 1) — one at the open, then every 10 min, the last exactly at the end');
+  assert.equal(month.items, 89300, 'healthy cadence: 20 × (31 × 1440 / 10 + 1) — one at the open, then every 10 min, the last exactly at the end');
+  assert.ok(month.items < 100000, '31 days parked stay under the free month: ' + month.items);
 });
 
 test('Mapbox quota (FB5C-10): Jerusalem DST end 2026-10-25 parked — the 25-hour home date gets 150 rounds; UTC never clips', () => {
   const start = Date.parse('2026-10-24T21:00:00Z');      // 2026-10-25 00:00 in Israel (summer time)
   const d = trafficDays({ park: true, start: start - 1000, hours: 25 });
-  assert.equal(d.perHomeDate['2026-10-25'], 1500, '1,500 min / 10 = 150 rounds on the home date');
+  assert.equal(d.perHomeDate['2026-10-25'], 3000, '1,500 min / 10 = 150 rounds × 20 on the home date');
   for (const n of ALL(d)) assert.ok(n <= 3000);
 });
 

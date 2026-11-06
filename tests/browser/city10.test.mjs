@@ -79,7 +79,8 @@ test('C/T12: OK on Haifa saves it and reloads once — the toast «Город: �
       stored: localStorage.getItem('homedash.city'), flag: sessionStorage.getItem('homedash.cityToast'), home: Config.home.id,
       routes: Config.traffic.routes.map((r) => r.id), from: Config.traffic.routes[0].from, map: Config.map.home, areas: Config.alerts.areas.map((a) => a.he) }));
     assert.deepEqual(v, { toast: 'Город: Хайфа', place: 'Хайфа', stored: 'haifa', flag: null, home: 'haifa',
-      routes: ['tlv', 'jlm', 'beersheva', 'ashkelon', 'netanya', 'tiratcarmel', 'nesher', 'kiryatyam', 'kiryatmotzkin', 'kiryatbialik'],
+      routes: ['airport', 'nazareth', 'tlv', 'jlm', 'eilat', 'beersheva', 'rishon', 'petahtikva', 'ashdod', 'netanya',
+        'tiratcarmel', 'nesher', 'kiryatyam', 'kiryatmotzkin', 'kiryatbialik', 'kiryatata', 'akko', 'shefaram', 'tamra', 'yokneam'],   // D-ROUTES20
       from: [32.8185, 34.9988], map: [32.8185, 34.9988], areas: ['חיפה'] });
     const lat = new URL(app.weatherRequests[app.weatherRequests.length - 1]).searchParams.get('latitude').split(',');
     assert.equal(lat[0], '32.8185', 'the weather request asks for Haifa first');
@@ -87,7 +88,8 @@ test('C/T12: OK on Haifa saves it and reloads once — the toast «Город: �
     await p.waitForSelector('.tw-name', { timeout: 5000 });
     await wait(300);
     const names = await p.evaluate(() => [...document.querySelectorAll('.tw-name')].map((e) => e.textContent));
-    assert.deepEqual(names, ['Тель-Авив', 'Иерусалим', 'Беэр-Шева', 'Ашкелон', 'Нетания', 'Тират-Кармель', 'Нешер', 'Кирьят-Ям', 'Кирьят-Моцкин', 'Кирьят-Бялик']);
+    assert.deepEqual(names, ['Аэропорт', 'Назарет', 'Тель-Авив', 'Иерусалим', 'Эйлат', 'Беэр-Шева', 'Ришон-ле-Цион', 'Петах-Тиква', 'Ашдод', 'Нетания',
+      'Тират-Кармель', 'Нешер', 'Кирьят-Ям', 'Кирьят-Моцкин', 'Кирьят-Бялик', 'Кирьят-Ата', 'Акко', 'Шфарам', 'Тамра', 'Йокнеам-Илит']);
     assert.ok(app.requests.traffic.every((r) => decodeURIComponent(new URL(r.url).pathname).includes('34.9988,32.8185;')), 'every route from Haifa');
     await press(p, OK);
     await wait(200);

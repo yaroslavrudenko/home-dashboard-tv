@@ -4,7 +4,7 @@
  *   list    { id, he (the display name, as Pikud HaOref writes it), ru, uk, en, ruIn / ukIn (the name after "в": «Тревога
  *           в Реховоте»; Hebrew prefixes ב to he), at: [lat, lon] (the city centre), match (the Oref area names the city's
  *           alerts are matched against with Alerts.covers: a name itself or "name - district"; default [he]) }
- *   pois    route destinations that are not cities (used only by Rehovot's own setup)
+ *   pois    route destinations that are not cities (the airport: in every home city's «Города»; Glilot: in Rehovot's own near)
  *   order   the picker's order per language (written by tools/cities.mjs --order with Node's full-ICU Intl.Collator; never
  *           sorted on the TV)
  * Coordinates: GeoNames city centres via Open-Meteo geocoding (CC BY 4.0, https://www.geonames.org); six centroids of

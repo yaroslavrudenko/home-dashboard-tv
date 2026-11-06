@@ -1,6 +1,6 @@
-/* The Traffic screen: two columns of five widgets — the ten routes from the home city («Города», «Рядом»; the main
- * roads are on the traffic map screen). Every widget is the same: the name and a coloured chip (the delay), the time now
- * and the length, and a time bar. Without a Mapbox token: one calm card saying how to connect it. ES5. */
+/* The Traffic screen: two columns of ten widgets — the twenty routes from the home city («Города», «Рядом»; the main
+ * roads are on the traffic map screen). Every widget is the same one line — the name, a coloured chip (the delay), the
+ * time now and the length — over a time bar. Without a Mapbox token: one calm card saying how to connect it. ES5. */
 var TrafficView = (function () {
   var esc = Html.esc;
   var els = {}, drawn = '';
@@ -38,17 +38,17 @@ var TrafficView = (function () {
     return scale;
   }
 
-  // One widget; item: { id, name (the destination in the interface language), view }. A widget without data on a drawn screen has failed (the batch is applied
-  // whole: tests/traffic.test.js C5): a quiet dash and «Нет данных», the empty track keeps its shape.
+  // One widget; item: { id, name (the destination in the interface language), view }: one line — the name, the chip, the
+  // time, the length (the time and the length end-aligned, so they stand in columns down the screen) — over the bar. A
+  // widget without data on a drawn screen has failed (the batch is applied whole: tests/traffic.test.js C5): «нет данных»
+  // where the chip is, a quiet dash for the time, the empty track keeps its shape.
   function widgetHtml(item, scale) {
     var v = item.view, d = v.data;
-    return '<div class="card tw' + (v.kind === 'stale' ? ' is-stale' : '') + '"><div class="tw-top"><span class="tw-name">' +
-        esc(item.name) + '</span>' +
-        (d ? '<span class="chip lv-' + v.level + '">' + esc(chipText(d)) + '</span>' : '') + '</div>' +
-      '<div class="tw-mid">' + (d ? '<span class="tw-time">' + minutesHtml(d.travel) + '</span>' +
-          (d.length !== null ? '<span class="tw-km">' + esc(I18n.t('t.km', { n: Math.round(d.length / 1000) })) + '</span>' : '')
-        : '<span class="tw-time is-none">—</span><span class="tnodata">' + esc(ViewState.partText('none')) + '</span>') + '</div>' +
-      bar(d, v.level, scale) + '</div>';
+    var km = d && d.length !== null ? esc(I18n.t('t.km', { n: Math.round(d.length / 1000) })) : '';
+    return '<div class="card tw' + (v.kind === 'stale' ? ' is-stale' : '') + '"><div class="tw-row"><span class="tw-name">' + esc(item.name) + '</span>' +
+      (d ? '<span class="chip lv-' + v.level + '">' + esc(chipText(d)) + '</span><span class="tw-time">' + minutesHtml(d.travel) + '</span>'
+        : '<span class="tnodata">' + esc(ViewState.partText('none')) + '</span><span class="tw-time is-none">—</span>') +
+      '<span class="tw-km">' + km + '</span></div>' + bar(d, v.level, scale) + '</div>';
   }
   // A column: its title over its widgets, which share one bar scale.
   function columnHtml(col) {

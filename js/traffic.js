@@ -1,7 +1,7 @@
 /* Traffic from the Mapbox Directions API, profile driving-traffic (live traffic for Israel; TomTom has none there,
  * measured 2026-10-30). ES5.
- * Every route is ONE GET /directions/v5/mapbox/driving-traffic/{from};{to}?overview=false (no geometry), the ten
- * started together: travel time now (`duration`), the usual time at this hour (`duration_typical`), the length.
+ * Every route is ONE GET /directions/v5/mapbox/driving-traffic/{from};{to}?overview=false (no geometry), all of them
+ * (twenty: js/homecity.js) started together: travel time now (`duration`), the usual time at this hour (`duration_typical`), the length.
  *   Traffic.hasToken(cfg)          false while config.js still holds the build placeholder
  *   Traffic.urls(cfg)              the GET of every route, in cfg.routes order
  *   Traffic.summary(json)          { travel, free (the typical time), delay, length } from one answer, or null
@@ -16,12 +16,12 @@
  * valid accounting record, and never past dailyRequestCap (3,000) requests on the UTC date. On top of that: an explicit
  * ◀ ▶ open sends at once (openMinIntervalMs: 0); every other path — a rotation arrival, the screen staying open, wake —
  * waits minIntervalMs (10 min) since the last ATTEMPT, at any hour. A deadline Mapbox gave (Retry-After on 403 / 429 /
- * 503, any of the ten answers; kept as retryNotBefore) holds for every path, explicit opens included.
+ * 503, any of the answers; kept as retryNotBefore) holds for every path, explicit opens included.
  * Mapbox's free tier is 100,000 Directions requests a MONTH; 3,000 a UTC date: any 31 days touch at most 32 UTC dates,
- * so ≤ 96,000 requests (44,650 parked on the screen).
+ * so ≤ 96,000 requests (89,300 parked on the screen with twenty routes).
  * The accounting record (localStorage `tt-quota` — "traffic", the name kept from the first provider so a TV keeps its
  * count — { v: 1, utcDate, used, lastAttemptAt, retryNotBefore }) is written and read back BEFORE every round:
- * used += 10, lastAttemptAt = now; nothing is ever refunded (failure, timeout, refusal, crash) and the answers do not
+ * used += the number of routes, lastAttemptAt = now; nothing is ever refunded (failure, timeout, refusal, crash) and the answers do not
  * move lastAttemptAt. Storage that fails, or a record that is corrupt (an impossible date included), pauses sending. A clock that went back is
  * corrected without sending (Traffic.correct). Any failure — transport, a malformed answer, a refusal (401/403/429) —
  * keeps the last good values and their times; the rows and their failure state are kept in `tt-cache` and shown at once
@@ -105,11 +105,9 @@ var Traffic = (function () {
     }
     return ('0000000' + h.toString(16)).slice(-8);
   }
-  // A cache written before signatures existed (5df4e33) holds the owner's Rehovot routes: kept for exactly those.
-  var LEGACY_SIG = '5004d845';
 
   function validCache(c, n, sig) {
-    if (!c || c.v !== VERSION || (c.sig === undefined ? sig !== LEGACY_SIG : c.sig !== sig) || !Array.isArray(c.rows) || c.rows.length !== n || typeof c.failed !== 'boolean' ||
+    if (!c || c.v !== VERSION || c.sig !== sig || !Array.isArray(c.rows) || c.rows.length !== n || typeof c.failed !== 'boolean' ||
         (c.problem !== null && c.problem !== 'refused') || !count(c.attemptAt)) return false;
     for (var i = 0; i < n; i++) {
       var r = c.rows[i], d = r && r.data;
@@ -201,7 +199,7 @@ var Traffic = (function () {
     }
 
     var list = urls(cfg);                          // the same requests every time: built once
-    // The ten routes at once; the answers are applied together when the last one is in (one render per round).
+    // Every route at once; the answers are applied together when the last one is in (one render per round).
     function send(at) {
       inFlight = true;
       var mine = generation, answers = [], pending = n;

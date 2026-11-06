@@ -21,16 +21,16 @@
   <img alt="Pikud HaOref alerts checked every 5 seconds, on every screen" src="https://img.shields.io/badge/Pikud%20HaOref%20alerts-every%205%20s%20·%20every%20screen-c0392b?style=for-the-badge">
   <img alt="Mapbox live traffic: routes and map" src="https://img.shields.io/badge/Mapbox-live%20traffic%20·%20routes%20·%20map-f39c12?style=for-the-badge">
   <img alt="Русский, עברית, Українська" src="https://img.shields.io/badge/languages-RU%20·%20HE%20·%20UK-16a085?style=for-the-badge"><br>
-  <img alt="829 automated tests passing" src="https://img.shields.io/badge/tests-829%20passing-brightgreen?style=for-the-badge">
+  <img alt="836 automated tests passing" src="https://img.shields.io/badge/tests-836%20passing-brightgreen?style=for-the-badge">
   <img alt="No backend, no sign-up, no analytics" src="https://img.shields.io/badge/no%20backend%20·%20no%20sign--up%20·%20no%20analytics-555555?style=for-the-badge">
 </p>
 
 ## Every screen at a glance
 
-**Eight screens that change by themselves every 45 seconds (Markets stays 90), or with ◀ ▶ on the remote:** clocks and the weather at home, the weather across Israel, the news, the markets, Shabbat and holidays, live traffic for ten routes, a live traffic map and the Pikud HaOref alerts. Calm dark glass cards readable from the sofa, the same app in Russian, Hebrew (fully right to left) and Ukrainian, and a red alert that takes over every screen when it matters. Below: all eight screens together, then each one on its own, then the other languages.
+**Eight screens that change by themselves every 45 seconds (Markets stays 90), or with ◀ ▶ on the remote:** clocks and the weather at home, the weather across Israel, the news, the markets, Shabbat and holidays, live traffic for twenty routes, a live traffic map and the Pikud HaOref alerts. Calm dark glass cards readable from the sofa, the same app in Russian, Hebrew (fully right to left) and Ukrainian, and a red alert that takes over every screen when it matters. Below: all eight screens together, then each one on its own, then the other languages.
 
 <p align="center">
-  <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home during a khamsin, weather and dust across Israel, news, markets, Shabbat and holidays with the week's Torah reading, live traffic for ten routes, the live traffic map, and the Pikud HaOref alerts screen with the recent alerts in Israel">
+  <img src="docs/screenshots/hero.png" width="1000" alt="All eight screens in Hebrew: clocks, weather, air quality and UV at home during a khamsin, weather and dust across Israel, news, markets, Shabbat and holidays with the week's Torah reading, live traffic for twenty routes, the live traffic map, and the Pikud HaOref alerts screen with the recent alerts in Israel">
 </p>
 
 ### Each screen
@@ -48,9 +48,9 @@
   <tr><td align="center"><b>3 · News</b> — the sources follow the language</td><td align="center"><b>4 · Markets</b> — six cards, each price's change</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-5-shabbat.png" alt="Shabbat and holidays in Hebrew: Rehovot, today's date and Hebrew date, the weekly portion Chayei Sara with its verses, the haftarah and Shabbat Mevarchim for Kislev, candle lighting and havdalah, and the next holidays and fasts with a countdown"></td>
-    <td><img src="docs/screenshots/he-6-traffic.png" alt="Traffic in Hebrew: ten routes from Rehovot in two columns, each with the travel time, the delay against a typical day in colour, and the distance"></td>
+    <td><img src="docs/screenshots/he-6-traffic.png" alt="Traffic in Hebrew: routes from Rehovot in two columns, each with the travel time, the delay against a typical day in colour, and the distance"></td>
   </tr>
-  <tr><td align="center"><b>5 · Shabbat &amp; holidays</b> — the reading, candles, havdalah, what is next</td><td align="center"><b>6 · Traffic</b> — ten routes, live</td></tr>
+  <tr><td align="center"><b>5 · Shabbat &amp; holidays</b> — the reading, candles, havdalah, what is next</td><td align="center"><b>6 · Traffic</b> — twenty routes, live</td></tr>
   <tr>
     <td><img src="docs/screenshots/he-7-map.png" alt="Traffic map in Hebrew: a real Mapbox live-traffic image from Tel Aviv to Ashdod and Jerusalem, coloured road lines, a dot on Rehovot with its name beside it, and a key of the traffic colours in the top-left corner"></td>
     <td><img src="docs/screenshots/he-8-alerts.png" alt="Alerts screen in Hebrew: no alerts in Rehovot, checked at 20:32, no alerts nearby with the nearby towns listed, and the recent Pikud HaOref alerts in Israel, each with its date and time, its kind and its area"></td>
@@ -118,7 +118,7 @@ More in [Languages](#languages).
 (`build.local.env.example` shows the line to fill in). The build puts it into the packaged app only; it is never in the
 repository.
 
-- **6 · Traffic**: travel times for the 10 routes (Mapbox Directions, `driving-traffic`).
+- **6 · Traffic**: travel times for the 20 routes (Mapbox Directions, `driving-traffic`).
 - **7 · Traffic map**: the live-traffic picture (Mapbox Static Images).
 - Without the token, both screens say how to connect one and send no requests.
 
@@ -152,13 +152,13 @@ shows the same type as the screenshot instead of whatever system font it has.
 | 📈 **Markets at a glance** | Six cards of six rows: the shekel against the dollar, euro, hryvnia and ruble, US and Israeli shares, crypto, US indices and commodities, each with the day's change. Asked only while the screen is on view; leaving it mid-request aborts the request. |
 | 🕯️ **Shabbat and holidays for your city** | Candle lighting and havdalah by your city's own custom, the week's parasha with its Torah verses and haftarah (and a special Shabbat, Shabbat Mevarchim or the Omer count when there is one), the Hebrew date and the next six holidays and fasts with a countdown. One Hebcal request a day. |
 | 🌬️ **Air, dust and UV** | Today's highest UV index and the European air-quality index at home, an air line on every Israel region, and a dust warning when a khamsin comes in. |
-| 🚗 **Live Israeli traffic** | Ten routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
+| 🚗 **Live Israeli traffic** | Twenty routes from your home city (Rehovot by default) with Mapbox `driving-traffic` times and the delay against a typical day, plus a live traffic map around home. |
 | 🚨 **Pikud HaOref alerts everywhere** | Checked every 5 seconds; an alert in your home city opens the Alerts screen at once, red and full, with an attention sound, and a red line «Тревога в Реховоте» stays at the top of every other screen; a quiet line for nearby towns, an Alerts screen with the recent alerts in Israel, and a safe preview on the blue key. Never a false "all clear". |
 | 🔄 **Fresh when you look** | Every screen you open with ◀ ▶ — or change the language on — refreshes its data at once. |
 | 🛡️ **Free tiers never exceeded** | Every Mapbox request is reserved in the TV's storage before it is sent, under a cap per UTC date, so any 31 days stay inside the free month. |
 | ✨ **Apple-like glass design** | Calm dark cards, Inter and a bundled Noto Sans Hebrew, nothing smaller than 24 px, burn-in care (the layout drifts a few pixels every 3 minutes). |
 | 🔒 **No tracking, one key, never in the repo** | No backend, no sign-up, no analytics. The only key is the Mapbox public token for the two traffic screens; it goes into the packaged copy only, and a test pins the placeholder. Every other source (Open-Meteo, Yahoo Finance, Coinbase, Hebcal, Pikud HaOref, the news feeds) needs no key — see [Keys](#-keys-only-one-for-traffic). |
-| ✅ **Tested and reviewed** | 829 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
+| ✅ **Tested and reviewed** | 836 automated tests (unit + every screen in every language in headless Chrome); every batch went through independent review (the "Fix batch" commits). |
 
 ## Plays under «Настин кинозал»
 
@@ -202,7 +202,7 @@ forecast and the air quality together (+2), an open of the Shabbat screen asks H
 | Coinbase | Markets | only while on view: on an open, then every minute | 7 (6 coins + 1 currency table); once a UTC day 5 more (the currencies' and coins' basis), in the same round; 0 off view |
 | Yahoo Finance | Markets | only while on view: on an open, then every 5 min | 2, 0 off view |
 | Hebcal | Shabbat & holidays | once a day, on an open, and on waking with old data | 1 |
-| Mapbox Directions | Traffic | only while on view, at most every 10 min, ≤ 3,000 a UTC date | 10 per round |
+| Mapbox Directions | Traffic | only while on view, at most every 10 min, ≤ 3,000 a UTC date | 20 per round |
 | Mapbox Static Images | Traffic map | only while on view, every 5 min, ≤ 600 a UTC date | 1 |
 | Pikud HaOref, live | every screen | every 5 s | 1 |
 | Pikud HaOref, history | Alerts | only while on view, at most once per rotation cycle (6 min 45 s) | 1 |
@@ -390,13 +390,15 @@ after 1, 2, 4 and 8 minutes, then every hour, never only the next day. The data 
 "now" and "today" every minute from what it holds; a missed refresh never shows a wrong time. Every name comes from our own
 tables in each language, so a language switch costs no request.
 
-**6 · Traffic**: ten widgets in two columns of five, all from the home city. For Rehovot (the default) «Города»: to the
-centres of Tel Aviv, Jerusalem, Haifa, Beer Sheva and Ashkelon; «Рядом»: to Modi'in, Rishon LeZion, Ben Gurion Airport
-(Terminal 3), Holon and Glilot (Cinema City). Any other home city gets five of Tel Aviv, Jerusalem, Haifa, Beer Sheva,
-Ashkelon and Netanya (never itself) and its five nearest cities (see [Home city](#home-city)). Each widget: the name and a soft green / amber / red chip with the delay, the travel time now and the length, and a
-time bar (bars compare within a column). The times are LIVE traffic from the
+**6 · Traffic**: twenty widgets in two columns of ten, all from the home city (the owner, 2026-11-06). «Города», for every
+home city: Ben Gurion Airport (Terminal 3), Haifa, Nazareth, Tel Aviv, Jerusalem, Eilat and Beer Sheva (never the home city
+itself), then the largest Israeli cities by population — Rishon LeZion, Petah Tikva, Ashdod, Netanya, Bnei Brak, Holon,
+Ramat Gan, Ashkelon, Rehovot, Bat Yam — to ten. «Рядом»: the ten nearest cities (at least 2 km away), none already in
+«Города»; Rehovot (the default) starts with its own Modi'in, Holon and Glilot (Cinema City), then its nearest (see
+[Home city](#home-city)). Each widget is one line — the name, a soft green / amber / red chip with the delay, the travel
+time now and the length — over a time bar (bars compare within a column). The times are LIVE traffic from the
 [Mapbox Directions API](https://docs.mapbox.com/api/navigation/directions/) (profile `driving-traffic`): one GET per route,
-the ten started together, no geometry. The delay is the time now over the usual time at this hour (`duration_typical`);
+all twenty started together, no geometry. The delay is the time now over the usual time at this hour (`duration_typical`);
 a trip faster than usual says «Свободно». Mapbox's free tier is 100,000
 Directions requests a **month**, so one rule decides when a round is sent (`Config.traffic.schedule`; one function,
 `Traffic.decide`, for every path), at any hour of the day:
@@ -406,13 +408,13 @@ Directions requests a **month**, so one rule decides when a round is sent (`Conf
 - opened with ◀ ▶: at once, every time, however old the data is;
 - arrived with the rotation, staying open, or the TV waking: at most once every 10 minutes since the last attempt
   (`minIntervalMs`), failures and refusals included (no separate retry path, no catch-up);
-- never past 3,000 requests (300 rounds) on a UTC date (`dailyRequestCap`): before every round the app writes
-  `{utcDate, used + 10, lastAttemptAt}` to the TV's localStorage (`tt-quota`), reads it back, and sends only if it was
+- never past 3,000 requests (150 rounds) on a UTC date (`dailyRequestCap`): before every round the app writes
+  `{utcDate, used + 20, lastAttemptAt}` to the TV's localStorage (`tt-quota`), reads it back, and sends only if it was
   stored; nothing is refunded (a failure, a timeout, a refusal, a restart). Any 31 days (with arbitrary alignment they
-  touch 32 UTC dates) stay ≤ 32 × 3,000 = 96,000 requests; parked on the screen it is 144 rounds a UTC date (1,440
-  requests), and pressing ◀ ▶ every minute all day stops at exactly 3,000 (`tests/build-config.test.js` simulates these,
+  touch 32 UTC dates) stay ≤ 32 × 3,000 = 96,000 requests; parked on the screen it is 144 rounds a UTC date (2,880
+  requests, under the cap; 31 days parked = 89,300), and pressing ◀ ▶ every minute all day stops at exactly 3,000 (`tests/build-config.test.js` simulates these,
   restarts and the 25-hour DST date included).
-- A deadline Mapbox gives (`Retry-After` on a 403, 429 or 503 of any of the ten answers, in seconds or as a date) is
+- A deadline Mapbox gives (`Retry-After` on a 403, 429 or 503 of any of the answers, in seconds or as a date) is
   written into the same record (`retryNotBefore`, read back) and holds for every path, ◀ ▶ opens and restarts included;
   the refusal line shows the later of "last attempt + 10 min" and that deadline («автоматический повтор не раньше HH:MM»).
 - A clock that went back is corrected without sending: a last attempt in the future becomes "now" (the next round 10
@@ -514,7 +516,7 @@ depends on where the alert is:
 ## Home city
 
 Everything that is about "here" follows one city: the main weather card (and the Israel clock's temperature), the air
-quality and UV at home, the Shabbat & holidays screen, the ten traffic routes and their names, the traffic map's centre and
+quality and UV at home, the Shabbat & holidays screen, the twenty traffic routes and their names, the traffic map's centre and
 dot, the alert at home, the nearby towns and the red alert line.
 Rehovot is the default; 83 Israeli cities are in the catalogue [`js/cities.js`](js/cities.js) (every city of roughly 20,000
 people or more, plus the small towns around Rehovot).
@@ -528,9 +530,10 @@ people or more, plus the small towns around Rehovot).
   catalogue stops the build.
 - **Which wins.** The city chosen on the TV, then `HOME_CITY` (`homeCity` in `js/config.js`), then Rehovot. Rebuilding with
   a new `HOME_CITY` does not override a city already chosen on that TV; choose again with OK.
-- **What a city gets.** Rehovot keeps the owner's hand-tuned routes, map view and nearby towns exactly. Any other city:
-  «Города» are five of Tel Aviv, Jerusalem, Haifa, Beer Sheva, Ashkelon and Netanya (never itself); «Рядом» are its five
-  nearest cities (at least 2 km away); the map is centred on it; the nearby alerts are the cities within 20 km (11 at
+- **What a city gets.** Every city: «Города» are the airport, Haifa, Nazareth, Tel Aviv, Jerusalem, Eilat and Beer Sheva
+  (never itself), then the largest cities to ten; «Рядом» are its ten nearest cities (at least 2 km away), none already in
+  «Города» — Rehovot first keeps its hand-tuned Modi'in, Holon and Glilot. Rehovot keeps its map view and nearby towns
+  exactly. Any other city: the map is centred on it; the nearby alerts are the cities within 20 km (11 at
   most; with fewer than 3, the 3 nearest within 40 km). Remote towns are honest: Eilat's «Рядом» are far away and it has no
   nearby alert towns.
 - **Candle lighting by the city's own custom.** 78 of the 83 cities carry their GeoNames id (checked 2026-11-02), so

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { openApp, measure, legibility, FIXED_NOW, trafficFixture, routeIndexOf, withoutHeadlineClamp } from './page.mjs';
+import { openApp, measure, legibility, FIXED_NOW, trafficFixture, trafficAnswer, trafficCache, TRAFFIC_ROUTES, withoutHeadlineClamp } from './page.mjs';
 
 const orefFixture = (name) => fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'oref', name));
 
@@ -283,7 +283,8 @@ test('Traffic without a key: a calm invitation, and not a single request to TomT
   } finally { await app.close(); }
 });
 
-// FB5B-T1: the ten routes in two columns of five — «Города», «Рядом» — on one grid (highways are on the map screen).
+// FB5B-T1, D-ROUTES20 (2026-11-06): the twenty routes in two columns of ten — «Города», «Рядом» — on one grid (highways are
+// on the map screen).
 const WIDGETS = () => [...document.querySelectorAll('.tcol')].map((c) => ({ title: c.querySelector('.tcol-title').textContent,
   items: [...c.querySelectorAll('.tw')].map((w) => [w.querySelector('.tw-name').textContent, w.querySelector('.tw-time').textContent,
     w.querySelector('.chip') ? w.querySelector('.chip').className + ' ' + w.querySelector('.chip').textContent : (w.querySelector('.tnodata') || {}).textContent,
@@ -291,7 +292,7 @@ const WIDGETS = () => [...document.querySelectorAll('.tcol')].map((c) => ({ titl
 // A fast gate for tests that need a second round while the screen stays open.
 const FAST = (c) => { c.traffic.token = 'pk.FIXTURE123'; c.traffic.schedule.minIntervalMs = 400; };
 
-test('FB5B-T1: Traffic with a token (Mapbox): ten GETs started together, one per route; two columns of five widgets on one grid', async () => {
+test('FB5B-T1 (D-ROUTES20): Traffic with a token (Mapbox): twenty GETs started together, one per route; two columns of ten widgets on one grid', async () => {
   const app = await openApp({ ...QUIET, traffic: 'ok', configure: KEY });
   try {
     await ready(app);
@@ -301,41 +302,89 @@ test('FB5B-T1: Traffic with a token (Mapbox): ten GETs started together, one per
     await p.waitForSelector('.tw-time');
     await wait(700);
     const gets = app.requests.traffic.filter((r) => r.method === 'GET');
-    assert.equal(gets.length, 10, 'one round: a GET per route');
+    assert.equal(gets.length, 20, 'one round: a GET per route');
     assert.ok(gets.every((r) => /^https:\/\/api\.mapbox\.com\/directions\/v5\/mapbox\/driving-traffic\/34\.8113,31\.8928;[\d.]+,[\d.]+\?overview=false&access_token=pk\.FIXTURE123$/.test(r.url)), gets[0].url);
-    assert.equal(new Set(gets.map((r) => r.url)).size, 10, 'ten different routes');
+    assert.equal(new Set(gets.map((r) => r.url)).size, 20, 'twenty different routes');
     const cols = await p.evaluate(WIDGETS);
     assert.deepEqual(cols.map((c) => c.title), ['Города', 'Рядом']);
-    assert.deepEqual(cols[0].items.map((w) => w.slice(0, 4)), [
-      ['Тель-Авив', '32 мин', 'chip lv-ok Свободно', '27 км'], ['Иерусалим', '45 мин', 'chip lv-ok Свободно', '60 км'],
-      ['Хайфа', '1 ч 39 мин', 'chip lv-ok Свободно', '119 км'], ['Беэр-Шева', '1 ч 10 мин', 'chip lv-slow +10 мин', '88 км'],
-      ['Ашкелон', '45 мин', 'chip lv-ok +3 мин', '37 км']]);
-    assert.deepEqual(cols[1].items.map((w) => w.slice(0, 4)), [
-      ['Модиин', '25 мин', 'chip lv-ok Свободно', '30 км'], ['Ришон-ле-Цион', '21 мин', 'chip lv-jam +8 мин', '12 км'],
-      ['Аэропорт', '32 мин', 'chip lv-ok Свободно', '25 км'], ['Холон', '32 мин', 'chip lv-ok Свободно', '22 км'],
-      ['Глилот', '43 мин', 'chip lv-ok +3 мин', '38 км']]);
-    for (let k = 0; k < 5; k++) assert.equal(new Set(cols.map((c) => c.items[k][4] + '/' + c.items[k][5])).size, 1, 'row ' + k + ' on one grid: ' + cols.map((c) => c.items[k][4]));
+    assert.deepEqual(cols.map((c) => c.items.map((w) => w[0])), [
+      ['Аэропорт', 'Хайфа', 'Назарет', 'Тель-Авив', 'Иерусалим', 'Эйлат', 'Беэр-Шева', 'Ришон-ле-Цион', 'Петах-Тиква', 'Ашдод'],
+      ['Модиин', 'Холон', 'Глилот', 'Кирьят-Экрон', 'Нес-Циона', 'Мазкерет-Батья', 'Рамла', 'Беэр-Яаков', 'Явне', 'Гедера']]);
+    // the destinations of the recorded round (tests/fixtures/mapbox/routes.json) show their recorded figures
+    const byName = new Map(cols[0].items.concat(cols[1].items).map((w) => [w[0], w.slice(1, 4)]));
+    for (const [name, want] of [['Тель-Авив', ['32 мин', 'chip lv-ok Свободно', '27 км']], ['Иерусалим', ['45 мин', 'chip lv-ok Свободно', '60 км']],
+      ['Хайфа', ['1 ч 39 мин', 'chip lv-ok Свободно', '119 км']], ['Беэр-Шева', ['1 ч 10 мин', 'chip lv-slow +10 мин', '88 км']],
+      ['Модиин', ['25 мин', 'chip lv-ok Свободно', '30 км']], ['Ришон-ле-Цион', ['21 мин', 'chip lv-jam +8 мин', '12 км']],
+      ['Аэропорт', ['32 мин', 'chip lv-ok Свободно', '25 км']], ['Холон', ['32 мин', 'chip lv-ok Свободно', '22 км']],
+      ['Глилот', ['43 мин', 'chip lv-ok +3 мин', '38 км']]]) assert.deepEqual(byName.get(name), want, name);
+    for (let k = 0; k < 10; k++) assert.equal(new Set(cols.map((c) => c.items[k][4] + '/' + c.items[k][5])).size, 1, 'row ' + k + ' on one grid: ' + cols.map((c) => c.items[k][4]));
     // FB5B-T5 (FE F10): one rhythm — the gap between widgets equals the gap between the columns
     const gaps = await p.evaluate(() => { const tw = [...document.querySelectorAll('.tw')], col = [...document.querySelectorAll('.tcol')];
       return [Math.round(tw[1].getBoundingClientRect().top - tw[0].getBoundingClientRect().bottom), Math.round(col[1].getBoundingClientRect().left - col[0].getBoundingClientRect().right)]; });
     assert.equal(gaps[0], gaps[1], 'one rhythm: ' + gaps);
-    assert.ok(cols.every((c) => c.items[4][5] <= 1080 - 48), 'the last row inside the screen');
+    assert.ok(cols.every((c) => c.items[9][5] <= 1080 - 48), 'the last row inside the screen');
     assert.equal(await p.$eval('#traffic-status', (e) => e.textContent), 'Обновлено в 20:32 · Только что', 'B17-V3: fresh with its age');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, []);
   } finally { await app.close(); }
 });
 
+// D6 (review-1, 2026-11-06): a round's time, from its first GET to the drawn rows (the batch is applied whole: nothing shows
+// before its last answer), on a slow network — every answer 300 ms, at most six at a time to the host (HTTP/1.1's limit
+// per host; a GET past six waits for a free one, and its xhr timeout counts the wait) — for ten routes and for twenty.
+// Twenty take four waves of six (4 × 300 ms), ten take two: the round stays far inside the 20 s timeout.
+const ANSWER_MS = 300, PER_HOST = 6;
+function slowHost() {
+  let busy = 0;
+  const waiting = [];
+  const next = () => { if (busy >= PER_HOST || !waiting.length) return; busy++; const answer = waiting.shift(); setTimeout(() => { busy--; answer(); next(); }, ANSWER_MS); };
+  return (round, url) => new Promise((resolve) => { waiting.push(() => resolve({ status: 200, body: JSON.stringify(trafficAnswer(trafficFixture(), url)) })); next(); });
+}
+const FIRST_GET = "(function () { var open = XMLHttpRequest.prototype.open, send = XMLHttpRequest.prototype.send;" +
+  " XMLHttpRequest.prototype.open = function (m, u) { this.__url = u; return open.apply(this, arguments); };" +
+  " XMLHttpRequest.prototype.send = function () { if (/directions/.test(this.__url) && window.__sentAt === undefined) window.__sentAt = performance.now(); return send.apply(this, arguments); }; })();";
+async function roundMs(routes) {
+  const app = await openApp({ ...QUIET, configure: KEY, traffic: slowHost(), init: FIRST_GET,
+    home: routes === 10 ? (c) => { c.traffic.routes = c.traffic.routes.slice(0, 10); c.traffic.columns = [c.traffic.columns[0]]; } : undefined });
+  try {
+    await ready(app);
+    const p = app.page;
+    await toScreen(p, 'traffic');
+    await p.waitForFunction((n) => document.querySelectorAll('.tw-time:not(.is-none)').length === n && (window.__drawnAt = performance.now()), { polling: 'raf', timeout: 15000 }, routes);
+    assert.equal(app.requests.traffic.filter((r) => r.method === 'GET').length, routes, routes + ': one GET per route');
+    return { ms: Math.round(await p.evaluate(() => window.__drawnAt - window.__sentAt)), timeoutMs: await p.evaluate(() => Config.traffic.timeoutMs) };
+  } finally { await app.close(); }
+}
+test('FB5B-T6 (D6): round time on a slow network (300 ms an answer, six at a time per host) — ten routes ≈ 2 waves, twenty ≈ 4 waves; both far inside the 20 s timeout', async () => {
+  const ten = await roundMs(10), twenty = await roundMs(TRAFFIC_ROUTES);
+  console.log('# D6 round, first GET → drawn rows (' + ANSWER_MS + ' ms an answer, ' + PER_HOST + ' per host): 10 routes ' + ten.ms + ' ms, ' + TRAFFIC_ROUTES + ' routes ' + twenty.ms + ' ms');
+  assert.ok(ten.ms >= 2 * ANSWER_MS - 20 && ten.ms < 3 * ANSWER_MS + 400, 'ten routes: two waves: ' + ten.ms);
+  assert.ok(twenty.ms >= 4 * ANSWER_MS - 20 && twenty.ms < 5 * ANSWER_MS + 400, 'twenty routes: four waves: ' + twenty.ms);
+  assert.ok(twenty.ms < twenty.timeoutMs / 4, 'twenty routes inside a quarter of the timeout: ' + twenty.ms + ' / ' + twenty.timeoutMs);
+});
+
+// D10 (review-1, 2026-11-06): the Mapbox stand-in answers a recorded route only from where it was recorded (Rehovot, its
+// origin snapped to the road by Mapbox); from another home city the same destination gets the straight-line answer.
+test('D10: the recorded Mapbox answers serve Rehovot\'s routes only — Haifa → Tel Aviv gets the distance-derived answer, not Rehovot\'s 27 km', () => {
+  const rec = trafficFixture(), url = (from, to) => 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/' + from + ';' + to + '?overview=false&access_token=pk.FIXTURE123';
+  const tlv = rec[0].waypoints[1].location.join(','), haifa = '34.9896,32.794';
+  assert.equal(trafficAnswer(rec, url('34.8113,31.8928', tlv)), rec[0], 'Rehovot → Tel Aviv: the recording');
+  const a = trafficAnswer(rec, url(haifa, tlv));
+  assert.notEqual(a, rec[0], 'Haifa → Tel Aviv: not Rehovot\'s recording');
+  assert.deepEqual(a.waypoints[0].location, [34.9896, 32.794], 'its own origin');
+  assert.ok(a.routes[0].distance > 90000, 'Haifa → Tel Aviv: ' + a.routes[0].distance + ' m (Rehovot\'s is 27 km)');
+});
+
 const NO_ROUTE = { code: 'NoRoute', message: 'No route found', routes: [] };
 const toTraffic = (p) => toScreen(p, 'traffic');
 
 // C4 (D6, D7, D8, D12): one encoding per screen, no hairline slivers, a failed row keeps its shape, smaller units.
-// A column's bars share its scale («Города»: its longest, Haifa, 5922 s).
+// A column's bars share its scale (its longest trip fills its track; the others are drawn against it).
 test('C4 / B17-V5: route bars share one time scale per column; no delay sliver under a minute; a failed route keeps «—», «нет данных» and its track', async () => {
   const b = trafficFixture();
   b[1] = NO_ROUTE;                                  // Jerusalem cannot be routed
   Object.assign(b[6].routes[0], { duration: 1000, duration_typical: 960 });   // Rishon: 40 s over the usual
-  const app = await openApp({ ...QUIET, configure: KEY, traffic: (round, url) => ({ status: 200, body: JSON.stringify(b[routeIndexOf(url)]) }) });
+  const app = await openApp({ ...QUIET, configure: KEY, traffic: (round, url) => ({ status: 200, body: JSON.stringify(trafficAnswer(b, url)) }) });
   try {
     await ready(app);
     const p = app.page;
@@ -347,21 +396,22 @@ test('C4 / B17-V5: route bars share one time scale per column; no delay sliver u
       const tws = [...document.querySelectorAll('.tw')];
       const bar = (t) => ({ name: t.querySelector('.tw-name').textContent, track: w(t.querySelector('.tbar')),
         free: w(t.querySelector('.tbar-free')), delay: w(t.querySelector('.tbar-delay')) });
-      const jr = tws[1];
-      return { cities: tws.slice(0, 5).map(bar), jerusalem: { time: jr.querySelector('.tw-time').textContent, timeCls: jr.querySelector('.tw-time').className,
+      const jr = tws[4];                         // «Города»: airport, Haifa, Nazareth, Tel Aviv, Jerusalem, …
+      return { cities: tws.slice(0, 10).map(bar), jerusalem: { time: jr.querySelector('.tw-time').textContent, timeCls: jr.querySelector('.tw-time').className,
         nodata: jr.querySelector('.tnodata').textContent, bar: !!jr.querySelector('.tbar'), fill: jr.querySelectorAll('.tbar *').length,
         barGap: jr.getBoundingClientRect().bottom - jr.querySelector('.tbar').getBoundingClientRect().bottom,
         okBarGap: tws[0].getBoundingClientRect().bottom - tws[0].querySelector('.tbar').getBoundingClientRect().bottom },
         unit: [getComputedStyle(document.querySelector('.tw-time .unit')).fontSize, tws[0].querySelector('.tw-time').textContent],
-        rishon: [tws[6].querySelector('.chip').textContent, tws[6].querySelectorAll('.tbar-delay').length] };
+        rishon: [tws[7].querySelector('.chip').textContent, tws[7].querySelectorAll('.tbar-delay').length] };
     });
-    const [tlv, , haifa, beersheva] = v.cities;
-    assert.ok(Math.abs(haifa.free + haifa.delay - haifa.track) < 1, 'Haifa, the longest, fills its track');
-    assert.ok(Math.abs((tlv.free + tlv.delay) / haifa.track - 1920.4 / 5922.3) < 0.01, 'Tel Aviv on the same scale: ' + JSON.stringify(tlv));
-    assert.ok(Math.abs((beersheva.free + beersheva.delay) / haifa.track - 4210.5 / 5922.3) < 0.01, 'Beer Sheva: ' + JSON.stringify(beersheva));
+    const [, haifa, , tlv, , , beersheva] = v.cities, fill = (c) => c.free + c.delay;
+    const longest = v.cities.reduce((a, c) => (fill(c) > fill(a) ? c : a));
+    assert.ok(Math.abs(fill(longest) - longest.track) < 1, 'the longest trip fills its track: ' + longest.name);
+    assert.ok(Math.abs(fill(tlv) / fill(haifa) - 1920.4 / 5922.3) < 0.01, 'Tel Aviv and Haifa on one scale: ' + JSON.stringify([tlv, haifa]));
+    assert.ok(Math.abs(fill(beersheva) / fill(haifa) - 4210.5 / 5922.3) < 0.01, 'Beer Sheva: ' + JSON.stringify(beersheva));
     assert.deepEqual([v.jerusalem.time, v.jerusalem.timeCls, v.jerusalem.nodata, v.jerusalem.bar, v.jerusalem.fill], ['—', 'tw-time is-none', 'нет данных', true, 0]);   // B17-V5: one key, lower case
     assert.equal(v.jerusalem.barGap, v.jerusalem.okBarGap, 'its track sits where every widget\'s bar sits');
-    assert.deepEqual(v.unit, ['28px', '32 мин']);   // B17-T1: the type scale (30 → 28)
+    assert.deepEqual(v.unit, ['24px', '32 мин']);   // B17-T1: the type scale; D-ROUTES20: the one-line widget's 40 px time, its units 24 px
     assert.deepEqual(v.rishon, ['Свободно', 0], 'a 40 s delay: neither "+1 мин" nor a sliver (one threshold for words and bars)');
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, []);
@@ -393,7 +443,7 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
       for (const bx of [v.box, v.noteBox]) assert.ok(bx[0] >= 0 && bx[1] <= 1920 && bx[2] >= 0 && bx[3] <= 1080, status + ': inside the screen ' + bx);
       assert.ok(!v.cut, 'not cut');
       assert.ok(v.noteBox[2] >= v.box[3] - 0.5 && v.noteBox[3] <= v.title, 'the note under the line, above the columns: ' + v.noteBox + ' / ' + v.title);
-      assert.equal(v.widgets, 10, status + ': the last good widgets stay');
+      assert.equal(v.widgets, 20, status + ': the last good widgets stay');
       assert.deepEqual(v.chip, ['rgba(255, 255, 255, 0.62)', '1'], 'a stale chip is quiet white, not faded');
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
       assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, [], 'every text legible, opacity included');
@@ -418,10 +468,8 @@ test('FB5C-7: last good data, then 403 / 429: the cards stay, the data-time line
 
 // Stored state for the screens below: the accounting record and the row cache as js/traffic.js keeps them.
 const UTC_DAY = new Date(FIXED_NOW).toISOString().slice(0, 10);
-const quota = (o) => JSON.stringify(Object.assign({ v: 1, utcDate: UTC_DAY, used: 10, lastAttemptAt: FIXED_NOW - 41 * 60000, retryNotBefore: 0 }, o));
-const cache = (at) => JSON.stringify({ v: 1, rows: trafficFixture().map((a) => { const r = a.routes[0];
-  return { data: { travel: r.duration, free: r.duration_typical, delay: Math.max(r.duration - r.duration_typical, 0), length: r.distance }, updatedAt: at, error: null }; }),
-  failed: false, problem: null, attemptAt: at });
+const quota = (o) => JSON.stringify(Object.assign({ v: 1, utcDate: UTC_DAY, used: TRAFFIC_ROUTES, lastAttemptAt: FIXED_NOW - 41 * 60000, retryNotBefore: 0 }, o));
+const cache = trafficCache;                         // D-ROUTES20: twenty rows, signed for the routes
 const stored = (q, c) => 'localStorage.setItem("tt-quota", ' + JSON.stringify(q) + ');' + (c ? 'localStorage.setItem("tt-cache", ' + JSON.stringify(c) + ');' : '');
 const head = (p) => p.evaluate(() => [document.getElementById('traffic-status').textContent, document.getElementById('traffic-note').textContent,
   (document.querySelector('#screen-traffic .state-card .state-text') || {}).textContent || '', document.querySelectorAll('.tw .tw-time:not(.is-none)').length]);   // B17-V1
@@ -430,19 +478,19 @@ const head = (p) => p.evaluate(() => [document.getElementById('traffic-status').
 test('B17-V3: the traffic header — fresh / stale with the age, future-dated data, the daily cap, storage paused', async () => {
   const cases = [
     ['cached rows show at once; ◀ ▶ open sends; while in flight the rows\' own line (B17-V3: no «Обновляется…»)', { traffic: () => ({ hang: true }), init: stored(quota({}), cache(FIXED_NOW - 41 * 60000)) },
-      1, ['Не обновляется · данные от 19:51 · 41 мин назад', '', '', 10]],
+      1, ['Не обновляется · данные от 19:51 · 41 мин назад', '', '', 20]],
     ['the update fails: stale with the time and the age', { traffic: () => ({ status: 503, body: '' }), init: stored(quota({}), cache(FIXED_NOW - 41 * 60000)) },
-      1, ['Не обновляется · данные от 19:51 · 41 мин назад', '', '', 10]],
+      1, ['Не обновляется · данные от 19:51 · 41 мин назад', '', '', 20]],
     ['future-dated data: no negative age; the attempt time rebased, nothing sent', { traffic: 'ok', init: stored(quota({ lastAttemptAt: FIXED_NOW + 3600000 }), cache(FIXED_NOW + 3600000)) },
-      0, ['Не обновляется · данные от 21:32 · время данных требует проверки', '', '', 10]],
+      0, ['Не обновляется · данные от 21:32 · время данных требует проверки', '', '', 20]],
     ['the daily cap: nothing sent; the data line stays, the cap below it', { traffic: 'ok', init: stored(quota({ used: 3000 }), cache(FIXED_NOW - 41 * 60000)) },
-      0, ['Не обновляется · данные от 19:51 · 41 мин назад', 'Дневной лимит запросов пробок исчерпан · обновление после 30.10 02:00', '', 10]],
+      0, ['Не обновляется · данные от 19:51 · 41 мин назад', 'Дневной лимит запросов пробок исчерпан · обновление после 30.10 02:00', '', 20]],
     ['the daily cap with no cache: the card says it', { traffic: 'ok', init: stored(quota({ used: 3000 })) },
       0, ['', '', 'Дневной лимит запросов пробок исчерпан · обновление после 30.10 02:00', 0]],
     ['a corrupt counter: paused, nothing sent', { traffic: 'ok', init: 'localStorage.setItem("tt-quota", "{used:");' },
       0, ['', '', 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов', 0]],
     ['a corrupt counter over cached rows: the data line stays, the pause below it', { traffic: 'ok', init: 'localStorage.setItem("tt-quota", "{used:");localStorage.setItem("tt-cache", ' + JSON.stringify(cache(FIXED_NOW - 41 * 60000)) + ');' },
-      0, ['Не обновляется · данные от 19:51 · 41 мин назад', 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов', '', 10]]
+      0, ['Не обновляется · данные от 19:51 · 41 мин назад', 'Обновления пробок приостановлены: не удалось проверить или сохранить счётчик запросов', '', 20]]
   ];
   for (const [name, o, rounds, want] of cases) {
     const app = await openApp({ ...QUIET, configure: KEY, ...o });
@@ -451,7 +499,7 @@ test('B17-V3: the traffic header — fresh / stale with the age, future-dated da
       const p = app.page;
       await toTraffic(p);
       await wait(900);
-      assert.equal(app.requests.traffic.filter((r) => r.method === 'GET').length, rounds * 10, name + ': rounds of ten GETs');
+      assert.equal(app.requests.traffic.filter((r) => r.method === 'GET').length, rounds * TRAFFIC_ROUTES, name + ': rounds of twenty GETs');
       assert.deepEqual(await head(p), want, name);
       assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), [], name);
       assert.deepEqual((await p.evaluate(legibility, '#screen-traffic *')).bad, [], name);
@@ -709,7 +757,7 @@ test('FB5C-OPEN: ◀ ▶ open of every screen refreshes its source once; a rotat
     await wait(500);
     const count = () => ({ weather: app.weatherRequests.length, news: app.requests.news.filter((r) => r.method === 'GET').length,
       markets: app.requests.markets.filter((r) => r.method === 'GET').length,
-      traffic: app.requests.traffic.filter((r) => r.method === 'GET').length / 10,
+      traffic: app.requests.traffic.filter((r) => r.method === 'GET').length / TRAFFIC_ROUTES,
       map: app.requests.map.length, history: app.requests.history.filter((r) => r.method === 'GET').length,
       air: app.requests.air.filter((r) => r.method === 'GET').length, hebcal: app.requests.hebcal.filter((r) => r.method === 'GET').length });
     const boot = count();

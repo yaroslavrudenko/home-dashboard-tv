@@ -214,8 +214,9 @@ test('L10 / L12 / L15 / D-P1: the Israel cards\' days start on one line (uk), a 
     await settled(p, 'traffic');
     await p.waitForSelector('.tw-name', { timeout: 10000 });
     const edges = await p.evaluate(() => { const x = (s) => { const e = document.querySelector('#screen-traffic ' + s), q = document.createRange(); q.selectNodeContents(e); return Math.round(q.getBoundingClientRect().left); };
-      return [x('.screen-title'), x('.tcol-title'), x('.tw-name'), x('.tw-time')]; });
-    assert.equal(new Set(edges).size, 1, 'L15: the title, the column title and the widgets\' text on one left edge: ' + edges);
+      return [x('.screen-title'), x('.tcol-title'), x('.tw-name')]; });
+    // D-ROUTES20: a widget is one line now — its name starts on the edge; its time and length are end-aligned columns
+    assert.equal(new Set(edges).size, 1, 'L15: the title, the column title and the widgets\' names on one left edge: ' + edges);
     assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), []);
     await shot(p, 'l15-uk-traffic');
   } finally { await app.close(); }

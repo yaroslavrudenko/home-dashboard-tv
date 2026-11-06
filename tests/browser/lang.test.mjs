@@ -3,7 +3,7 @@
 // sources (L2); Hebrew mirrors the whole layout with figures kept left to right (L3); alerts speak the language.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openApp, measure, newsSource, withoutHeadlineClamp } from './page.mjs';
+import { openApp, measure, newsSource, withoutHeadlineClamp, TRAFFIC_ROUTES, anyPlaceWeather } from './page.mjs';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); return e.defaultPrevented; }, code);
@@ -83,16 +83,16 @@ test('L1/L2/B2: a switch asks for the new language\'s two feeds and refreshes th
     await press(p, LEFT); await wait(500);         // ◀ the map
     await press(p, LEFT); await wait(800);         // ◀ traffic: the map and the routes loaded once
     assert.deepEqual(feedsOf(app), ['newsru', 'newsrufin'], 'Russian at boot: NEWSru only');
-    assert.ok(counts(app).traffic === 10 && counts(app).map >= 1, JSON.stringify(counts(app)));
+    assert.ok(counts(app).traffic === TRAFFIC_ROUTES && counts(app).map >= 1, JSON.stringify(counts(app)));
     const before = counts(app);
     await press(p, YELLOW);
     await wait(1500);
     const after = counts(app);
-    assert.deepEqual([after.weather, after.traffic, after.map], [before.weather, before.traffic + 10, before.map], 'the traffic on view: one batch; nothing else');
+    assert.deepEqual([after.weather, after.traffic, after.map], [before.weather, before.traffic + TRAFFIC_ROUTES, before.map], 'the traffic on view: one batch; nothing else');
     assert.deepEqual(feedsOf(app).slice(before.news), ['ynet', 'globes'], 'Hebrew: Ynet and Globes, at once');
     await press(p, YELLOW); await wait(1500);
     assert.deepEqual(feedsOf(app).slice(before.news + 2), ['pravda', 'epravda'], 'Ukrainian: Ukrainska Pravda and Ekonomichna Pravda');
-    assert.deepEqual([counts(app).weather, counts(app).traffic, counts(app).map], [before.weather, before.traffic + 20, before.map]);
+    assert.deepEqual([counts(app).weather, counts(app).traffic, counts(app).map], [before.weather, before.traffic + 2 * TRAFFIC_ROUTES, before.map]);   // two switches: two batches
   } finally { await app.close(); }
 });
 
@@ -254,6 +254,108 @@ test('L3: every screen in every language: nothing cut, outside its card or off t
         assert.ok(boxes.length - kept.length <= 1, lang + ': clamped headlines ' + (boxes.length - kept.length));
         assert.deepEqual(clean(kept), [], lang + ' ' + SCREENS[i]);
       }
+      assert.deepEqual(app.errors, [], lang);
+    } finally { await app.close(); }
+  }
+});
+
+// The traffic screen drawn in a language ('en': the fallback string table, not one of Config.languages — switched after
+// boot, before the screen draws), Inter loaded.
+async function trafficIn(app, lang) {
+  await ready(app);
+  if (lang === 'en') await app.page.evaluate(() => { I18n.setLang('en'); document.documentElement.lang = 'en'; });
+  for (let i = 0; i < SCREENS.indexOf('traffic'); i++) await press(app.page, RIGHT);
+  await app.page.waitForSelector('.tw-time:not(.is-none)', { timeout: 15000 });
+  await wait(900);
+  await app.page.evaluate(() => document.fonts.ready);
+}
+// Per column: its left edge, the distinct end edges of the chips, the start / end edges of the times, the end edges of the
+// lengths ('end': right, left in Hebrew), and how many rows take an hour or more.
+const GRID = () => {
+  const rtl = document.documentElement.dir === 'rtl';
+  return [...document.querySelectorAll('.tcol')].map((c) => {
+    const rows = [...c.querySelectorAll('.tw-row')];
+    const edge = (sel, end) => [...new Set(rows.filter((r) => r.querySelector(sel)).map((r) => Math.round(r.querySelector(sel).getBoundingClientRect()[end !== rtl ? 'right' : 'left'])))];
+    return { left: Math.round(c.getBoundingClientRect().left), chipEnd: edge('.chip', true), timeStart: edge('.tw-time', false), timeEnd: edge('.tw-time', true),
+      kmEnd: edge('.tw-km', true), hours: rows.filter((r) => /\d\D+\d/.test(r.querySelector('.tw-time').textContent)).length };
+  });
+};
+
+// D1 (review-1, 2026-11-06): chips, times and lengths stand on one grid down each column in every language, the rows of an
+// hour or more («1 год 39 хв», «2 שע׳ 27 דק׳») included; the time's box is sized to the widest time the screen can show
+// (0 min … 9 h 59 min) in that language.
+test('L3 (D1): traffic — the chips\' ends, the times and the lengths on one grid down each column, ≥ 1 h rows included, in ru / he / uk / en; the time box holds the widest time', async () => {
+  const widest = {};
+  for (const lang of ['ru', 'he', 'uk', 'en']) {
+    const app = await openApp({ ...QUIET, lang: lang === 'en' ? 'ru' : lang });
+    try {
+      await trafficIn(app, lang);
+      const cols = await app.page.evaluate(GRID);
+      assert.equal(cols[0].hours >= 3, true, lang + ': Rehovot\'s «Города» has rows of an hour or more: ' + cols[0].hours);
+      for (const [k, c] of cols.entries()) {
+        assert.deepEqual([c.chipEnd.length, c.timeStart.length, c.timeEnd.length, c.kmEnd.length], [1, 1, 1, 1], lang + ' column ' + k + ' on one grid: ' + JSON.stringify(c));
+        assert.ok(Math.abs(c.chipEnd[0] - c.timeStart[0]) <= 16, lang + ': the chip ends where the time begins (its 16 px margin at most)');
+      }
+      widest[lang] = await app.page.evaluate(() => {
+        const host = document.querySelector('#traffic-body .tw-row'), box = host.querySelector('.tw-time').getBoundingClientRect().width;
+        const unit = (s) => s.replace(/(\s*[^\d\s]+)/g, '<span class="unit">$1</span>');
+        let max = [0, ''];
+        for (let h = 0; h <= 9; h++) for (let m = 0; m < 60; m++) {
+          const s = document.createElement('span'), text = h ? I18n.t('t.hmin', { h, m: m < 10 ? '0' + m : String(m) }) : I18n.t('t.min', { n: m });
+          s.className = 'tw-time'; s.style.cssText = 'position:absolute;visibility:hidden;min-width:0';
+          s.innerHTML = unit(text); host.appendChild(s);
+          const w = s.getBoundingClientRect().width; s.remove();
+          if (w > max[0]) max = [w, text];
+        }
+        return { box, widest: Math.ceil(max[0] * 10) / 10, text: max[1] };
+      });
+      assert.ok(widest[lang].widest <= widest[lang].box, lang + ': the widest time fits its box: ' + JSON.stringify(widest[lang]));
+    } finally { await app.close(); }
+  }
+  console.log('# D1 widest time per language (px, in a box of)', JSON.stringify(widest));
+});
+
+// D4 (review-1, 2026-11-06): the home city whose routes carry the catalogue's longest names in every language — Umm
+// al-Fahm: «Мигдаль-ха-Эмек» and «Бака-эль-Гарбия», «באקה אל גרבייה», «Мігдаль-га-Емек», "Baqa al-Gharbiyye" — with its own
+// times (several hours to Eilat): nothing cut, nothing overlapping in a row, the ten rows of each column inside the card on
+// one grid, Hebrew right to left. Then a name longer than any in the catalogue (the airport's terminal) wraps onto a
+// second line in its widget, still nothing cut and the ten rows still inside.
+const LONGEST = { ru: ['Мигдаль-ха-Эмек', 'Бака-эль-Гарбия'], he: ['באקה אל גרבייה'], uk: ['Мігдаль-га-Емек', 'Бака-ель-Гарбія'], en: ['Baqa al-Gharbiyye'] };
+const TERMINAL = { ru: 'Аэропорт Бен-Гурион, терминал 3 (вылет)', he: 'נמל התעופה בן גוריון, טרמינל 3 (יציאות)', uk: 'Аеропорт Бен-Гуріон, термінал 3 (виліт)',
+  en: 'Ben Gurion Airport, Terminal 3 (departures)' };
+const ROWS = () => {
+  const rtl = document.documentElement.dir === 'rtl', body = document.getElementById('traffic-body').getBoundingClientRect();
+  const lines = (e) => { const q = document.createRange(); q.selectNodeContents(e); return new Set([...q.getClientRects()].map((x) => Math.round(x.top))).size; };
+  return { rtl, bodyBottom: Math.round(body.bottom), cols: [...document.querySelectorAll('.tcol')].map((c) => ({ left: Math.round(c.getBoundingClientRect().left),
+    rows: [...c.querySelectorAll('.tw')].map((w) => {
+      const parts = [...w.querySelector('.tw-row').children].map((e) => e.getBoundingClientRect()), b = w.getBoundingClientRect();
+      // the parts in reading order: each ends before the next begins (right to left in Hebrew)
+      const apart = parts.every((p, i) => i === 0 || (rtl ? parts[i - 1].left >= p.right - 0.5 : parts[i - 1].right <= p.left + 0.5));
+      return { name: w.querySelector('.tw-name').textContent, lines: lines(w.querySelector('.tw-name')), top: Math.round(b.top), bottom: Math.round(b.bottom), apart };
+    }) })) };
+};
+test('L3 (D4): traffic from Umm al-Fahm, the longest names in ru / he / uk / en — nothing cut or overlapping, ten rows a column inside the card on one grid, Hebrew right to left; a longer name wraps, never cut', async () => {
+  for (const lang of ['ru', 'he', 'uk', 'en']) {
+    const app = await openApp({ ...QUIET, lang: lang === 'en' ? 'ru' : lang, weather: anyPlaceWeather, configure: (c) => { c.traffic.token = 'pk.FIXTURE123'; c.rotation.enabled = false; c.homeCity = 'ummalfahm'; } });
+    try {
+      await trafficIn(app, lang);
+      const p = app.page, v = await p.evaluate(ROWS), names = v.cols.flatMap((c) => c.rows.map((r) => r.name));
+      for (const n of LONGEST[lang]) assert.ok(names.includes(n), lang + ': ' + n + ' on the screen: ' + names);
+      assert.deepEqual(v.cols.map((c) => c.rows.length), [10, 10], lang + ': two columns of ten');
+      assert.equal(v.rtl, lang === 'he', lang + ': direction');
+      assert.equal(v.cols[0].left > v.cols[1].left, lang === 'he', lang + ': «Города» first in reading order');
+      for (const c of v.cols) {
+        assert.ok(c.rows.every((r) => r.apart), lang + ': name, chip, time, length never overlap: ' + JSON.stringify(c.rows.filter((r) => !r.apart)));
+        assert.ok(c.rows[9].bottom <= v.bodyBottom && c.rows[9].bottom <= 1080 - 48, lang + ': the tenth row inside the card: ' + c.rows[9].bottom);
+      }
+      for (let k = 0; k < 10; k++) assert.equal(new Set(v.cols.map((c) => c.rows[k].top + '/' + c.rows[k].bottom)).size, 1, lang + ': row ' + k + ' on one grid');
+      assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), [], lang + ': nothing cut');
+      // a name longer than any in the catalogue: two lines in its widget, nothing cut, the ten rows still inside
+      await p.evaluate((t) => { document.querySelector('.tcol .tw-name').textContent = t; }, TERMINAL[lang]);
+      const w = await p.evaluate(ROWS);
+      assert.equal(w.cols[0].rows[0].lines, 2, lang + ': the long name wraps: ' + JSON.stringify(w.cols[0].rows[0]));
+      assert.ok(w.cols.every((c) => c.rows.every((r) => r.apart) && c.rows[9].bottom <= w.bodyBottom), lang + ': still apart and inside: ' + JSON.stringify(w.cols.map((c) => c.rows[9])));
+      assert.deepEqual(clean(await p.evaluate(measure, '#screen-traffic *')), [], lang + ': the wrapped name not cut');
       assert.deepEqual(app.errors, [], lang);
     } finally { await app.close(); }
   }

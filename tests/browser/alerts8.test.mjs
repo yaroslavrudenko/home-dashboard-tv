@@ -3,7 +3,7 @@
 // recent alerts in Israel (B1) and the refresh of the screen on view after a language change (B2).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { openApp, measure } from './page.mjs';
+import { openApp, measure, TRAFFIC_ROUTES } from './page.mjs';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const press = (p, code) => p.evaluate((code) => { const e = new Event('keydown', { cancelable: true }); Object.defineProperty(e, 'keyCode', { value: code }); document.dispatchEvent(e); return e.defaultPrevented; }, code);
@@ -200,7 +200,7 @@ test('B2: a language change on the traffic, map and Alerts screens refreshes tha
   try {
     await ready(app);
     const p = app.page;
-    const count = () => ({ traffic: gets(app.requests.traffic) / 10, map: app.requests.map.length, history: gets(app.requests.history), weather: app.weatherRequests.length });
+    const count = () => ({ traffic: gets(app.requests.traffic) / TRAFFIC_ROUTES, map: app.requests.map.length, history: gets(app.requests.history), weather: app.weatherRequests.length });
     await press(p, LEFT); await wait(900);                       // Alerts
     let c0 = count();
     for (let i = 0; i < 4; i++) { await press(p, DOWN); await wait(80); }

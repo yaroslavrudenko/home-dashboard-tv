@@ -42,6 +42,13 @@ export function rainyWeather(n, url) {
   for (const p of list) p.daily.precipitation_probability_max = [33, 100, 45, 20, 64, 10, 87];
   return { status: 200, body: JSON.stringify(list) };
 }
+// D4 (review-1, 2026-11-06): any catalogue city as home — a latitude no recording has is answered with Rehovot's recording
+// (the weather is not what such a test looks at). Use as `weather: anyPlaceWeather`.
+export function anyPlaceWeather(n, url) {
+  const u = new URL(url);
+  u.searchParams.set('latitude', u.searchParams.get('latitude').split(',').map((lat) => (BY_LAT[lat] ? lat : '31.8928')).join(','));
+  return { status: 200, body: weatherAnswer(u.toString()) };
+}
 // Batch 12: the air quality (one request for every place: the 4-place recording, or the 1-place one) and the Hebcal
 // calendar (Jerusalem's recording for its GeoNames id, else Rehovot's; both 2026-11-02, 180 days).
 export function airAnswer(url) {
@@ -142,17 +149,47 @@ export function marketsRecorded(url) {
 }
 const MARKETS = /^https:\/\/(query1\.finance\.yahoo\.com|api\.exchange\.coinbase\.com|api\.coinbase\.com)\//;
 const fixtureText = (rel) => fs.readFileSync(path.join(FIXTURES, rel));
-// The Mapbox answers of one round, in route order (tests/fixtures/mapbox/routes.json), and which route a GET asks for
-// (its destination, lon,lat, is the answer's second waypoint).
+// The Mapbox answers of one round, in route order (tests/fixtures/mapbox/routes.json), and which route a GET asks for: its
+// two ends ([lon, lat] each) are the answer's waypoints. D10 (review-1): the origin too, within 0.001° (≈ 100 m), because
+// Mapbox recorded it snapped to the road (34.811296,31.892791 for Rehovot's 34.8113,31.8928): another home city's route to
+// a recorded destination is not Rehovot's.
 export const trafficFixture = () => JSON.parse(fs.readFileSync(path.join(FIXTURES, 'mapbox', 'routes.json'), 'utf8'));
+const legsOf = (url) => new URL(url).pathname.split('/').pop().split(';').map((p) => decodeURIComponent(p).split(',').map(Number));
+const snapped = (a, b) => Math.abs(a[0] - b[0]) < 1e-3 && Math.abs(a[1] - b[1]) < 1e-3;
 export function routeIndexOf(url) {
-  const to = decodeURIComponent(new URL(url).pathname.split(';')[1]);
-  return trafficFixture().findIndex((a) => a.waypoints[1].location.join(',') === to);
+  const [from, to] = legsOf(url);
+  return trafficFixture().findIndex((a) => snapped(a.waypoints[0].location, from) && a.waypoints[1].location.join(',') === to.join(','));
+}
+// D-ROUTES20 (2026-11-06): the home city has twenty routes (js/homecity.js: one GET each per round), the count read from
+// the app's own config, never restated here.
+const TRAFFIC = createRequire(import.meta.url)('../harness.js').load(['js/config.js', 'js/tz.js', 'js/ledger.js', 'js/net.js', 'js/traffic.js']);
+export const TRAFFIC_ROUTES = TRAFFIC.Config.traffic.routes.length;
+// A route's answer: its recording (list: trafficFixture() or a test's edited copy) where the 2026-10-30 round recorded it
+// (from Rehovot), else a deterministic answer from the straight line — the road 1.3 × longer, 75 km/h usual, the travel time
+// now 0–40 % over it by the destination (so the screen shows every chip level). Same URL, same answer.
+export function trafficAnswer(list, url) {
+  const i = routeIndexOf(url);
+  if (i >= 0) return list[i];
+  const [from, to] = legsOf(url);
+  const rad = (d) => d * Math.PI / 180;
+  const h = Math.sin(rad(to[1] - from[1]) / 2) ** 2 + Math.cos(rad(from[1])) * Math.cos(rad(to[1])) * Math.sin(rad(to[0] - from[0]) / 2) ** 2;
+  const road = 2 * 6371000 * Math.asin(Math.sqrt(h)) * 1.3, typical = road / (75 / 3.6);
+  const over = [0, 0.05, 0.2, 0.4, 0.1][Math.round(Math.abs(to[0] * 1000 + to[1] * 1000)) % 5];
+  return { code: 'Ok', routes: [{ duration: Math.round(typical * (1 + over) * 10) / 10, duration_typical: Math.round(typical * 10) / 10, distance: Math.round(road * 10) / 10 }],
+    waypoints: [{ location: from }, { location: to }] };
+}
+// The row cache js/traffic.js keeps (localStorage tt-cache) for the default home city's routes, signed for them: every row
+// is its route's answer (trafficAnswer), dated `at`.
+export function trafficCache(at) {
+  const cfg = TRAFFIC.Config.traffic, urls = TRAFFIC.Traffic.urls(Object.assign({}, cfg, { token: 'pk.FIXTURE123' }));
+  const rows = urls.map((u) => { const r = trafficAnswer(trafficFixture(), u).routes[0];
+    return { data: { travel: r.duration, free: r.duration_typical, delay: Math.max(r.duration - r.duration_typical, 0), length: r.distance }, updatedAt: at, error: null }; });
+  return JSON.stringify({ v: 1, sig: TRAFFIC.Traffic.signature(cfg.routes), rows, failed: false, problem: null, attemptAt: at });
 }
 export function newsSource(url) { for (const [prefix, id] of NEWS_FEEDS) if (url.startsWith(prefix)) return id; return null; }
 async function answerFor(kind, opts, url, n) {
   const o = opts[kind];
-  const custom = typeof o === 'function' ? o(kind === 'news' ? url : kind === 'traffic' ? Math.ceil(n / 10) : n, url) : null;
+  const custom = typeof o === 'function' ? o(kind === 'news' ? url : kind === 'traffic' ? Math.ceil(n / TRAFFIC_ROUTES) : n, url) : null;
   if (custom) return custom;
   if (o && o.hang) return o;                       // D-T4: the documented { hang: true } form, honoured for every source
   if (o === 'fail') return { status: 503, body: '' };
@@ -174,7 +211,7 @@ async function answerFor(kind, opts, url, n) {
   }
   if (kind === 'alerts' || kind === 'history') return { status: 200, body: fixtureText('oref/' + o) };
   if (kind === 'map') return { status: 200, contentType: 'image/png', headers: { 'Cache-Control': 'max-age=60,s-maxage=30' }, body: fixtureText('mapbox/static.png') };
-  return { status: 200, body: JSON.stringify(trafficFixture()[routeIndexOf(url)]) };
+  return { status: 200, body: JSON.stringify(trafficAnswer(trafficFixture(), url)) };
 }
 
 // opts: { weather: 'ok' | 'fail' | 'ok-then-fail' | (n, url) => { status, body } | { hang: true }, lang, news, alerts, traffic,

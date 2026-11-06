@@ -115,7 +115,7 @@ var Config = {
 
   // Screens, switched with the remote's ◀ ▶: 'main' (clocks + weather), 'israel' (the weather across Israel), 'news',
   // 'markets' (shares, crypto, indices, currencies, commodities), 'shabbat' (candle lighting, havdalah and the next holidays
-  // of the home city), 'traffic' (ten routes), 'map' (the traffic map with the highways), 'alerts' (Pikud HaOref: home, nearby and the recent alerts in Israel). Auto-rotation shows the
+  // of the home city), 'traffic' (twenty routes), 'map' (the traffic map with the highways), 'alerts' (Pikud HaOref: home, nearby and the recent alerts in Israel). Auto-rotation shows the
   // next one every intervalMs (enabled: false turns it off) — a screen named in dwellMs stays that long instead (the
   // markets 90 s: the owner, 2026-11-02); any key press pauses it for pauseAfterKeyMs, and an
   // alert at home (alerts.areas) holds it while the alert is up and for afterAlertMs after it clears.
@@ -152,22 +152,25 @@ var Config = {
     staleAfterMs: 35 * 60 * 1000
   },
 
-  // Traffic from Mapbox (Directions API, profile driving-traffic: live traffic for Israel; one GET per route, the ten in
-  // parallel). The token is NOT kept here: the build replaces the placeholder with MAPBOX_TOKEN from the git-ignored
-  // build.local.env. Without a token the screen shows how to connect one and sends nothing. The live traffic picture is
-  // on the map screen (a Mapbox image).
-  // The ten routes (`routes`: { id, from, to }, lat,lon) and their two columns of five (`columns`: «Города», «Рядом») are
-  // derived from the home city at boot (js/homecity.js): all from home, to five big cities and to the five nearest.
+  // Traffic from Mapbox (Directions API, profile driving-traffic: live traffic for Israel; one GET per route, the twenty
+  // in parallel — the browser itself queues them on its few connections per host: with six per host and 300 ms an
+  // answer the twenty are drawn after 1.2 s, ten after 0.6 s; tests/browser/screens.test.mjs FB5B-T6). The token is NOT
+  // kept here: the build replaces the placeholder with MAPBOX_TOKEN from the git-ignored build.local.env. Without a token
+  // the screen shows how to connect one and sends nothing. The live traffic picture is on the map screen (a Mapbox image).
+  // The twenty routes (`routes`: { id, from, to }, lat,lon) and their two columns of ten (`columns`: «Города», «Рядом»)
+  // are derived from the home city at boot (js/homecity.js): all from home — «Города»: the airport, Haifa, Nazareth, Tel
+  // Aviv, Jerusalem, Eilat, Beer Sheva and the largest cities; «Рядом»: the ten nearest.
   traffic: {
     token: '__MAPBOX_TOKEN__',
     base: 'https://api.mapbox.com/directions/v5/mapbox/driving-traffic/',
     // When a round is sent (js/traffic.js, Traffic.decide: one gate for every path), at any hour, only while the screen
     // is on view: an explicit ◀ ▶ open sends at once; a rotation arrival, the screen staying open and wake wait
     // minIntervalMs since the last ATTEMPT (failures and refusals included). Quota: Mapbox's free tier is 100,000
-    // Directions requests a MONTH; a round costs one request per route (10). dailyRequestCap is a hard guard per UTC
+    // Directions requests a MONTH; a round costs one request per route (20). dailyRequestCap is a hard guard per UTC
     // date, reserved in localStorage before every round and never refunded: any 31 days touch at most 32 UTC dates, so
     // they stay ≤ 32 × 3,000 = 96,000 (< 100,000);
-    // parked on the screen, 144 rounds a UTC date (1,440 requests). tests/build-config.test.js simulates every pattern.
+    // parked on the screen, 144 rounds a UTC date (2,880 requests: under the cap, never refused; 31 days parked = 89,300).
+    // tests/build-config.test.js simulates every pattern.
     // Re-check it when adding a route or changing these values.
     schedule: {
       minIntervalMs: 10 * 60 * 1000,    // rotation arrivals, staying open, wake: at most one attempt per 10 min
